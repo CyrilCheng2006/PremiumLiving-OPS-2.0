@@ -30,15 +30,19 @@ The system replaces manual paper-based workflows with a centralised, role-based 
 
 ```
 PremiumLiving-OPS-2.0/
+├── PremiumLivingOPS.sln          ← Done
+│
 ├── Database/
-│   ├── schema.sql                        ← Full database schema (DDL)
-│   └── sample_data.sql                   ← Seed data with 13 business scenarios
+│   ├── schema.sql                ← Done        ← Full database schema (DDL)
+│   └── sample_data.sql           ← Done        ← Seed data with 13 business scenarios
 │
 ├── PremiumLivingOPS/                     ← Visual Studio Project Root
+│   ├── PremiumLivingOPS.csproj   ← Done
+│   ├── Program.cs                ← Done
 │   ├── Models/
 │   │   ├── Entities/                     ← Step 1: Entity Classes (C#)
 │   │   │   ├── Customer.cs
-│   │   │   ├── Staff.cs
+│   │   │   ├── Staff.cs          ← Done
 │   │   │   ├── Product.cs
 │   │   │   ├── RawMaterial.cs
 │   │   │   ├── Order.cs
@@ -56,9 +60,9 @@ PremiumLiving-OPS-2.0/
 │   │   │   ├── WarehouseTransfer.cs
 │   │   │   └── AuditLog.cs
 │   │   └── DAL/                          ← Step 2: Repository Classes (MySQL)
-│   │       ├── DatabaseHelper.cs         ← MySQL connection manager
+│   │       ├── DatabaseHelper.cs ← Done        ← MySQL connection manager
 │   │       ├── CustomerRepo.cs
-│   │       ├── StaffRepo.cs
+│   │       ├── StaffRepo.cs      ← Done
 │   │       ├── ProductRepo.cs
 │   │       ├── RawMaterialRepo.cs
 │   │       ├── OrderRepo.cs
@@ -72,9 +76,10 @@ PremiumLiving-OPS-2.0/
 │   │
 │   └── Views/                            ← Step 3: Windows Forms
 │       ├── Auth/
-│       │   └── LoginForm.cs
+│       │   └── LoginForm.cs      ← Done
 │       ├── Dashboard/
-│       │   └── DashboardForm.cs
+│       │   ├── SessionManager.cs ← Done
+│       │   └── DashboardForm.cs  ← Done
 │       ├── OrderProcessing/
 │       │   ├── OrderListForm.cs
 │       │   ├── QuotationForm.cs
