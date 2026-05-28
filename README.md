@@ -31,15 +31,136 @@ The system replaces manual paper-based workflows with a centralised, role-based 
 ```
 PremiumLiving-OPS-2.0/
 ├── Database/
-│   ├── schema.sql            ← Full database schema (DDL)
-│   └── sample_data.sql       ← Seed data with 13 business scenarios
-├── PremiumLivingOPS/
+│   ├── schema.sql                        ← Full database schema (DDL)
+│   └── sample_data.sql                   ← Seed data with 13 business scenarios
+│
+├── PremiumLivingOPS/                     ← Visual Studio Project Root
 │   ├── Models/
-│   │   ├── Entities/         ← C# entity classes (Order, Customer, etc.)
-│   │   └── DAL/              ← Data Access Layer (MySQL queries)
-│   ├── Views/                ← Windows Forms (.cs + .Designer.cs)
-│   └── Controllers/          ← Business logic controllers
+│   │   ├── Entities/                     ← Step 1: Entity Classes (C#)
+│   │   │   ├── Customer.cs
+│   │   │   ├── Staff.cs
+│   │   │   ├── Product.cs
+│   │   │   ├── RawMaterial.cs
+│   │   │   ├── Order.cs
+│   │   │   ├── OrderItem.cs
+│   │   │   ├── Quotation.cs
+│   │   │   ├── Invoice.cs
+│   │   │   ├── Shipment.cs
+│   │   │   ├── DeliveryNote.cs
+│   │   │   ├── ReplySlip.cs
+│   │   │   ├── Complaint.cs
+│   │   │   ├── ReturnOrder.cs
+│   │   │   ├── Supplier.cs
+│   │   │   ├── SupplierReceipt.cs
+│   │   │   ├── PurchaseInvoice.cs
+│   │   │   ├── WarehouseTransfer.cs
+│   │   │   └── AuditLog.cs
+│   │   └── DAL/                          ← Step 2: Repository Classes (MySQL)
+│   │       ├── DatabaseHelper.cs         ← MySQL connection manager
+│   │       ├── CustomerRepo.cs
+│   │       ├── StaffRepo.cs
+│   │       ├── ProductRepo.cs
+│   │       ├── RawMaterialRepo.cs
+│   │       ├── OrderRepo.cs
+│   │       ├── QuotationRepo.cs
+│   │       ├── InvoiceRepo.cs
+│   │       ├── ShipmentRepo.cs
+│   │       ├── ComplaintRepo.cs
+│   │       ├── ReturnOrderRepo.cs
+│   │       ├── SupplierRepo.cs
+│   │       └── AuditLogRepo.cs
+│   │
+│   └── Views/                            ← Step 3: Windows Forms
+│       ├── Auth/
+│       │   └── LoginForm.cs
+│       ├── Dashboard/
+│       │   └── DashboardForm.cs
+│       ├── OrderProcessing/
+│       │   ├── OrderListForm.cs
+│       │   ├── QuotationForm.cs
+│       │   └── CreateOrderForm.cs
+│       ├── Logistics/
+│       │   ├── ShipmentListForm.cs
+│       │   ├── ScheduleShipmentForm.cs
+│       │   ├── DeliveryNoteForm.cs
+│       │   ├── SupplierReceiptForm.cs
+│       │   └── PurchaseInvoiceForm.cs
+│       ├── Inventory/
+│       │   ├── InventoryListForm.cs
+│       │   ├── InwardGoodsForm.cs
+│       │   └── WarehouseTransferForm.cs
+│       ├── AfterService/
+│       │   ├── CreateInvoiceForm.cs
+│       │   ├── ComplaintListForm.cs
+│       │   ├── ReturnOrderListForm.cs
+│       │   ├── AccountReceivableForm.cs
+│       │   └── AccountPayableForm.cs
+│       ├── MasterData/
+│       │   ├── SupplierListForm.cs
+│       │   └── CustomerListForm.cs
+│       └── SystemSecurity/
+│           ├── StaffListForm.cs
+│           └── AuditLogForm.cs
+│           ← Step 4: Event Handlers inside each Form's code-behind
+│
 └── README.md
+```
+
+---
+
+## 📱 Application Modules & Pages
+
+```
+Dashboard
+├── 1. Order Processing Management
+│   ├── View & Search Order
+│   ├── Quotation
+│   ├── Create Order
+│   └── Modify Order                          [Prototype 2]
+│       ├── Cancel Order
+│       └── Edit Order
+│
+├── 2. Production Processing Management       [Prototype 2]
+│   ├── Search Raw Material Request
+│   │   └── Modify Request (Edit / Delete)
+│   └── Create Raw Material Request
+│
+├── 3. Logistics Processing Management
+│   ├── View & Search Shipment
+│   │   ├── Schedule Shipment
+│   │   ├── Modify Shipment (Edit / Delete)
+│   │   └── Generate Delivery Notes & Reply Slip
+│   └── Handling Goods Received
+│       ├── Upload Supplier Receipt
+│       └── Record Purchase Invoice
+│
+├── 4. Inventory Control Management
+│   └── View & Search Product / Raw Material
+│       ├── Add New Item
+│       ├── Modify Item (Edit / Delete)
+│       ├── Record Inward Goods
+│       └── Record Warehouse Item Transfer
+│
+├── 5. Raw Material Management                [Prototype 2]
+│   ├── Create Procurement
+│   └── Search & List Procurement
+│
+├── 6. After-service Management
+│   ├── Create Invoice
+│   ├── Complaint List (Create / Edit / Delete)
+│   ├── Return Order List (Create / Edit)
+│   ├── Account Receivable
+│   └── Account Payable
+│
+├── 7. Master Data Maintenance
+│   ├── Supplier List (Add / Edit)
+│   └── Customer List (Add / Edit)
+│
+├── 8. System Security & Control
+│   ├── Staff List (Add / Edit / Delete)
+│   └── Log List
+│
+└── 9. Statistical Reports                    [Prototype 2]
 ```
 
 ---
@@ -138,11 +259,18 @@ The `sample_data.sql` file includes **13 realistic business scenarios** for test
 
 ## 🚀 Development Roadmap
 
+### Prototype 1
 - [ ] **Phase 1** — Database Schema + MySQL Connection (`DatabaseHelper.cs`) + Login (UC-019)
 - [ ] **Phase 2** — Sales Module (Order, Quotation, Invoice, Complaint)
 - [ ] **Phase 3** — Inventory & Procurement Module
 - [ ] **Phase 4** — Logistics Module (Shipment, Delivery, Return)
 - [ ] **Phase 5** — Finance + Admin Module
+
+### Prototype 2
+- [ ] **Phase 6** — Order Modification (Cancel / Edit Order)
+- [ ] **Phase 7** — Production Processing Management
+- [ ] **Phase 8** — Raw Material Management (Procurement)
+- [ ] **Phase 9** — Statistical Reports
 
 ---
 
