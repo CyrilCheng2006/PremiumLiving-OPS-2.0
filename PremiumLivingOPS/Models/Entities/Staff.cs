@@ -2,33 +2,32 @@ namespace PremiumLivingOPS.Models.Entities
 {
     /// <summary>
     /// Represents a row in the Staff table.
-    /// Phase 1 — Step 1: Entity Class
+    /// Columns aligned with schema.sql:
+    ///   StaffID, StaffName, StaffRole, Department, Email, StaffPassword
+    /// Note: schema.sql has no Status column.
     /// </summary>
     public class Staff
     {
-        // ── Primary Key ──────────────────────────────────────────────
+        // ── Private fields ───────────────────────────────────────────
         private string staffId;
         private string staffName;
-        private string role;
-        private string department;
+        private string staffRole;       // maps to StaffRole (ENUM in DB)
+        private string department;      // maps to Department (ENUM in DB)
         private string email;
-        private string password;
-        private string status;   // Active | Inactive
+        private string staffPassword;   // maps to StaffPassword
 
         // ── Constructors ─────────────────────────────────────────────
         public Staff() { }
 
-        public Staff(string staffId, string staffName, string role,
-                     string department, string email,
-                     string password, string status)
+        public Staff(string staffId, string staffName, string staffRole,
+                     string department, string email, string staffPassword)
         {
-            this.staffId    = staffId;
-            this.staffName  = staffName;
-            this.role       = role;
-            this.department = department;
-            this.email      = email;
-            this.password   = password;
-            this.status     = status;
+            this.staffId       = staffId;
+            this.staffName     = staffName;
+            this.staffRole     = staffRole;
+            this.department    = department;
+            this.email         = email;
+            this.staffPassword = staffPassword;
         }
 
         // ── Properties ───────────────────────────────────────────────
@@ -44,12 +43,14 @@ namespace PremiumLivingOPS.Models.Entities
             set { staffName = value; }
         }
 
+        /// <summary>Maps to StaffRole column in DB (ENUM: Administrator/Manager/Clerk/Staff/Deliverer).</summary>
         public string Role
         {
-            get { return role; }
-            set { role = value; }
+            get { return staffRole; }
+            set { staffRole = value; }
         }
 
+        /// <summary>Maps to Department column in DB (ENUM: IT/Production/Sales/Inventory/Finance/Logistics).</summary>
         public string Department
         {
             get { return department; }
@@ -62,23 +63,18 @@ namespace PremiumLivingOPS.Models.Entities
             set { email = value; }
         }
 
+        /// <summary>Maps to StaffPassword column in DB.</summary>
         public string Password
         {
-            get { return password; }
-            set { password = value; }
-        }
-
-        public string Status
-        {
-            get { return status; }
-            set { status = value; }
+            get { return staffPassword; }
+            set { staffPassword = value; }
         }
 
         // ── Derived Attribute ────────────────────────────────────────
-        /// <summary>Display name combining role and name, e.g. "Manager — Chan Ho Yuen"</summary>
+        /// <summary>Display string combining role and name, e.g. "Manager — Chan Ho Yuen"</summary>
         public string DisplayName
         {
-            get { return $"{role} — {staffName}"; }
+            get { return $"{staffRole} — {staffName}"; }
         }
     }
 }

@@ -6,14 +6,29 @@ namespace PremiumLivingOPS.Models.DAL
 {
     /// <summary>
     /// Repository class for Staff table.
-    /// Phase 1 — Step 2: DAL / Repository
+    /// SQL columns aligned with schema.sql:
+    ///   StaffID, StaffName, StaffRole, Department, Email, StaffPassword
+    /// Note: schema.sql has NO Status column.
     /// </summary>
     public class StaffRepo
     {
+        // ── Helper: map a reader row to a Staff object ────────────────
+        private Staff MapRow(MySqlDataReader r)
+        {
+            Staff s        = new Staff();
+            s.StaffId      = r.GetString("StaffID");
+            s.StaffName    = r.GetString("StaffName");
+            s.Role         = r.GetString("StaffRole");      // DB col: StaffRole
+            s.Department   = r.GetString("Department");
+            s.Email        = r.GetString("Email");
+            s.Password     = r.GetString("StaffPassword");  // DB col: StaffPassword
+            return s;
+        }
+
         // ── READ ─────────────────────────────────────────────────────
 
         /// <summary>
-        /// Authenticates a staff member by StaffId and Password.
+        /// Authenticates a staff member by StaffID and StaffPassword.
         /// Returns the Staff object on success, or null on failure.
         /// Used by UC-019 Login Account.
         /// </summary>
@@ -24,9 +39,9 @@ namespace PremiumLivingOPS.Models.DAL
             using (MySqlConnection conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
-                string sql = "SELECT StaffId, StaffName, Role, Department, Email, Status " +
+                string sql = "SELECT StaffID, StaffName, StaffRole, Department, Email, StaffPassword " +
                              "FROM Staff " +
-                             "WHERE StaffId = @staffId AND Password = @password AND Status = 'Active'";
+                             "WHERE StaffID = @staffId AND StaffPassword = @password";
 
                 using (MySqlCommand cmd = new MySqlCommand(sql, conn))
                 {
@@ -36,15 +51,7 @@ namespace PremiumLivingOPS.Models.DAL
                     using (MySqlDataReader reader = cmd.ExecuteReader())
                     {
                         if (reader.Read())
-                        {
-                            staff = new Staff();
-                            staff.StaffId    = reader.GetString("StaffId");
-                            staff.StaffName  = reader.GetString("StaffName");
-                            staff.Role       = reader.GetString("Role");
-                            staff.Department = reader.GetString("Department");
-                            staff.Email      = reader.GetString("Email");
-                            staff.Status     = reader.GetString("Status");
-                        }
+                            staff = MapRow(reader);
                     }
                 }
             }
@@ -52,7 +59,7 @@ namespace PremiumLivingOPS.Models.DAL
             return staff;
         }
 
-        /// <summary>Returns all active staff members.</summary>
+        /// <summary>Returns all staff members.</summary>
         public List<Staff> GetAll()
         {
             List<Staff> list = new List<Staff>();
@@ -60,30 +67,21 @@ namespace PremiumLivingOPS.Models.DAL
             using (MySqlConnection conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
-                string sql = "SELECT StaffId, StaffName, Role, Department, Email, Status " +
-                             "FROM Staff ORDER BY StaffId";
+                string sql = "SELECT StaffID, StaffName, StaffRole, Department, Email, StaffPassword " +
+                             "FROM Staff ORDER BY StaffID";
 
                 using (MySqlCommand cmd = new MySqlCommand(sql, conn))
                 using (MySqlDataReader reader = cmd.ExecuteReader())
                 {
                     while (reader.Read())
-                    {
-                        Staff s = new Staff();
-                        s.StaffId    = reader.GetString("StaffId");
-                        s.StaffName  = reader.GetString("StaffName");
-                        s.Role       = reader.GetString("Role");
-                        s.Department = reader.GetString("Department");
-                        s.Email      = reader.GetString("Email");
-                        s.Status     = reader.GetString("Status");
-                        list.Add(s);
-                    }
+                        list.Add(MapRow(reader));
                 }
             }
 
             return list;
         }
 
-        /// <summary>Returns a staff member by StaffId, or null if not found.</summary>
+        /// <summary>Returns a staff member by StaffID, or null if not found.</summary>
         public Staff GetById(string staffId)
         {
             Staff staff = null;
@@ -91,8 +89,8 @@ namespace PremiumLivingOPS.Models.DAL
             using (MySqlConnection conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
-                string sql = "SELECT StaffId, StaffName, Role, Department, Email, Status " +
-                             "FROM Staff WHERE StaffId = @staffId";
+                string sql = "SELECT StaffID, StaffName, StaffRole, Department, Email, StaffPassword " +
+                             "FROM Staff WHERE StaffID = @staffId";
 
                 using (MySqlCommand cmd = new MySqlCommand(sql, conn))
                 {
@@ -101,15 +99,7 @@ namespace PremiumLivingOPS.Models.DAL
                     using (MySqlDataReader reader = cmd.ExecuteReader())
                     {
                         if (reader.Read())
-                        {
-                            staff = new Staff();
-                            staff.StaffId    = reader.GetString("StaffId");
-                            staff.StaffName  = reader.GetString("StaffName");
-                            staff.Role       = reader.GetString("Role");
-                            staff.Department = reader.GetString("Department");
-                            staff.Email      = reader.GetString("Email");
-                            staff.Status     = reader.GetString("Status");
-                        }
+                            staff = MapRow(reader);
                     }
                 }
             }
@@ -125,8 +115,8 @@ namespace PremiumLivingOPS.Models.DAL
             using (MySqlConnection conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
-                string sql = "INSERT INTO Staff (StaffId, StaffName, Role, Department, Email, Password, Status) " +
-                             "VALUES (@staffId, @staffName, @role, @department, @email, @password, @status)";
+                string sql = "INSERT INTO Staff (StaffID, StaffName, StaffRole, Department, Email, StaffPassword) " +
+                             "VALUES (@staffId, @staffName, @role, @department, @email, @password)";
 
                 using (MySqlCommand cmd = new MySqlCommand(sql, conn))
                 {
@@ -136,7 +126,6 @@ namespace PremiumLivingOPS.Models.DAL
                     cmd.Parameters.AddWithValue("@department", staff.Department);
                     cmd.Parameters.AddWithValue("@email",      staff.Email);
                     cmd.Parameters.AddWithValue("@password",   staff.Password);
-                    cmd.Parameters.AddWithValue("@status",     staff.Status);
 
                     return cmd.ExecuteNonQuery() > 0;
                 }
@@ -151,10 +140,11 @@ namespace PremiumLivingOPS.Models.DAL
             using (MySqlConnection conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
-                string sql = "UPDATE Staff SET StaffName = @staffName, Role = @role, " +
-                             "Department = @department, Email = @email, " +
-                             "Password = @password, Status = @status " +
-                             "WHERE StaffId = @staffId";
+                string sql = "UPDATE Staff " +
+                             "SET StaffName = @staffName, StaffRole = @role, " +
+                             "    Department = @department, Email = @email, " +
+                             "    StaffPassword = @password " +
+                             "WHERE StaffID = @staffId";
 
                 using (MySqlCommand cmd = new MySqlCommand(sql, conn))
                 {
@@ -164,7 +154,6 @@ namespace PremiumLivingOPS.Models.DAL
                     cmd.Parameters.AddWithValue("@department", staff.Department);
                     cmd.Parameters.AddWithValue("@email",      staff.Email);
                     cmd.Parameters.AddWithValue("@password",   staff.Password);
-                    cmd.Parameters.AddWithValue("@status",     staff.Status);
 
                     return cmd.ExecuteNonQuery() > 0;
                 }
@@ -173,13 +162,16 @@ namespace PremiumLivingOPS.Models.DAL
 
         // ── DELETE ───────────────────────────────────────────────────
 
-        /// <summary>Soft-deletes a Staff record by setting Status to Inactive.</summary>
+        /// <summary>
+        /// Hard-deletes a Staff record.
+        /// Note: schema.sql has no Status column, so soft-delete is not supported.
+        /// </summary>
         public bool Delete(string staffId)
         {
             using (MySqlConnection conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
-                string sql = "UPDATE Staff SET Status = 'Inactive' WHERE StaffId = @staffId";
+                string sql = "DELETE FROM Staff WHERE StaffID = @staffId";
 
                 using (MySqlCommand cmd = new MySqlCommand(sql, conn))
                 {
