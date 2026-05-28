@@ -10,9 +10,9 @@ namespace PremiumLivingOPS.Models.DAL
     {
         private static string host     = "127.0.0.1";
         private static string port     = "3306";
-        private static string database = "premiumliving_ops";
+        private static string database = "premiumlivingfurniture";
         private static string userId   = "root";
-        private static string password = "";
+        private static string password = "root";
 
         /// <summary>
         /// Returns a new (unopened) MySqlConnection using the configured credentials.
