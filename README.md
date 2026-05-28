@@ -232,18 +232,6 @@ The `sample_data.sql` file includes **13 realistic business scenarios** for test
 
 ---
 
-## 🏭 Warehouses
-
-| WarehouseID | Location | Manager |
-|---|---|---|
-| WH-20260101-0001 | Kwai Chung, Hong Kong | Chan Wai Man (S-005) |
-| WH-20260101-0002 | Shenzhen, China (Raw Materials) | Chan Ho Yuen (S-002) |
-| WH-20260101-0003 | London, UK | James Mitchell (S-008) |
-| WH-20260101-0004 | Tokyo, Japan | Yuki Tanaka (S-009) |
-| WH-20260101-0005 | Los Angeles, USA | Maria Gonzalez (S-010) |
-
----
-
 ## 🎯 Module & Use Case Mapping
 
 | Department | Module | Key Use Cases |
@@ -271,12 +259,6 @@ The `sample_data.sql` file includes **13 realistic business scenarios** for test
 - [ ] **Phase 7** — Production Processing Management
 - [ ] **Phase 8** — Raw Material Management (Procurement)
 - [ ] **Phase 9** — Statistical Reports
-
----
-
-## 📄 Reference Documents
-
-- System Analysis and Design Report — Premium Living Furniture Co. Ltd. (2026)
 
 ---
 
