@@ -1,5 +1,6 @@
 using PremiumLivingOPS.Models.DAL;
 using PremiumLivingOPS.Models.Entities;
+using PremiumLivingOPS.Views.Dashboard;
 using System;
 using System.Windows.Forms;
 
@@ -8,7 +9,6 @@ namespace PremiumLivingOPS.Views.Auth
     /// <summary>
     /// UC-019  Login Account
     /// Staff enters Staff ID and Password to access the system.
-    /// Phase 1 — Step 3 (View) + Step 4 (Event Handler)
     /// </summary>
     public partial class LoginForm : Form
     {
@@ -17,24 +17,24 @@ namespace PremiumLivingOPS.Views.Auth
         // ── Shared session: logged-in staff accessible system-wide ───
         public static Staff CurrentUser { get; private set; }
 
-        // ── Constructor ──────────────────────────────────────────────
+        // ── Constructor ────────────────────────────────────────────
         public LoginForm()
         {
             InitializeComponent();
         }
 
-        // ── Event Handlers ───────────────────────────────────────────
+        // ── Event Handlers ────────────────────────────────────────
 
         /// <summary>
         /// Triggered when user clicks the Login button (or presses Enter).
-        /// Flow: validate inputs → call StaffRepo.Login → open Dashboard or show error.
+        /// Flow: validate inputs → StaffRepo.Login → open Dashboard or show error.
         /// </summary>
         private void btnLogin_Click(object sender, EventArgs e)
         {
             string staffId  = txtStaffId.Text.Trim();
             string password = txtPassword.Text;
 
-            // ── Input validation ─────────────────────────────────────
+            // ── Input validation ───────────────────────────────────
             if (string.IsNullOrEmpty(staffId) || string.IsNullOrEmpty(password))
             {
                 MessageBox.Show("Please enter your Staff ID and Password.",
@@ -44,28 +44,22 @@ namespace PremiumLivingOPS.Views.Auth
                 return;
             }
 
-            // ── Authenticate ─────────────────────────────────────────
+            // ── Authenticate ───────────────────────────────────────
             Staff staff = staffRepo.Login(staffId, password);
 
             if (staff != null)
             {
                 CurrentUser = staff;
 
-                // Open role-specific dashboard
-                // DashboardForm dashboard = new DashboardForm();
-                // dashboard.Show();
-                // this.Hide();
-
-                MessageBox.Show($"Welcome, {staff.StaffName}!\nRole: {staff.Role} | Dept: {staff.Department}",
-                                "Login Successful",
-                                MessageBoxButtons.OK,
-                                MessageBoxIcon.Information);
-
-                // TODO (Phase 2+): Replace MessageBox with DashboardForm.Show()
+                // ── Open Dashboard and hide Login window ─────────────
+                DashboardForm dashboard = new DashboardForm();
+                dashboard.FormClosed += (s, args) => this.Close(); // close app when Dashboard exits
+                dashboard.Show();
+                this.Hide();
             }
             else
             {
-                // UC-019 Alternative Flow: wrong credentials → show error and ask to try again
+                // UC-019 Alternative Flow: wrong credentials → show error
                 MessageBox.Show("Incorrect Staff ID or Password. Please try again.",
                                 "Login Failed",
                                 MessageBoxButtons.OK,
