@@ -501,12 +501,12 @@ namespace PremiumLivingOPS.Views.Dashboard
             p.Controls.Add(lblIcon);
             p.Controls.Add(lblText);
 
-            // Hover
-            p.MouseEnter += (s, e) => { if (p != _activeNavItem) p.BackColor = Palette.SidebarHover; };
-            p.MouseLeave += (s, e) => { if (p != _activeNavItem) p.BackColor = Color.Transparent; };
-            p.Click += (s, e) => SetActiveNav(p);
-            lblIcon.Click += (s, e) => { p.PerformClick(); };
-            lblText.Click += (s, e) => { p.PerformClick(); };
+            // Hover & click — Panel has no PerformClick(); call SetActiveNav directly
+            p.MouseEnter    += (s, e) => { if (p != _activeNavItem) p.BackColor = Palette.SidebarHover; };
+            p.MouseLeave    += (s, e) => { if (p != _activeNavItem) p.BackColor = Color.Transparent; };
+            p.Click         += (s, e) => SetActiveNav(p);
+            lblIcon.Click   += (s, e) => SetActiveNav(p);   // ✅ fixed: was p.PerformClick()
+            lblText.Click   += (s, e) => SetActiveNav(p);   // ✅ fixed: was p.PerformClick()
 
             return p;
         }
