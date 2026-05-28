@@ -1,19 +1,15 @@
 # 🪑 Premium Living Furniture Co. Ltd. — OPS System 2.0
 
-> **Order Processing & Stock Recording System**  
-> A centralized desktop management system for Premium Living Furniture Co. Ltd.
+> **Operations Management System** for Premium Living Furniture Co. Ltd.  
+> Built with **C# (.NET) · Windows Forms · MySQL · MVC Architecture**
 
 ---
 
 ## 📌 Project Overview
 
-Premium Living Furniture Co. Ltd. is transitioning from a fragmented, email-based operation to a **centralized computerized system** that integrates all departments into a single platform.
+The **PremiumLiving-OPS 2.0** is a Windows desktop application designed to digitalise and streamline the core business operations of Premium Living Furniture Co. Ltd. — a multi-warehouse furniture company with operations across **Hong Kong, Shenzhen, London, Tokyo, and Los Angeles**.
 
-This system resolves core operational issues including:
-- Non-trackable material requests causing production delays
-- Fragmented customer complaint handling with no central tracking
-- Manual order modification via email causing delays
-- Decentralized inventory and delivery visibility
+The system replaces manual paper-based workflows with a centralised, role-based platform covering Sales, Inventory, Production, Logistics, Finance, and IT Administration.
 
 ---
 
@@ -21,166 +17,139 @@ This system resolves core operational issues including:
 
 | Layer | Technology |
 |---|---|
-| **Language** | C# (.NET) |
-| **UI Framework** | Windows Forms |
-| **Database** | MySQL |
-| **IDE** | Visual Studio 2026 |
-| **Architecture** | MVC (Model-View-Controller) |
-| **Version Control** | GitHub |
+| Language | C# (.NET) |
+| UI Framework | Windows Forms |
+| Architecture | MVC (Model-View-Controller) |
+| Database | MySQL |
+| IDE | Visual Studio 2026 |
+| Version Control | Git / GitHub |
 
 ---
 
-## 🏗️ MVC Architecture
+## 🏗️ Project Structure
 
 ```
 PremiumLiving-OPS-2.0/
-├── Models/
-│   ├── Entities/          # Entity Classes (Step 1) — map to DB tables
-│   └── DAL/               # Repository Classes (Step 2) — CRUD operations
-├── Views/                 # Windows Forms (Step 3) — UI per module
-│   ├── Auth/
-│   ├── Dashboard/
-│   ├── OrderProcessing/
-│   ├── Logistics/
-│   ├── Inventory/
-│   ├── AfterService/
-│   ├── MasterData/
-│   └── SystemSecurity/
 ├── Database/
-│   ├── schema.sql         # Database schema (CREATE TABLE)
-│   └── simple_data_updated-2.sql  # Sample data (INSERT)
+│   ├── schema.sql            ← Full database schema (DDL)
+│   └── sample_data.sql       ← Seed data with 13 business scenarios
+├── PremiumLivingOPS/
+│   ├── Models/
+│   │   ├── Entities/         ← C# entity classes (Order, Customer, etc.)
+│   │   └── DAL/              ← Data Access Layer (MySQL queries)
+│   ├── Views/                ← Windows Forms (.cs + .Designer.cs)
+│   └── Controllers/          ← Business logic controllers
 └── README.md
 ```
 
 ---
 
-## 🗄️ Database Schema
+## 🗄️ Database
 
-**Database:** `PremiumLivingFurniture`
+### Schema Tables (27 Tables)
 
-### Core Tables
-
-| Table | Description |
+| Category | Tables |
 |---|---|
-| `Staff` | System users with roles & departments |
-| `Customer` | Customer records |
-| `Address` | Customer delivery/billing addresses |
-| `Supplier` | Supplier information |
-| `Item` | Base item registry (products & raw materials) |
-| `Product` | Finished goods (extends Item) |
-| `RawMaterial` | Raw materials (extends Item) |
-| `Warehouse` | Warehouse locations |
-| `WarehouseItem` | Stock levels per item per warehouse |
+| **Master Data** | `Staff`, `Customer`, `Address`, `Supplier`, `Item`, `Product`, `RawMaterial` |
+| **Warehouse** | `Warehouse`, `WarehouseItem`, `TransferForm`, `TransferForm_WarehouseItem` |
+| **Sales** | `Quotation`, `Order`, `OrderLine`, `Invoice` |
+| **Logistics** | `Shipment`, `ShipmentLine`, `DeliveryNote`, `ReplySlip`, `ReturnOrder`, `ReturnOrderItem` |
+| **Procurement** | `MaterialRequest`, `PurchaseOrder`, `PurchaseOrderLine`, `PurchaseInvoice`, `Receipt` |
+| **Finance** | `Transaction` |
+| **System** | `Complaint`, `Log` |
 
-### Order & Sales
+### Setup Instructions
 
-| Table | Description |
-|---|---|
-| `Quotation` | Sales quotations |
-| `Order` | Customer orders |
-| `OrderLine` | Order line items |
-| `Invoice` | Sales invoices |
-| `Transaction` | Payment transactions |
-
-### Logistics
-
-| Table | Description |
-|---|---|
-| `Shipment` | Shipment records |
-| `ShipmentLine` | Shipment line items |
-| `DeliveryNote` | Delivery notes |
-| `ReplySlip` | Customer receipt confirmation |
-| `ReturnOrder` | Return/refund requests |
-| `ReturnOrderItem` | Return order line items |
-
-### Inventory & Procurement
-
-| Table | Description |
-|---|---|
-| `MaterialRequest` | Raw material requests from Production |
-| `PurchaseOrder` | Purchase orders to suppliers |
-| `PurchaseOrderLine` | PO line items |
-| `PurchaseInvoice` | Supplier invoices |
-| `Receipt` | Goods received records |
-| `TransferForm` | Warehouse transfer forms |
-| `TransferForm_WarehouseItem` | Transfer form line items |
-
-### System
-
-| Table | Description |
-|---|---|
-| `Complaint` | Customer complaints |
-| `Log` | System audit logs |
-
----
-
-## 👥 User Roles & Departments
-
-| Role | Department | Access Level |
-|---|---|---|
-| `Administrator` | IT | Full system access, user management |
-| `Manager` | All | Module management + approval |
-| `Clerk` | Sales / Inventory | CRUD on assigned modules |
-| `Staff` | Logistics / Production | Operational tasks |
-| `Deliverer` | Logistics | Shipment & delivery tasks |
-
----
-
-## 📦 Module Structure (Prototype 1)
-
-| # | Module | Key Functions |
-|---|---|---|
-| 1 | Order Processing | View/Search Orders, Quotation, Create Order |
-| 3 | Logistics Processing | Shipment management, Delivery Notes, Goods Received |
-| 4 | Inventory Control | Product & Raw Material management, Inward Goods, Transfer |
-| 6 | After-Service | Invoice, Complaints, Return Orders, AR/AP |
-| 7 | Master Data | Supplier & Customer management |
-| 8 | System Security | Staff management, Audit Logs |
-
-> **Prototype 2** will include: Order Modification, Production Management, Raw Material Procurement, Statistical Reports.
-
----
-
-## ⚙️ Database Setup
-
-1. Install MySQL and run the scripts in order:
 ```sql
--- Step 1: Create schema
-source Database/schema.sql
+-- Step 1: Create the database and schema
+SOURCE Database/schema.sql;
 
--- Step 2: Insert sample data
-source Database/simple_data_updated-2.sql
-```
-
-2. Update connection string in `Models/DAL/DatabaseHelper.cs`:
-```csharp
-string host = "127.0.0.1";
-string db = "PremiumLivingFurniture";
-string userId = "root";
-string password = "your_password";
+-- Step 2: Load sample data
+SOURCE Database/sample_data.sql;
 ```
 
 ---
 
-## 🚀 Getting Started
+## 📦 Sample Data Scenarios
 
-1. Clone the repository
-```bash
-git clone https://github.com/CyrilCheng2006/PremiumLiving-OPS-2.0.git
-```
-2. Open `PremiumLivingOPS.sln` in Visual Studio 2026
-3. Restore NuGet packages (`MySql.Data`)
-4. Set up database (see above)
-5. Build and run
+The `sample_data.sql` file includes **13 realistic business scenarios** for testing:
+
+| # | Scenario | Key Tables Involved |
+|---|---|---|
+| 1 | Low inventory → auto reorder (no order) | `MaterialRequest`, `PurchaseOrder`, `Receipt` |
+| 2 | Warehouse stock transfer between branches | `TransferForm`, `TransferForm_WarehouseItem` |
+| 3 | Chan Siu Ming — Quotation + Deposit + Full payment | `Quotation`, `Order`, `Invoice`, `Transaction` |
+| 4 | Lee Wai Kwan — Deposit + Complaint | `Order`, `Complaint` |
+| 5 | ABC Furniture Ltd — Partial delivery + Complaints | `Shipment`, `ShipmentLine`, `Complaint` |
+| 6 | Wong Cheuk Hei — No quotation, full payment | `Order`, `Invoice`, `Shipment` |
+| 7 | Sunrise Interiors — Rate discount + Deposit | `Quotation`, `Order` (DiscountType=Rate) |
+| 8 | Tanaka Home Design — In transit, partial payment | `Shipment` (In Transit), `Invoice` (Partial) |
+| 9 | Nordic Nest AB — Deposit paid, pending | `Order` (Pending), `Invoice` |
+| 10 | Sunrise Interiors — Return order (no refund) | `ReturnOrder`, `ReturnOrderItem` |
+| 11 | Chan Siu Ming — Return order + Refund | `ReturnOrder`, `Transaction` (Refund) |
+| 12 | Multiple mixed single orders + complaints | `Order`, `Complaint`, `Shipment` |
+| 13 | Beaumont Living SAS — Reorder triggered by order | `MaterialRequest` (OrderDemand), `PurchaseOrder` |
+
+---
+
+## 👥 Staff Accounts (for Testing)
+
+| StaffID | Name | Role | Department | Password |
+|---|---|---|---|---|
+| S-001 | IT Admin | Administrator | IT | `admin123` |
+| S-002 | Chan Ho Yuen | Manager | Production | `prod456` |
+| S-003 | Lam Siu Keung | Staff | Logistics | `log789` |
+| S-004 | Wong Kin Ho | Clerk | Sales | `sales321` |
+| S-005 | Chan Wai Man | Manager | Inventory (HK) | `wh001` |
+| S-006 | Ng Pak Hei | Manager | Finance | `fin888` |
+| S-007 | Yeung Chi Wai | Deliverer | Logistics | `drv999` |
+| S-008 | James Mitchell | Manager | Inventory (London) | `lon001` |
+| S-009 | Yuki Tanaka | Manager | Inventory (Tokyo) | `tok001` |
+| S-010 | Maria Gonzalez | Manager | Inventory (LA) | `la001` |
+
+> ⚠️ **Note:** Passwords in the seed data are plain text for development purposes only. Production builds must hash passwords (e.g., BCrypt).
+
+---
+
+## 🏭 Warehouses
+
+| WarehouseID | Location | Manager |
+|---|---|---|
+| WH-20260101-0001 | Kwai Chung, Hong Kong | Chan Wai Man (S-005) |
+| WH-20260101-0002 | Shenzhen, China (Raw Materials) | Chan Ho Yuen (S-002) |
+| WH-20260101-0003 | London, UK | James Mitchell (S-008) |
+| WH-20260101-0004 | Tokyo, Japan | Yuki Tanaka (S-009) |
+| WH-20260101-0005 | Los Angeles, USA | Maria Gonzalez (S-010) |
+
+---
+
+## 🎯 Module & Use Case Mapping
+
+| Department | Module | Key Use Cases |
+|---|---|---|
+| Sales | Order, Quotation, Invoice, Complaint | UC-001, UC-002, UC-003, UC-004, UC-016 |
+| Inventory | Stock Management, Reorder, Reconcile | UC-005, UC-006, UC-007, UC-021 |
+| Production | Material Request | UC-018 |
+| Logistics | Delivery, Shipment Tracking, Return, Reply Slip | UC-008, UC-009, UC-010, UC-017 |
+| Finance | Transaction Records | UC-014, UC-015 |
+| IT / Admin | Staff Accounts, Audit Log | UC-011, UC-012, UC-013, UC-019 |
+
+---
+
+## 🚀 Development Roadmap
+
+- [ ] **Phase 1** — Database Schema + MySQL Connection (`DatabaseHelper.cs`) + Login (UC-019)
+- [ ] **Phase 2** — Sales Module (Order, Quotation, Invoice, Complaint)
+- [ ] **Phase 3** — Inventory & Procurement Module
+- [ ] **Phase 4** — Logistics Module (Shipment, Delivery, Return)
+- [ ] **Phase 5** — Finance + Admin Module
 
 ---
 
 ## 📄 Reference Documents
 
-- `Reference.docx` — System Analysis and Design Report
-- `MVC_implementation.pdf` — MVC Architecture Guidelines
+- System Analysis and Design Report — Premium Living Furniture Co. Ltd. (2026)
 
 ---
 
-*Developed as part of ITP4915M — System Development Project*  
-*Hong Kong Institute of Information Technology*
+*Last updated: 2026-05-28*
