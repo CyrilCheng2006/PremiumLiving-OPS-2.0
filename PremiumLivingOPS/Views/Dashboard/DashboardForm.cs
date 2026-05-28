@@ -1,0 +1,332 @@
+using PremiumLivingOPS.Views.Dashboard;
+using System;
+using System.Drawing;
+using System.Windows.Forms;
+
+namespace PremiumLivingOPS.Views.Dashboard
+{
+    /// <summary>
+    /// Main Dashboard — mirrors the design of dashboard.html in PremiumLiving-OPS-HTML.
+    /// Layout:  Left sidebar (nav) | Right area: top-nav + scrollable content
+    /// Content: Alert banner, 8 KPI cards, 3 dual-column section panels.
+    /// Phase 1 — Step 3 (View) + Step 4 (Event Handlers)
+    /// </summary>
+    public partial class DashboardForm : Form
+    {
+        // ── Brand colours (matching dashboard.html CSS variables) ──────────
+        internal static class Palette
+        {
+            public static readonly Color BgPage       = Color.FromArgb(240, 244, 249); // --bg
+            public static readonly Color BgCard       = Color.White;                   // --card
+            public static readonly Color BorderColor  = Color.FromArgb(221, 227, 236); // --border
+            public static readonly Color Primary      = Color.FromArgb(47,  111, 237); // --primary
+            public static readonly Color PrimaryDark  = Color.FromArgb(26,  77,  192); // --primary-dark
+            public static readonly Color Danger       = Color.FromArgb(232, 64,  64);  // --danger
+            public static readonly Color Success      = Color.FromArgb(30,  184, 122); // --success
+            public static readonly Color Warning      = Color.FromArgb(245, 158, 11);  // --warning
+            public static readonly Color Info         = Color.FromArgb(6,   182, 212); // --info
+            public static readonly Color TextMain     = Color.FromArgb(15,  31,  53);  // --text
+            public static readonly Color TextMuted    = Color.FromArgb(98,  112, 135); // --muted
+            public static readonly Color SidebarBg    = Color.FromArgb(19,  35,  61);  // --sidebar-bg
+            public static readonly Color SidebarText  = Color.FromArgb(205, 216, 234); // --sidebar-text
+            public static readonly Color SidebarHover = Color.FromArgb(30,  53,  88);  // --sidebar-hover
+            public static readonly Color TagBlueBg    = Color.FromArgb(219, 234, 254);
+            public static readonly Color TagBlueFg    = Color.FromArgb(29,  78,  216);
+            public static readonly Color TagGreenBg   = Color.FromArgb(209, 250, 229);
+            public static readonly Color TagGreenFg   = Color.FromArgb(6,   95,  70);
+            public static readonly Color TagRedBg     = Color.FromArgb(254, 226, 226);
+            public static readonly Color TagRedFg     = Color.FromArgb(153, 27,  27);
+            public static readonly Color TagYellowBg  = Color.FromArgb(254, 243, 199);
+            public static readonly Color TagYellowFg  = Color.FromArgb(146, 64,  14);
+            public static readonly Color TagGrayBg    = Color.FromArgb(241, 245, 249);
+            public static readonly Color TagGrayFg    = Color.FromArgb(71,  85,  105);
+        }
+
+        // ── Fonts ─────────────────────────────────────────────────────
+        private static readonly Font FontBody     = new Font("Segoe UI", 9f,  FontStyle.Regular);
+        private static readonly Font FontBodyBold = new Font("Segoe UI", 9f,  FontStyle.Bold);
+        private static readonly Font FontSmall    = new Font("Segoe UI", 8f,  FontStyle.Regular);
+        private static readonly Font FontSmallBold= new Font("Segoe UI", 8f,  FontStyle.Bold);
+        private static readonly Font FontTitle    = new Font("Segoe UI", 16f, FontStyle.Bold);
+        private static readonly Font FontNav      = new Font("Segoe UI", 9.5f,FontStyle.Regular);
+        private static readonly Font FontKpiVal   = new Font("Segoe UI", 20f, FontStyle.Bold);
+        private static readonly Font FontKpiLabel = new Font("Segoe UI", 7.5f,FontStyle.Bold);
+
+        // ── Active nav item tracking ────────────────────────────────────
+        private Panel _activeNavItem;
+
+        // ── Constructor ─────────────────────────────────────────────
+        public DashboardForm()
+        {
+            InitializeComponent();
+            PopulateDashboard();
+        }
+
+        // ====================================================================
+        // DATA POPULATION  (replace with DB calls in later phases)
+        // ====================================================================
+        private void PopulateDashboard()
+        {
+            // ── Top-nav: show logged-in user name ──────────────────────────
+            if (SessionManager.IsLoggedIn)
+            {
+                lblTopNavUser.Text = SessionManager.CurrentUser.StaffName;
+                lblAvatar.Text     = GetInitials(SessionManager.CurrentUser.StaffName);
+            }
+            else
+            {
+                lblTopNavUser.Text = "Guest";
+                lblAvatar.Text     = "?";
+            }
+
+            // ── Date subtitle ───────────────────────────────────────────────
+            lblPageSub.Text = "Premium Living Furniture Co.  ·  Overview as of " +
+                              DateTime.Now.ToString("d MMMM yyyy");
+
+            // ── KPI Cards (sample data matching sample_data.sql) ───────────
+            SetKpiCard(kpiOrders,         "TOTAL ORDERS (Mar)",    "6",       Palette.Primary,  "2 Pending · 1 Processing · 1 Shipped");
+            SetKpiCard(kpiDelivered,      "DELIVERED THIS MONTH",  "2",       Palette.Success,  "ORD-0045 · ORD-0044");
+            SetKpiCard(kpiQuotations,     "PENDING QUOTATIONS",    "2",       Palette.Warning,  "QT-2026-0033 · QT-2026-0034");
+            SetKpiCard(kpiLowStock,       "LOW STOCK ALERTS",      "9",       Palette.Danger,   "Immediate procurement action needed");
+            SetKpiCard(kpiRevenue,        "REVENUE THIS MONTH",    "HK$221K", Palette.Info,     "Based on delivered orders");
+            SetKpiCard(kpiAR,             "OUTSTANDING AR",        "HK$130K", Palette.Warning,  "3 invoices unpaid / overdue");
+            SetKpiCard(kpiSuppliers,      "ACTIVE SUPPLIERS",      "3",       Palette.Primary,  "1 On Hold · 1 Inactive");
+            SetKpiCard(kpiCustomers,      "TOTAL CUSTOMERS",       "5",       Palette.Primary,  "1 VIP · 2 Corporate");
+
+            // ── Recent Orders table ─────────────────────────────────────
+            AddOrderRow("ORD-2026-0048", "Chan Siu Ming",    "HK$21,300",  "Processing", Palette.TagBlueBg,   Palette.TagBlueFg);
+            AddOrderRow("ORD-2026-0047", "Lee Wai Kwan",     "HK$29,400",  "Shipped",    Palette.TagGreenBg,  Palette.TagGreenFg);
+            AddOrderRow("ORD-2026-0046", "ABC Furniture Ltd", "HK$120,700", "Pending",    Palette.TagYellowBg, Palette.TagYellowFg);
+            AddOrderRow("ORD-2026-0045", "Wong Ka Fai",      "HK$26,500",  "Delivered",  Palette.TagGreenBg,  Palette.TagGreenFg);
+            AddOrderRow("ORD-2026-0044", "Sunrise Interiors", "HK$57,600",  "Delivered",  Palette.TagGreenBg,  Palette.TagGreenFg);
+
+            // ── Pending Quotations table ─────────────────────────────────
+            AddQuotRow("QT-2026-0034", "Chan Siu Ming",  "HK$38,400", "29 Mar 2026");
+            AddQuotRow("QT-2026-0033", "Cheung Wai Ho",  "HK$30,800", "24 Mar 2026");
+
+            // ── Active Shipments table ───────────────────────────────────
+            AddShipRow("DLV-2026-0033", "Chan Siu Ming", "15 Mar 2026", "Scheduled",  Palette.TagYellowBg, Palette.TagYellowFg);
+            AddShipRow("DLV-2026-0031", "Lee Wai Kwan",  "12 Mar 2026", "In Transit", Palette.TagBlueBg,   Palette.TagBlueFg);
+            AddShipRow("DLV-2026-0029", "Wong Ka Fai",   "10 Mar 2026", "Delivered",  Palette.TagGreenBg,  Palette.TagGreenFg);
+
+            // ── Supplier Payment table ───────────────────────────────────
+            AddSupplierRow("Green Wood Co.",  "INV-S-0041", "HK$14,000", "Pending", Palette.TagYellowBg, Palette.TagYellowFg);
+            AddSupplierRow("MetalPro HK",     "INV-S-0039", "HK$2,400",  "Overdue", Palette.TagRedBg,    Palette.TagRedFg);
+            AddSupplierRow("FabricPlus Ltd",  "INV-S-0035", "HK$9,800",  "Paid",    Palette.TagGreenBg,  Palette.TagGreenFg);
+
+            // ── Recent Activity feed ──────────────────────────────────────
+            AddActivity(Palette.Primary, "ORD-2026-0048",    " created for Chan Siu Ming – HK$21,300",         "15 Mar 15:42");
+            AddActivity(Palette.Success, "QT-2026-0034",     " saved as Pending quotation",                    "15 Mar 14:20");
+            AddActivity(Palette.Warning, "Low stock alert",  " triggered for Solid Oak Panel (8 left)",        "15 Mar 11:05");
+            AddActivity(Palette.Success, "ORD-2026-0044",    " marked Delivered – Sunrise Interiors",          "08 Mar 09:30");
+            AddActivity(Palette.Danger,  "CMP-2026-0006",    " filed – Missing assembly kit",                  "10 Mar 11:44");
+            AddActivity(Palette.Warning, "MetalPro HK",      " invoice INV-S-0039 now Overdue",                "15 Mar 00:00");
+            AddActivity(Palette.Primary, "DLV-2026-0031",    " status updated to In Transit",                  "12 Mar 08:15");
+        }
+
+        // ====================================================================
+        // HELPER METHODS
+        // ====================================================================
+
+        /// <summary>Populates a 2x2 KPI panel with label, value, sub-text, and accent colour.</summary>
+        private void SetKpiCard(Panel card, string label, string value, Color accent, string sub)
+        {
+            foreach (Control ctrl in card.Controls)
+            {
+                if (ctrl.Tag?.ToString() == "kpi-label")  ctrl.Text = label;
+                if (ctrl.Tag?.ToString() == "kpi-value")  { ctrl.Text = value; ctrl.ForeColor = accent; }
+                if (ctrl.Tag?.ToString() == "kpi-sub")    ctrl.Text = sub;
+                if (ctrl.Tag?.ToString() == "kpi-accent") ctrl.BackColor = accent;
+            }
+        }
+
+        /// <summary>Adds a row to the Recent Orders DataGridView.</summary>
+        private void AddOrderRow(string orderId, string customer, string total, string status,
+                                 Color tagBg, Color tagFg)
+        {
+            int idx = dgvOrders.Rows.Add(orderId, customer, total, status);
+            // Tag colouring is handled via CellPainting event
+            dgvOrders.Rows[idx].Tag = new[] { tagBg, tagFg };
+        }
+
+        private void AddQuotRow(string quotId, string customer, string amount, string validUntil)
+            => dgvQuotations.Rows.Add(quotId, customer, amount, validUntil);
+
+        private void AddShipRow(string shipId, string customer, string date, string status,
+                                Color tagBg, Color tagFg)
+        {
+            int idx = dgvShipments.Rows.Add(shipId, customer, date, status);
+            dgvShipments.Rows[idx].Tag = new[] { tagBg, tagFg };
+        }
+
+        private void AddSupplierRow(string supplier, string invoice, string amount, string status,
+                                    Color tagBg, Color tagFg)
+        {
+            int idx = dgvSuppliers.Rows.Add(supplier, invoice, amount, status);
+            dgvSuppliers.Rows[idx].Tag = new[] { tagBg, tagFg };
+        }
+
+        /// <summary>Appends a row to the activity feed panel.</summary>
+        private void AddActivity(Color dotColor, string boldText, string normalText, string time)
+        {
+            Panel row = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 38,
+                Padding = new Padding(0, 6, 0, 6),
+                BackColor = Color.Transparent
+            };
+
+            // Dot
+            Panel dot = new Panel
+            {
+                Width = 10, Height = 10,
+                BackColor = dotColor,
+                Location = new Point(0, 14),
+                Tag = "dot"
+            };
+            dot.Region = System.Drawing.Region.FromHrgn(
+                CreateEllipseRgn(0, 0, 10, 10));
+
+            // Bold segment
+            Label lblBold = new Label
+            {
+                Text = boldText,
+                Font = FontBodyBold,
+                ForeColor = Palette.TextMain,
+                AutoSize = true,
+                Location = new Point(18, 11)
+            };
+
+            // Normal text — positioned after bold (approximate)
+            Label lblNorm = new Label
+            {
+                Text = normalText,
+                Font = FontBody,
+                ForeColor = Palette.TextMain,
+                AutoSize = true,
+                Location = new Point(18 + TextRenderer.MeasureText(boldText, FontBodyBold).Width, 11)
+            };
+
+            // Time
+            Label lblTime = new Label
+            {
+                Text = time,
+                Font = FontSmall,
+                ForeColor = Palette.TextMuted,
+                AutoSize = true,
+                Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                TextAlign = ContentAlignment.TopRight
+            };
+            lblTime.Location = new Point(pnlActivity.Width - lblTime.PreferredWidth - 6, 12);
+
+            row.Controls.Add(dot);
+            row.Controls.Add(lblBold);
+            row.Controls.Add(lblNorm);
+            row.Controls.Add(lblTime);
+
+            // Separator
+            Panel sep = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 1,
+                BackColor = Palette.BorderColor
+            };
+
+            pnlActivity.Controls.Add(sep);
+            pnlActivity.Controls.Add(row);
+            pnlActivity.Controls.SetChildIndex(row, 0);
+            pnlActivity.Controls.SetChildIndex(sep, 1);
+        }
+
+        [System.Runtime.InteropServices.DllImport("gdi32.dll")]
+        private static extern IntPtr CreateEllipseRgn(int left, int top, int right, int bottom);
+
+        private string GetInitials(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return "?";
+            string[] parts = name.Split(' ');
+            return parts.Length >= 2
+                ? $"{parts[0][0]}{parts[1][0]}".ToUpper()
+                : name.Substring(0, Math.Min(2, name.Length)).ToUpper();
+        }
+
+        // ====================================================================
+        // EVENT HANDLERS — Navigation
+        // ====================================================================
+
+        private void SetActiveNav(Panel navPanel)
+        {
+            if (_activeNavItem != null)
+            {
+                _activeNavItem.BackColor = Color.Transparent;
+                foreach (Control c in _activeNavItem.Controls)
+                    if (c is Label l) l.ForeColor = Palette.SidebarText;
+            }
+            _activeNavItem = navPanel;
+            _activeNavItem.BackColor = Palette.SidebarHover;
+            foreach (Control c in _activeNavItem.Controls)
+                if (c is Label l) l.ForeColor = Color.White;
+        }
+
+        private void btnLogout_Click(object sender, EventArgs e)
+        {
+            if (MessageBox.Show("Are you sure you want to log out?",
+                                "Logout",
+                                MessageBoxButtons.YesNo,
+                                MessageBoxIcon.Question) == DialogResult.Yes)
+            {
+                SessionManager.Clear();
+                // Re-open login form
+                Application.Restart();
+            }
+        }
+
+        // DataGridView CellPainting — tag badge colouring
+        private void PaintStatusCell(object sender, DataGridViewCellPaintingEventArgs e,
+                                     int statusColIndex)
+        {
+            if (e.RowIndex < 0 || e.ColumnIndex != statusColIndex) return;
+
+            var row = ((DataGridView)sender).Rows[e.RowIndex];
+            if (row.Tag is Color[] colours && colours.Length == 2)
+            {
+                e.Paint(e.CellBounds, DataGridViewPaintParts.Background |
+                        DataGridViewPaintParts.Border);
+
+                string text = e.Value?.ToString() ?? "";
+                SizeF sz = e.Graphics.MeasureString(text, FontSmallBold);
+                RectangleF badge = new RectangleF(
+                    e.CellBounds.X + 6,
+                    e.CellBounds.Y + (e.CellBounds.Height - sz.Height - 6) / 2,
+                    sz.Width + 16,
+                    sz.Height + 6);
+
+                using (var br = new System.Drawing.Drawing2D.GraphicsPath())
+                {
+                    float r = badge.Height / 2f;
+                    br.AddArc(badge.X, badge.Y, r * 2, r * 2, 180, 90);
+                    br.AddArc(badge.Right - r * 2, badge.Y, r * 2, r * 2, 270, 90);
+                    br.AddArc(badge.Right - r * 2, badge.Bottom - r * 2, r * 2, r * 2, 0, 90);
+                    br.AddArc(badge.X, badge.Bottom - r * 2, r * 2, r * 2, 90, 90);
+                    br.CloseFigure();
+
+                    e.Graphics.FillPath(new SolidBrush(colours[0]), br);
+                    e.Graphics.DrawString(text, FontSmallBold,
+                        new SolidBrush(colours[1]),
+                        badge.X + 8, badge.Y + 3);
+                }
+                e.Handled = true;
+            }
+        }
+
+        private void dgvOrders_CellPainting(object sender, DataGridViewCellPaintingEventArgs e)
+            => PaintStatusCell(sender, e, 3);
+
+        private void dgvShipments_CellPainting(object sender, DataGridViewCellPaintingEventArgs e)
+            => PaintStatusCell(sender, e, 3);
+
+        private void dgvSuppliers_CellPainting(object sender, DataGridViewCellPaintingEventArgs e)
+            => PaintStatusCell(sender, e, 3);
+    }
+}
