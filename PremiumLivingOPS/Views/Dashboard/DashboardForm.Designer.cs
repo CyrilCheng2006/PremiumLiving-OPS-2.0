@@ -53,35 +53,44 @@ namespace PremiumLivingOPS.Views.Dashboard
             this.Font          = new Font("Segoe UI", 16f);
 
             // ================================================================
-            // MAIN AREA (full width — Sidebar removed)
+            // pnlMain — single container that owns the nav bar, user bar, and
+            // content.  The dropdown popup is also injected here so its
+            // z-order is controlled within the same parent as its siblings.
             // ================================================================
             Panel pnlMain = new Panel { Dock = DockStyle.Fill, BackColor = Palette.BgPage };
 
             // ── Apple-style dark TopNavBar (height 44, Dock = Top) ──
             pnlTopNav = new TopNavBar();
-            // Wire up menu item clicks (navigates just like sidebar did)
             pnlTopNav.MenuItemClicked += OnTopNavMenuItemClicked;
 
-            // Right-side user info bar (user name, avatar, logout)
+            // ── User bar (breadcrumb + avatar + logout) ──
             Panel pnlUserBar = new Panel
             {
                 Dock      = DockStyle.Top,
                 Height    = 44,
-                BackColor = Color.White
+                BackColor = System.Drawing.Color.White
             };
-            Panel userBarBorder = new Panel { Dock = DockStyle.Bottom, Height = 1, BackColor = Palette.BorderColor };
+            Panel userBarBorder = new Panel
+            {
+                Dock      = DockStyle.Bottom,
+                Height    = 1,
+                BackColor = Palette.BorderColor
+            };
 
             lblBreadcrumb = new Label
             {
                 Text      = "Dashboard",
                 Font      = new Font("Segoe UI", 16f, FontStyle.Bold),
-                ForeColor = Palette.TextMain, AutoSize = true, Location = new Point(22, 10)
+                ForeColor = Palette.TextMain,
+                AutoSize  = true,
+                Location  = new Point(22, 10)
             };
             lblTopNavUser = new Label
             {
                 Text      = "...",
                 Font      = new Font("Segoe UI", 14.4f),
-                ForeColor = Palette.TextMuted, AutoSize = true,
+                ForeColor = Palette.TextMuted,
+                AutoSize  = true,
                 Anchor    = AnchorStyles.Top | AnchorStyles.Right
             };
             pnlAvatar = new Panel
@@ -96,7 +105,7 @@ namespace PremiumLivingOPS.Views.Dashboard
             {
                 Text      = "?",
                 Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
-                ForeColor = Color.White,
+                ForeColor = System.Drawing.Color.White,
                 TextAlign = ContentAlignment.MiddleCenter,
                 Dock      = DockStyle.Fill
             };
@@ -106,8 +115,10 @@ namespace PremiumLivingOPS.Views.Dashboard
             {
                 Text      = "Log Out",
                 Font      = new Font("Segoe UI", 12.8f),
-                ForeColor = Palette.Danger, BackColor = Color.Transparent,
-                FlatStyle = FlatStyle.Flat, Size = new Size(96, 34),
+                ForeColor = Palette.Danger,
+                BackColor = System.Drawing.Color.Transparent,
+                FlatStyle = FlatStyle.Flat,
+                Size      = new Size(96, 34),
                 Anchor    = AnchorStyles.Top | AnchorStyles.Right,
                 Cursor    = Cursors.Hand
             };
@@ -127,10 +138,19 @@ namespace PremiumLivingOPS.Views.Dashboard
             pnlUserBar.Controls.Add(btnLogout);
             pnlUserBar.Controls.Add(userBarBorder);
 
-            // Scrollable content
+            // ── Tell the nav bar to use pnlMain as the popup container ──────────────
+            // This MUST be called before the form is shown so that when the
+            // first dropdown is triggered the popup is already aware of its
+            // parent.  By anchoring the popup inside pnlMain (instead of the
+            // root Form), SetChildIndex(popup, 0) correctly hoists it above
+            // both the Dock=Top pnlTopNav and the Dock=Top pnlUserBar.
+            pnlTopNav.SetPopupContainer(pnlMain);
+
+            // ── Scrollable content area ──
             pnlContent = new Panel
             {
-                Dock      = DockStyle.Fill, AutoScroll = true,
+                Dock      = DockStyle.Fill,
+                AutoScroll = true,
                 Padding   = new Padding(26, 20, 26, 26),
                 BackColor = Palette.BgPage
             };
@@ -139,37 +159,46 @@ namespace PremiumLivingOPS.Views.Dashboard
             {
                 Text      = "Dashboard",
                 Font      = new Font("Segoe UI", 25.6f, FontStyle.Bold),
-                ForeColor = Palette.TextMain, AutoSize = true
+                ForeColor = Palette.TextMain,
+                AutoSize  = true
             };
             lblPageSub = new Label
             {
                 Text      = "...",
                 Font      = new Font("Segoe UI", 14.4f),
-                ForeColor = Palette.TextMuted, AutoSize = true
+                ForeColor = Palette.TextMuted,
+                AutoSize  = true
             };
 
             // Alert banner
             pnlAlert = new Panel
             {
-                Height    = 51, BackColor = Color.FromArgb(254, 243, 199),
+                Height    = 51,
+                BackColor = System.Drawing.Color.FromArgb(254, 243, 199),
                 Padding   = new Padding(13, 0, 13, 0)
             };
-            Panel alertBorder = new Panel { Dock = DockStyle.Left, Width = 4, BackColor = Palette.Warning };
+            Panel alertBorder = new Panel
+            {
+                Dock      = DockStyle.Left,
+                Width     = 4,
+                BackColor = Palette.Warning
+            };
             lblAlert = new Label
             {
                 Text      = "\u26A0\uFE0F  9 items are currently below minimum stock threshold.",
                 Font      = new Font("Segoe UI", 13.6f),
-                ForeColor = Color.FromArgb(120, 53, 15),
-                Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft,
+                ForeColor = System.Drawing.Color.FromArgb(120, 53, 15),
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft,
                 Padding   = new Padding(8, 0, 0, 0)
             };
             pnlAlert.Controls.Add(lblAlert);
             pnlAlert.Controls.Add(alertBorder);
 
             // KPI Row 1
-            pnlKpi1 = new Panel { Height = 128, BackColor = Color.Transparent };
+            pnlKpi1 = new Panel { Height = 128, BackColor = System.Drawing.Color.Transparent };
             TableLayoutPanel tlpKpi1 = new TableLayoutPanel
-            { Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 1, BackColor = Color.Transparent };
+            { Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 1, BackColor = System.Drawing.Color.Transparent };
             for (int i = 0; i < 4; i++) tlpKpi1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
             tlpKpi1.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
             kpiOrders     = MakeKpiCard(Palette.Primary);
@@ -183,9 +212,9 @@ namespace PremiumLivingOPS.Views.Dashboard
             pnlKpi1.Controls.Add(tlpKpi1);
 
             // KPI Row 2
-            pnlKpi2 = new Panel { Height = 128, BackColor = Color.Transparent };
+            pnlKpi2 = new Panel { Height = 128, BackColor = System.Drawing.Color.Transparent };
             TableLayoutPanel tlpKpi2 = new TableLayoutPanel
-            { Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 1, BackColor = Color.Transparent };
+            { Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 1, BackColor = System.Drawing.Color.Transparent };
             for (int i = 0; i < 4; i++) tlpKpi2.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
             tlpKpi2.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
             kpiRevenue   = MakeKpiCard(Palette.Info);
@@ -229,23 +258,25 @@ namespace PremiumLivingOPS.Views.Dashboard
             Panel secAct = MakeSectionCard("Recent Activity");
             dgvSuppliers = MakeDgv(new[] { "Supplier", "Invoice", "Amount", "Status" });
             dgvSuppliers.CellPainting += dgvSuppliers_CellPainting;
-            pnlActivity = new Panel { Dock = DockStyle.Fill, AutoScroll = true, BackColor = Color.Transparent };
+            pnlActivity = new Panel { Dock = DockStyle.Fill, AutoScroll = true, BackColor = System.Drawing.Color.Transparent };
             secSup.Controls.Add(dgvSuppliers);
             secAct.Controls.Add(pnlActivity);
             tlpRow3.Controls.Add(secSup, 0, 0);
             tlpRow3.Controls.Add(secAct, 1, 0);
 
-            // Flow
+            // Flow layout for page content
             FlowLayoutPanel flow = new FlowLayoutPanel
             {
-                Dock          = DockStyle.Top, FlowDirection = FlowDirection.TopDown,
-                WrapContents  = false, AutoSize = true,
-                AutoSizeMode  = AutoSizeMode.GrowAndShrink,
-                BackColor     = Color.Transparent
+                Dock         = DockStyle.Top,
+                FlowDirection = FlowDirection.TopDown,
+                WrapContents = false,
+                AutoSize     = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                BackColor    = System.Drawing.Color.Transparent
             };
 
             System.Action<int> addSpacer = (h) => flow.Controls.Add(
-                new Panel { Height = h, Width = 10, BackColor = Color.Transparent });
+                new Panel { Height = h, Width = 10, BackColor = System.Drawing.Color.Transparent });
 
             flow.Controls.Add(lblPageTitle); addSpacer(5);
             flow.Controls.Add(lblPageSub);   addSpacer(14);
@@ -261,23 +292,31 @@ namespace PremiumLivingOPS.Views.Dashboard
             pnlContent.Resize += (s, e) =>
             {
                 int w = pnlContent.ClientSize.Width - pnlContent.Padding.Horizontal;
-                flow.Width     = w; pnlAlert.Width = w;
-                pnlKpi1.Width  = w; pnlKpi2.Width  = w;
-                tlpRow1.Width  = w; tlpRow2.Width  = w; tlpRow3.Width  = w;
+                flow.Width    = w; pnlAlert.Width = w;
+                pnlKpi1.Width = w; pnlKpi2.Width  = w;
+                tlpRow1.Width = w; tlpRow2.Width  = w; tlpRow3.Width = w;
             };
 
-            // Stack order (Dock=Top stacks bottom-up, so add in reverse visual order)
-            pnlMain.Controls.Add(pnlContent);  // fills remaining space
-            pnlMain.Controls.Add(pnlUserBar);  // user bar below nav
-            pnlMain.Controls.Add(pnlTopNav);   // topmost dark nav bar
+            // ================================================================
+            // Add children to pnlMain.
+            // Dock=Top panels stack from bottom-to-top in the order they are
+            // added, so the LAST added Dock=Top control appears at the very
+            // top of the form.
+            //
+            // Desired visual order (top → bottom):
+            //   pnlTopNav   (dark nav bar)     ← added last  = topmost
+            //   pnlUserBar  (breadcrumb/user)  ← added second
+            //   pnlContent  (scrollable body)  ← added first = fills remaining space
+            // ================================================================
+            pnlMain.Controls.Add(pnlContent);   // Fill — must be added first
+            pnlMain.Controls.Add(pnlUserBar);   // Dock=Top — sits above content
+            pnlMain.Controls.Add(pnlTopNav);    // Dock=Top — sits above user bar
 
-            // No Sidebar — pnlMain fills full width
             this.Controls.Add(pnlMain);
-
             this.ResumeLayout(false);
         }
 
-        // ── TopNavBar click handler (mirrors original Sidebar SubItem behaviour) ──
+        // ── TopNavBar click handler ─────────────────────────────────────────────────────────
         private void OnTopNavMenuItemClicked(string itemLabel)
         {
             if (itemLabel == "Dashboard")
@@ -285,9 +324,7 @@ namespace PremiumLivingOPS.Views.Dashboard
                 lblBreadcrumb.Text = "Dashboard";
                 return;
             }
-            // Update breadcrumb
             lblBreadcrumb.Text = itemLabel;
-            // Show coming-soon for all non-dashboard items (same as sidebar)
             MessageBox.Show(
                 $"\u231B  {itemLabel}\n\nThis feature is currently under development.\nPlease check back in a later version.",
                 "Coming Soon",
@@ -296,45 +333,52 @@ namespace PremiumLivingOPS.Views.Dashboard
         }
 
         // ====================================================================
-        // FACTORY HELPERS (unchanged)
+        // FACTORY HELPERS
         // ====================================================================
 
-        private Panel MakeKpiCard(Color accent)
+        private Panel MakeKpiCard(System.Drawing.Color accent)
         {
             Panel card = new Panel
             {
-                Dock = DockStyle.Fill, Margin = new Padding(0, 0, 11, 0),
-                BackColor = Palette.BgCard, Padding = new Padding(21, 18, 21, 13)
+                Dock      = DockStyle.Fill,
+                Margin    = new Padding(0, 0, 11, 0),
+                BackColor = Palette.BgCard,
+                Padding   = new Padding(21, 18, 21, 13)
             };
             card.Paint += (s, e) =>
             {
-                e.Graphics.FillRectangle(new SolidBrush(accent), 0, 0, ((Panel)s).Width, 6);
-                e.Graphics.DrawRectangle(new System.Drawing.Pen(Palette.BorderColor, 1),
+                e.Graphics.FillRectangle(new System.Drawing.SolidBrush(accent),
+                    0, 0, ((Panel)s).Width, 6);
+                e.Graphics.DrawRectangle(
+                    new System.Drawing.Pen(Palette.BorderColor, 1),
                     0, 0, ((Panel)s).Width - 1, ((Panel)s).Height - 1);
             };
             Label lblLabel = new Label
             {
-                Tag = "kpi-label",
-                Font = new Font("Segoe UI", 10.4f, FontStyle.Bold),
-                ForeColor = Palette.TextMuted, AutoSize = false,
-                Width = 208, Height = 22,
-                Location = new Point(21, 18), TextAlign = ContentAlignment.TopLeft
+                Tag       = "kpi-label",
+                Font      = new Font("Segoe UI", 10.4f, FontStyle.Bold),
+                ForeColor = Palette.TextMuted,
+                AutoSize  = false, Width = 208, Height = 22,
+                Location  = new Point(21, 18),
+                TextAlign = ContentAlignment.TopLeft
             };
             Label lblValue = new Label
             {
-                Tag = "kpi-value",
-                Font = new Font("Segoe UI", 30.4f, FontStyle.Bold),
-                ForeColor = accent, AutoSize = false,
-                Width = 208, Height = 45,
-                Location = new Point(19, 42), TextAlign = ContentAlignment.TopLeft
+                Tag       = "kpi-value",
+                Font      = new Font("Segoe UI", 30.4f, FontStyle.Bold),
+                ForeColor = accent,
+                AutoSize  = false, Width = 208, Height = 45,
+                Location  = new Point(19, 42),
+                TextAlign = ContentAlignment.TopLeft
             };
             Label lblSub = new Label
             {
-                Tag = "kpi-sub",
-                Font = new Font("Segoe UI", 10.4f),
-                ForeColor = Palette.TextMuted, AutoSize = false,
-                Width = 208, Height = 22,
-                Location = new Point(21, 90), TextAlign = ContentAlignment.TopLeft
+                Tag       = "kpi-sub",
+                Font      = new Font("Segoe UI", 10.4f),
+                ForeColor = Palette.TextMuted,
+                AutoSize  = false, Width = 208, Height = 22,
+                Location  = new Point(21, 90),
+                TextAlign = ContentAlignment.TopLeft
             };
             card.Controls.Add(lblLabel);
             card.Controls.Add(lblValue);
@@ -346,8 +390,9 @@ namespace PremiumLivingOPS.Views.Dashboard
         {
             var tlp = new TableLayoutPanel
             {
-                Height = 304, ColumnCount = 2, RowCount = 1,
-                BackColor = Color.Transparent, Margin = new Padding(0)
+                Height      = 304, ColumnCount = 2, RowCount = 1,
+                BackColor   = System.Drawing.Color.Transparent,
+                Margin      = new Padding(0)
             };
             tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
             tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
@@ -359,22 +404,34 @@ namespace PremiumLivingOPS.Views.Dashboard
         {
             Panel card = new Panel
             {
-                Dock = DockStyle.Fill, BackColor = Palette.BgCard,
-                Margin = new Padding(0, 0, 11, 0)
+                Dock      = DockStyle.Fill,
+                BackColor = Palette.BgCard,
+                Margin    = new Padding(0, 0, 11, 0)
             };
             card.Paint += (s, e) =>
-                e.Graphics.DrawRectangle(new System.Drawing.Pen(Palette.BorderColor, 1),
+                e.Graphics.DrawRectangle(
+                    new System.Drawing.Pen(Palette.BorderColor, 1),
                     0, 0, ((Panel)s).Width - 1, ((Panel)s).Height - 1);
 
             Panel header = new Panel
-            { Dock = DockStyle.Top, Height = 51, BackColor = Palette.BgCard, Padding = new Padding(18, 0, 18, 0) };
-            Panel headerDiv = new Panel { Dock = DockStyle.Bottom, Height = 1, BackColor = Palette.BorderColor };
+            {
+                Dock      = DockStyle.Top, Height = 51,
+                BackColor = Palette.BgCard,
+                Padding   = new Padding(18, 0, 18, 0)
+            };
+            Panel headerDiv = new Panel
+            {
+                Dock      = DockStyle.Bottom,
+                Height    = 1,
+                BackColor = Palette.BorderColor
+            };
             Label lblTitle = new Label
             {
-                Text = title,
-                Font = new Font("Segoe UI", 14.4f, FontStyle.Bold),
+                Text      = title,
+                Font      = new Font("Segoe UI", 14.4f, FontStyle.Bold),
                 ForeColor = Palette.TextMain,
-                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft
             };
             header.Controls.Add(lblTitle);
             header.Controls.Add(headerDiv);
@@ -386,37 +443,45 @@ namespace PremiumLivingOPS.Views.Dashboard
         {
             var dgv = new DataGridView
             {
-                Dock = DockStyle.Fill, ReadOnly = true,
-                AllowUserToAddRows = false, AllowUserToDeleteRows = false,
-                RowHeadersVisible = false,
-                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
-                BackgroundColor = Palette.BgCard, BorderStyle = BorderStyle.None,
-                GridColor = Palette.BorderColor,
-                Font = new Font("Segoe UI", 12.8f),
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-                CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal,
-                RowTemplate = { Height = 38 }
+                Dock                  = DockStyle.Fill,
+                ReadOnly              = true,
+                AllowUserToAddRows    = false,
+                AllowUserToDeleteRows = false,
+                RowHeadersVisible     = false,
+                SelectionMode         = DataGridViewSelectionMode.FullRowSelect,
+                BackgroundColor       = Palette.BgCard,
+                BorderStyle           = BorderStyle.None,
+                GridColor             = Palette.BorderColor,
+                Font                  = new Font("Segoe UI", 12.8f),
+                AutoSizeColumnsMode   = DataGridViewAutoSizeColumnsMode.Fill,
+                CellBorderStyle       = DataGridViewCellBorderStyle.SingleHorizontal,
+                RowTemplate           = { Height = 38 }
             };
             dgv.ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
             {
-                BackColor = Color.FromArgb(246, 249, 255),
+                BackColor = System.Drawing.Color.FromArgb(246, 249, 255),
                 ForeColor = Palette.TextMuted,
-                Font = new Font("Segoe UI", 11.2f, FontStyle.Bold),
-                Padding = new Padding(6)
+                Font      = new Font("Segoe UI", 11.2f, FontStyle.Bold),
+                Padding   = new Padding(6)
             };
             dgv.ColumnHeadersHeight = 42;
             dgv.DefaultCellStyle = new DataGridViewCellStyle
             {
-                BackColor = Palette.BgCard, ForeColor = Palette.TextMain,
-                SelectionBackColor = Color.FromArgb(240, 246, 255),
-                SelectionForeColor = Palette.TextMain,
-                Padding = new Padding(8, 6, 8, 6)
+                BackColor           = Palette.BgCard,
+                ForeColor           = Palette.TextMain,
+                SelectionBackColor  = System.Drawing.Color.FromArgb(240, 246, 255),
+                SelectionForeColor  = Palette.TextMain,
+                Padding             = new Padding(8, 6, 8, 6)
             };
             dgv.AlternatingRowsDefaultCellStyle = new DataGridViewCellStyle
-            { BackColor = Color.FromArgb(248, 250, 253) };
+            { BackColor = System.Drawing.Color.FromArgb(248, 250, 253) };
             foreach (string col in columns)
                 dgv.Columns.Add(new DataGridViewTextBoxColumn
-                { HeaderText = col, Name = col.Replace(" ", "_"), SortMode = DataGridViewColumnSortMode.NotSortable });
+                {
+                    HeaderText = col,
+                    Name       = col.Replace(" ", "_"),
+                    SortMode   = DataGridViewColumnSortMode.NotSortable
+                });
             return dgv;
         }
 
@@ -432,8 +497,8 @@ namespace PremiumLivingOPS.Views.Dashboard
             {
                 string status = row.Cells[3].Value?.ToString();
                 row.Tag = status == "Critical"
-                    ? new[] { Palette.TagRedBg,    Palette.TagRedFg }
-                    : new[] { Palette.TagYellowBg, Palette.TagYellowFg };
+                    ? new System.Drawing.Color[] { Palette.TagRedBg,    Palette.TagRedFg    }
+                    : new System.Drawing.Color[] { Palette.TagYellowBg, Palette.TagYellowFg };
             }
             dgv.CellPainting += (s, e) => PaintStatusCell(s, e, 3);
         }

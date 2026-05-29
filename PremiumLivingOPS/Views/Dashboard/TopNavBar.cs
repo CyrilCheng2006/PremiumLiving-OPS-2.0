@@ -8,6 +8,21 @@ namespace PremiumLivingOPS.Views.Dashboard
 {
     /// <summary>
     /// Apple-style dark top navigation bar.
+    ///
+    /// Layer-overlap fix (2026-05-29)
+    /// ─────────────────────────────
+    /// Previously _megaPopup was added to the root Form's Controls collection
+    /// and brought to front with BringToFront().  Because pnlUserBar is a
+    /// sibling Dock=Top panel that was added AFTER pnlTopNav, Windows always
+    /// painted it on top of the popup regardless of z-order calls.
+    ///
+    /// Fix: the popup is now injected into the same Panel that owns both
+    /// pnlTopNav and pnlUserBar (i.e. pnlMain).  The caller must supply this
+    /// container via SetPopupContainer() immediately after construction.
+    /// The popup is then raised to index 0 of that container so it sits above
+    /// every Dock=Top sibling including the UserBar.
+    ///
+    /// Other features preserved:
     ///  1. Nav items centred horizontally, generous spacing
     ///  2. Stable dropdown via 80 ms poll timer
     ///  3. Opaque mega-menu panel (no text bleed-through)
@@ -17,23 +32,21 @@ namespace PremiumLivingOPS.Views.Dashboard
     /// </summary>
     public class TopNavBar : Panel
     {
-        // ── Colours ───────────────────────────────────────────────────────────
+        // ── Colours ───────────────────────────────────────────────────────────────────
         private static readonly Color NavBg    = Color.FromArgb(29,  29,  31);
         private static readonly Color NavText  = Color.FromArgb(245, 245, 247);
         private static readonly Color DropBg   = Color.FromArgb(38,  38,  40);
         private static readonly Color DropText = Color.FromArgb(210, 210, 215);
 
-        // ── Fonts ─────────────────────────────────────────────────────────────
+        // ── Fonts ───────────────────────────────────────────────────────────────────────
         private static readonly Font FontNav      = new Font("Segoe UI", 11f,   FontStyle.Regular);
         private static readonly Font FontDropItem = new Font("Segoe UI", 10.5f, FontStyle.Regular);
 
         private const int ItemPadH = 20;  // horizontal padding each side of a nav button
+        private const int RowH     = 42;  // sub-item row height
+        private const int PadV     = 10;  // top/bottom inset inside popup
 
-        // FIX 1 — taller rows so sub-items breathe vertically
-        private const int RowH  = 42;    // was 34
-        private const int PadV  = 10;    // top/bottom inset inside popup
-
-        // ── Menu definition ───────────────────────────────────────────────────
+        // ── Menu definition ─────────────────────────────────────────────────────────────
         private readonly (string Label, string[] Items)[] _menus =
         {
             ("Dashboard",                 new string[] { }),
@@ -96,17 +109,18 @@ namespace PremiumLivingOPS.Views.Dashboard
             })
         };
 
-        // ── State ─────────────────────────────────────────────────────────────
+        // ── State ───────────────────────────────────────────────────────────────────────
         private readonly List<Panel>                _navItems  = new List<Panel>();
-        private readonly List<int>                  _navWidths  = new List<int>();   // FIX 2 — store widths
+        private readonly List<int>                  _navWidths = new List<int>();
         private          Panel                      _megaPopup;
+        private          Control                    _popupContainer;   // set by caller
         private          int                        _activeIdx = -1;
         private          System.Windows.Forms.Timer _pollTimer;
 
-        // ── Public Events ─────────────────────────────────────────────────────
+        // ── Public Events ─────────────────────────────────────────────────────────────
         public event Action<string> MenuItemClicked;
 
-        // ── Constructor ───────────────────────────────────────────────────────
+        // ── Constructor ─────────────────────────────────────────────────────────────────
         public TopNavBar()
         {
             Height    = 44;
@@ -120,7 +134,20 @@ namespace PremiumLivingOPS.Views.Dashboard
             HandleCreated += (s, e) => { BuildMegaPopup(); BuildNavItems(); };
         }
 
-        // ── Opaque popup panel ────────────────────────────────────────────────
+        // ── Public: caller supplies the shared container for the popup ──────────────
+        /// <summary>
+        /// Must be called once by the host form/panel BEFORE the nav bar
+        /// is shown.  Pass the Panel that is the common parent of both the
+        /// TopNavBar and the UserBar (e.g. pnlMain).
+        /// The popup will be added to this container at z-index 0 so it
+        /// always renders above every Dock sibling.
+        /// </summary>
+        public void SetPopupContainer(Control container)
+        {
+            _popupContainer = container;
+        }
+
+        // ── Opaque popup panel ───────────────────────────────────────────────────
         private void BuildMegaPopup()
         {
             _megaPopup = new OpaquePanel
@@ -144,7 +171,7 @@ namespace PremiumLivingOPS.Views.Dashboard
             }
         }
 
-        // ── Build nav items ───────────────────────────────────────────────────
+        // ── Build nav items ───────────────────────────────────────────────────────────────
         private void BuildNavItems()
         {
             Controls.Clear();
@@ -221,7 +248,7 @@ namespace PremiumLivingOPS.Views.Dashboard
             _pollTimer.Start();
         }
 
-        // ── Poll timer ────────────────────────────────────────────────────────
+        // ── Poll timer ────────────────────────────────────────────────────────────────────
         private void PollTimer_Tick(object sender, EventArgs e)
         {
             if (_megaPopup == null || !_megaPopup.Visible)
@@ -244,7 +271,7 @@ namespace PremiumLivingOPS.Views.Dashboard
             return ClientRectangle.Contains(PointToClient(Cursor.Position));
         }
 
-        // ── Recentre ──────────────────────────────────────────────────────────
+        // ── Recentre ──────────────────────────────────────────────────────────────────────
         private void RecentreItems()
         {
             if (_navItems.Count == 0) return;
@@ -255,7 +282,7 @@ namespace PremiumLivingOPS.Views.Dashboard
             foreach (Panel p in _navItems) { p.Location = new Point(x, 0); x += p.Width; }
         }
 
-        // ── Highlight ─────────────────────────────────────────────────────────
+        // ── Highlight ───────────────────────────────────────────────────────────────────────
         private void HighlightItem(int idx)
         {
             for (int i = 0; i < _navItems.Count; i++)
@@ -279,15 +306,14 @@ namespace PremiumLivingOPS.Views.Dashboard
             _activeIdx = -1;
         }
 
-        // ── Mega Menu ──────────────────────────────────────────────────────────
+        // ── Mega Menu ──────────────────────────────────────────────────────────────────────
         private void ShowMegaMenu(int idx, Panel navItem)
         {
             string[] items = _menus[idx].Items;
             if (items.Length == 0) return;
 
-            // FIX 2: popup width = nav-item panel width (the highlighted footprint)
-            int navW   = _navWidths[idx];          // exact width of the top-level button
-            // But also ensure every sub-item text fits; take the wider of the two.
+            // Popup width = nav-item width, but at least wide enough for longest sub-item
+            int navW     = _navWidths[idx];
             int minTextW = 0;
             foreach (string s in items)
             {
@@ -307,7 +333,7 @@ namespace PremiumLivingOPS.Views.Dashboard
 
                 Panel row = new Panel
                 {
-                    Size      = new Size(popupW, RowH),   // row spans full popup width
+                    Size      = new Size(popupW, RowH),
                     Location  = new Point(0, iy),
                     BackColor = DropBg,
                     Cursor    = Cursors.Hand
@@ -347,22 +373,37 @@ namespace PremiumLivingOPS.Views.Dashboard
                 iy += RowH;
             }
 
-            // Align popup left-edge with nav-item left-edge (same x as highlight)
-            Form  owner  = FindForm();
-            if (owner == null) return;
-            Point formPt = owner.PointToClient(navItem.PointToScreen(new Point(0, Height)));
+            // ── Position the popup ──────────────────────────────────────────────────────
+            //
+            // The popup MUST be a child of _popupContainer (pnlMain), NOT the
+            // root Form.  This guarantees the popup is painted in the same
+            // layer as pnlTopNav and pnlUserBar, so BringToFront() correctly
+            // lifts it above both Dock=Top siblings.
+            //
+            // Coordinate mapping:
+            //   navItem lives inside TopNavBar which is inside _popupContainer.
+            //   PointToScreen gives the screen coordinate of the navItem's
+            //   bottom-left corner; _popupContainer.PointToClient converts it
+            //   back to _popupContainer-relative coords.
+            // ─────────────────────────────────────────────────────────────────────────────
+            Control container = _popupContainer ?? FindForm();
+            if (container == null) return;
 
-            int left = formPt.X;   // lines up with nav-item left edge
-            if (left + popupW > owner.ClientSize.Width - 4) left = owner.ClientSize.Width - popupW - 4;
+            Point screenBottomLeft = navItem.PointToScreen(new Point(0, Height));
+            Point localPt          = container.PointToClient(screenBottomLeft);
+
+            int left = localPt.X;
+            if (left + popupW > container.ClientSize.Width - 4)
+                left = container.ClientSize.Width - popupW - 4;
             if (left < 0) left = 0;
 
-            _megaPopup.Location = new Point(left, formPt.Y);
+            _megaPopup.Location = new Point(left, localPt.Y);
 
-            if (!owner.Controls.Contains(_megaPopup))
-            {
-                owner.Controls.Add(_megaPopup);
-                owner.Controls.SetChildIndex(_megaPopup, 0);
-            }
+            if (!container.Controls.Contains(_megaPopup))
+                container.Controls.Add(_megaPopup);
+
+            // z-index 0 = topmost child in the container
+            container.Controls.SetChildIndex(_megaPopup, 0);
             _megaPopup.BringToFront();
             _megaPopup.Visible = true;
         }
@@ -373,7 +414,7 @@ namespace PremiumLivingOPS.Views.Dashboard
             ClearHighlight();
         }
 
-        // ── Paint ─────────────────────────────────────────────────────────────
+        // ── Paint ─────────────────────────────────────────────────────────────────────────────
         protected override void OnPaint(PaintEventArgs e)
         {
             base.OnPaint(e);
