@@ -10,14 +10,11 @@ namespace PremiumLivingOPS.Controllers
     /// Controller for the Dashboard screen.
     ///
     /// Responsibilities:
-    ///   1. Read session state from <see cref="SessionManager"/> and build UserBarInfo.
-    ///   2. Call DashboardRepo to fetch raw data from the database.
-    ///   3. Apply business logic (formatting, derived fields, sorting).
-    ///   4. Assemble a <see cref="DashboardViewModel"/> and return it to the View.
-    ///
-    /// The View (DashboardForm) must NOT contain any of the above logic.
-    /// Each Repo call is wrapped in SafeCall so one failing table does not
-    /// crash the whole Dashboard.
+    ///   1. Read session state from SessionManager; build UserBarInfo.
+    ///   2. Apply NavAccessPolicy to produce the AllowedMenus list.
+    ///   3. Call DashboardRepo to fetch raw data.
+    ///   4. Apply business logic (formatting, derived fields).
+    ///   5. Return a fully-populated DashboardViewModel to the View.
     /// </summary>
     public class DashboardController
     {
@@ -32,19 +29,24 @@ namespace PremiumLivingOPS.Controllers
         {
             var vm = new DashboardViewModel();
 
-            // ── 1. User Bar — from SessionManager (no DB call needed) ──────
+            // ── 1. User Bar & Nav Access ────────────────────────────────
+            string department = string.Empty;
             if (SessionManager.IsLoggedIn)
             {
                 vm.UserBar = new UserBarInfo
                 {
-                    DisplayName = SessionManager.CurrentUser.StaffName  ?? string.Empty,
-                    Department  = SessionManager.CurrentUser.Department  ?? string.Empty
+                    DisplayName = SessionManager.CurrentUser.StaffName ?? string.Empty,
+                    Department  = SessionManager.CurrentUser.Department ?? string.Empty
                 };
+                department = SessionManager.CurrentUser.Department ?? string.Empty;
             }
             else
             {
                 vm.UserBar = new UserBarInfo { DisplayName = "Guest", Department = string.Empty };
             }
+
+            // NavAccessPolicy is pure business logic — lives in Controller layer
+            vm.AllowedMenus = NavAccessPolicy.GetAllowedMenus(department);
 
             // ── 2. Raw data from DAL ─────────────────────────────────────
             var statusCounts = SafeCall(() => _repo.GetOrderStatusCounts(),
@@ -56,11 +58,11 @@ namespace PremiumLivingOPS.Controllers
             int processing  = statusCounts.GetValueOrDefault("Processing", 0);
             int shipped     = statusCounts.GetValueOrDefault("Shipped",    0);
 
-            var lowStockItems = SafeCall(() => _repo.GetLowStockItems(),        new List<LowStockRow>());
-            decimal revenue   = SafeCall(() => _repo.GetMonthlyRevenue(),       0m);
-            decimal ar        = SafeCall(() => _repo.GetOutstandingAR(),        0m);
-            int suppliers     = SafeCall(() => _repo.GetActiveSupplierCount(),  0);
-            int customers     = SafeCall(() => _repo.GetCustomerCount(),        0);
+            var lowStockItems = SafeCall(() => _repo.GetLowStockItems(),       new List<LowStockRow>());
+            decimal revenue   = SafeCall(() => _repo.GetMonthlyRevenue(),      0m);
+            decimal ar        = SafeCall(() => _repo.GetOutstandingAR(),       0m);
+            int suppliers     = SafeCall(() => _repo.GetActiveSupplierCount(), 0);
+            int customers     = SafeCall(() => _repo.GetCustomerCount(),       0);
 
             // ── 3. KPI list ───────────────────────────────────────────
             string month = DateTime.Now.ToString("MMM").ToUpper();

@@ -3,18 +3,11 @@ using System.Collections.Generic;
 
 namespace PremiumLivingOPS.Models.Entities
 {
-    // ── User-bar info (set by Controller from SessionManager) ────────
-    /// <summary>
-    /// Carries the display strings for the User Bar so the View never
-    /// needs to touch SessionManager or the Staff entity directly.
-    /// </summary>
+    // ── User-bar info ──────────────────────────────────────────────
     public class UserBarInfo
     {
-        /// <summary>Staff member's full name, e.g. "Chan Ho Yuen".</summary>
-        public string DisplayName  { get; set; } = string.Empty;
-
-        /// <summary>Department label shown in parentheses, e.g. "Sales".</summary>
-        public string Department   { get; set; } = string.Empty;
+        public string DisplayName { get; set; } = string.Empty;
+        public string Department  { get; set; } = string.Empty;
     }
 
     // ── KPI summary row ──────────────────────────────────────────
@@ -23,7 +16,6 @@ namespace PremiumLivingOPS.Models.Entities
         public string Label     { get; set; }
         public string Value     { get; set; }
         public string SubText   { get; set; }
-        /// <summary>Values: Primary | Success | Warning | Danger | Info</summary>
         public string AccentKey { get; set; }
     }
 
@@ -66,7 +58,6 @@ namespace PremiumLivingOPS.Models.Entities
     // ── Activity Feed ──────────────────────────────────────────
     public class ActivityRow
     {
-        /// <summary>Values: Primary | Success | Warning | Danger</summary>
         public string CategoryKey { get; set; }
         public string BoldText    { get; set; }
         public string NormalText  { get; set; }
@@ -79,7 +70,6 @@ namespace PremiumLivingOPS.Models.Entities
         public string ItemName   { get; set; }
         public int    OnHand     { get; set; }
         public int    MinimumQty { get; set; }
-        /// <summary>Critical (onHand &lt; min/2) or Low (onHand &lt; min)</summary>
         public string Status     { get; set; }
     }
 
@@ -87,12 +77,14 @@ namespace PremiumLivingOPS.Models.Entities
     public class DashboardViewModel
     {
         // — User Bar ——————————————————————————————————
-        /// <summary>
-        /// Display data for the User Bar.
-        /// Populated by DashboardController from SessionManager.
-        /// The View binds directly from here — it never reads SessionManager.
-        /// </summary>
         public UserBarInfo UserBar { get; set; } = new UserBarInfo();
+
+        // — Nav access (set by Controller via NavAccessPolicy) ——————
+        /// <summary>
+        /// Ordered list of TopNavBar menu labels the current user may see.
+        /// The View passes this directly to TopNavBar.SetVisibleMenus().
+        /// </summary>
+        public string[] AllowedMenus { get; set; } = new string[0];
 
         // — KPI cards ————————————————————————————————
         public List<DashboardKpi> Kpis { get; set; } = new List<DashboardKpi>();

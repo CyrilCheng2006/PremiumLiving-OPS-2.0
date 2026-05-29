@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.Linq;
 using System.Windows.Forms;
 
 namespace PremiumLivingOPS.Views.Dashboard
@@ -9,44 +10,34 @@ namespace PremiumLivingOPS.Views.Dashboard
     /// <summary>
     /// Apple-style dark top navigation bar.
     ///
-    /// Layer-overlap fix — v2 (2026-05-29)
-    /// ─────────────────────────────────────
-    /// ROOT CAUSE (previous attempt was insufficient)
-    /// WinForms Dock=Top panels each own an independent GDI clip region.
-    /// Even after adding the popup to pnlMain and calling SetChildIndex(0),
-    /// the layout engine still clips drawing of every child to the
-    /// Dock-allocated rectangle of the owning panel.  The popup (a child of
-    /// pnlMain) was therefore always repainted UNDER pnlUserBar's clip rect
-    /// regardless of z-order calls.
+    /// Nav filtering (v3 — 2026-05-29)
+    /// ─────────────────────────────────
+    /// SetVisibleMenus(string[]) is called by DashboardForm after BindViewModel().
+    /// TopNavBar itself never reads SessionManager or department data —
+    /// it only renders the labels it is told to render (View responsibility only).
     ///
-    /// CORRECT FIX
-    /// Add _megaPopup directly to the root Form's Controls collection.
-    /// The Form itself has no Dock clip restriction, so BringToFront() is
-    /// truly absolute.  Position is obtained with PointToScreen /
-    /// PointToClient against the Form, exactly as WinForms ContextMenuStrip
-    /// does internally.
-    ///
-    /// SetPopupContainer() is kept for source-compatibility but is now a
-    /// no-op; the popup always self-resolves to FindForm().
+    /// Layer-overlap fix (v2 — unchanged)
+    /// ─────────────────────────────────
+    /// _megaPopup is added to FindForm() to avoid Dock-clip z-order issues.
     /// </summary>
     public class TopNavBar : Panel
     {
-        // ── Colours ─────────────────────────────────────────────────────────
+        // ── Colours ─────────────────────────────────────────────────
         private static readonly Color NavBg    = Color.FromArgb(29,  29,  31);
         private static readonly Color NavText  = Color.FromArgb(245, 245, 247);
         private static readonly Color DropBg   = Color.FromArgb(38,  38,  40);
         private static readonly Color DropText = Color.FromArgb(210, 210, 215);
 
-        // ── Fonts ────────────────────────────────────────────────────────────
+        // ── Fonts ───────────────────────────────────────────────────
         private static readonly Font FontNav      = new Font("Segoe UI", 11f,   FontStyle.Regular);
         private static readonly Font FontDropItem = new Font("Segoe UI", 10.5f, FontStyle.Regular);
 
-        private const int ItemPadH = 20;  // horizontal padding each side
-        private const int RowH     = 42;  // sub-item row height
-        private const int PadV     = 10;  // top/bottom inset inside popup
+        private const int ItemPadH = 20;
+        private const int RowH     = 42;
+        private const int PadV     = 10;
 
-        // ── Menu definition ─────────────────────────────────────────────────
-        private readonly (string Label, string[] Items)[] _menus =
+        // ── Full menu catalogue (canonical order) ─────────────────────────
+        private static readonly (string Label, string[] Items)[] AllMenus =
         {
             ("Dashboard",                 new string[] { }),
             ("Order Processing",          new[] { "View Order", "Quotation", "Create Order", "Modify Order" }),
@@ -60,17 +51,21 @@ namespace PremiumLivingOPS.Views.Dashboard
             ("Statistical Reports",       new[] { "View Report" })
         };
 
-        // ── State ────────────────────────────────────────────────────────────
+        // ── Active (filtered) menu ─────────────────────────────────────
+        // Defaults to all menus until SetVisibleMenus() is called.
+        private (string Label, string[] Items)[] _menus;
+
+        // ── State ─────────────────────────────────────────────────────
         private readonly List<Panel>                _navItems  = new List<Panel>();
         private readonly List<int>                  _navWidths = new List<int>();
         private          Panel                      _megaPopup;
         private          int                        _activeIdx = -1;
         private          System.Windows.Forms.Timer _pollTimer;
 
-        // ── Public Events ────────────────────────────────────────────────────
+        // ── Public Events ────────────────────────────────────────────
         public event Action<string> MenuItemClicked;
 
-        // ── Constructor ──────────────────────────────────────────────────────
+        // ── Constructor ──────────────────────────────────────────────
         public TopNavBar()
         {
             Height    = 44;
@@ -78,19 +73,49 @@ namespace PremiumLivingOPS.Views.Dashboard
             BackColor = NavBg;
             Padding   = new Padding(0);
 
+            _menus = AllMenus;  // default: show everything
+
             _pollTimer = new System.Windows.Forms.Timer { Interval = 80 };
             _pollTimer.Tick += PollTimer_Tick;
 
             HandleCreated += (s, e) => { BuildMegaPopup(); BuildNavItems(); };
         }
 
+        // ── Public API ────────────────────────────────────────────────
+
         /// <summary>
-        /// Kept for source-compatibility.  The popup now always resolves its
-        /// parent as FindForm() at show-time, so this method is a no-op.
+        /// Called by DashboardForm after BindViewModel() to restrict the
+        /// visible menus to those permitted for the current user's department.
+        ///
+        /// The View receives this list from DashboardViewModel.AllowedMenus,
+        /// which was populated by DashboardController via NavAccessPolicy.
+        /// TopNavBar itself is unaware of departments or session state.
         /// </summary>
+        public void SetVisibleMenus(string[] allowedLabels)
+        {
+            if (allowedLabels == null || allowedLabels.Length == 0)
+            {
+                _menus = AllMenus;
+            }
+            else
+            {
+                var allowed = new HashSet<string>(allowedLabels, StringComparer.OrdinalIgnoreCase);
+                _menus = AllMenus.Where(m => allowed.Contains(m.Label)).ToArray();
+            }
+
+            // Rebuild nav items if the handle is already created
+            // (i.e. SetVisibleMenus called after the form is shown)
+            if (IsHandleCreated)
+            {
+                HideMegaMenu();
+                BuildNavItems();
+            }
+        }
+
+        /// <summary>No-op kept for source compatibility.</summary>
         public void SetPopupContainer(Control container) { /* intentional no-op */ }
 
-        // ── Popup panel ──────────────────────────────────────────────────────
+        // ── Popup panel ───────────────────────────────────────────────
         private void BuildMegaPopup()
         {
             _megaPopup = new OpaquePanel
@@ -114,7 +139,7 @@ namespace PremiumLivingOPS.Views.Dashboard
             }
         }
 
-        // ── Build nav items ──────────────────────────────────────────────────
+        // ── Build nav items ─────────────────────────────────────────────
         private void BuildNavItems()
         {
             Controls.Clear();
@@ -180,7 +205,7 @@ namespace PremiumLivingOPS.Views.Dashboard
             _pollTimer.Start();
         }
 
-        // ── Poll timer ───────────────────────────────────────────────────────
+        // ── Poll timer ───────────────────────────────────────────────
         private void PollTimer_Tick(object sender, EventArgs e)
         {
             if (_megaPopup == null || !_megaPopup.Visible)
@@ -203,7 +228,7 @@ namespace PremiumLivingOPS.Views.Dashboard
             return ClientRectangle.Contains(PointToClient(Cursor.Position));
         }
 
-        // ── Recentre ─────────────────────────────────────────────────────────
+        // ── Recentre ─────────────────────────────────────────────────
         private void RecentreItems()
         {
             if (_navItems.Count == 0) return;
@@ -214,7 +239,7 @@ namespace PremiumLivingOPS.Views.Dashboard
             foreach (Panel p in _navItems) { p.Location = new Point(x, 0); x += p.Width; }
         }
 
-        // ── Highlight ─────────────────────────────────────────────────────────
+        // ── Highlight ─────────────────────────────────────────────────
         private void HighlightItem(int idx)
         {
             for (int i = 0; i < _navItems.Count; i++)
@@ -238,13 +263,12 @@ namespace PremiumLivingOPS.Views.Dashboard
             _activeIdx = -1;
         }
 
-        // ── Mega Menu ─────────────────────────────────────────────────────────
+        // ── Mega Menu ─────────────────────────────────────────────────
         private void ShowMegaMenu(int idx, Panel navItem)
         {
             string[] items = _menus[idx].Items;
             if (items.Length == 0) return;
 
-            // Measure popup dimensions
             int navW     = _navWidths[idx];
             int minTextW = 0;
             foreach (string s in items)
@@ -305,23 +329,6 @@ namespace PremiumLivingOPS.Views.Dashboard
                 iy += RowH;
             }
 
-            // ── Position popup relative to the root Form ──────────────────────
-            //
-            // KEY FIX: Use FindForm() (the root Form) as the popup parent.
-            //
-            // Why this works:
-            //   Dock=Top panels clip their children's drawing to their own
-            //   allocated rectangle.  A popup inside pnlMain is still subject
-            //   to pnlMain's clip rect, so it gets painted under pnlUserBar.
-            //   The root Form has NO Dock clip — BringToFront() is absolute.
-            //
-            // Coordinate translation:
-            //   1. navItem.PointToScreen(0, navItem.Height)
-            //      → screen coords of the bottom-left of the nav button
-            //   2. form.PointToClient(...)
-            //      → converts back to Form-client coords (accounts for
-            //        title bar, border, DPI scaling)
-            // ──────────────────────────────────────────────────────────────────
             Form form = FindForm();
             if (form == null) return;
 
@@ -338,7 +345,6 @@ namespace PremiumLivingOPS.Views.Dashboard
             if (!form.Controls.Contains(_megaPopup))
                 form.Controls.Add(_megaPopup);
 
-            // Absolute topmost in the Form's z-order
             _megaPopup.BringToFront();
             _megaPopup.Visible = true;
         }
@@ -349,7 +355,7 @@ namespace PremiumLivingOPS.Views.Dashboard
             ClearHighlight();
         }
 
-        // ── Paint ────────────────────────────────────────────────────────────
+        // ── Paint ─────────────────────────────────────────────────────
         protected override void OnPaint(PaintEventArgs e)
         {
             base.OnPaint(e);

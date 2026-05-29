@@ -12,9 +12,9 @@ namespace PremiumLivingOPS.Views.Dashboard
     /// Dashboard View — responsibility is UI binding only.
     ///
     /// Rules enforced:
-    ///   ✔  Reads ALL data (including user display name) exclusively from
-    ///       DashboardViewModel supplied by DashboardController.
-    ///   ✔  Never reads SessionManager or LoginForm.CurrentUser directly.
+    ///   ✔  All data (including user display name and allowed menus) comes
+    ///       exclusively from DashboardViewModel supplied by DashboardController.
+    ///   ✔  Never reads SessionManager or NavAccessPolicy directly.
     ///   ✔  No SQL, no hardcoded data, no business logic.
     /// </summary>
     public partial class DashboardForm : Form
@@ -98,37 +98,35 @@ namespace PremiumLivingOPS.Views.Dashboard
             BindViewModel();
         }
 
-        // ── ViewModel binding (View layer — no business logic) ───────────
-
-        /// <summary>
-        /// Calls the Controller, receives a fully prepared ViewModel,
-        /// and binds each piece to the corresponding UI control.
-        /// The View reads ONLY from the ViewModel — never from SessionManager directly.
-        /// </summary>
+        // ── ViewModel binding ───────────────────────────────────────────
         private void BindViewModel()
         {
             DashboardViewModel vm = _controller.LoadDashboard();
 
-            // 1. User Bar — names come from vm.UserBar (set by Controller)
+            // 1. User Bar
             lblTopNavUser.UserName   = vm.UserBar.DisplayName;
             lblTopNavUser.Department = vm.UserBar.Department;
+
+            // 2. Nav filtering — pass allowed labels to TopNavBar (pure View operation)
+            //    TopNavBar.SetVisibleMenus() only renders; the policy logic is in the Controller.
+            topNavBar.SetVisibleMenus(vm.AllowedMenus);
 
             lblPageSub.Text = "Premium Living Furniture Co.  ·  Overview as of " +
                               DateTime.Now.ToString("d MMMM yyyy");
 
-            // 2. Low-stock alert banner
+            // 3. Low-stock alert banner
             int lowCount = vm.LowStock.Count;
             pnlAlert.Visible = lowCount > 0;
             if (lowCount > 0)
                 lblAlert.Text = $"\u26A0\uFE0F  {lowCount} item(s) are currently below minimum stock threshold.";
 
-            // 3. KPI cards (2 rows × 4 cards)
+            // 4. KPI cards
             Panel[] kpiPanels = { kpiOrders, kpiDelivered, kpiQuotations, kpiLowStock,
                                   kpiRevenue, kpiAR,        kpiSuppliers,  kpiCustomers };
             for (int i = 0; i < kpiPanels.Length && i < vm.Kpis.Count; i++)
                 SetKpiCard(kpiPanels[i], vm.Kpis[i]);
 
-            // 4. Recent Orders grid
+            // 5. Recent Orders
             foreach (var row in vm.Orders)
             {
                 var (bg, fg) = Palette.TagColours(row.Status);
@@ -136,14 +134,14 @@ namespace PremiumLivingOPS.Views.Dashboard
                 dgvOrders.Rows[idx].Tag = new[] { bg, fg };
             }
 
-            // 5. Low-Stock grid
+            // 6. Low-Stock grid
             BindLowStockGrid(vm.LowStock);
 
-            // 6. Pending Quotations grid
+            // 7. Pending Quotations
             foreach (var row in vm.Quotations)
                 dgvQuotations.Rows.Add(row.QuotationId, row.Customer, row.Amount, row.ValidUntil);
 
-            // 7. Active Shipments grid
+            // 8. Active Shipments
             foreach (var row in vm.Shipments)
             {
                 var (bg, fg) = Palette.TagColours(row.Status);
@@ -151,7 +149,7 @@ namespace PremiumLivingOPS.Views.Dashboard
                 dgvShipments.Rows[idx].Tag = new[] { bg, fg };
             }
 
-            // 8. Supplier Payments grid
+            // 9. Supplier Payments
             foreach (var row in vm.Suppliers)
             {
                 var (bg, fg) = Palette.TagColours(row.Status);
@@ -159,14 +157,13 @@ namespace PremiumLivingOPS.Views.Dashboard
                 dgvSuppliers.Rows[idx].Tag = new[] { bg, fg };
             }
 
-            // 9. Activity feed
+            // 10. Activity feed
             foreach (var row in vm.Activities)
                 AddActivity(Palette.FromKey(row.CategoryKey),
                             row.BoldText, row.NormalText, row.TimeLabel);
         }
 
-        // ── Helpers (pure UI — no data/logic) ───────────────────────────
-
+        // ── Helpers ─────────────────────────────────────────────────
         private void SetKpiCard(Panel card, DashboardKpi kpi)
         {
             Color accent = Palette.FromKey(kpi.AccentKey);
@@ -236,7 +233,6 @@ namespace PremiumLivingOPS.Views.Dashboard
         }
 
         // ── Nav / logout ───────────────────────────────────────────────
-
         private void OnTopNavMenuItemClicked(string itemLabel)
         {
             if (itemLabel == "Dashboard") { lblBreadcrumb.Text = "Dashboard"; return; }
@@ -276,8 +272,7 @@ namespace PremiumLivingOPS.Views.Dashboard
             }
         }
 
-        // ── Cell painting (pure rendering — no logic) ───────────────────
-
+        // ── Cell painting ───────────────────────────────────────────────
         private void PaintStatusCell(object sender, DataGridViewCellPaintingEventArgs e, int statusColIndex)
         {
             if (e.RowIndex < 0 || e.ColumnIndex != statusColIndex) return;
