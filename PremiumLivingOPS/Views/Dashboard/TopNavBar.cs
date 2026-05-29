@@ -12,6 +12,8 @@ namespace PremiumLivingOPS.Views.Dashboard
     ///  2. Stable dropdown via 80 ms poll timer
     ///  3. Opaque mega-menu panel (no text bleed-through)
     ///  4. No category sub-headers inside the dropdown
+    ///  5. Dropdown row height increased for better vertical spacing
+    ///  6. Dropdown width = nav-item panel width (matches highlight footprint)
     /// </summary>
     public class TopNavBar : Panel
     {
@@ -25,16 +27,18 @@ namespace PremiumLivingOPS.Views.Dashboard
         private static readonly Font FontNav      = new Font("Segoe UI", 11f,   FontStyle.Regular);
         private static readonly Font FontDropItem = new Font("Segoe UI", 10.5f, FontStyle.Regular);
 
-        private const int ItemPadH = 20;   // horizontal padding each side of a nav button
+        private const int ItemPadH = 20;  // horizontal padding each side of a nav button
+
+        // FIX 1 — taller rows so sub-items breathe vertically
+        private const int RowH  = 42;    // was 34
+        private const int PadV  = 10;    // top/bottom inset inside popup
 
         // ── Menu definition ───────────────────────────────────────────────────
-        // Each entry: (top-level label, string[] of sub-items)
-        // Sub-items are shown directly – no category header, no divider.
         private readonly (string Label, string[] Items)[] _menus =
         {
-            ("Dashboard",                new string[] { }),
+            ("Dashboard",                 new string[] { }),
 
-            ("Order Processing",         new[]
+            ("Order Processing",          new[]
             {
                 "View & Search Order",
                 "Quotation",
@@ -42,30 +46,30 @@ namespace PremiumLivingOPS.Views.Dashboard
                 "Modify Order"
             }),
 
-            ("Production Processing",    new[]
+            ("Production Processing",     new[]
             {
                 "Search Raw Material Request",
                 "Create Raw Material Request"
             }),
 
-            ("Logistics Processing",     new[]
+            ("Logistics Processing",      new[]
             {
                 "View Shipment",
                 "Handling Goods Received"
             }),
 
-            ("Inventory Control",        new[]
+            ("Inventory Control",         new[]
             {
                 "View Product / Raw Material"
             }),
 
-            ("Raw Material",             new[]
+            ("Raw Material",              new[]
             {
                 "Create Procurement",
                 "Search & List Procurement"
             }),
 
-            ("After-Service",            new[]
+            ("After-Service",             new[]
             {
                 "Create Invoice",
                 "Complaint List",
@@ -74,7 +78,7 @@ namespace PremiumLivingOPS.Views.Dashboard
                 "Account Payable"
             }),
 
-            ("Master Data Maintenance",  new[]
+            ("Master Data Maintenance",   new[]
             {
                 "Supplier List",
                 "Customer List"
@@ -86,16 +90,17 @@ namespace PremiumLivingOPS.Views.Dashboard
                 "Log List"
             }),
 
-            ("Statistical Reports",      new[]
+            ("Statistical Reports",       new[]
             {
                 "View Report"
             })
         };
 
         // ── State ─────────────────────────────────────────────────────────────
-        private readonly List<Panel>               _navItems = new List<Panel>();
-        private          Panel                     _megaPopup;
-        private          int                       _activeIdx = -1;
+        private readonly List<Panel>                _navItems  = new List<Panel>();
+        private readonly List<int>                  _navWidths  = new List<int>();   // FIX 2 — store widths
+        private          Panel                      _megaPopup;
+        private          int                        _activeIdx = -1;
         private          System.Windows.Forms.Timer _pollTimer;
 
         // ── Public Events ─────────────────────────────────────────────────────
@@ -144,6 +149,7 @@ namespace PremiumLivingOPS.Views.Dashboard
         {
             Controls.Clear();
             _navItems.Clear();
+            _navWidths.Clear();
 
             Label logo = new Label
             {
@@ -156,12 +162,12 @@ namespace PremiumLivingOPS.Views.Dashboard
             };
             Controls.Add(logo);
 
-            var widths = new int[_menus.Length];
             int totalW = 0;
             for (int i = 0; i < _menus.Length; i++)
             {
-                widths[i] = TextRenderer.MeasureText(_menus[i].Label, FontNav).Width + ItemPadH * 2;
-                totalW   += widths[i];
+                int w = TextRenderer.MeasureText(_menus[i].Label, FontNav).Width + ItemPadH * 2;
+                _navWidths.Add(w);
+                totalW += w;
             }
 
             int startX = Math.Max(100, (Width - totalW) / 2);
@@ -175,7 +181,7 @@ namespace PremiumLivingOPS.Views.Dashboard
                 Panel item = new Panel
                 {
                     Location  = new Point(x, 0),
-                    Size      = new Size(widths[i], 44),
+                    Size      = new Size(_navWidths[i], 44),
                     BackColor = Color.Transparent,
                     Cursor    = Cursors.Hand
                 };
@@ -201,7 +207,7 @@ namespace PremiumLivingOPS.Views.Dashboard
 
                 Controls.Add(item);
                 _navItems.Add(item);
-                x += widths[i];
+                x += _navWidths[i];
             }
 
             Resize += (s, e) => RecentreItems();
@@ -279,26 +285,30 @@ namespace PremiumLivingOPS.Views.Dashboard
             string[] items = _menus[idx].Items;
             if (items.Length == 0) return;
 
-            const int colWidth = 230;
-            const int padH     = 16;
-            const int padV     = 10;
-            const int rowH     = 34;
-
-            int popupW = colWidth + padH * 2;
-            int popupH = padV * 2 + items.Length * rowH;
+            // FIX 2: popup width = nav-item panel width (the highlighted footprint)
+            int navW   = _navWidths[idx];          // exact width of the top-level button
+            // But also ensure every sub-item text fits; take the wider of the two.
+            int minTextW = 0;
+            foreach (string s in items)
+            {
+                int tw = TextRenderer.MeasureText(s, FontDropItem).Width + 24;
+                if (tw > minTextW) minTextW = tw;
+            }
+            int popupW = Math.Max(navW, minTextW);
+            int popupH = PadV * 2 + items.Length * RowH;
 
             _megaPopup.Controls.Clear();
             _megaPopup.Size = new Size(popupW, popupH);
 
-            int iy = padV;
+            int iy = PadV;
             foreach (string sub in items)
             {
                 string captured = sub;
 
                 Panel row = new Panel
                 {
-                    Size      = new Size(colWidth, rowH),
-                    Location  = new Point(padH, iy),
+                    Size      = new Size(popupW, RowH),   // row spans full popup width
+                    Location  = new Point(0, iy),
                     BackColor = DropBg,
                     Cursor    = Cursors.Hand
                 };
@@ -310,7 +320,7 @@ namespace PremiumLivingOPS.Views.Dashboard
                     BackColor = Color.Transparent,
                     Dock      = DockStyle.Fill,
                     TextAlign = ContentAlignment.MiddleLeft,
-                    Padding   = new Padding(8, 0, 0, 0)
+                    Padding   = new Padding(12, 0, 0, 0)
                 };
                 row.Controls.Add(rowLbl);
 
@@ -334,16 +344,16 @@ namespace PremiumLivingOPS.Views.Dashboard
                 rowLbl.Click += onClick;
 
                 _megaPopup.Controls.Add(row);
-                iy += rowH;
+                iy += RowH;
             }
 
-            // Position below the nav bar
+            // Align popup left-edge with nav-item left-edge (same x as highlight)
             Form  owner  = FindForm();
             if (owner == null) return;
             Point formPt = owner.PointToClient(navItem.PointToScreen(new Point(0, Height)));
 
-            int left = formPt.X;
-            if (left + popupW > owner.ClientSize.Width - 8) left = owner.ClientSize.Width - popupW - 8;
+            int left = formPt.X;   // lines up with nav-item left edge
+            if (left + popupW > owner.ClientSize.Width - 4) left = owner.ClientSize.Width - popupW - 4;
             if (left < 0) left = 0;
 
             _megaPopup.Location = new Point(left, formPt.Y);
