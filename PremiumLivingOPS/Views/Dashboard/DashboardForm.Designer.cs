@@ -10,9 +10,9 @@ namespace PremiumLivingOPS.Views.Dashboard
 
         private TopNavBar pnlTopNav;
 
-        private Label  lblBreadcrumb;
-        private Label  lblTopNavUser;
-        private Button btnLogout;
+        private Label       lblBreadcrumb;
+        private UserInfoLabel lblTopNavUser;   // custom owner-drawn
+        private Button      btnLogout;
 
         private Panel pnlContent;
         private Label lblPageTitle;
@@ -55,12 +55,12 @@ namespace PremiumLivingOPS.Views.Dashboard
             // ============================================================
             // User Bar — 72 px tall
             //
-            // Elements (left):  lblBreadcrumb
-            // Elements (right): lblTopNavUser | gap | btnLogout
+            // Left  : lblBreadcrumb
+            // Right : [StaffName (Department)]  |  gap  |  [Log Out]
             //
-            // Vertical centre formula:  Y = (UBH − ctrl.Height) / 2
-            // Applied inside layoutUserBar() which fires on Resize + Load.
-            // btnLogout uses AutoSize so its border always fits the text.
+            // layoutUserBar() fires on Resize + Form.Load.
+            // UserInfoLabel.RecalcSize() is called after UserName/Department
+            // are set, so .Width is correct when layoutUserBar() runs on Load.
             // ============================================================
             const int UBH      = 72;
             const int RightPad = 16;
@@ -85,48 +85,42 @@ namespace PremiumLivingOPS.Views.Dashboard
                 Font      = new Font("Segoe UI", 16f, FontStyle.Bold),
                 ForeColor = Palette.TextMain,
                 AutoSize  = true,
-                Location  = new Point(22, 0)   // Y set properly in layoutUserBar
+                Location  = new Point(22, 0)   // Y recalculated in layoutUserBar
             };
 
-            lblTopNavUser = new Label
+            // Custom owner-drawn control: StaffName (Department)
+            lblTopNavUser = new UserInfoLabel
             {
-                Text      = "...",
-                Font      = new Font("Segoe UI", 14.4f),
-                ForeColor = Palette.TextMuted,
-                AutoSize  = true
+                UserName   = "...",
+                Department = ""
             };
 
-            // AutoSize = true + Padding ensures the border always wraps the text
             btnLogout = new Button
             {
-                Text      = "Log Out",
-                Font      = new Font("Segoe UI", 12.8f),
-                ForeColor = Palette.Danger,
-                BackColor = System.Drawing.Color.Transparent,
-                FlatStyle = FlatStyle.Flat,
-                AutoSize  = true,
+                Text         = "Log Out",
+                Font         = new Font("Segoe UI", 12.8f),
+                ForeColor    = Palette.Danger,
+                BackColor    = System.Drawing.Color.Transparent,
+                FlatStyle    = FlatStyle.Flat,
+                AutoSize     = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
-                Padding   = new Padding(14, 4, 14, 4),  // horizontal room so border is clear
-                Cursor    = Cursors.Hand
+                Padding      = new Padding(14, 4, 14, 4),
+                Cursor       = Cursors.Hand
             };
             btnLogout.FlatAppearance.BorderColor = Palette.Danger;
             btnLogout.FlatAppearance.BorderSize  = 1;
             btnLogout.Click += btnLogout_Click;
 
             // ---- layout closure ----------------------------------------
-            // Fires on Resize (window size changes) AND Form.Load
-            // (labels have been measured by WinForms before Load fires).
             System.Action layoutUserBar = () =>
             {
                 int bw = pnlUserBar.ClientSize.Width;
 
-                // Right side: [Log Out] | gap | [User Name]
                 int logoutX  = bw - RightPad - btnLogout.Width;
                 int userLblX = logoutX - ItemGap - lblTopNavUser.Width;
 
-                // Vertically centre each control
-                btnLogout.Location     = new Point(logoutX,  (UBH - btnLogout.Height)     / 2);
-                lblTopNavUser.Location = new Point(userLblX, (UBH - lblTopNavUser.Height) / 2);
+                btnLogout.Location     = new Point(logoutX,  (UBH - btnLogout.Height)      / 2);
+                lblTopNavUser.Location = new Point(userLblX, (UBH - lblTopNavUser.Height)  / 2);
                 lblBreadcrumb.Location = new Point(22,        (UBH - lblBreadcrumb.Height) / 2);
             };
 

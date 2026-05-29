@@ -62,9 +62,16 @@ namespace PremiumLivingOPS.Views.Dashboard
         private void PopulateDashboard()
         {
             if (SessionManager.IsLoggedIn)
-                lblTopNavUser.Text = SessionManager.CurrentUser.StaffName;
+            {
+                var u = SessionManager.CurrentUser;
+                lblTopNavUser.UserName   = u.StaffName;
+                lblTopNavUser.Department = u.Department ?? string.Empty;
+            }
             else
-                lblTopNavUser.Text = "Guest";
+            {
+                lblTopNavUser.UserName   = "Guest";
+                lblTopNavUser.Department = string.Empty;
+            }
 
             lblPageSub.Text = "Premium Living Furniture Co.  \u00B7  Overview as of " +
                               DateTime.Now.ToString("d MMMM yyyy");
