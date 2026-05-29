@@ -10,12 +10,14 @@ namespace PremiumLivingOPS.Controllers
     /// Controller for the Dashboard screen.
     ///
     /// Responsibilities:
-    ///   1. Call DashboardRepo to fetch raw data from the database.
-    ///   2. Apply business logic (formatting, derived fields, sorting).
-    ///   3. Assemble a DashboardViewModel and return it to the View.
+    ///   1. Read session state from <see cref="SessionManager"/> and build UserBarInfo.
+    ///   2. Call DashboardRepo to fetch raw data from the database.
+    ///   3. Apply business logic (formatting, derived fields, sorting).
+    ///   4. Assemble a <see cref="DashboardViewModel"/> and return it to the View.
     ///
-    /// Each Repo call is wrapped in try-catch so a single failing table
-    /// returns an empty list/zero instead of crashing the whole Dashboard.
+    /// The View (DashboardForm) must NOT contain any of the above logic.
+    /// Each Repo call is wrapped in SafeCall so one failing table does not
+    /// crash the whole Dashboard.
     /// </summary>
     public class DashboardController
     {
@@ -30,7 +32,21 @@ namespace PremiumLivingOPS.Controllers
         {
             var vm = new DashboardViewModel();
 
-            // ── 1. Raw data — each call is individually guarded ───────
+            // ── 1. User Bar — from SessionManager (no DB call needed) ──────
+            if (SessionManager.IsLoggedIn)
+            {
+                vm.UserBar = new UserBarInfo
+                {
+                    DisplayName = SessionManager.CurrentUser.StaffName  ?? string.Empty,
+                    Department  = SessionManager.CurrentUser.Department  ?? string.Empty
+                };
+            }
+            else
+            {
+                vm.UserBar = new UserBarInfo { DisplayName = "Guest", Department = string.Empty };
+            }
+
+            // ── 2. Raw data from DAL ─────────────────────────────────────
             var statusCounts = SafeCall(() => _repo.GetOrderStatusCounts(),
                                         new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase));
 
@@ -40,13 +56,13 @@ namespace PremiumLivingOPS.Controllers
             int processing  = statusCounts.GetValueOrDefault("Processing", 0);
             int shipped     = statusCounts.GetValueOrDefault("Shipped",    0);
 
-            var lowStockItems = SafeCall(() => _repo.GetLowStockItems(),   new List<LowStockRow>());
-            decimal revenue   = SafeCall(() => _repo.GetMonthlyRevenue(),  0m);
-            decimal ar        = SafeCall(() => _repo.GetOutstandingAR(),   0m);
-            int suppliers     = SafeCall(() => _repo.GetActiveSupplierCount(), 0);
-            int customers     = SafeCall(() => _repo.GetCustomerCount(),   0);
+            var lowStockItems = SafeCall(() => _repo.GetLowStockItems(),        new List<LowStockRow>());
+            decimal revenue   = SafeCall(() => _repo.GetMonthlyRevenue(),       0m);
+            decimal ar        = SafeCall(() => _repo.GetOutstandingAR(),        0m);
+            int suppliers     = SafeCall(() => _repo.GetActiveSupplierCount(),  0);
+            int customers     = SafeCall(() => _repo.GetCustomerCount(),        0);
 
-            // ── 2. KPI list ───────────────────────────────────────────
+            // ── 3. KPI list ───────────────────────────────────────────
             string month = DateTime.Now.ToString("MMM").ToUpper();
 
             vm.Kpis = new List<DashboardKpi>
@@ -111,8 +127,8 @@ namespace PremiumLivingOPS.Controllers
                 }
             };
 
-            // ── 3. Tabular data ───────────────────────────────────────
-            vm.Orders    = SafeCall(() => _repo.GetRecentOrders(5),      new List<OrderSummaryRow>());
+            // ── 4. Tabular data ───────────────────────────────────────
+            vm.Orders    = SafeCall(() => _repo.GetRecentOrders(5),       new List<OrderSummaryRow>());
             vm.LowStock  = lowStockItems;
 
             var quotations   = SafeCall(() => _repo.GetPendingQuotations(5), new List<QuotationSummaryRow>());
@@ -122,21 +138,16 @@ namespace PremiumLivingOPS.Controllers
                 ? string.Join(" · ", quotations.Take(2).Select(q => q.QuotationId))
                 : "No pending quotations";
 
-            vm.Shipments = SafeCall(() => _repo.GetActiveShipments(5),   new List<ShipmentSummaryRow>());
-            vm.Suppliers = SafeCall(() => _repo.GetSupplierPayments(5),  new List<SupplierPaymentRow>());
+            vm.Shipments = SafeCall(() => _repo.GetActiveShipments(5),    new List<ShipmentSummaryRow>());
+            vm.Suppliers = SafeCall(() => _repo.GetSupplierPayments(5),   new List<SupplierPaymentRow>());
 
-            // ── 4. Activity feed ──────────────────────────────────────
+            // ── 5. Activity feed ──────────────────────────────────────
             vm.Activities = BuildActivityFeed(vm.Orders, vm.Shipments, vm.Suppliers);
 
             return vm;
         }
 
-        // ── Fault-isolation helper ────────────────────────────────────
-        /// <summary>
-        /// Executes <paramref name="fn"/> and returns its result.
-        /// On any exception, logs to Debug output and returns <paramref name="fallback"/>.
-        /// This prevents a single failing table from crashing the whole Dashboard.
-        /// </summary>
+        // ── Fault-isolation helper ───────────────────────────────────
         private static T SafeCall<T>(Func<T> fn, T fallback)
         {
             try   { return fn(); }
@@ -148,8 +159,7 @@ namespace PremiumLivingOPS.Controllers
             }
         }
 
-        // ── Private helpers ───────────────────────────────────────────
-
+        // ── Private helpers ──────────────────────────────────────────
         private static string FormatHKD(decimal amount)
         {
             if (amount >= 1_000_000m) return $"HK${(amount / 1_000_000m):0.#}M";

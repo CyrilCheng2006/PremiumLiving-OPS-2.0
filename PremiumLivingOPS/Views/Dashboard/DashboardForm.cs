@@ -12,13 +12,14 @@ namespace PremiumLivingOPS.Views.Dashboard
     /// Dashboard View — responsibility is UI binding only.
     ///
     /// Rules enforced:
-    ///   ✔  Reads data exclusively from DashboardViewModel (supplied by DashboardController).
+    ///   ✔  Reads ALL data (including user display name) exclusively from
+    ///       DashboardViewModel supplied by DashboardController.
+    ///   ✔  Never reads SessionManager or LoginForm.CurrentUser directly.
     ///   ✔  No SQL, no hardcoded data, no business logic.
-    ///   ✔  Colour mapping from AccentKey / CategoryKey strings → Palette colours.
     /// </summary>
     public partial class DashboardForm : Form
     {
-        // ── Palette ───────────────────────────────────────────────────
+        // ── Palette ────────────────────────────────────────────────
         internal static class Palette
         {
             public static readonly Color BgPage       = Color.FromArgb(240, 244, 249);
@@ -46,7 +47,6 @@ namespace PremiumLivingOPS.Views.Dashboard
             public static readonly Color TagGrayBg    = Color.FromArgb(241, 245, 249);
             public static readonly Color TagGrayFg    = Color.FromArgb(71,  85,  105);
 
-            /// <summary>Maps the string key stored in ViewModel → actual Color.</summary>
             public static Color FromKey(string key)
             {
                 switch (key)
@@ -60,7 +60,6 @@ namespace PremiumLivingOPS.Views.Dashboard
                 }
             }
 
-            /// <summary>Returns (background, foreground) tag badge colours for a status string.</summary>
             public static (Color bg, Color fg) TagColours(string status)
             {
                 switch (status)
@@ -81,17 +80,17 @@ namespace PremiumLivingOPS.Views.Dashboard
             }
         }
 
-        // ── Fonts ─────────────────────────────────────────────────────
+        // ── Fonts ──────────────────────────────────────────────────
         private static readonly Font FontBody      = new Font("Segoe UI", 16f,   FontStyle.Regular);
         private static readonly Font FontBodyBold  = new Font("Segoe UI", 16f,   FontStyle.Bold);
         private static readonly Font FontSmall     = new Font("Segoe UI", 13.6f, FontStyle.Regular);
         private static readonly Font FontSmallBold = new Font("Segoe UI", 13.6f, FontStyle.Bold);
 
-        // ── Fields ────────────────────────────────────────────────────
+        // ── Fields ──────────────────────────────────────────────────
         private readonly DashboardController _controller;
         private Panel _activeNavItem;
 
-        // ── Constructor ───────────────────────────────────────────────
+        // ── Constructor ──────────────────────────────────────────────
         public DashboardForm()
         {
             _controller = new DashboardController();
@@ -99,35 +98,33 @@ namespace PremiumLivingOPS.Views.Dashboard
             BindViewModel();
         }
 
-        // ── ViewModel binding (View layer — no business logic) ────────
+        // ── ViewModel binding (View layer — no business logic) ───────────
 
         /// <summary>
         /// Calls the Controller, receives a fully prepared ViewModel,
         /// and binds each piece to the corresponding UI control.
+        /// The View reads ONLY from the ViewModel — never from SessionManager directly.
         /// </summary>
         private void BindViewModel()
         {
-            // 1. User bar — from session (this is session state, not DB data)
-            if (SessionManager.IsLoggedIn)
-            {
-                lblTopNavUser.UserName   = SessionManager.CurrentUser.StaffName;
-                lblTopNavUser.Department = SessionManager.CurrentUser.Department ?? string.Empty;
-            }
-            else
-            {
-                lblTopNavUser.UserName   = "Guest";
-                lblTopNavUser.Department = string.Empty;
-            }
+            DashboardViewModel vm = _controller.LoadDashboard();
+
+            // 1. User Bar — names come from vm.UserBar (set by Controller)
+            lblTopNavUser.UserName   = vm.UserBar.DisplayName;
+            lblTopNavUser.Department = vm.UserBar.Department;
 
             lblPageSub.Text = "Premium Living Furniture Co.  ·  Overview as of " +
                               DateTime.Now.ToString("d MMMM yyyy");
 
-            // 2. Ask controller for all dashboard data
-            DashboardViewModel vm = _controller.LoadDashboard();
+            // 2. Low-stock alert banner
+            int lowCount = vm.LowStock.Count;
+            pnlAlert.Visible = lowCount > 0;
+            if (lowCount > 0)
+                lblAlert.Text = $"\u26A0\uFE0F  {lowCount} item(s) are currently below minimum stock threshold.";
 
             // 3. KPI cards (2 rows × 4 cards)
             Panel[] kpiPanels = { kpiOrders, kpiDelivered, kpiQuotations, kpiLowStock,
-                                  kpiRevenue, kpiAR,       kpiSuppliers,  kpiCustomers };
+                                  kpiRevenue, kpiAR,        kpiSuppliers,  kpiCustomers };
             for (int i = 0; i < kpiPanels.Length && i < vm.Kpis.Count; i++)
                 SetKpiCard(kpiPanels[i], vm.Kpis[i]);
 
@@ -140,7 +137,6 @@ namespace PremiumLivingOPS.Views.Dashboard
             }
 
             // 5. Low-Stock grid
-            // (built into Designer's AddLowStockRows; now replaced by ViewModel data)
             BindLowStockGrid(vm.LowStock);
 
             // 6. Pending Quotations grid
@@ -169,7 +165,7 @@ namespace PremiumLivingOPS.Views.Dashboard
                             row.BoldText, row.NormalText, row.TimeLabel);
         }
 
-        // ── Helpers (pure UI — no data/logic) ────────────────────────
+        // ── Helpers (pure UI — no data/logic) ───────────────────────────
 
         private void SetKpiCard(Panel card, DashboardKpi kpi)
         {
@@ -239,14 +235,14 @@ namespace PremiumLivingOPS.Views.Dashboard
             return new Region(p);
         }
 
-        // ── Nav / logout ──────────────────────────────────────────────
+        // ── Nav / logout ───────────────────────────────────────────────
 
         private void OnTopNavMenuItemClicked(string itemLabel)
         {
             if (itemLabel == "Dashboard") { lblBreadcrumb.Text = "Dashboard"; return; }
             lblBreadcrumb.Text = itemLabel;
             MessageBox.Show(
-                $"⌛  {itemLabel}\n\nThis feature is currently under development.",
+                $"\u231B  {itemLabel}\n\nThis feature is currently under development.",
                 "Coming Soon", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
@@ -280,7 +276,7 @@ namespace PremiumLivingOPS.Views.Dashboard
             }
         }
 
-        // ── Cell painting (pure rendering — no logic) ─────────────────
+        // ── Cell painting (pure rendering — no logic) ───────────────────
 
         private void PaintStatusCell(object sender, DataGridViewCellPaintingEventArgs e, int statusColIndex)
         {
