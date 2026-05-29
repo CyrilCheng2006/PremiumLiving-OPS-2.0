@@ -37,15 +37,14 @@ namespace PremiumLivingOPS.Views.Dashboard
             public static readonly Color TagGrayFg    = Color.FromArgb(71,  85,  105);
         }
 
-        // ── Fonts (all bumped up) ──────────────────────────────────
-        private static readonly Font FontBody      = new Font("Segoe UI", 11f,  FontStyle.Regular);
-        private static readonly Font FontBodyBold  = new Font("Segoe UI", 11f,  FontStyle.Bold);
-        private static readonly Font FontSmall     = new Font("Segoe UI", 10f,  FontStyle.Regular);
-        private static readonly Font FontSmallBold = new Font("Segoe UI", 10f,  FontStyle.Bold);
-        private static readonly Font FontTitle     = new Font("Segoe UI", 20f,  FontStyle.Bold);
-        private static readonly Font FontNav       = new Font("Segoe UI", 11f,  FontStyle.Regular);
-        private static readonly Font FontKpiVal    = new Font("Segoe UI", 24f,  FontStyle.Bold);
-        private static readonly Font FontKpiLabel  = new Font("Segoe UI", 9f,   FontStyle.Bold);
+        // ── Shared fonts (scaled to 20f base) ──────────────────────────
+        private static readonly Font FontBody      = new Font("Segoe UI", 20f,  FontStyle.Regular);
+        private static readonly Font FontBodyBold  = new Font("Segoe UI", 20f,  FontStyle.Bold);
+        private static readonly Font FontSmall     = new Font("Segoe UI", 17f,  FontStyle.Regular);
+        private static readonly Font FontSmallBold = new Font("Segoe UI", 17f,  FontStyle.Bold);
+        private static readonly Font FontTitle     = new Font("Segoe UI", 32f,  FontStyle.Bold);
+        private static readonly Font FontKpiVal    = new Font("Segoe UI", 38f,  FontStyle.Bold);
+        private static readonly Font FontKpiLabel  = new Font("Segoe UI", 13f,  FontStyle.Bold);
 
         private Panel _activeNavItem;
 
@@ -94,7 +93,7 @@ namespace PremiumLivingOPS.Views.Dashboard
             AddOrderRow("ORD-2026-0047", "Lee Wai Kwan",     "HK$29,400",  "Shipped",    Palette.TagGreenBg,  Palette.TagGreenFg);
             AddOrderRow("ORD-2026-0046", "ABC Furniture Ltd", "HK$120,700", "Pending",    Palette.TagYellowBg, Palette.TagYellowFg);
             AddOrderRow("ORD-2026-0045", "Wong Ka Fai",      "HK$26,500",  "Delivered",  Palette.TagGreenBg,  Palette.TagGreenFg);
-            AddOrderRow("ORD-2026-0044", "Sunrise Interiors", "HK$57,600",  "Delivered",  Palette.TagGreenBg,  Palette.TagGreenFg);
+            AddOrderRow("ORD-2026-0044", "Sunrise Interiors", "HK$57,600", "Delivered",  Palette.TagGreenBg,  Palette.TagGreenFg);
 
             AddQuotRow("QT-2026-0034", "Chan Siu Ming", "HK$38,400", "29 Mar 2026");
             AddQuotRow("QT-2026-0033", "Cheung Wai Ho", "HK$30,800", "24 Mar 2026");
@@ -154,35 +153,41 @@ namespace PremiumLivingOPS.Views.Dashboard
         {
             Panel row = new Panel
             {
-                Dock = DockStyle.Top, Height = 44,
-                Padding = new Padding(0, 8, 0, 8),
+                Dock = DockStyle.Top, Height = 62,
+                Padding = new Padding(0, 10, 0, 10),
                 BackColor = Color.Transparent
             };
 
             Panel dot = new Panel
             {
-                Width = 12, Height = 12, BackColor = dotColor, Location = new Point(0, 16)
+                Width = 16, Height = 16,
+                BackColor = dotColor,
+                Location = new Point(0, 23)
             };
-            dot.Region = MakeCircleRegion(12, 12);
+            dot.Region = MakeCircleRegion(16, 16);
 
             Label lblBold = new Label
             {
-                Text = boldText, Font = FontBodyBold, ForeColor = Palette.TextMain,
-                AutoSize = true, Location = new Point(20, 13)
+                Text = boldText, Font = FontBodyBold,
+                ForeColor = Palette.TextMain,
+                AutoSize = true, Location = new Point(26, 18)
             };
             Label lblNorm = new Label
             {
-                Text = normalText, Font = FontBody, ForeColor = Palette.TextMain,
+                Text = normalText, Font = FontBody,
+                ForeColor = Palette.TextMain,
                 AutoSize = true,
-                Location = new Point(20 + TextRenderer.MeasureText(boldText, FontBodyBold).Width, 13)
+                Location = new Point(26 + TextRenderer.MeasureText(boldText, FontBodyBold).Width, 18)
             };
             Label lblTime = new Label
             {
-                Text = time, Font = FontSmall, ForeColor = Palette.TextMuted,
-                AutoSize = true, Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                Text = time, Font = FontSmall,
+                ForeColor = Palette.TextMuted,
+                AutoSize = true,
+                Anchor = AnchorStyles.Top | AnchorStyles.Right,
                 TextAlign = ContentAlignment.TopRight
             };
-            lblTime.Location = new Point(pnlActivity.Width - lblTime.PreferredWidth - 6, 14);
+            lblTime.Location = new Point(pnlActivity.Width - lblTime.PreferredWidth - 8, 20);
 
             row.Controls.Add(dot);
             row.Controls.Add(lblBold);
@@ -217,7 +222,7 @@ namespace PremiumLivingOPS.Views.Dashboard
                 foreach (Control c in _activeNavItem.Controls)
                 {
                     if (c is Label l) l.ForeColor = Palette.SidebarText;
-                    if (c is Panel && c.Dock == DockStyle.Left && c.Width == 3)
+                    if (c is Panel && c.Dock == DockStyle.Left && c.Width == 4)
                         c.BackColor = Color.Transparent;
                 }
             }
@@ -226,7 +231,7 @@ namespace PremiumLivingOPS.Views.Dashboard
             foreach (Control c in _activeNavItem.Controls)
             {
                 if (c is Label l) l.ForeColor = Color.White;
-                if (c is Panel && c.Dock == DockStyle.Left && c.Width == 3)
+                if (c is Panel && c.Dock == DockStyle.Left && c.Width == 4)
                     c.BackColor = Palette.Primary;
             }
         }
@@ -251,21 +256,21 @@ namespace PremiumLivingOPS.Views.Dashboard
                 string text = e.Value?.ToString() ?? "";
                 SizeF  sz   = e.Graphics.MeasureString(text, FontSmallBold);
                 RectangleF badge = new RectangleF(
-                    e.CellBounds.X + 6,
-                    e.CellBounds.Y + (e.CellBounds.Height - sz.Height - 6) / 2,
-                    sz.Width + 18, sz.Height + 6);
+                    e.CellBounds.X + 8,
+                    e.CellBounds.Y + (e.CellBounds.Height - sz.Height - 8) / 2,
+                    sz.Width + 24, sz.Height + 8);
 
                 using (GraphicsPath gp = new GraphicsPath())
                 {
                     float r = badge.Height / 2f;
-                    gp.AddArc(badge.X,             badge.Y,              r*2, r*2, 180, 90);
-                    gp.AddArc(badge.Right - r*2,   badge.Y,              r*2, r*2, 270, 90);
-                    gp.AddArc(badge.Right - r*2,   badge.Bottom - r*2,   r*2, r*2,   0, 90);
-                    gp.AddArc(badge.X,             badge.Bottom - r*2,   r*2, r*2,  90, 90);
+                    gp.AddArc(badge.X,           badge.Y,            r*2, r*2, 180, 90);
+                    gp.AddArc(badge.Right - r*2, badge.Y,            r*2, r*2, 270, 90);
+                    gp.AddArc(badge.Right - r*2, badge.Bottom - r*2, r*2, r*2,   0, 90);
+                    gp.AddArc(badge.X,           badge.Bottom - r*2, r*2, r*2,  90, 90);
                     gp.CloseFigure();
                     e.Graphics.FillPath(new SolidBrush(colours[0]), gp);
                     e.Graphics.DrawString(text, FontSmallBold, new SolidBrush(colours[1]),
-                        badge.X + 9, badge.Y + 3);
+                        badge.X + 12, badge.Y + 4);
                 }
                 e.Handled = true;
             }
