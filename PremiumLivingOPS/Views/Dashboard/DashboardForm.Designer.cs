@@ -13,9 +13,8 @@ namespace PremiumLivingOPS.Views.Dashboard
         private Label lblSidebarTitle;
         private Label lblSidebarSub;
 
-        private Panel navDashboard, navOrders, navQuotation, navComplaints,
-                      navInventory, navLogistics, navStaff, navLogs,
-                      navAccRecv, navAccPay, navSupplier, navCustomer;
+        // Dashboard nav item (active by default)
+        private Panel navDashboard;
 
         // ====== Top Nav ======================================================
         private Panel  pnlTopNav;
@@ -72,13 +71,15 @@ namespace PremiumLivingOPS.Views.Dashboard
             };
             lblSidebarTitle = new Label
             {
-                Text = "🪑 PLF System", Font = new Font("Segoe UI", 10.5f, FontStyle.Bold),
+                Text = "\uD83E\uDE91 PLF System",
+                Font = new Font("Segoe UI", 10.5f, FontStyle.Bold),
                 ForeColor = Color.White, AutoSize = false, Dock = DockStyle.Fill,
                 TextAlign = ContentAlignment.TopLeft
             };
             lblSidebarSub = new Label
             {
-                Text = "Premium Living Furniture Co.", Font = new Font("Segoe UI", 7.5f),
+                Text = "Premium Living Furniture Co.",
+                Font = new Font("Segoe UI", 7.5f),
                 ForeColor = Color.FromArgb(122, 154, 189), AutoSize = false,
                 Dock = DockStyle.Bottom, Height = 16, TextAlign = ContentAlignment.BottomLeft
             };
@@ -88,44 +89,65 @@ namespace PremiumLivingOPS.Views.Dashboard
             Panel pnlLogoDivider = new Panel
             { Dock = DockStyle.Top, Height = 1, BackColor = Color.FromArgb(30, 53, 88) };
 
+            // Scrollable nav area
             FlowLayoutPanel navFlow = new FlowLayoutPanel
             {
                 Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown,
-                AutoScroll = true, WrapContents = false, Width = 240, BackColor = Palette.SidebarBg
+                AutoScroll = true, WrapContents = false, Width = 240,
+                BackColor = Palette.SidebarBg
             };
 
-            navDashboard  = MakeNavItem("🏠", "Dashboard",           true);
-            navOrders     = MakeNavItem("📊", "Order Tracking",      false);
-            navQuotation  = MakeNavItem("📋", "Quotation",           false);
-            navComplaints = MakeNavItem("🔍", "Complaint Tracker",   false);
-            navInventory  = MakeNavItem("📦", "Inventory",           false);
-            navLogistics  = MakeNavItem("🚚", "Logistics",           false);
-            navSupplier   = MakeNavItem("🏢", "Supplier List",       false);
-            navCustomer   = MakeNavItem("👥", "Customer List",       false);
-            navStaff      = MakeNavItem("👤", "User Accounts",       false);
-            navLogs       = MakeNavItem("🔐", "Audit Logs",          false);
-            navAccRecv    = MakeNavItem("💰", "Accounts Receivable", false);
-            navAccPay     = MakeNavItem("💳", "Accounts Payable",    false);
-
-            navFlow.Controls.Add(MakeNavSection("MAIN"));
+            // ── Dashboard ────────────────────────────────────────────────────
+            navDashboard = MakeNavItem("\uD83C\uDFE0", "Dashboard", true);
             navFlow.Controls.Add(navDashboard);
-            navFlow.Controls.Add(MakeNavSection("SALES"));
-            navFlow.Controls.Add(navOrders);
-            navFlow.Controls.Add(navQuotation);
-            navFlow.Controls.Add(navComplaints);
-            navFlow.Controls.Add(MakeNavSection("STOCK"));
-            navFlow.Controls.Add(navInventory);
-            navFlow.Controls.Add(MakeNavSection("LOGISTICS"));
-            navFlow.Controls.Add(navLogistics);
-            navFlow.Controls.Add(MakeNavSection("MASTER DATA"));
-            navFlow.Controls.Add(navSupplier);
-            navFlow.Controls.Add(navCustomer);
-            navFlow.Controls.Add(MakeNavSection("SYSTEM"));
-            navFlow.Controls.Add(navStaff);
-            navFlow.Controls.Add(navLogs);
-            navFlow.Controls.Add(MakeNavSection("ACCOUNTING"));
-            navFlow.Controls.Add(navAccRecv);
-            navFlow.Controls.Add(navAccPay);
+
+            // ── 1. Order Processing Management ───────────────────────────────
+            navFlow.Controls.Add(MakeNavGroup("1. ORDER PROCESSING MGT"));
+            navFlow.Controls.Add(MakeNavSubItem("View & Search Order"));
+            navFlow.Controls.Add(MakeNavSubItem("Quotation"));
+            navFlow.Controls.Add(MakeNavSubItem("Create Order"));
+            navFlow.Controls.Add(MakeNavSubItem("Modify Order"));
+
+            // ── 2. Production Processing Management ──────────────────────────
+            navFlow.Controls.Add(MakeNavGroup("2. PRODUCTION PROCESSING MGT"));
+            navFlow.Controls.Add(MakeNavSubItem("Search Raw Material Request"));
+            navFlow.Controls.Add(MakeNavSubItem("Create Raw Material Request"));
+
+            // ── 3. Logistics Processing Management ───────────────────────────
+            navFlow.Controls.Add(MakeNavGroup("3. LOGISTICS PROCESSING MGT"));
+            navFlow.Controls.Add(MakeNavSubItem("View Shipment"));
+            navFlow.Controls.Add(MakeNavSubItem("Handling Goods Received"));
+
+            // ── 4. Inventory Control Management ──────────────────────────────
+            navFlow.Controls.Add(MakeNavGroup("4. INVENTORY CONTROL MGT"));
+            navFlow.Controls.Add(MakeNavSubItem("View Product / Raw Material"));
+
+            // ── 5. Raw Material Management ────────────────────────────────────
+            navFlow.Controls.Add(MakeNavGroup("5. RAW MATERIAL MGT"));
+            navFlow.Controls.Add(MakeNavSubItem("Create Procurement"));
+            navFlow.Controls.Add(MakeNavSubItem("Search & List Procurement"));
+
+            // ── 6. After-service Management ───────────────────────────────────
+            navFlow.Controls.Add(MakeNavGroup("6. AFTER-SERVICE MGT"));
+            navFlow.Controls.Add(MakeNavSubItem("Create Invoice"));
+            navFlow.Controls.Add(MakeNavSubItem("Complaint List"));
+            navFlow.Controls.Add(MakeNavSubItem("Return Order List"));
+            navFlow.Controls.Add(MakeNavSubItem("Account Receivable"));
+            navFlow.Controls.Add(MakeNavSubItem("Account Payable"));
+
+            // ── 7. Master Data Maintenance ────────────────────────────────────
+            navFlow.Controls.Add(MakeNavGroup("7. MASTER DATA MAINTENANCE"));
+            navFlow.Controls.Add(MakeNavSubItem("Supplier List"));
+            navFlow.Controls.Add(MakeNavSubItem("Customer List"));
+
+            // ── 8. System Security & Control ──────────────────────────────────
+            navFlow.Controls.Add(MakeNavGroup("8. SYSTEM SECURITY & CONTROL"));
+            navFlow.Controls.Add(MakeNavSubItem("Staff List"));
+            navFlow.Controls.Add(MakeNavSubItem("Log List"));
+
+            // ── 9. Statistical Reports ────────────────────────────────────────
+            navFlow.Controls.Add(MakeNavGroup("9. STATISTICAL REPORTS"));
+            navFlow.Controls.Add(MakeNavSubItem("View Report"));
 
             _activeNavItem = navDashboard;
 
@@ -153,7 +175,7 @@ namespace PremiumLivingOPS.Views.Dashboard
                 AutoSize = true, Anchor = AnchorStyles.Top | AnchorStyles.Right
             };
 
-            // ✅ Avatar circle: use pure .NET Region (no P/Invoke)
+            // Avatar circle: pure .NET Region (no P/Invoke)
             pnlAvatar = new Panel
             {
                 Width = 32, Height = 32, BackColor = Palette.Primary,
@@ -219,7 +241,7 @@ namespace PremiumLivingOPS.Views.Dashboard
             Panel alertBorder = new Panel { Dock = DockStyle.Left, Width = 4, BackColor = Palette.Warning };
             lblAlert = new Label
             {
-                Text = "⚠️  9 items are currently below minimum stock threshold.",
+                Text = "\u26A0\uFE0F  9 items are currently below minimum stock threshold.",
                 Font = new Font("Segoe UI", 9f), ForeColor = Color.FromArgb(120, 53, 15),
                 Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft,
                 Padding = new Padding(8, 0, 0, 0)
@@ -258,7 +280,7 @@ namespace PremiumLivingOPS.Views.Dashboard
             // Section Row 1: Orders + Low Stock
             tlpRow1 = MakeSectionRow();
             Panel secOrders   = MakeSectionCard("Recent Orders");
-            Panel secLowStock = MakeSectionCard("⚠️ Low Stock Alerts");
+            Panel secLowStock = MakeSectionCard("\u26A0\uFE0F Low Stock Alerts");
             dgvOrders = MakeDgv(new[] { "Order No.", "Customer", "Total", "Status" });
             dgvOrders.CellPainting += dgvOrders_CellPainting;
             secOrders.Controls.Add(dgvOrders);
@@ -334,6 +356,7 @@ namespace PremiumLivingOPS.Views.Dashboard
         // FACTORY HELPERS
         // ====================================================================
 
+        /// <summary>Creates a top-level, clickable nav row (Dashboard only).</summary>
         private Panel MakeNavItem(string icon, string label, bool active)
         {
             Panel p = new Panel
@@ -370,13 +393,70 @@ namespace PremiumLivingOPS.Views.Dashboard
             return p;
         }
 
-        private Label MakeNavSection(string title) => new Label
+        /// <summary>Creates a non-clickable section group header label.</summary>
+        private Label MakeNavGroup(string title) => new Label
         {
-            Text = title, Font = new Font("Segoe UI", 7.5f),
+            Text = title,
+            Font = new Font("Segoe UI", 7f, FontStyle.Bold),
             ForeColor = Color.FromArgb(74, 96, 128),
-            AutoSize = false, Width = 240, Height = 24,
-            TextAlign = ContentAlignment.BottomLeft, Padding = new Padding(14, 0, 0, 0)
+            AutoSize = false, Width = 240, Height = 26,
+            TextAlign = ContentAlignment.BottomLeft,
+            Padding = new Padding(14, 0, 0, 2),
+            Margin = new Padding(0, 6, 0, 0)
         };
+
+        /// <summary>
+        /// Creates a sub-item button under a group. Clicking shows a "Coming Soon" notice.
+        /// </summary>
+        private Panel MakeNavSubItem(string label)
+        {
+            Panel p = new Panel
+            {
+                Width = 240, Height = 32,
+                BackColor = Color.Transparent,
+                Cursor = Cursors.Hand
+            };
+
+            // Indent indicator line
+            Panel indentLine = new Panel
+            {
+                Width = 2, Height = 16,
+                BackColor = Color.FromArgb(50, 80, 120),
+                Location = new Point(20, 8)
+            };
+
+            Label lblText = new Label
+            {
+                Text = label,
+                Font = new Font("Segoe UI", 9f),
+                ForeColor = Palette.SidebarText,
+                AutoSize = false, Width = 190, Height = 32,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Location = new Point(34, 0)
+            };
+
+            p.Controls.Add(indentLine);
+            p.Controls.Add(lblText);
+
+            // Hover
+            p.MouseEnter  += (s, e) => { p.BackColor = Palette.SidebarHover; lblText.ForeColor = Color.White; };
+            p.MouseLeave  += (s, e) => { p.BackColor = Color.Transparent;    lblText.ForeColor = Palette.SidebarText; };
+            lblText.MouseEnter += (s, e) => { p.BackColor = Palette.SidebarHover; lblText.ForeColor = Color.White; };
+            lblText.MouseLeave += (s, e) => { p.BackColor = Color.Transparent;    lblText.ForeColor = Palette.SidebarText; };
+
+            // Click → Coming Soon
+            System.EventHandler showComingSoon = (s, e) =>
+                MessageBox.Show(
+                    $"\u231B  {label}\n\nThis feature is currently under development.\nPlease check back in a later version.",
+                    "Coming Soon",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+
+            p.Click       += showComingSoon;
+            lblText.Click += showComingSoon;
+
+            return p;
+        }
 
         private Panel MakeKpiCard(Color accent)
         {

@@ -56,9 +56,6 @@ namespace PremiumLivingOPS.Views.Dashboard
         private Panel _activeNavItem;
 
         // ── Pure-.NET circle Region helper (replaces CreateEllipseRgn P/Invoke) ─
-        /// <summary>
-        /// Returns a circular Region using GraphicsPath — no Win32 P/Invoke needed.
-        /// </summary>
         private static Region MakeCircleRegion(int width, int height)
         {
             GraphicsPath path = new GraphicsPath();
@@ -90,18 +87,18 @@ namespace PremiumLivingOPS.Views.Dashboard
                 lblAvatar.Text     = "?";
             }
 
-            lblPageSub.Text = "Premium Living Furniture Co.  ·  Overview as of " +
+            lblPageSub.Text = "Premium Living Furniture Co.  \u00B7  Overview as of " +
                               DateTime.Now.ToString("d MMMM yyyy");
 
             // KPI Cards
-            SetKpiCard(kpiOrders,     "TOTAL ORDERS (Mar)",   "6",       Palette.Primary,  "2 Pending · 1 Processing · 1 Shipped");
-            SetKpiCard(kpiDelivered,  "DELIVERED THIS MONTH", "2",       Palette.Success,  "ORD-0045 · ORD-0044");
-            SetKpiCard(kpiQuotations, "PENDING QUOTATIONS",   "2",       Palette.Warning,  "QT-2026-0033 · QT-2026-0034");
+            SetKpiCard(kpiOrders,     "TOTAL ORDERS (Mar)",   "6",       Palette.Primary,  "2 Pending \u00B7 1 Processing \u00B7 1 Shipped");
+            SetKpiCard(kpiDelivered,  "DELIVERED THIS MONTH", "2",       Palette.Success,  "ORD-0045 \u00B7 ORD-0044");
+            SetKpiCard(kpiQuotations, "PENDING QUOTATIONS",   "2",       Palette.Warning,  "QT-2026-0033 \u00B7 QT-2026-0034");
             SetKpiCard(kpiLowStock,   "LOW STOCK ALERTS",     "9",       Palette.Danger,   "Immediate procurement action needed");
             SetKpiCard(kpiRevenue,    "REVENUE THIS MONTH",   "HK$221K", Palette.Info,     "Based on delivered orders");
             SetKpiCard(kpiAR,         "OUTSTANDING AR",       "HK$130K", Palette.Warning,  "3 invoices unpaid / overdue");
-            SetKpiCard(kpiSuppliers,  "ACTIVE SUPPLIERS",     "3",       Palette.Primary,  "1 On Hold · 1 Inactive");
-            SetKpiCard(kpiCustomers,  "TOTAL CUSTOMERS",      "5",       Palette.Primary,  "1 VIP · 2 Corporate");
+            SetKpiCard(kpiSuppliers,  "ACTIVE SUPPLIERS",     "3",       Palette.Primary,  "1 On Hold \u00B7 1 Inactive");
+            SetKpiCard(kpiCustomers,  "TOTAL CUSTOMERS",      "5",       Palette.Primary,  "1 VIP \u00B7 2 Corporate");
 
             // Recent Orders
             AddOrderRow("ORD-2026-0048", "Chan Siu Ming",     "HK$21,300",  "Processing", Palette.TagBlueBg,   Palette.TagBlueFg);
@@ -125,11 +122,11 @@ namespace PremiumLivingOPS.Views.Dashboard
             AddSupplierRow("FabricPlus Ltd", "INV-S-0035", "HK$9,800",  "Paid",    Palette.TagGreenBg,  Palette.TagGreenFg);
 
             // Activity Feed
-            AddActivity(Palette.Primary, "ORD-2026-0048",   " created for Chan Siu Ming – HK$21,300",  "15 Mar 15:42");
+            AddActivity(Palette.Primary, "ORD-2026-0048",   " created for Chan Siu Ming \u2013 HK$21,300",  "15 Mar 15:42");
             AddActivity(Palette.Success, "QT-2026-0034",    " saved as Pending quotation",              "15 Mar 14:20");
             AddActivity(Palette.Warning, "Low stock alert", " triggered for Solid Oak Panel (8 left)",  "15 Mar 11:05");
-            AddActivity(Palette.Success, "ORD-2026-0044",   " marked Delivered – Sunrise Interiors",   "08 Mar 09:30");
-            AddActivity(Palette.Danger,  "CMP-2026-0006",   " filed – Missing assembly kit",            "10 Mar 11:44");
+            AddActivity(Palette.Success, "ORD-2026-0044",   " marked Delivered \u2013 Sunrise Interiors",   "08 Mar 09:30");
+            AddActivity(Palette.Danger,  "CMP-2026-0006",   " filed \u2013 Missing assembly kit",            "10 Mar 11:44");
             AddActivity(Palette.Warning, "MetalPro HK",     " invoice INV-S-0039 now Overdue",          "15 Mar 00:00");
             AddActivity(Palette.Primary, "DLV-2026-0031",   " status updated to In Transit",            "12 Mar 08:15");
         }
@@ -182,7 +179,7 @@ namespace PremiumLivingOPS.Views.Dashboard
                 BackColor = Color.Transparent
             };
 
-            // ✅ Circular dot using pure .NET Region (no P/Invoke)
+            // Circular dot using pure .NET Region (no P/Invoke)
             Panel dot = new Panel
             {
                 Width     = 10,
@@ -247,18 +244,30 @@ namespace PremiumLivingOPS.Views.Dashboard
         // EVENT HANDLERS
         // ====================================================================
 
+        /// <summary>
+        /// Highlights the Dashboard nav item. Sub-items do NOT call this —
+        /// they show a Coming Soon dialog instead.
+        /// </summary>
         private void SetActiveNav(Panel navPanel)
         {
             if (_activeNavItem != null)
             {
                 _activeNavItem.BackColor = Color.Transparent;
                 foreach (Control c in _activeNavItem.Controls)
+                {
                     if (c is Label l) l.ForeColor = Palette.SidebarText;
+                    if (c is Panel accent && c.Dock == DockStyle.Left && c.Width == 3)
+                        c.BackColor = Color.Transparent;
+                }
             }
             _activeNavItem           = navPanel;
             _activeNavItem.BackColor = Palette.SidebarHover;
             foreach (Control c in _activeNavItem.Controls)
+            {
                 if (c is Label l) l.ForeColor = Color.White;
+                if (c is Panel accent && c.Dock == DockStyle.Left && c.Width == 3)
+                    c.BackColor = Palette.Primary;
+            }
         }
 
         private void btnLogout_Click(object sender, EventArgs e)
