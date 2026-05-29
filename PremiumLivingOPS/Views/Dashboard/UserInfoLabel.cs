@@ -36,22 +36,29 @@ namespace PremiumLivingOPS.Views.Dashboard
 
         public UserInfoLabel()
         {
-            // AllPaintingInWmErase was removed in .NET 6+ WinForms; use AllPaintingInWmPaint instead.
+            // SetStyle MUST come before BackColor = Transparent.
+            // The base Control.set_BackColor checks ControlStyles.UserPaint to decide
+            // whether to allow Color.Transparent. If SetStyle is called after, the
+            // flag is not yet set and an ArgumentException is thrown at runtime.
             SetStyle(
                 ControlStyles.UserPaint |
                 ControlStyles.AllPaintingInWmPaint |
-                ControlStyles.OptimizedDoubleBuffer,
+                ControlStyles.OptimizedDoubleBuffer |
+                ControlStyles.SupportsTransparentBackColor,
                 true);
+            UpdateStyles();
+
             BackColor = Color.Transparent;
         }
 
         /// <summary>Recalculate Width/Height so the parent can read .Width for positioning.</summary>
         private void RecalcSize()
         {
+            if (!IsHandleCreated) return;
             using Graphics g = CreateGraphics();
-            if (g == null) return;
 
-            SizeF szName = g.MeasureString(_userName, FontName);
+            SizeF szName = g.MeasureString(
+                string.IsNullOrEmpty(_userName) ? " " : _userName, FontName);
             SizeF szDept = _department.Length > 0
                 ? g.MeasureString($" ({_department})", FontDept)
                 : SizeF.Empty;
@@ -88,6 +95,17 @@ namespace PremiumLivingOPS.Views.Dashboard
         {
             base.OnHandleCreated(e);
             RecalcSize();
+        }
+
+        // Allow parent containers to paint through this control (needed for transparent bg).
+        protected override CreateParams CreateParams
+        {
+            get
+            {
+                CreateParams cp = base.CreateParams;
+                cp.ExStyle |= 0x00000020; // WS_EX_TRANSPARENT
+                return cp;
+            }
         }
     }
 }
