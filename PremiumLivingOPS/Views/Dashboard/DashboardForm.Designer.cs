@@ -13,7 +13,10 @@ namespace PremiumLivingOPS.Views.Dashboard
         private Label lblSidebarSub;
         private Panel navDashboard;
 
-        private Panel  pnlTopNav;
+        // ── NEW: Apple-style dark top nav bar ──
+        private TopNavBar pnlTopNav;
+
+        // Legacy controls still needed by DashboardForm.cs
         private Label  lblBreadcrumb;
         private Label  lblTopNavUser;
         private Panel  pnlAvatar;
@@ -45,7 +48,7 @@ namespace PremiumLivingOPS.Views.Dashboard
         {
             this.SuspendLayout();
 
-            // FORM — base font 16f (×0.8 of previous 20f)
+            // FORM
             this.Text          = "Premium Living OPS 2.0 — Dashboard";
             this.Size          = new Size(1440, 900);
             this.MinimumSize   = new Size(1200, 700);
@@ -55,7 +58,7 @@ namespace PremiumLivingOPS.Views.Dashboard
             this.Font          = new Font("Segoe UI", 16f);
 
             // ================================================================
-            // SIDEBAR  (width 288 = 360 × 0.8)
+            // SIDEBAR  (width 288)
             // ================================================================
             pnlSidebar = new Panel { Dock = DockStyle.Left, Width = 288, BackColor = Palette.SidebarBg };
 
@@ -146,107 +149,115 @@ namespace PremiumLivingOPS.Views.Dashboard
             // ================================================================
             Panel pnlMain = new Panel { Dock = DockStyle.Fill, BackColor = Palette.BgPage };
 
-            // Top Nav (height 72 = 90 × 0.8)
-            pnlTopNav = new Panel { Dock = DockStyle.Top, Height = 72, BackColor = Color.White };
-            Panel topNavBorder = new Panel { Dock = DockStyle.Bottom, Height = 1, BackColor = Palette.BorderColor };
+            // ── Apple-style dark TopNavBar (height 44, Dock = Top) ──
+            pnlTopNav = new TopNavBar();
+
+            // Right-side user info row sits INSIDE a thin panel below the nav bar
+            // so existing DashboardForm.cs code (lblTopNavUser, pnlAvatar, btnLogout) still works.
+            Panel pnlUserBar = new Panel
+            {
+                Dock      = DockStyle.Top,
+                Height    = 44,
+                BackColor = Color.White
+            };
+            Panel userBarBorder = new Panel { Dock = DockStyle.Bottom, Height = 1, BackColor = Palette.BorderColor };
 
             lblBreadcrumb = new Label
             {
-                Text = "Dashboard",
-                Font = new Font("Segoe UI", 16f, FontStyle.Bold),
-                ForeColor = Palette.TextMain, AutoSize = true, Location = new Point(22, 22)
+                Text      = "Dashboard",
+                Font      = new Font("Segoe UI", 16f, FontStyle.Bold),
+                ForeColor = Palette.TextMain, AutoSize = true, Location = new Point(22, 10)
             };
             lblTopNavUser = new Label
             {
-                Text = "...",
-                Font = new Font("Segoe UI", 14.4f),
+                Text      = "...",
+                Font      = new Font("Segoe UI", 14.4f),
                 ForeColor = Palette.TextMuted, AutoSize = true,
-                Anchor = AnchorStyles.Top | AnchorStyles.Right
+                Anchor    = AnchorStyles.Top | AnchorStyles.Right
             };
-
             pnlAvatar = new Panel
             {
-                Width = 45, Height = 45,
+                Width = 36, Height = 36,
                 BackColor = Palette.Primary,
-                Anchor = AnchorStyles.Top | AnchorStyles.Right
+                Anchor    = AnchorStyles.Top | AnchorStyles.Right
             };
-            pnlAvatar.Region = MakeCircleRegion(45, 45);
+            pnlAvatar.Region = MakeCircleRegion(36, 36);
 
             lblAvatar = new Label
             {
-                Text = "?",
-                Font = new Font("Segoe UI", 14.4f, FontStyle.Bold),
+                Text      = "?",
+                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
                 ForeColor = Color.White,
                 TextAlign = ContentAlignment.MiddleCenter,
-                Dock = DockStyle.Fill
+                Dock      = DockStyle.Fill
             };
             pnlAvatar.Controls.Add(lblAvatar);
 
             btnLogout = new Button
             {
-                Text = "Log Out",
-                Font = new Font("Segoe UI", 12.8f),
+                Text      = "Log Out",
+                Font      = new Font("Segoe UI", 12.8f),
                 ForeColor = Palette.Danger, BackColor = Color.Transparent,
-                FlatStyle = FlatStyle.Flat, Size = new Size(96, 38),
-                Anchor = AnchorStyles.Top | AnchorStyles.Right,
-                Cursor = Cursors.Hand
+                FlatStyle = FlatStyle.Flat, Size = new Size(96, 34),
+                Anchor    = AnchorStyles.Top | AnchorStyles.Right,
+                Cursor    = Cursors.Hand
             };
             btnLogout.FlatAppearance.BorderColor = Palette.Danger;
             btnLogout.Click += btnLogout_Click;
 
-            pnlTopNav.Resize += (s, e) =>
+            pnlUserBar.Resize += (s, e) =>
             {
-                btnLogout.Location     = new Point(pnlTopNav.Width - 112, 17);
-                pnlAvatar.Location     = new Point(pnlTopNav.Width - 219, 14);
-                lblTopNavUser.Location = new Point(pnlTopNav.Width - 296, 26);
+                btnLogout.Location     = new Point(pnlUserBar.Width - 112,  5);
+                pnlAvatar.Location     = new Point(pnlUserBar.Width - 158,  4);
+                lblTopNavUser.Location = new Point(pnlUserBar.Width - 230, 12);
             };
 
-            pnlTopNav.Controls.Add(lblBreadcrumb);
-            pnlTopNav.Controls.Add(lblTopNavUser);
-            pnlTopNav.Controls.Add(pnlAvatar);
-            pnlTopNav.Controls.Add(btnLogout);
-            pnlTopNav.Controls.Add(topNavBorder);
+            pnlUserBar.Controls.Add(lblBreadcrumb);
+            pnlUserBar.Controls.Add(lblTopNavUser);
+            pnlUserBar.Controls.Add(pnlAvatar);
+            pnlUserBar.Controls.Add(btnLogout);
+            pnlUserBar.Controls.Add(userBarBorder);
 
             // Scrollable content
             pnlContent = new Panel
             {
-                Dock = DockStyle.Fill, AutoScroll = true,
-                Padding = new Padding(26, 20, 26, 26),
+                Dock      = DockStyle.Fill, AutoScroll = true,
+                Padding   = new Padding(26, 20, 26, 26),
                 BackColor = Palette.BgPage
             };
 
             lblPageTitle = new Label
             {
-                Text = "Dashboard",
-                Font = new Font("Segoe UI", 25.6f, FontStyle.Bold),
+                Text      = "Dashboard",
+                Font      = new Font("Segoe UI", 25.6f, FontStyle.Bold),
                 ForeColor = Palette.TextMain, AutoSize = true
             };
             lblPageSub = new Label
             {
-                Text = "...",
-                Font = new Font("Segoe UI", 14.4f),
+                Text      = "...",
+                Font      = new Font("Segoe UI", 14.4f),
                 ForeColor = Palette.TextMuted, AutoSize = true
             };
 
-            // Alert banner (height 51 = 64 × 0.8)
+            // Alert banner
             pnlAlert = new Panel
             {
-                Height = 51, BackColor = Color.FromArgb(254, 243, 199),
-                Padding = new Padding(13, 0, 13, 0)
+                Height    = 51, BackColor = Color.FromArgb(254, 243, 199),
+                Padding   = new Padding(13, 0, 13, 0)
             };
             Panel alertBorder = new Panel { Dock = DockStyle.Left, Width = 4, BackColor = Palette.Warning };
             lblAlert = new Label
             {
-                Text = "\u26A0\uFE0F  9 items are currently below minimum stock threshold.",
-                Font = new Font("Segoe UI", 13.6f),
+                Text      = "\u26A0\uFE0F  9 items are currently below minimum stock threshold.",
+                Font      = new Font("Segoe UI", 13.6f),
                 ForeColor = Color.FromArgb(120, 53, 15),
-                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft,
-                Padding = new Padding(8, 0, 0, 0)
+                Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft,
+                Padding   = new Padding(8, 0, 0, 0)
             };
             pnlAlert.Controls.Add(lblAlert);
             pnlAlert.Controls.Add(alertBorder);
 
-            // KPI Row 1  (height 128 = 160 × 0.8)
+            // KPI Row 1
             pnlKpi1 = new Panel { Height = 128, BackColor = Color.Transparent };
             TableLayoutPanel tlpKpi1 = new TableLayoutPanel
             { Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 1, BackColor = Color.Transparent };
@@ -278,7 +289,7 @@ namespace PremiumLivingOPS.Views.Dashboard
             tlpKpi2.Controls.Add(kpiCustomers, 3, 0);
             pnlKpi2.Controls.Add(tlpKpi2);
 
-            // Section Row 1  (height 304 = 380 × 0.8)
+            // Section Row 1
             tlpRow1 = MakeSectionRow();
             Panel secOrders   = MakeSectionCard("Recent Orders");
             Panel secLowStock = MakeSectionCard("\u26A0\uFE0F Low Stock Alerts");
@@ -346,8 +357,11 @@ namespace PremiumLivingOPS.Views.Dashboard
                 tlpRow1.Width  = w; tlpRow2.Width  = w; tlpRow3.Width  = w;
             };
 
-            pnlMain.Controls.Add(pnlContent);
-            pnlMain.Controls.Add(pnlTopNav);
+            // Stack order (Dock=Top stacks bottom-up, so add in reverse visual order)
+            pnlMain.Controls.Add(pnlContent);   // fills remaining space
+            pnlMain.Controls.Add(pnlUserBar);   // 2nd from top
+            pnlMain.Controls.Add(pnlTopNav);    // topmost dark nav bar
+
             this.Controls.Add(pnlMain);
             this.Controls.Add(pnlSidebar);
 
@@ -355,12 +369,11 @@ namespace PremiumLivingOPS.Views.Dashboard
         }
 
         // ====================================================================
-        // FACTORY HELPERS
+        // FACTORY HELPERS (unchanged)
         // ====================================================================
 
         private Panel MakeNavItem(string icon, string label, bool active)
         {
-            // height 50 = 62 × 0.8
             Panel p = new Panel
             {
                 Width = 288, Height = 50,
@@ -397,7 +410,6 @@ namespace PremiumLivingOPS.Views.Dashboard
             return p;
         }
 
-        // group header height 35 = 44 × 0.8
         private Label MakeNavGroup(string title) => new Label
         {
             Text = title,
@@ -411,7 +423,6 @@ namespace PremiumLivingOPS.Views.Dashboard
 
         private Panel MakeNavSubItem(string label)
         {
-            // height 42 = 52 × 0.8
             Panel p = new Panel
             {
                 Width = 288, Height = 42,
@@ -466,7 +477,6 @@ namespace PremiumLivingOPS.Views.Dashboard
                 e.Graphics.DrawRectangle(new System.Drawing.Pen(Palette.BorderColor, 1),
                     0, 0, ((Panel)s).Width - 1, ((Panel)s).Height - 1);
             };
-            // label pos y=18, value pos y=42, sub pos y=90
             Label lblLabel = new Label
             {
                 Tag = "kpi-label",
@@ -499,7 +509,6 @@ namespace PremiumLivingOPS.Views.Dashboard
 
         private TableLayoutPanel MakeSectionRow()
         {
-            // height 304 = 380 × 0.8
             var tlp = new TableLayoutPanel
             {
                 Height = 304, ColumnCount = 2, RowCount = 1,
@@ -522,7 +531,6 @@ namespace PremiumLivingOPS.Views.Dashboard
                 e.Graphics.DrawRectangle(new System.Drawing.Pen(Palette.BorderColor, 1),
                     0, 0, ((Panel)s).Width - 1, ((Panel)s).Height - 1);
 
-            // header height 51 = 64 × 0.8
             Panel header = new Panel
             { Dock = DockStyle.Top, Height = 51, BackColor = Palette.BgCard, Padding = new Padding(18, 0, 18, 0) };
             Panel headerDiv = new Panel { Dock = DockStyle.Bottom, Height = 1, BackColor = Palette.BorderColor };
