@@ -49,11 +49,11 @@ namespace PremiumLivingOPS.Views.Dashboard
         private readonly (string Label, string[] Items)[] _menus =
         {
             ("Dashboard",                 new string[] { }),
-            ("Order Processing",          new[] { "View & Search Order", "Quotation", "Create Order", "Modify Order" }),
+            ("Order Processing",          new[] { "View Order", "Quotation", "Create Order", "Modify Order" }),
             ("Production Processing",     new[] { "Search Raw Material Request", "Create Raw Material Request" }),
             ("Logistics Processing",      new[] { "View Shipment", "Handling Goods Received" }),
             ("Inventory Control",         new[] { "View Product / Raw Material" }),
-            ("Raw Material",              new[] { "Create Procurement", "Search & List Procurement" }),
+            ("Raw Material",              new[] { "Create Procurement", "Search Procurement" }),
             ("After-Service",             new[] { "Create Invoice", "Complaint List", "Return Order List", "Account Receivable", "Account Payable" }),
             ("Master Data Maintenance",   new[] { "Supplier List", "Customer List" }),
             ("System Security & Control", new[] { "Staff List", "Log List" }),
@@ -120,17 +120,6 @@ namespace PremiumLivingOPS.Views.Dashboard
             Controls.Clear();
             _navItems.Clear();
             _navWidths.Clear();
-
-            Label logo = new Label
-            {
-                Text      = "\uD83E\uDE91 PLF",
-                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
-                ForeColor = Color.White,
-                AutoSize  = false, Width = 80, Height = 44,
-                TextAlign = ContentAlignment.MiddleCenter,
-                Location  = new Point(12, 0)
-            };
-            Controls.Add(logo);
 
             int totalW = 0;
             for (int i = 0; i < _menus.Length; i++)
