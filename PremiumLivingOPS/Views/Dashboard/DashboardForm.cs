@@ -36,7 +36,6 @@ namespace PremiumLivingOPS.Views.Dashboard
             public static readonly Color TagGrayFg    = Color.FromArgb(71,  85,  105);
         }
 
-        // Shared fonts — 16f base (×0.8 of previous 20f)
         private static readonly Font FontBody      = new Font("Segoe UI", 16f,   FontStyle.Regular);
         private static readonly Font FontBodyBold  = new Font("Segoe UI", 16f,   FontStyle.Bold);
         private static readonly Font FontSmall     = new Font("Segoe UI", 13.6f, FontStyle.Regular);
@@ -63,15 +62,9 @@ namespace PremiumLivingOPS.Views.Dashboard
         private void PopulateDashboard()
         {
             if (SessionManager.IsLoggedIn)
-            {
                 lblTopNavUser.Text = SessionManager.CurrentUser.StaffName;
-                lblAvatar.Text     = GetInitials(SessionManager.CurrentUser.StaffName);
-            }
             else
-            {
                 lblTopNavUser.Text = "Guest";
-                lblAvatar.Text     = "?";
-            }
 
             lblPageSub.Text = "Premium Living Furniture Co.  \u00B7  Overview as of " +
                               DateTime.Now.ToString("d MMMM yyyy");
@@ -150,7 +143,6 @@ namespace PremiumLivingOPS.Views.Dashboard
                 Padding = new Padding(0, 8, 0, 8),
                 BackColor = Color.Transparent
             };
-
             Panel dot = new Panel
             {
                 Width = 13, Height = 13,
@@ -158,7 +150,6 @@ namespace PremiumLivingOPS.Views.Dashboard
                 Location = new Point(0, 18)
             };
             dot.Region = MakeCircleRegion(13, 13);
-
             Label lblBold = new Label
             {
                 Text = boldText, Font = FontBodyBold,
@@ -181,14 +172,11 @@ namespace PremiumLivingOPS.Views.Dashboard
                 TextAlign = ContentAlignment.TopRight
             };
             lblTime.Location = new Point(pnlActivity.Width - lblTime.PreferredWidth - 6, 16);
-
             row.Controls.Add(dot);
             row.Controls.Add(lblBold);
             row.Controls.Add(lblNorm);
             row.Controls.Add(lblTime);
-
             Panel sep = new Panel { Dock = DockStyle.Top, Height = 1, BackColor = Palette.BorderColor };
-
             pnlActivity.Controls.Add(sep);
             pnlActivity.Controls.Add(row);
             pnlActivity.Controls.SetChildIndex(row, 0);
@@ -249,7 +237,6 @@ namespace PremiumLivingOPS.Views.Dashboard
                     e.CellBounds.X + 6,
                     e.CellBounds.Y + (e.CellBounds.Height - sz.Height - 6) / 2,
                     sz.Width + 19, sz.Height + 6);
-
                 using (GraphicsPath gp = new GraphicsPath())
                 {
                     float r = badge.Height / 2f;

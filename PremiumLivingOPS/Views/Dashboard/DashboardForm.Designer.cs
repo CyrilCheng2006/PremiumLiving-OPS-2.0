@@ -12,8 +12,6 @@ namespace PremiumLivingOPS.Views.Dashboard
 
         private Label  lblBreadcrumb;
         private Label  lblTopNavUser;
-        private Panel  pnlAvatar;
-        private Label  lblAvatar;
         private Button btnLogout;
 
         private Panel pnlContent;
@@ -54,27 +52,19 @@ namespace PremiumLivingOPS.Views.Dashboard
             pnlTopNav = new TopNavBar();
             pnlTopNav.MenuItemClicked += OnTopNavMenuItemClicked;
 
-            // ================================================================
-            // User Bar — 72 px tall (56 × 1.3)
+            // ============================================================
+            // User Bar — 72 px tall
             //
-            // All elements are vertically centred with formula:
-            //   Y = (UBH - element_height) / 2
+            // Elements (left):  lblBreadcrumb
+            // Elements (right): lblTopNavUser | gap | btnLogout
             //
-            //   pnlAvatar  h=36  → Y = (72-36)/2 = 18
-            //   btnLogout  h=34  → Y = (72-34)/2 = 19
-            //   lblTopNavUser h≈26 → Y = (72-26)/2 = 23
-            //   lblBreadcrumb h≈29 → Y = (72-29)/2 = 21
-            //
-            // layoutUserBar() is wired to both Resize AND this.Load so that
-            // AutoSize labels are already measured before positions are set.
-            // ================================================================
-            const int UBH       = 72;
-            const int AvatarH   = 36;
-            const int LogoutH   = 34;
-            const int LogoutW   = 110;   // wide enough for "Log Out" at 12.8f
-            const int AvatarW   = 36;
-            const int RightPad  = 16;    // gap from right edge to logout button
-            const int ItemGap   = 10;    // gap between right-side items
+            // Vertical centre formula:  Y = (UBH − ctrl.Height) / 2
+            // Applied inside layoutUserBar() which fires on Resize + Load.
+            // btnLogout uses AutoSize so its border always fits the text.
+            // ============================================================
+            const int UBH      = 72;
+            const int RightPad = 16;
+            const int ItemGap  = 12;
 
             Panel pnlUserBar = new Panel
             {
@@ -95,7 +85,7 @@ namespace PremiumLivingOPS.Views.Dashboard
                 Font      = new Font("Segoe UI", 16f, FontStyle.Bold),
                 ForeColor = Palette.TextMain,
                 AutoSize  = true,
-                Location  = new Point(22, (UBH - 29) / 2)   // ~21
+                Location  = new Point(22, 0)   // Y set properly in layoutUserBar
             };
 
             lblTopNavUser = new Label
@@ -106,24 +96,7 @@ namespace PremiumLivingOPS.Views.Dashboard
                 AutoSize  = true
             };
 
-            pnlAvatar = new Panel
-            {
-                Width     = AvatarW,
-                Height    = AvatarH,
-                BackColor = Palette.Primary
-            };
-            pnlAvatar.Region = MakeCircleRegion(AvatarW, AvatarH);
-
-            lblAvatar = new Label
-            {
-                Text      = "?",
-                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
-                ForeColor = System.Drawing.Color.White,
-                TextAlign = ContentAlignment.MiddleCenter,
-                Dock      = DockStyle.Fill
-            };
-            pnlAvatar.Controls.Add(lblAvatar);
-
+            // AutoSize = true + Padding ensures the border always wraps the text
             btnLogout = new Button
             {
                 Text      = "Log Out",
@@ -131,36 +104,38 @@ namespace PremiumLivingOPS.Views.Dashboard
                 ForeColor = Palette.Danger,
                 BackColor = System.Drawing.Color.Transparent,
                 FlatStyle = FlatStyle.Flat,
-                Size      = new Size(LogoutW, LogoutH),
+                AutoSize  = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                Padding   = new Padding(14, 4, 14, 4),  // horizontal room so border is clear
                 Cursor    = Cursors.Hand
             };
             btnLogout.FlatAppearance.BorderColor = Palette.Danger;
+            btnLogout.FlatAppearance.BorderSize  = 1;
             btnLogout.Click += btnLogout_Click;
 
-            // Layout function — safe to call after Load (labels are measured)
+            // ---- layout closure ----------------------------------------
+            // Fires on Resize (window size changes) AND Form.Load
+            // (labels have been measured by WinForms before Load fires).
             System.Action layoutUserBar = () =>
             {
                 int bw = pnlUserBar.ClientSize.Width;
 
-                // Right-to-left: LogOut | gap | Avatar | gap | UserLabel
-                int logoutX   = bw - RightPad - LogoutW;
-                int avatarX   = logoutX - ItemGap - AvatarW;
-                int userLblX  = avatarX - ItemGap - lblTopNavUser.Width;
+                // Right side: [Log Out] | gap | [User Name]
+                int logoutX  = bw - RightPad - btnLogout.Width;
+                int userLblX = logoutX - ItemGap - lblTopNavUser.Width;
 
-                btnLogout.Location     = new Point(logoutX,  (UBH - LogoutH) / 2);
-                pnlAvatar.Location     = new Point(avatarX,  (UBH - AvatarH) / 2);
+                // Vertically centre each control
+                btnLogout.Location     = new Point(logoutX,  (UBH - btnLogout.Height)     / 2);
                 lblTopNavUser.Location = new Point(userLblX, (UBH - lblTopNavUser.Height) / 2);
+                lblBreadcrumb.Location = new Point(22,        (UBH - lblBreadcrumb.Height) / 2);
             };
 
-            // Re-layout on resize
             pnlUserBar.Resize += (s, e) => layoutUserBar();
-
-            // Re-layout on form Load (labels now have correct AutoSize dimensions)
-            this.Load += (s, e) => layoutUserBar();
+            this.Load         += (s, e) => layoutUserBar();
+            // ------------------------------------------------------------
 
             pnlUserBar.Controls.Add(lblBreadcrumb);
             pnlUserBar.Controls.Add(lblTopNavUser);
-            pnlUserBar.Controls.Add(pnlAvatar);
             pnlUserBar.Controls.Add(btnLogout);
             pnlUserBar.Controls.Add(userBarBorder);
 
