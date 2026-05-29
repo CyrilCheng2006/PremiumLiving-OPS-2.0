@@ -14,7 +14,8 @@ namespace PremiumLivingOPS.Controllers
     ///   2. Apply business logic (formatting, derived fields, sorting).
     ///   3. Assemble a DashboardViewModel and return it to the View.
     ///
-    /// The View (DashboardForm) must NOT contain any of the above logic.
+    /// Each Repo call is wrapped in try-catch so a single failing table
+    /// returns an empty list/zero instead of crashing the whole Dashboard.
     /// </summary>
     public class DashboardController
     {
@@ -25,29 +26,27 @@ namespace PremiumLivingOPS.Controllers
             _repo = new DashboardRepo();
         }
 
-        /// <summary>
-        /// Loads all data required by DashboardForm and returns a fully
-        /// populated DashboardViewModel ready for UI binding.
-        /// </summary>
         public DashboardViewModel LoadDashboard()
         {
             var vm = new DashboardViewModel();
 
-            // ── 1. Raw data from DAL ──────────────────────────────────
-            var statusCounts  = _repo.GetOrderStatusCounts();
-            int totalOrders   = statusCounts.Values.Sum();
-            int delivered     = statusCounts.ContainsKey("Delivered")  ? statusCounts["Delivered"]  : 0;
-            int pending       = statusCounts.ContainsKey("Pending")    ? statusCounts["Pending"]    : 0;
-            int processing    = statusCounts.ContainsKey("Processing") ? statusCounts["Processing"] : 0;
-            int shipped       = statusCounts.ContainsKey("Shipped")    ? statusCounts["Shipped"]    : 0;
+            // ── 1. Raw data — each call is individually guarded ───────
+            var statusCounts = SafeCall(() => _repo.GetOrderStatusCounts(),
+                                        new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase));
 
-            var lowStockItems = _repo.GetLowStockItems();
-            decimal revenue   = _repo.GetMonthlyRevenue();
-            decimal ar        = _repo.GetOutstandingAR();
-            int suppliers     = _repo.GetActiveSupplierCount();
-            int customers     = _repo.GetCustomerCount();
+            int totalOrders = statusCounts.Values.Sum();
+            int delivered   = statusCounts.GetValueOrDefault("Delivered",  0);
+            int pending     = statusCounts.GetValueOrDefault("Pending",    0);
+            int processing  = statusCounts.GetValueOrDefault("Processing", 0);
+            int shipped     = statusCounts.GetValueOrDefault("Shipped",    0);
 
-            // ── 2. Build KPI list ─────────────────────────────────────
+            var lowStockItems = SafeCall(() => _repo.GetLowStockItems(),   new List<LowStockRow>());
+            decimal revenue   = SafeCall(() => _repo.GetMonthlyRevenue(),  0m);
+            decimal ar        = SafeCall(() => _repo.GetOutstandingAR(),   0m);
+            int suppliers     = SafeCall(() => _repo.GetActiveSupplierCount(), 0);
+            int customers     = SafeCall(() => _repo.GetCustomerCount(),   0);
+
+            // ── 2. KPI list ───────────────────────────────────────────
             string month = DateTime.Now.ToString("MMM").ToUpper();
 
             vm.Kpis = new List<DashboardKpi>
@@ -69,7 +68,7 @@ namespace PremiumLivingOPS.Controllers
                 new DashboardKpi
                 {
                     Label     = "PENDING QUOTATIONS",
-                    Value     = "–",   // filled by GetPendingQuotations count below
+                    Value     = "–",
                     SubText   = "",
                     AccentKey = "Warning"
                 },
@@ -113,43 +112,51 @@ namespace PremiumLivingOPS.Controllers
             };
 
             // ── 3. Tabular data ───────────────────────────────────────
-            vm.Orders     = _repo.GetRecentOrders(5);
-            vm.LowStock   = lowStockItems;
+            vm.Orders    = SafeCall(() => _repo.GetRecentOrders(5),      new List<OrderSummaryRow>());
+            vm.LowStock  = lowStockItems;
 
-            var quotations    = _repo.GetPendingQuotations(5);
-            vm.Quotations     = quotations;
-
-            // Patch Pending Quotation KPI value now that we have the count
+            var quotations   = SafeCall(() => _repo.GetPendingQuotations(5), new List<QuotationSummaryRow>());
+            vm.Quotations    = quotations;
             vm.Kpis[2].Value   = quotations.Count.ToString();
             vm.Kpis[2].SubText = quotations.Count > 0
                 ? string.Join(" · ", quotations.Take(2).Select(q => q.QuotationId))
                 : "No pending quotations";
 
-            vm.Shipments  = _repo.GetActiveShipments(5);
-            vm.Suppliers  = _repo.GetSupplierPayments(5);
+            vm.Shipments = SafeCall(() => _repo.GetActiveShipments(5),   new List<ShipmentSummaryRow>());
+            vm.Suppliers = SafeCall(() => _repo.GetSupplierPayments(5),  new List<SupplierPaymentRow>());
 
-            // ── 4. Activity feed (derived from orders + shipments) ────
+            // ── 4. Activity feed ──────────────────────────────────────
             vm.Activities = BuildActivityFeed(vm.Orders, vm.Shipments, vm.Suppliers);
 
             return vm;
         }
 
+        // ── Fault-isolation helper ────────────────────────────────────
+        /// <summary>
+        /// Executes <paramref name="fn"/> and returns its result.
+        /// On any exception, logs to Debug output and returns <paramref name="fallback"/>.
+        /// This prevents a single failing table from crashing the whole Dashboard.
+        /// </summary>
+        private static T SafeCall<T>(Func<T> fn, T fallback)
+        {
+            try   { return fn(); }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    $"[DashboardController] Query failed: {ex.Message}");
+                return fallback;
+            }
+        }
+
         // ── Private helpers ───────────────────────────────────────────
 
-        /// <summary>Formats a decimal as compact HKD, e.g. HK$221K or HK$1.2M.</summary>
         private static string FormatHKD(decimal amount)
         {
-            if (amount >= 1_000_000m)
-                return $"HK${(amount / 1_000_000m):0.#}M";
-            if (amount >= 1_000m)
-                return $"HK${(amount / 1_000m):0.#}K";
+            if (amount >= 1_000_000m) return $"HK${(amount / 1_000_000m):0.#}M";
+            if (amount >= 1_000m)     return $"HK${(amount / 1_000m):0.#}K";
             return $"HK${amount:N0}";
         }
 
-        /// <summary>
-        /// Derives an activity feed from the data already loaded.
-        /// In a production system this would come from a dedicated AuditLog table.
-        /// </summary>
         private static List<ActivityRow> BuildActivityFeed(
             List<OrderSummaryRow>    orders,
             List<ShipmentSummaryRow> shipments,
