@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Drawing;
 using System.Windows.Forms;
 
@@ -19,12 +20,14 @@ namespace PremiumLivingOPS.Views.Dashboard
         private string _userName   = string.Empty;
         private string _department = string.Empty;
 
+        [DefaultValue("")]
         public string UserName
         {
             get => _userName;
             set { _userName = value ?? string.Empty; RecalcSize(); Invalidate(); }
         }
 
+        [DefaultValue("")]
         public string Department
         {
             get => _department;
@@ -33,20 +36,19 @@ namespace PremiumLivingOPS.Views.Dashboard
 
         public UserInfoLabel()
         {
+            // AllPaintingInWmErase was removed in .NET 6+ WinForms; use AllPaintingInWmPaint instead.
             SetStyle(
                 ControlStyles.UserPaint |
-                ControlStyles.AllPaintingInWmErase |
+                ControlStyles.AllPaintingInWmPaint |
                 ControlStyles.OptimizedDoubleBuffer,
                 true);
             BackColor = Color.Transparent;
         }
 
-        // Recalculate Width/Height so the parent can read .Width for positioning.
+        /// <summary>Recalculate Width/Height so the parent can read .Width for positioning.</summary>
         private void RecalcSize()
         {
             using Graphics g = CreateGraphics();
-
-            // Guard: CreateGraphics may fail if handle not yet created
             if (g == null) return;
 
             SizeF szName = g.MeasureString(_userName, FontName);
@@ -54,9 +56,8 @@ namespace PremiumLivingOPS.Views.Dashboard
                 ? g.MeasureString($" ({_department})", FontDept)
                 : SizeF.Empty;
 
-            // Height = tallest of the two fonts, anchored to name baseline
             int h = (int)Math.Ceiling(szName.Height);
-            int w = (int)Math.Ceiling(szName.Width + szDept.Width) + 4; // +4 anti-clip
+            int w = (int)Math.Ceiling(szName.Width + szDept.Width) + 4;
 
             Size = new Size(w, h);
         }
@@ -67,22 +68,17 @@ namespace PremiumLivingOPS.Views.Dashboard
             Graphics g = e.Graphics;
             g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
 
-            // Draw StaffName
-            using SolidBrush brName = new SolidBrush(
-                DashboardForm.Palette.TextMain);
+            using SolidBrush brName = new SolidBrush(DashboardForm.Palette.TextMain);
             g.DrawString(_userName, FontName, brName, 0f, 0f);
 
-            // Draw (Department) offset by the width of the name
             if (_department.Length > 0)
             {
                 float nameW = g.MeasureString(_userName, FontName).Width;
-                using SolidBrush brDept = new SolidBrush(
-                    DashboardForm.Palette.TextMuted);
+                using SolidBrush brDept = new SolidBrush(DashboardForm.Palette.TextMuted);
 
-                // Vertically align (Department) to the name baseline
-                float deptH  = g.MeasureString(_department, FontDept).Height;
-                float nameH  = g.MeasureString(_userName, FontName).Height;
-                float deptY  = (nameH - deptH) / 2f;   // centre smaller text on name row
+                float deptH = g.MeasureString(_department, FontDept).Height;
+                float nameH = g.MeasureString(_userName,   FontName).Height;
+                float deptY = (nameH - deptH) / 2f;
 
                 g.DrawString($" ({_department})", FontDept, brDept, nameW, deptY);
             }
@@ -91,7 +87,7 @@ namespace PremiumLivingOPS.Views.Dashboard
         protected override void OnHandleCreated(EventArgs e)
         {
             base.OnHandleCreated(e);
-            RecalcSize(); // now CreateGraphics() is valid
+            RecalcSize();
         }
     }
 }
