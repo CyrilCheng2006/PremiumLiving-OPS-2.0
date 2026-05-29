@@ -19,7 +19,7 @@ namespace PremiumLivingOPS.Views.Dashboard
     /// </summary>
     public partial class DashboardForm : Form
     {
-        // ── Palette ────────────────────────────────────────────────
+        // ── Palette ───────────────────────────────────────────────────
         internal static class Palette
         {
             public static readonly Color BgPage       = Color.FromArgb(240, 244, 249);
@@ -80,17 +80,17 @@ namespace PremiumLivingOPS.Views.Dashboard
             }
         }
 
-        // ── Fonts ──────────────────────────────────────────────────
+        // ── Fonts ─────────────────────────────────────────────────────
         private static readonly Font FontBody      = new Font("Segoe UI", 16f,   FontStyle.Regular);
         private static readonly Font FontBodyBold  = new Font("Segoe UI", 16f,   FontStyle.Bold);
         private static readonly Font FontSmall     = new Font("Segoe UI", 13.6f, FontStyle.Regular);
         private static readonly Font FontSmallBold = new Font("Segoe UI", 13.6f, FontStyle.Bold);
 
-        // ── Fields ──────────────────────────────────────────────────
+        // ── Fields ────────────────────────────────────────────────────
         private readonly DashboardController _controller;
         private Panel _activeNavItem;
 
-        // ── Constructor ──────────────────────────────────────────────
+        // ── Constructor ───────────────────────────────────────────────
         public DashboardForm()
         {
             _controller = new DashboardController();
@@ -98,7 +98,7 @@ namespace PremiumLivingOPS.Views.Dashboard
             BindViewModel();
         }
 
-        // ── ViewModel binding ───────────────────────────────────────────
+        // ── ViewModel binding ─────────────────────────────────────────
         private void BindViewModel()
         {
             DashboardViewModel vm = _controller.LoadDashboard();
@@ -107,9 +107,12 @@ namespace PremiumLivingOPS.Views.Dashboard
             lblTopNavUser.UserName   = vm.UserBar.DisplayName;
             lblTopNavUser.Department = vm.UserBar.Department;
 
-            // 2. Nav filtering — pass allowed labels to TopNavBar (pure View operation)
-            //    TopNavBar.SetVisibleMenus() only renders; the policy logic is in the Controller.
-            topNavBar.SetVisibleMenus(vm.AllowedMenus);
+            // 2. Nav filtering
+            // pnlTopNav is the TopNavBar field declared in DashboardForm.Designer.cs.
+            // SetVisibleMenus() is a pure View API — it only decides what to render.
+            // The allowed-menu list (vm.AllowedMenus) was computed by NavAccessPolicy
+            // inside DashboardController.LoadDashboard(), so no policy logic lives here.
+            pnlTopNav.SetVisibleMenus(vm.AllowedMenus);
 
             lblPageSub.Text = "Premium Living Furniture Co.  ·  Overview as of " +
                               DateTime.Now.ToString("d MMMM yyyy");
@@ -118,7 +121,7 @@ namespace PremiumLivingOPS.Views.Dashboard
             int lowCount = vm.LowStock.Count;
             pnlAlert.Visible = lowCount > 0;
             if (lowCount > 0)
-                lblAlert.Text = $"\u26A0\uFE0F  {lowCount} item(s) are currently below minimum stock threshold.";
+                lblAlert.Text = $"⚠️  {lowCount} item(s) are currently below minimum stock threshold.";
 
             // 4. KPI cards
             Panel[] kpiPanels = { kpiOrders, kpiDelivered, kpiQuotations, kpiLowStock,
@@ -163,7 +166,7 @@ namespace PremiumLivingOPS.Views.Dashboard
                             row.BoldText, row.NormalText, row.TimeLabel);
         }
 
-        // ── Helpers ─────────────────────────────────────────────────
+        // ── Helpers ───────────────────────────────────────────────────
         private void SetKpiCard(Panel card, DashboardKpi kpi)
         {
             Color accent = Palette.FromKey(kpi.AccentKey);
@@ -232,13 +235,13 @@ namespace PremiumLivingOPS.Views.Dashboard
             return new Region(p);
         }
 
-        // ── Nav / logout ───────────────────────────────────────────────
+        // ── Nav / logout ──────────────────────────────────────────────
         private void OnTopNavMenuItemClicked(string itemLabel)
         {
             if (itemLabel == "Dashboard") { lblBreadcrumb.Text = "Dashboard"; return; }
             lblBreadcrumb.Text = itemLabel;
             MessageBox.Show(
-                $"\u231B  {itemLabel}\n\nThis feature is currently under development.",
+                $"⌛  {itemLabel}\n\nThis feature is currently under development.",
                 "Coming Soon", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
@@ -272,7 +275,7 @@ namespace PremiumLivingOPS.Views.Dashboard
             }
         }
 
-        // ── Cell painting ───────────────────────────────────────────────
+        // ── Cell painting ─────────────────────────────────────────────
         private void PaintStatusCell(object sender, DataGridViewCellPaintingEventArgs e, int statusColIndex)
         {
             if (e.RowIndex < 0 || e.ColumnIndex != statusColIndex) return;
