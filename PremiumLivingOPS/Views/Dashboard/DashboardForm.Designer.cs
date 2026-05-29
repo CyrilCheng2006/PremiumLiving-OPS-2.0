@@ -45,41 +45,39 @@ namespace PremiumLivingOPS.Views.Dashboard
         {
             this.SuspendLayout();
 
-            // ----------------------------------------------------------------
-            // FORM  — base font 20f; all inherited controls scale automatically
-            // ----------------------------------------------------------------
-            this.Text          = "Premium Living OPS 2.0 \u2014 Dashboard";
-            this.Size          = new Size(1600, 1000);
-            this.MinimumSize   = new Size(1400, 800);
+            // FORM — base font 16f (×0.8 of previous 20f)
+            this.Text          = "Premium Living OPS 2.0 — Dashboard";
+            this.Size          = new Size(1440, 900);
+            this.MinimumSize   = new Size(1200, 700);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.BackColor     = Palette.BgPage;
             this.WindowState   = FormWindowState.Maximized;
-            this.Font          = new Font("Segoe UI", 20f);  // BASE: 20f
+            this.Font          = new Font("Segoe UI", 16f);
 
             // ================================================================
-            // SIDEBAR  (width 360 for larger text)
+            // SIDEBAR  (width 288 = 360 × 0.8)
             // ================================================================
-            pnlSidebar = new Panel { Dock = DockStyle.Left, Width = 360, BackColor = Palette.SidebarBg };
+            pnlSidebar = new Panel { Dock = DockStyle.Left, Width = 288, BackColor = Palette.SidebarBg };
 
             Panel pnlLogo = new Panel
             {
-                Dock = DockStyle.Top, Height = 110,
+                Dock = DockStyle.Top, Height = 88,
                 BackColor = Palette.SidebarBg,
-                Padding = new Padding(24, 22, 24, 10)
+                Padding = new Padding(20, 18, 20, 8)
             };
             lblSidebarTitle = new Label
             {
                 Text = "\uD83E\uDE91 PLF System",
-                Font = new Font("Segoe UI", 22f, FontStyle.Bold),
+                Font = new Font("Segoe UI", 17.6f, FontStyle.Bold),
                 ForeColor = Color.White, AutoSize = false,
                 Dock = DockStyle.Fill, TextAlign = ContentAlignment.TopLeft
             };
             lblSidebarSub = new Label
             {
                 Text = "Premium Living Furniture Co.",
-                Font = new Font("Segoe UI", 14f),
+                Font = new Font("Segoe UI", 11.2f),
                 ForeColor = Color.FromArgb(122, 154, 189), AutoSize = false,
-                Dock = DockStyle.Bottom, Height = 28,
+                Dock = DockStyle.Bottom, Height = 22,
                 TextAlign = ContentAlignment.BottomLeft
             };
             pnlLogo.Controls.Add(lblSidebarTitle);
@@ -148,36 +146,36 @@ namespace PremiumLivingOPS.Views.Dashboard
             // ================================================================
             Panel pnlMain = new Panel { Dock = DockStyle.Fill, BackColor = Palette.BgPage };
 
-            // Top Nav
-            pnlTopNav = new Panel { Dock = DockStyle.Top, Height = 90, BackColor = Color.White };
+            // Top Nav (height 72 = 90 × 0.8)
+            pnlTopNav = new Panel { Dock = DockStyle.Top, Height = 72, BackColor = Color.White };
             Panel topNavBorder = new Panel { Dock = DockStyle.Bottom, Height = 1, BackColor = Palette.BorderColor };
 
             lblBreadcrumb = new Label
             {
                 Text = "Dashboard",
-                Font = new Font("Segoe UI", 20f, FontStyle.Bold),
-                ForeColor = Palette.TextMain, AutoSize = true, Location = new Point(28, 28)
+                Font = new Font("Segoe UI", 16f, FontStyle.Bold),
+                ForeColor = Palette.TextMain, AutoSize = true, Location = new Point(22, 22)
             };
             lblTopNavUser = new Label
             {
                 Text = "...",
-                Font = new Font("Segoe UI", 18f),
+                Font = new Font("Segoe UI", 14.4f),
                 ForeColor = Palette.TextMuted, AutoSize = true,
                 Anchor = AnchorStyles.Top | AnchorStyles.Right
             };
 
             pnlAvatar = new Panel
             {
-                Width = 56, Height = 56,
+                Width = 45, Height = 45,
                 BackColor = Palette.Primary,
                 Anchor = AnchorStyles.Top | AnchorStyles.Right
             };
-            pnlAvatar.Region = MakeCircleRegion(56, 56);
+            pnlAvatar.Region = MakeCircleRegion(45, 45);
 
             lblAvatar = new Label
             {
                 Text = "?",
-                Font = new Font("Segoe UI", 18f, FontStyle.Bold),
+                Font = new Font("Segoe UI", 14.4f, FontStyle.Bold),
                 ForeColor = Color.White,
                 TextAlign = ContentAlignment.MiddleCenter,
                 Dock = DockStyle.Fill
@@ -187,9 +185,9 @@ namespace PremiumLivingOPS.Views.Dashboard
             btnLogout = new Button
             {
                 Text = "Log Out",
-                Font = new Font("Segoe UI", 16f),
+                Font = new Font("Segoe UI", 12.8f),
                 ForeColor = Palette.Danger, BackColor = Color.Transparent,
-                FlatStyle = FlatStyle.Flat, Size = new Size(120, 48),
+                FlatStyle = FlatStyle.Flat, Size = new Size(96, 38),
                 Anchor = AnchorStyles.Top | AnchorStyles.Right,
                 Cursor = Cursors.Hand
             };
@@ -198,9 +196,9 @@ namespace PremiumLivingOPS.Views.Dashboard
 
             pnlTopNav.Resize += (s, e) =>
             {
-                btnLogout.Location  = new Point(pnlTopNav.Width - 140, 22);
-                pnlAvatar.Location  = new Point(pnlTopNav.Width - 274, 18);
-                lblTopNavUser.Location = new Point(pnlTopNav.Width - 370, 32);
+                btnLogout.Location     = new Point(pnlTopNav.Width - 112, 17);
+                pnlAvatar.Location     = new Point(pnlTopNav.Width - 219, 14);
+                lblTopNavUser.Location = new Point(pnlTopNav.Width - 296, 26);
             };
 
             pnlTopNav.Controls.Add(lblBreadcrumb);
@@ -213,43 +211,43 @@ namespace PremiumLivingOPS.Views.Dashboard
             pnlContent = new Panel
             {
                 Dock = DockStyle.Fill, AutoScroll = true,
-                Padding = new Padding(32, 26, 32, 32),
+                Padding = new Padding(26, 20, 26, 26),
                 BackColor = Palette.BgPage
             };
 
             lblPageTitle = new Label
             {
                 Text = "Dashboard",
-                Font = new Font("Segoe UI", 32f, FontStyle.Bold),
+                Font = new Font("Segoe UI", 25.6f, FontStyle.Bold),
                 ForeColor = Palette.TextMain, AutoSize = true
             };
             lblPageSub = new Label
             {
                 Text = "...",
-                Font = new Font("Segoe UI", 18f),
+                Font = new Font("Segoe UI", 14.4f),
                 ForeColor = Palette.TextMuted, AutoSize = true
             };
 
-            // Alert banner
+            // Alert banner (height 51 = 64 × 0.8)
             pnlAlert = new Panel
             {
-                Height = 64, BackColor = Color.FromArgb(254, 243, 199),
-                Padding = new Padding(16, 0, 16, 0)
+                Height = 51, BackColor = Color.FromArgb(254, 243, 199),
+                Padding = new Padding(13, 0, 13, 0)
             };
-            Panel alertBorder = new Panel { Dock = DockStyle.Left, Width = 5, BackColor = Palette.Warning };
+            Panel alertBorder = new Panel { Dock = DockStyle.Left, Width = 4, BackColor = Palette.Warning };
             lblAlert = new Label
             {
                 Text = "\u26A0\uFE0F  9 items are currently below minimum stock threshold.",
-                Font = new Font("Segoe UI", 17f),
+                Font = new Font("Segoe UI", 13.6f),
                 ForeColor = Color.FromArgb(120, 53, 15),
                 Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft,
-                Padding = new Padding(10, 0, 0, 0)
+                Padding = new Padding(8, 0, 0, 0)
             };
             pnlAlert.Controls.Add(lblAlert);
             pnlAlert.Controls.Add(alertBorder);
 
-            // KPI Row 1
-            pnlKpi1 = new Panel { Height = 160, BackColor = Color.Transparent };
+            // KPI Row 1  (height 128 = 160 × 0.8)
+            pnlKpi1 = new Panel { Height = 128, BackColor = Color.Transparent };
             TableLayoutPanel tlpKpi1 = new TableLayoutPanel
             { Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 1, BackColor = Color.Transparent };
             for (int i = 0; i < 4; i++) tlpKpi1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
@@ -265,7 +263,7 @@ namespace PremiumLivingOPS.Views.Dashboard
             pnlKpi1.Controls.Add(tlpKpi1);
 
             // KPI Row 2
-            pnlKpi2 = new Panel { Height = 160, BackColor = Color.Transparent };
+            pnlKpi2 = new Panel { Height = 128, BackColor = Color.Transparent };
             TableLayoutPanel tlpKpi2 = new TableLayoutPanel
             { Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 1, BackColor = Color.Transparent };
             for (int i = 0; i < 4; i++) tlpKpi2.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
@@ -280,7 +278,7 @@ namespace PremiumLivingOPS.Views.Dashboard
             tlpKpi2.Controls.Add(kpiCustomers, 3, 0);
             pnlKpi2.Controls.Add(tlpKpi2);
 
-            // Section Row 1
+            // Section Row 1  (height 304 = 380 × 0.8)
             tlpRow1 = MakeSectionRow();
             Panel secOrders   = MakeSectionCard("Recent Orders");
             Panel secLowStock = MakeSectionCard("\u26A0\uFE0F Low Stock Alerts");
@@ -329,13 +327,13 @@ namespace PremiumLivingOPS.Views.Dashboard
             System.Action<int> addSpacer = (h) => flow.Controls.Add(
                 new Panel { Height = h, Width = 10, BackColor = Color.Transparent });
 
-            flow.Controls.Add(lblPageTitle); addSpacer(6);
-            flow.Controls.Add(lblPageSub);   addSpacer(18);
-            flow.Controls.Add(pnlAlert);     addSpacer(26);
-            flow.Controls.Add(pnlKpi1);      addSpacer(18);
-            flow.Controls.Add(pnlKpi2);      addSpacer(24);
-            flow.Controls.Add(tlpRow1);      addSpacer(20);
-            flow.Controls.Add(tlpRow2);      addSpacer(20);
+            flow.Controls.Add(lblPageTitle); addSpacer(5);
+            flow.Controls.Add(lblPageSub);   addSpacer(14);
+            flow.Controls.Add(pnlAlert);     addSpacer(20);
+            flow.Controls.Add(pnlKpi1);      addSpacer(14);
+            flow.Controls.Add(pnlKpi2);      addSpacer(19);
+            flow.Controls.Add(tlpRow1);      addSpacer(16);
+            flow.Controls.Add(tlpRow2);      addSpacer(16);
             flow.Controls.Add(tlpRow3);
 
             pnlContent.Controls.Add(flow);
@@ -362,9 +360,10 @@ namespace PremiumLivingOPS.Views.Dashboard
 
         private Panel MakeNavItem(string icon, string label, bool active)
         {
+            // height 50 = 62 × 0.8
             Panel p = new Panel
             {
-                Width = 360, Height = 62,
+                Width = 288, Height = 50,
                 BackColor = active ? Palette.SidebarHover : Color.Transparent,
                 Cursor = Cursors.Hand
             };
@@ -373,18 +372,18 @@ namespace PremiumLivingOPS.Views.Dashboard
             Label lblIcon = new Label
             {
                 Text = icon,
-                Font = new Font("Segoe UI", 20f),
+                Font = new Font("Segoe UI", 16f),
                 ForeColor = active ? Color.White : Palette.SidebarText,
-                AutoSize = false, Width = 46, Height = 62,
-                TextAlign = ContentAlignment.MiddleCenter, Location = new Point(12, 0)
+                AutoSize = false, Width = 37, Height = 50,
+                TextAlign = ContentAlignment.MiddleCenter, Location = new Point(10, 0)
             };
             Label lblText = new Label
             {
                 Text = label,
-                Font = new Font("Segoe UI", 18f),
+                Font = new Font("Segoe UI", 14.4f),
                 ForeColor = active ? Color.White : Palette.SidebarText,
-                AutoSize = false, Width = 288, Height = 62,
-                TextAlign = ContentAlignment.MiddleLeft, Location = new Point(62, 0)
+                AutoSize = false, Width = 230, Height = 50,
+                TextAlign = ContentAlignment.MiddleLeft, Location = new Point(50, 0)
             };
             p.Controls.Add(accent);
             p.Controls.Add(lblIcon);
@@ -398,39 +397,41 @@ namespace PremiumLivingOPS.Views.Dashboard
             return p;
         }
 
+        // group header height 35 = 44 × 0.8
         private Label MakeNavGroup(string title) => new Label
         {
             Text = title,
-            Font = new Font("Segoe UI", 13f, FontStyle.Bold),
+            Font = new Font("Segoe UI", 10.4f, FontStyle.Bold),
             ForeColor = Color.FromArgb(74, 96, 128),
-            AutoSize = false, Width = 360, Height = 44,
+            AutoSize = false, Width = 288, Height = 35,
             TextAlign = ContentAlignment.BottomLeft,
-            Padding = new Padding(18, 0, 0, 3),
-            Margin = new Padding(0, 10, 0, 0)
+            Padding = new Padding(14, 0, 0, 2),
+            Margin = new Padding(0, 8, 0, 0)
         };
 
         private Panel MakeNavSubItem(string label)
         {
+            // height 42 = 52 × 0.8
             Panel p = new Panel
             {
-                Width = 360, Height = 52,
+                Width = 288, Height = 42,
                 BackColor = Color.Transparent,
                 Cursor = Cursors.Hand
             };
             Panel indentLine = new Panel
             {
-                Width = 2, Height = 26,
+                Width = 2, Height = 21,
                 BackColor = Color.FromArgb(50, 80, 120),
-                Location = new Point(30, 13)
+                Location = new Point(24, 10)
             };
             Label lblText = new Label
             {
                 Text = label,
-                Font = new Font("Segoe UI", 17f),
+                Font = new Font("Segoe UI", 13.6f),
                 ForeColor = Palette.SidebarText,
-                AutoSize = false, Width = 310, Height = 52,
+                AutoSize = false, Width = 248, Height = 42,
                 TextAlign = ContentAlignment.MiddleLeft,
-                Location = new Point(50, 0)
+                Location = new Point(40, 0)
             };
             p.Controls.Add(indentLine);
             p.Controls.Add(lblText);
@@ -456,38 +457,39 @@ namespace PremiumLivingOPS.Views.Dashboard
         {
             Panel card = new Panel
             {
-                Dock = DockStyle.Fill, Margin = new Padding(0, 0, 14, 0),
-                BackColor = Palette.BgCard, Padding = new Padding(26, 22, 26, 16)
+                Dock = DockStyle.Fill, Margin = new Padding(0, 0, 11, 0),
+                BackColor = Palette.BgCard, Padding = new Padding(21, 18, 21, 13)
             };
             card.Paint += (s, e) =>
             {
-                e.Graphics.FillRectangle(new SolidBrush(accent), 0, 0, ((Panel)s).Width, 7);
+                e.Graphics.FillRectangle(new SolidBrush(accent), 0, 0, ((Panel)s).Width, 6);
                 e.Graphics.DrawRectangle(new System.Drawing.Pen(Palette.BorderColor, 1),
                     0, 0, ((Panel)s).Width - 1, ((Panel)s).Height - 1);
             };
+            // label pos y=18, value pos y=42, sub pos y=90
             Label lblLabel = new Label
             {
                 Tag = "kpi-label",
-                Font = new Font("Segoe UI", 13f, FontStyle.Bold),
+                Font = new Font("Segoe UI", 10.4f, FontStyle.Bold),
                 ForeColor = Palette.TextMuted, AutoSize = false,
-                Width = 260, Height = 28,
-                Location = new Point(26, 22), TextAlign = ContentAlignment.TopLeft
+                Width = 208, Height = 22,
+                Location = new Point(21, 18), TextAlign = ContentAlignment.TopLeft
             };
             Label lblValue = new Label
             {
                 Tag = "kpi-value",
-                Font = new Font("Segoe UI", 38f, FontStyle.Bold),
+                Font = new Font("Segoe UI", 30.4f, FontStyle.Bold),
                 ForeColor = accent, AutoSize = false,
-                Width = 260, Height = 56,
-                Location = new Point(24, 52), TextAlign = ContentAlignment.TopLeft
+                Width = 208, Height = 45,
+                Location = new Point(19, 42), TextAlign = ContentAlignment.TopLeft
             };
             Label lblSub = new Label
             {
                 Tag = "kpi-sub",
-                Font = new Font("Segoe UI", 13f),
+                Font = new Font("Segoe UI", 10.4f),
                 ForeColor = Palette.TextMuted, AutoSize = false,
-                Width = 260, Height = 28,
-                Location = new Point(26, 112), TextAlign = ContentAlignment.TopLeft
+                Width = 208, Height = 22,
+                Location = new Point(21, 90), TextAlign = ContentAlignment.TopLeft
             };
             card.Controls.Add(lblLabel);
             card.Controls.Add(lblValue);
@@ -497,9 +499,10 @@ namespace PremiumLivingOPS.Views.Dashboard
 
         private TableLayoutPanel MakeSectionRow()
         {
+            // height 304 = 380 × 0.8
             var tlp = new TableLayoutPanel
             {
-                Height = 380, ColumnCount = 2, RowCount = 1,
+                Height = 304, ColumnCount = 2, RowCount = 1,
                 BackColor = Color.Transparent, Margin = new Padding(0)
             };
             tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
@@ -513,19 +516,20 @@ namespace PremiumLivingOPS.Views.Dashboard
             Panel card = new Panel
             {
                 Dock = DockStyle.Fill, BackColor = Palette.BgCard,
-                Margin = new Padding(0, 0, 14, 0)
+                Margin = new Padding(0, 0, 11, 0)
             };
             card.Paint += (s, e) =>
                 e.Graphics.DrawRectangle(new System.Drawing.Pen(Palette.BorderColor, 1),
                     0, 0, ((Panel)s).Width - 1, ((Panel)s).Height - 1);
 
+            // header height 51 = 64 × 0.8
             Panel header = new Panel
-            { Dock = DockStyle.Top, Height = 64, BackColor = Palette.BgCard, Padding = new Padding(22, 0, 22, 0) };
+            { Dock = DockStyle.Top, Height = 51, BackColor = Palette.BgCard, Padding = new Padding(18, 0, 18, 0) };
             Panel headerDiv = new Panel { Dock = DockStyle.Bottom, Height = 1, BackColor = Palette.BorderColor };
             Label lblTitle = new Label
             {
                 Text = title,
-                Font = new Font("Segoe UI", 18f, FontStyle.Bold),
+                Font = new Font("Segoe UI", 14.4f, FontStyle.Bold),
                 ForeColor = Palette.TextMain,
                 Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft
             };
@@ -545,25 +549,25 @@ namespace PremiumLivingOPS.Views.Dashboard
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
                 BackgroundColor = Palette.BgCard, BorderStyle = BorderStyle.None,
                 GridColor = Palette.BorderColor,
-                Font = new Font("Segoe UI", 16f),
+                Font = new Font("Segoe UI", 12.8f),
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
                 CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal,
-                RowTemplate = { Height = 48 }
+                RowTemplate = { Height = 38 }
             };
             dgv.ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
             {
                 BackColor = Color.FromArgb(246, 249, 255),
                 ForeColor = Palette.TextMuted,
-                Font = new Font("Segoe UI", 14f, FontStyle.Bold),
-                Padding = new Padding(8)
+                Font = new Font("Segoe UI", 11.2f, FontStyle.Bold),
+                Padding = new Padding(6)
             };
-            dgv.ColumnHeadersHeight = 52;
+            dgv.ColumnHeadersHeight = 42;
             dgv.DefaultCellStyle = new DataGridViewCellStyle
             {
                 BackColor = Palette.BgCard, ForeColor = Palette.TextMain,
                 SelectionBackColor = Color.FromArgb(240, 246, 255),
                 SelectionForeColor = Palette.TextMain,
-                Padding = new Padding(10, 7, 10, 7)
+                Padding = new Padding(8, 6, 8, 6)
             };
             dgv.AlternatingRowsDefaultCellStyle = new DataGridViewCellStyle
             { BackColor = Color.FromArgb(248, 250, 253) };

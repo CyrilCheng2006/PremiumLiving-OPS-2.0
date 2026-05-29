@@ -8,7 +8,6 @@ namespace PremiumLivingOPS.Views.Dashboard
 {
     public partial class DashboardForm : Form
     {
-        // ── Brand colours ────────────────────────────────────────────────
         internal static class Palette
         {
             public static readonly Color BgPage       = Color.FromArgb(240, 244, 249);
@@ -37,14 +36,14 @@ namespace PremiumLivingOPS.Views.Dashboard
             public static readonly Color TagGrayFg    = Color.FromArgb(71,  85,  105);
         }
 
-        // ── Shared fonts (scaled to 20f base) ──────────────────────────
-        private static readonly Font FontBody      = new Font("Segoe UI", 20f,  FontStyle.Regular);
-        private static readonly Font FontBodyBold  = new Font("Segoe UI", 20f,  FontStyle.Bold);
-        private static readonly Font FontSmall     = new Font("Segoe UI", 17f,  FontStyle.Regular);
-        private static readonly Font FontSmallBold = new Font("Segoe UI", 17f,  FontStyle.Bold);
-        private static readonly Font FontTitle     = new Font("Segoe UI", 32f,  FontStyle.Bold);
-        private static readonly Font FontKpiVal    = new Font("Segoe UI", 38f,  FontStyle.Bold);
-        private static readonly Font FontKpiLabel  = new Font("Segoe UI", 13f,  FontStyle.Bold);
+        // Shared fonts — 16f base (×0.8 of previous 20f)
+        private static readonly Font FontBody      = new Font("Segoe UI", 16f,   FontStyle.Regular);
+        private static readonly Font FontBodyBold  = new Font("Segoe UI", 16f,   FontStyle.Bold);
+        private static readonly Font FontSmall     = new Font("Segoe UI", 13.6f, FontStyle.Regular);
+        private static readonly Font FontSmallBold = new Font("Segoe UI", 13.6f, FontStyle.Bold);
+        private static readonly Font FontTitle     = new Font("Segoe UI", 25.6f, FontStyle.Bold);
+        private static readonly Font FontKpiVal    = new Font("Segoe UI", 30.4f, FontStyle.Bold);
+        private static readonly Font FontKpiLabel  = new Font("Segoe UI", 10.4f, FontStyle.Bold);
 
         private Panel _activeNavItem;
 
@@ -61,9 +60,6 @@ namespace PremiumLivingOPS.Views.Dashboard
             PopulateDashboard();
         }
 
-        // ====================================================================
-        // DATA POPULATION
-        // ====================================================================
         private void PopulateDashboard()
         {
             if (SessionManager.IsLoggedIn)
@@ -89,11 +85,11 @@ namespace PremiumLivingOPS.Views.Dashboard
             SetKpiCard(kpiSuppliers,  "ACTIVE SUPPLIERS",     "3",       Palette.Primary,  "1 On Hold \u00B7 1 Inactive");
             SetKpiCard(kpiCustomers,  "TOTAL CUSTOMERS",      "5",       Palette.Primary,  "1 VIP \u00B7 2 Corporate");
 
-            AddOrderRow("ORD-2026-0048", "Chan Siu Ming",    "HK$21,300",  "Processing", Palette.TagBlueBg,   Palette.TagBlueFg);
-            AddOrderRow("ORD-2026-0047", "Lee Wai Kwan",     "HK$29,400",  "Shipped",    Palette.TagGreenBg,  Palette.TagGreenFg);
-            AddOrderRow("ORD-2026-0046", "ABC Furniture Ltd", "HK$120,700", "Pending",    Palette.TagYellowBg, Palette.TagYellowFg);
-            AddOrderRow("ORD-2026-0045", "Wong Ka Fai",      "HK$26,500",  "Delivered",  Palette.TagGreenBg,  Palette.TagGreenFg);
-            AddOrderRow("ORD-2026-0044", "Sunrise Interiors", "HK$57,600", "Delivered",  Palette.TagGreenBg,  Palette.TagGreenFg);
+            AddOrderRow("ORD-2026-0048", "Chan Siu Ming",     "HK$21,300",  "Processing", Palette.TagBlueBg,   Palette.TagBlueFg);
+            AddOrderRow("ORD-2026-0047", "Lee Wai Kwan",      "HK$29,400",  "Shipped",    Palette.TagGreenBg,  Palette.TagGreenFg);
+            AddOrderRow("ORD-2026-0046", "ABC Furniture Ltd",  "HK$120,700", "Pending",    Palette.TagYellowBg, Palette.TagYellowFg);
+            AddOrderRow("ORD-2026-0045", "Wong Ka Fai",       "HK$26,500",  "Delivered",  Palette.TagGreenBg,  Palette.TagGreenFg);
+            AddOrderRow("ORD-2026-0044", "Sunrise Interiors",  "HK$57,600",  "Delivered",  Palette.TagGreenBg,  Palette.TagGreenFg);
 
             AddQuotRow("QT-2026-0034", "Chan Siu Ming", "HK$38,400", "29 Mar 2026");
             AddQuotRow("QT-2026-0033", "Cheung Wai Ho", "HK$30,800", "24 Mar 2026");
@@ -115,9 +111,6 @@ namespace PremiumLivingOPS.Views.Dashboard
             AddActivity(Palette.Primary, "DLV-2026-0031",   " status updated to In Transit",           "12 Mar 08:15");
         }
 
-        // ====================================================================
-        // HELPERS
-        // ====================================================================
         private void SetKpiCard(Panel card, string label, string value, Color accent, string sub)
         {
             foreach (Control ctrl in card.Controls)
@@ -153,31 +146,31 @@ namespace PremiumLivingOPS.Views.Dashboard
         {
             Panel row = new Panel
             {
-                Dock = DockStyle.Top, Height = 62,
-                Padding = new Padding(0, 10, 0, 10),
+                Dock = DockStyle.Top, Height = 50,
+                Padding = new Padding(0, 8, 0, 8),
                 BackColor = Color.Transparent
             };
 
             Panel dot = new Panel
             {
-                Width = 16, Height = 16,
+                Width = 13, Height = 13,
                 BackColor = dotColor,
-                Location = new Point(0, 23)
+                Location = new Point(0, 18)
             };
-            dot.Region = MakeCircleRegion(16, 16);
+            dot.Region = MakeCircleRegion(13, 13);
 
             Label lblBold = new Label
             {
                 Text = boldText, Font = FontBodyBold,
                 ForeColor = Palette.TextMain,
-                AutoSize = true, Location = new Point(26, 18)
+                AutoSize = true, Location = new Point(21, 14)
             };
             Label lblNorm = new Label
             {
                 Text = normalText, Font = FontBody,
                 ForeColor = Palette.TextMain,
                 AutoSize = true,
-                Location = new Point(26 + TextRenderer.MeasureText(boldText, FontBodyBold).Width, 18)
+                Location = new Point(21 + TextRenderer.MeasureText(boldText, FontBodyBold).Width, 14)
             };
             Label lblTime = new Label
             {
@@ -187,7 +180,7 @@ namespace PremiumLivingOPS.Views.Dashboard
                 Anchor = AnchorStyles.Top | AnchorStyles.Right,
                 TextAlign = ContentAlignment.TopRight
             };
-            lblTime.Location = new Point(pnlActivity.Width - lblTime.PreferredWidth - 8, 20);
+            lblTime.Location = new Point(pnlActivity.Width - lblTime.PreferredWidth - 6, 16);
 
             row.Controls.Add(dot);
             row.Controls.Add(lblBold);
@@ -211,9 +204,6 @@ namespace PremiumLivingOPS.Views.Dashboard
                 : name.Substring(0, Math.Min(2, name.Length)).ToUpper();
         }
 
-        // ====================================================================
-        // EVENT HANDLERS
-        // ====================================================================
         private void SetActiveNav(Panel navPanel)
         {
             if (_activeNavItem != null)
@@ -256,9 +246,9 @@ namespace PremiumLivingOPS.Views.Dashboard
                 string text = e.Value?.ToString() ?? "";
                 SizeF  sz   = e.Graphics.MeasureString(text, FontSmallBold);
                 RectangleF badge = new RectangleF(
-                    e.CellBounds.X + 8,
-                    e.CellBounds.Y + (e.CellBounds.Height - sz.Height - 8) / 2,
-                    sz.Width + 24, sz.Height + 8);
+                    e.CellBounds.X + 6,
+                    e.CellBounds.Y + (e.CellBounds.Height - sz.Height - 6) / 2,
+                    sz.Width + 19, sz.Height + 6);
 
                 using (GraphicsPath gp = new GraphicsPath())
                 {
@@ -270,7 +260,7 @@ namespace PremiumLivingOPS.Views.Dashboard
                     gp.CloseFigure();
                     e.Graphics.FillPath(new SolidBrush(colours[0]), gp);
                     e.Graphics.DrawString(text, FontSmallBold, new SolidBrush(colours[1]),
-                        badge.X + 12, badge.Y + 4);
+                        badge.X + 10, badge.Y + 3);
                 }
                 e.Handled = true;
             }
