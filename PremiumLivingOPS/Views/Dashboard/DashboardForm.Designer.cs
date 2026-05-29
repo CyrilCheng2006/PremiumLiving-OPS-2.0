@@ -51,7 +51,7 @@ namespace PremiumLivingOPS.Views.Dashboard
             this.SuspendLayout();
 
             // FORM
-            this.Text          = "Premium Living OPS 2.0 — Dashboard";
+            this.Text          = "Premium Living OPS 2.0 \u2014 Dashboard";
             this.Size          = new Size(1380, 820);
             this.MinimumSize   = new Size(1024, 600);
             this.StartPosition = FormStartPosition.CenterScreen;
@@ -97,56 +97,56 @@ namespace PremiumLivingOPS.Views.Dashboard
                 BackColor = Palette.SidebarBg
             };
 
-            // ── Dashboard ────────────────────────────────────────────────────
+            // \u2500\u2500 Dashboard \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
             navDashboard = MakeNavItem("\uD83C\uDFE0", "Dashboard", true);
             navFlow.Controls.Add(navDashboard);
 
-            // ── 1. Order Processing Management ───────────────────────────────
-            navFlow.Controls.Add(MakeNavGroup("1. ORDER PROCESSING MGT"));
+            // \u2500\u2500 1. Order Processing Management \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+            navFlow.Controls.Add(MakeNavGroup("\uD83D\uDCCB  1. ORDER PROCESSING MGT"));
             navFlow.Controls.Add(MakeNavSubItem("View & Search Order"));
             navFlow.Controls.Add(MakeNavSubItem("Quotation"));
             navFlow.Controls.Add(MakeNavSubItem("Create Order"));
             navFlow.Controls.Add(MakeNavSubItem("Modify Order"));
 
-            // ── 2. Production Processing Management ──────────────────────────
-            navFlow.Controls.Add(MakeNavGroup("2. PRODUCTION PROCESSING MGT"));
+            // \u2500\u2500 2. Production Processing Management \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+            navFlow.Controls.Add(MakeNavGroup("\uD83C\uDFED  2. PRODUCTION PROCESSING MGT"));
             navFlow.Controls.Add(MakeNavSubItem("Search Raw Material Request"));
             navFlow.Controls.Add(MakeNavSubItem("Create Raw Material Request"));
 
-            // ── 3. Logistics Processing Management ───────────────────────────
-            navFlow.Controls.Add(MakeNavGroup("3. LOGISTICS PROCESSING MGT"));
+            // \u2500\u2500 3. Logistics Processing Management \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+            navFlow.Controls.Add(MakeNavGroup("\uD83D\uDE9A  3. LOGISTICS PROCESSING MGT"));
             navFlow.Controls.Add(MakeNavSubItem("View Shipment"));
             navFlow.Controls.Add(MakeNavSubItem("Handling Goods Received"));
 
-            // ── 4. Inventory Control Management ──────────────────────────────
-            navFlow.Controls.Add(MakeNavGroup("4. INVENTORY CONTROL MGT"));
+            // \u2500\u2500 4. Inventory Control Management \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+            navFlow.Controls.Add(MakeNavGroup("\uD83D\uDCE6  4. INVENTORY CONTROL MGT"));
             navFlow.Controls.Add(MakeNavSubItem("View Product / Raw Material"));
 
-            // ── 5. Raw Material Management ────────────────────────────────────
-            navFlow.Controls.Add(MakeNavGroup("5. RAW MATERIAL MGT"));
+            // \u2500\u2500 5. Raw Material Management \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+            navFlow.Controls.Add(MakeNavGroup("\uD83E\uDEB5  5. RAW MATERIAL MGT"));
             navFlow.Controls.Add(MakeNavSubItem("Create Procurement"));
             navFlow.Controls.Add(MakeNavSubItem("Search & List Procurement"));
 
-            // ── 6. After-service Management ───────────────────────────────────
-            navFlow.Controls.Add(MakeNavGroup("6. AFTER-SERVICE MGT"));
+            // \u2500\u2500 6. After-service Management \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+            navFlow.Controls.Add(MakeNavGroup("\uD83D\uDEE0\uFE0F  6. AFTER-SERVICE MGT"));
             navFlow.Controls.Add(MakeNavSubItem("Create Invoice"));
             navFlow.Controls.Add(MakeNavSubItem("Complaint List"));
             navFlow.Controls.Add(MakeNavSubItem("Return Order List"));
             navFlow.Controls.Add(MakeNavSubItem("Account Receivable"));
             navFlow.Controls.Add(MakeNavSubItem("Account Payable"));
 
-            // ── 7. Master Data Maintenance ────────────────────────────────────
-            navFlow.Controls.Add(MakeNavGroup("7. MASTER DATA MAINTENANCE"));
+            // \u2500\u2500 7. Master Data Maintenance \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+            navFlow.Controls.Add(MakeNavGroup("\uD83D\uDDC2\uFE0F  7. MASTER DATA MAINTENANCE"));
             navFlow.Controls.Add(MakeNavSubItem("Supplier List"));
             navFlow.Controls.Add(MakeNavSubItem("Customer List"));
 
-            // ── 8. System Security & Control ──────────────────────────────────
-            navFlow.Controls.Add(MakeNavGroup("8. SYSTEM SECURITY & CONTROL"));
+            // \u2500\u2500 8. System Security & Control \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+            navFlow.Controls.Add(MakeNavGroup("\uD83D\uDD10  8. SYSTEM SECURITY & CONTROL"));
             navFlow.Controls.Add(MakeNavSubItem("Staff List"));
             navFlow.Controls.Add(MakeNavSubItem("Log List"));
 
-            // ── 9. Statistical Reports ────────────────────────────────────────
-            navFlow.Controls.Add(MakeNavGroup("9. STATISTICAL REPORTS"));
+            // \u2500\u2500 9. Statistical Reports \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+            navFlow.Controls.Add(MakeNavGroup("\uD83D\uDCCA  9. STATISTICAL REPORTS"));
             navFlow.Controls.Add(MakeNavSubItem("View Report"));
 
             _activeNavItem = navDashboard;
@@ -444,7 +444,7 @@ namespace PremiumLivingOPS.Views.Dashboard
             lblText.MouseEnter += (s, e) => { p.BackColor = Palette.SidebarHover; lblText.ForeColor = Color.White; };
             lblText.MouseLeave += (s, e) => { p.BackColor = Color.Transparent;    lblText.ForeColor = Palette.SidebarText; };
 
-            // Click → Coming Soon
+            // Click \u2192 Coming Soon
             System.EventHandler showComingSoon = (s, e) =>
                 MessageBox.Show(
                     $"\u231B  {label}\n\nThis feature is currently under development.\nPlease check back in a later version.",
