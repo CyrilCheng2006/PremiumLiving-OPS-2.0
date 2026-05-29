@@ -8,10 +8,8 @@ namespace PremiumLivingOPS.Views.Dashboard
     {
         private System.ComponentModel.IContainer components = null;
 
-        // ── TopNavBar ──
         private TopNavBar pnlTopNav;
 
-        // Controls also referenced by DashboardForm.cs
         private Label  lblBreadcrumb;
         private Label  lblTopNavUser;
         private Panel  pnlAvatar;
@@ -43,7 +41,6 @@ namespace PremiumLivingOPS.Views.Dashboard
         {
             this.SuspendLayout();
 
-            // FORM
             this.Text          = "Premium Living OPS 2.0 — Dashboard";
             this.Size          = new Size(1440, 900);
             this.MinimumSize   = new Size(1200, 700);
@@ -54,29 +51,18 @@ namespace PremiumLivingOPS.Views.Dashboard
 
             Panel pnlMain = new Panel { Dock = DockStyle.Fill, BackColor = Palette.BgPage };
 
-            // ── TopNavBar ──
             pnlTopNav = new TopNavBar();
             pnlTopNav.MenuItemClicked += OnTopNavMenuItemClicked;
 
             // ================================================================
-            // User Bar — 56 px tall
+            // User Bar — 72 px  (previous 56 px × 1.3 = 72.8, rounded to 72)
             //
-            // Element heights:
-            //   pnlAvatar  36 px  → Y = (56-36)/2 = 10
-            //   btnLogout  34 px  → Y = (56-34)/2 = 11
-            //   lblTopNavUser ~26px → Y = (56-26)/2 = 15  (use 16 for optical)
-            //   lblBreadcrumb ~29px → Y = (56-29)/2 = 13  (use 14 for optical)
-            //
-            // RIGHT-SIDE POSITIONS (X measured from right edge of bar):
-            //   btnLogout  : right edge at barW-12, so X = barW - 12 - 96 = barW-108
-            //   pnlAvatar  : 8px gap left of btn   → X = barW-108 - 8 - 36 = barW-152
-            //   lblTopNavUser: 8px gap left of avatar (AutoSize=true, so anchor right)
-            //
-            // IMPORTANT: layoutUserBar() is called BOTH inside Resize AND
-            // immediately after all controls are added so the first paint is
-            // already correct (Resize does not fire during construction).
+            //   pnlAvatar  (h=36) : Y = (72-36)/2 = 18
+            //   btnLogout  (h=34) : Y = (72-34)/2 = 19
+            //   lblTopNavUser ~26px: Y = (72-26)/2 = 23
+            //   lblBreadcrumb ~29px: Y = (72-29)/2 = 21
             // ================================================================
-            const int UBH = 56;   // User Bar Height
+            const int UBH = 72;
 
             Panel pnlUserBar = new Panel
             {
@@ -97,7 +83,7 @@ namespace PremiumLivingOPS.Views.Dashboard
                 Font      = new Font("Segoe UI", 16f, FontStyle.Bold),
                 ForeColor = Palette.TextMain,
                 AutoSize  = true,
-                Location  = new Point(22, 14)
+                Location  = new Point(22, 21)
             };
 
             lblTopNavUser = new Label
@@ -106,7 +92,6 @@ namespace PremiumLivingOPS.Views.Dashboard
                 Font      = new Font("Segoe UI", 14.4f),
                 ForeColor = Palette.TextMuted,
                 AutoSize  = true
-                // Location set by layoutUserBar()
             };
 
             pnlAvatar = new Panel
@@ -114,7 +99,6 @@ namespace PremiumLivingOPS.Views.Dashboard
                 Width     = 36,
                 Height    = 36,
                 BackColor = Palette.Primary
-                // Location set by layoutUserBar()
             };
             pnlAvatar.Region = MakeCircleRegion(36, 36);
 
@@ -137,19 +121,16 @@ namespace PremiumLivingOPS.Views.Dashboard
                 FlatStyle = FlatStyle.Flat,
                 Size      = new Size(96, 34),
                 Cursor    = Cursors.Hand
-                // Location set by layoutUserBar()
             };
             btnLogout.FlatAppearance.BorderColor = Palette.Danger;
             btnLogout.Click += btnLogout_Click;
 
-            // Local layout function — called on Resize AND once right away
             System.Action layoutUserBar = () =>
             {
                 int bw = pnlUserBar.ClientSize.Width;
-                // X positions from right edge
-                btnLogout.Location     = new Point(bw - 108,  11);  // Y=(56-34)/2
-                pnlAvatar.Location     = new Point(bw - 152,  10);  // Y=(56-36)/2
-                lblTopNavUser.Location = new Point(bw - 152 - lblTopNavUser.Width - 8, 16);
+                btnLogout.Location     = new Point(bw - 108, 19);
+                pnlAvatar.Location     = new Point(bw - 152, 18);
+                lblTopNavUser.Location = new Point(bw - 152 - lblTopNavUser.Width - 8, 23);
             };
 
             pnlUserBar.Resize += (s, e) => layoutUserBar();
@@ -160,13 +141,10 @@ namespace PremiumLivingOPS.Views.Dashboard
             pnlUserBar.Controls.Add(btnLogout);
             pnlUserBar.Controls.Add(userBarBorder);
 
-            // Fire once now so positions are correct before first paint
             layoutUserBar();
 
-            // no-op kept for source compat
             pnlTopNav.SetPopupContainer(pnlMain);
 
-            // ── Scrollable content area ──
             pnlContent = new Panel
             {
                 Dock       = DockStyle.Fill,
@@ -209,84 +187,55 @@ namespace PremiumLivingOPS.Views.Dashboard
             pnlAlert.Controls.Add(lblAlert);
             pnlAlert.Controls.Add(alertBorder);
 
-            // KPI Row 1
             pnlKpi1 = new Panel { Height = 128, BackColor = System.Drawing.Color.Transparent };
-            TableLayoutPanel tlpKpi1 = new TableLayoutPanel
-            { Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 1, BackColor = System.Drawing.Color.Transparent };
+            TableLayoutPanel tlpKpi1 = new TableLayoutPanel { Dock=DockStyle.Fill, ColumnCount=4, RowCount=1, BackColor=System.Drawing.Color.Transparent };
             for (int i = 0; i < 4; i++) tlpKpi1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
             tlpKpi1.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-            kpiOrders     = MakeKpiCard(Palette.Primary);
-            kpiDelivered  = MakeKpiCard(Palette.Success);
-            kpiQuotations = MakeKpiCard(Palette.Warning);
-            kpiLowStock   = MakeKpiCard(Palette.Danger);
-            tlpKpi1.Controls.Add(kpiOrders,     0, 0);
-            tlpKpi1.Controls.Add(kpiDelivered,  1, 0);
-            tlpKpi1.Controls.Add(kpiQuotations, 2, 0);
-            tlpKpi1.Controls.Add(kpiLowStock,   3, 0);
+            kpiOrders=MakeKpiCard(Palette.Primary); kpiDelivered=MakeKpiCard(Palette.Success);
+            kpiQuotations=MakeKpiCard(Palette.Warning); kpiLowStock=MakeKpiCard(Palette.Danger);
+            tlpKpi1.Controls.Add(kpiOrders,0,0); tlpKpi1.Controls.Add(kpiDelivered,1,0);
+            tlpKpi1.Controls.Add(kpiQuotations,2,0); tlpKpi1.Controls.Add(kpiLowStock,3,0);
             pnlKpi1.Controls.Add(tlpKpi1);
 
-            // KPI Row 2
             pnlKpi2 = new Panel { Height = 128, BackColor = System.Drawing.Color.Transparent };
-            TableLayoutPanel tlpKpi2 = new TableLayoutPanel
-            { Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 1, BackColor = System.Drawing.Color.Transparent };
+            TableLayoutPanel tlpKpi2 = new TableLayoutPanel { Dock=DockStyle.Fill, ColumnCount=4, RowCount=1, BackColor=System.Drawing.Color.Transparent };
             for (int i = 0; i < 4; i++) tlpKpi2.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
             tlpKpi2.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-            kpiRevenue   = MakeKpiCard(Palette.Info);
-            kpiAR        = MakeKpiCard(Palette.Warning);
-            kpiSuppliers = MakeKpiCard(Palette.Primary);
-            kpiCustomers = MakeKpiCard(Palette.Primary);
-            tlpKpi2.Controls.Add(kpiRevenue,   0, 0);
-            tlpKpi2.Controls.Add(kpiAR,        1, 0);
-            tlpKpi2.Controls.Add(kpiSuppliers, 2, 0);
-            tlpKpi2.Controls.Add(kpiCustomers, 3, 0);
+            kpiRevenue=MakeKpiCard(Palette.Info); kpiAR=MakeKpiCard(Palette.Warning);
+            kpiSuppliers=MakeKpiCard(Palette.Primary); kpiCustomers=MakeKpiCard(Palette.Primary);
+            tlpKpi2.Controls.Add(kpiRevenue,0,0); tlpKpi2.Controls.Add(kpiAR,1,0);
+            tlpKpi2.Controls.Add(kpiSuppliers,2,0); tlpKpi2.Controls.Add(kpiCustomers,3,0);
             pnlKpi2.Controls.Add(tlpKpi2);
 
-            // Section rows
             tlpRow1 = MakeSectionRow();
-            Panel secOrders   = MakeSectionCard("Recent Orders");
-            Panel secLowStock = MakeSectionCard("\u26A0\uFE0F Low Stock Alerts");
-            dgvOrders = MakeDgv(new[] { "Order No.", "Customer", "Total", "Status" });
-            dgvOrders.CellPainting += dgvOrders_CellPainting;
+            Panel secOrders=MakeSectionCard("Recent Orders"); Panel secLowStock=MakeSectionCard("\u26A0\uFE0F Low Stock Alerts");
+            dgvOrders=MakeDgv(new[]{"Order No.","Customer","Total","Status"}); dgvOrders.CellPainting+=dgvOrders_CellPainting;
             secOrders.Controls.Add(dgvOrders);
-            DataGridView dgvLowStock = MakeDgv(new[] { "Item", "On Hand", "Min", "Status" });
-            AddLowStockRows(dgvLowStock);
-            secLowStock.Controls.Add(dgvLowStock);
-            tlpRow1.Controls.Add(secOrders,   0, 0);
-            tlpRow1.Controls.Add(secLowStock, 1, 0);
+            DataGridView dgvLowStock=MakeDgv(new[]{"Item","On Hand","Min","Status"}); AddLowStockRows(dgvLowStock); secLowStock.Controls.Add(dgvLowStock);
+            tlpRow1.Controls.Add(secOrders,0,0); tlpRow1.Controls.Add(secLowStock,1,0);
 
             tlpRow2 = MakeSectionRow();
-            Panel secQuot = MakeSectionCard("Pending Quotations");
-            Panel secShip = MakeSectionCard("Active Shipments");
-            dgvQuotations = MakeDgv(new[] { "Quotation No.", "Customer", "Amount", "Valid Until" });
-            dgvShipments  = MakeDgv(new[] { "Shipment ID", "Customer", "Sched. Date", "Status" });
-            dgvShipments.CellPainting += dgvShipments_CellPainting;
-            secQuot.Controls.Add(dgvQuotations);
-            secShip.Controls.Add(dgvShipments);
-            tlpRow2.Controls.Add(secQuot, 0, 0);
-            tlpRow2.Controls.Add(secShip, 1, 0);
+            Panel secQuot=MakeSectionCard("Pending Quotations"); Panel secShip=MakeSectionCard("Active Shipments");
+            dgvQuotations=MakeDgv(new[]{"Quotation No.","Customer","Amount","Valid Until"});
+            dgvShipments=MakeDgv(new[]{"Shipment ID","Customer","Sched. Date","Status"}); dgvShipments.CellPainting+=dgvShipments_CellPainting;
+            secQuot.Controls.Add(dgvQuotations); secShip.Controls.Add(dgvShipments);
+            tlpRow2.Controls.Add(secQuot,0,0); tlpRow2.Controls.Add(secShip,1,0);
 
             tlpRow3 = MakeSectionRow();
-            Panel secSup = MakeSectionCard("Supplier Payment Status");
-            Panel secAct = MakeSectionCard("Recent Activity");
-            dgvSuppliers = MakeDgv(new[] { "Supplier", "Invoice", "Amount", "Status" });
-            dgvSuppliers.CellPainting += dgvSuppliers_CellPainting;
-            pnlActivity = new Panel { Dock = DockStyle.Fill, AutoScroll = true, BackColor = System.Drawing.Color.Transparent };
-            secSup.Controls.Add(dgvSuppliers);
-            secAct.Controls.Add(pnlActivity);
-            tlpRow3.Controls.Add(secSup, 0, 0);
-            tlpRow3.Controls.Add(secAct, 1, 0);
+            Panel secSup=MakeSectionCard("Supplier Payment Status"); Panel secAct=MakeSectionCard("Recent Activity");
+            dgvSuppliers=MakeDgv(new[]{"Supplier","Invoice","Amount","Status"}); dgvSuppliers.CellPainting+=dgvSuppliers_CellPainting;
+            pnlActivity=new Panel{Dock=DockStyle.Fill,AutoScroll=true,BackColor=System.Drawing.Color.Transparent};
+            secSup.Controls.Add(dgvSuppliers); secAct.Controls.Add(pnlActivity);
+            tlpRow3.Controls.Add(secSup,0,0); tlpRow3.Controls.Add(secAct,1,0);
 
             FlowLayoutPanel flow = new FlowLayoutPanel
             {
-                Dock          = DockStyle.Top,
-                FlowDirection = FlowDirection.TopDown,
-                WrapContents  = false,
-                AutoSize      = true,
-                AutoSizeMode  = AutoSizeMode.GrowAndShrink,
-                BackColor     = System.Drawing.Color.Transparent
+                Dock=DockStyle.Top, FlowDirection=FlowDirection.TopDown,
+                WrapContents=false, AutoSize=true, AutoSizeMode=AutoSizeMode.GrowAndShrink,
+                BackColor=System.Drawing.Color.Transparent
             };
             System.Action<int> addSpacer = h =>
-                flow.Controls.Add(new Panel { Height = h, Width = 10, BackColor = System.Drawing.Color.Transparent });
+                flow.Controls.Add(new Panel{Height=h,Width=10,BackColor=System.Drawing.Color.Transparent});
 
             flow.Controls.Add(lblPageTitle); addSpacer(5);
             flow.Controls.Add(lblPageSub);   addSpacer(14);
@@ -298,13 +247,12 @@ namespace PremiumLivingOPS.Views.Dashboard
             flow.Controls.Add(tlpRow3);
 
             pnlContent.Controls.Add(flow);
-
             pnlContent.Resize += (s, e) =>
             {
                 int w = pnlContent.ClientSize.Width - pnlContent.Padding.Horizontal;
-                flow.Width    = w; pnlAlert.Width = w;
-                pnlKpi1.Width = w; pnlKpi2.Width  = w;
-                tlpRow1.Width = w; tlpRow2.Width  = w; tlpRow3.Width = w;
+                flow.Width=w; pnlAlert.Width=w;
+                pnlKpi1.Width=w; pnlKpi2.Width=w;
+                tlpRow1.Width=w; tlpRow2.Width=w; tlpRow3.Width=w;
             };
 
             pnlMain.Controls.Add(pnlContent);
@@ -324,31 +272,18 @@ namespace PremiumLivingOPS.Views.Dashboard
                 "Coming Soon", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
-        // ====================================================================
-        // FACTORY HELPERS
-        // ====================================================================
-
         private Panel MakeKpiCard(System.Drawing.Color accent)
         {
-            Panel card = new Panel
-            {
-                Dock      = DockStyle.Fill,
-                Margin    = new Padding(0, 0, 11, 0),
-                BackColor = Palette.BgCard,
-                Padding   = new Padding(21, 18, 21, 13)
-            };
+            Panel card = new Panel { Dock=DockStyle.Fill, Margin=new Padding(0,0,11,0), BackColor=Palette.BgCard, Padding=new Padding(21,18,21,13) };
             card.Paint += (s, e) =>
             {
                 e.Graphics.FillRectangle(new System.Drawing.SolidBrush(accent), 0, 0, ((Panel)s).Width, 6);
-                e.Graphics.DrawRectangle(new System.Drawing.Pen(Palette.BorderColor, 1),
-                    0, 0, ((Panel)s).Width - 1, ((Panel)s).Height - 1);
+                e.Graphics.DrawRectangle(new System.Drawing.Pen(Palette.BorderColor,1), 0, 0, ((Panel)s).Width-1, ((Panel)s).Height-1);
             };
-            Label lblLabel = new Label { Tag="kpi-label", Font=new Font("Segoe UI",10.4f,FontStyle.Bold), ForeColor=Palette.TextMuted,  AutoSize=false, Width=208, Height=22, Location=new Point(21,18),  TextAlign=ContentAlignment.TopLeft };
-            Label lblValue = new Label { Tag="kpi-value", Font=new Font("Segoe UI",30.4f,FontStyle.Bold), ForeColor=accent,             AutoSize=false, Width=208, Height=45, Location=new Point(19,42),  TextAlign=ContentAlignment.TopLeft };
-            Label lblSub   = new Label { Tag="kpi-sub",   Font=new Font("Segoe UI",10.4f),               ForeColor=Palette.TextMuted,  AutoSize=false, Width=208, Height=22, Location=new Point(21,90),  TextAlign=ContentAlignment.TopLeft };
-            card.Controls.Add(lblLabel);
-            card.Controls.Add(lblValue);
-            card.Controls.Add(lblSub);
+            Label lblLabel = new Label { Tag="kpi-label", Font=new Font("Segoe UI",10.4f,FontStyle.Bold), ForeColor=Palette.TextMuted,  AutoSize=false, Width=208, Height=22, Location=new Point(21,18), TextAlign=ContentAlignment.TopLeft };
+            Label lblValue = new Label { Tag="kpi-value", Font=new Font("Segoe UI",30.4f,FontStyle.Bold), ForeColor=accent,             AutoSize=false, Width=208, Height=45, Location=new Point(19,42), TextAlign=ContentAlignment.TopLeft };
+            Label lblSub   = new Label { Tag="kpi-sub",   Font=new Font("Segoe UI",10.4f),               ForeColor=Palette.TextMuted,  AutoSize=false, Width=208, Height=22, Location=new Point(21,90), TextAlign=ContentAlignment.TopLeft };
+            card.Controls.Add(lblLabel); card.Controls.Add(lblValue); card.Controls.Add(lblSub);
             return card;
         }
 
@@ -365,12 +300,10 @@ namespace PremiumLivingOPS.Views.Dashboard
         {
             Panel card = new Panel { Dock=DockStyle.Fill, BackColor=Palette.BgCard, Margin=new Padding(0,0,11,0) };
             card.Paint += (s, e) => e.Graphics.DrawRectangle(new System.Drawing.Pen(Palette.BorderColor,1), 0, 0, ((Panel)s).Width-1, ((Panel)s).Height-1);
-            Panel header = new Panel { Dock=DockStyle.Top, Height=51, BackColor=Palette.BgCard, Padding=new Padding(18,0,18,0) };
+            Panel header    = new Panel { Dock=DockStyle.Top, Height=51, BackColor=Palette.BgCard, Padding=new Padding(18,0,18,0) };
             Panel headerDiv = new Panel { Dock=DockStyle.Bottom, Height=1, BackColor=Palette.BorderColor };
-            Label lblTitle = new Label { Text=title, Font=new Font("Segoe UI",14.4f,FontStyle.Bold), ForeColor=Palette.TextMain, Dock=DockStyle.Fill, TextAlign=ContentAlignment.MiddleLeft };
-            header.Controls.Add(lblTitle);
-            header.Controls.Add(headerDiv);
-            card.Controls.Add(header);
+            Label lblTitle  = new Label { Text=title, Font=new Font("Segoe UI",14.4f,FontStyle.Bold), ForeColor=Palette.TextMain, Dock=DockStyle.Fill, TextAlign=ContentAlignment.MiddleLeft };
+            header.Controls.Add(lblTitle); header.Controls.Add(headerDiv); card.Controls.Add(header);
             return card;
         }
 
@@ -382,13 +315,11 @@ namespace PremiumLivingOPS.Views.Dashboard
                 RowHeadersVisible=false, SelectionMode=DataGridViewSelectionMode.FullRowSelect,
                 BackgroundColor=Palette.BgCard, BorderStyle=BorderStyle.None, GridColor=Palette.BorderColor,
                 Font=new Font("Segoe UI",12.8f), AutoSizeColumnsMode=DataGridViewAutoSizeColumnsMode.Fill,
-                CellBorderStyle=DataGridViewCellBorderStyle.SingleHorizontal, RowTemplate={ Height=38 }
+                CellBorderStyle=DataGridViewCellBorderStyle.SingleHorizontal, RowTemplate={Height=38}
             };
-            dgv.ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
-            { BackColor=System.Drawing.Color.FromArgb(246,249,255), ForeColor=Palette.TextMuted, Font=new Font("Segoe UI",11.2f,FontStyle.Bold), Padding=new Padding(6) };
+            dgv.ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle { BackColor=System.Drawing.Color.FromArgb(246,249,255), ForeColor=Palette.TextMuted, Font=new Font("Segoe UI",11.2f,FontStyle.Bold), Padding=new Padding(6) };
             dgv.ColumnHeadersHeight = 42;
-            dgv.DefaultCellStyle = new DataGridViewCellStyle
-            { BackColor=Palette.BgCard, ForeColor=Palette.TextMain, SelectionBackColor=System.Drawing.Color.FromArgb(240,246,255), SelectionForeColor=Palette.TextMain, Padding=new Padding(8,6,8,6) };
+            dgv.DefaultCellStyle = new DataGridViewCellStyle { BackColor=Palette.BgCard, ForeColor=Palette.TextMain, SelectionBackColor=System.Drawing.Color.FromArgb(240,246,255), SelectionForeColor=Palette.TextMain, Padding=new Padding(8,6,8,6) };
             dgv.AlternatingRowsDefaultCellStyle = new DataGridViewCellStyle { BackColor=System.Drawing.Color.FromArgb(248,250,253) };
             foreach (string col in columns)
                 dgv.Columns.Add(new DataGridViewTextBoxColumn { HeaderText=col, Name=col.Replace(" ","_"), SortMode=DataGridViewColumnSortMode.NotSortable });
@@ -406,7 +337,7 @@ namespace PremiumLivingOPS.Views.Dashboard
             {
                 string status = row.Cells[3].Value?.ToString();
                 row.Tag = status == "Critical"
-                    ? new System.Drawing.Color[] { Palette.TagRedBg,    Palette.TagRedFg    }
+                    ? new System.Drawing.Color[] { Palette.TagRedBg, Palette.TagRedFg }
                     : new System.Drawing.Color[] { Palette.TagYellowBg, Palette.TagYellowFg };
             }
             dgv.CellPainting += (s, e) => PaintStatusCell(s, e, 3);
