@@ -53,9 +53,7 @@ namespace PremiumLivingOPS.Views.Dashboard
             this.Font          = new Font("Segoe UI", 16f);
 
             // ================================================================
-            // pnlMain — single container that owns the nav bar, user bar, and
-            // content.  The dropdown popup is also injected here so its
-            // z-order is controlled within the same parent as its siblings.
+            // pnlMain — owns nav bar, user bar, and content.
             // ================================================================
             Panel pnlMain = new Panel { Dock = DockStyle.Fill, BackColor = Palette.BgPage };
 
@@ -63,11 +61,21 @@ namespace PremiumLivingOPS.Views.Dashboard
             pnlTopNav = new TopNavBar();
             pnlTopNav.MenuItemClicked += OnTopNavMenuItemClicked;
 
-            // ── User bar (breadcrumb + avatar + logout) ──
+            // ================================================================
+            // User bar — height 56 px so every element fits with comfortable
+            // vertical padding.  Element Y positions are calculated from:
+            //
+            //   btnLogout  (h=34): Y = (56-34)/2 = 11
+            //   pnlAvatar  (h=36): Y = (56-36)/2 = 10
+            //   lblTopNavUser:     Y = 16  (visually centred alongside avatar)
+            //   lblBreadcrumb:     Y = 14  (vertically centred, font 16 Bold)
+            // ================================================================
+            const int UserBarH = 56;
+
             Panel pnlUserBar = new Panel
             {
                 Dock      = DockStyle.Top,
-                Height    = 44,
+                Height    = UserBarH,
                 BackColor = System.Drawing.Color.White
             };
             Panel userBarBorder = new Panel
@@ -83,7 +91,7 @@ namespace PremiumLivingOPS.Views.Dashboard
                 Font      = new Font("Segoe UI", 16f, FontStyle.Bold),
                 ForeColor = Palette.TextMain,
                 AutoSize  = true,
-                Location  = new Point(22, 10)
+                Location  = new Point(22, 14)   // vertically centred in 56 px
             };
             lblTopNavUser = new Label
             {
@@ -125,11 +133,13 @@ namespace PremiumLivingOPS.Views.Dashboard
             btnLogout.FlatAppearance.BorderColor = Palette.Danger;
             btnLogout.Click += btnLogout_Click;
 
+            // Vertically centre all right-anchored elements inside the 56 px bar
             pnlUserBar.Resize += (s, e) =>
             {
-                btnLogout.Location     = new Point(pnlUserBar.Width - 112,  5);
-                pnlAvatar.Location     = new Point(pnlUserBar.Width - 158,  4);
-                lblTopNavUser.Location = new Point(pnlUserBar.Width - 230, 12);
+                int barW = pnlUserBar.Width;
+                btnLogout.Location     = new Point(barW - 112, 11);  // (56-34)/2 = 11
+                pnlAvatar.Location     = new Point(barW - 158, 10);  // (56-36)/2 = 10
+                lblTopNavUser.Location = new Point(barW - 230, 16);  // visually centred
             };
 
             pnlUserBar.Controls.Add(lblBreadcrumb);
@@ -138,21 +148,16 @@ namespace PremiumLivingOPS.Views.Dashboard
             pnlUserBar.Controls.Add(btnLogout);
             pnlUserBar.Controls.Add(userBarBorder);
 
-            // ── Tell the nav bar to use pnlMain as the popup container ──────────────
-            // This MUST be called before the form is shown so that when the
-            // first dropdown is triggered the popup is already aware of its
-            // parent.  By anchoring the popup inside pnlMain (instead of the
-            // root Form), SetChildIndex(popup, 0) correctly hoists it above
-            // both the Dock=Top pnlTopNav and the Dock=Top pnlUserBar.
+            // SetPopupContainer is now a no-op (popup targets FindForm() directly)
             pnlTopNav.SetPopupContainer(pnlMain);
 
             // ── Scrollable content area ──
             pnlContent = new Panel
             {
-                Dock      = DockStyle.Fill,
+                Dock       = DockStyle.Fill,
                 AutoScroll = true,
-                Padding   = new Padding(26, 20, 26, 26),
-                BackColor = Palette.BgPage
+                Padding    = new Padding(26, 20, 26, 26),
+                BackColor  = Palette.BgPage
             };
 
             lblPageTitle = new Label
@@ -267,12 +272,12 @@ namespace PremiumLivingOPS.Views.Dashboard
             // Flow layout for page content
             FlowLayoutPanel flow = new FlowLayoutPanel
             {
-                Dock         = DockStyle.Top,
+                Dock          = DockStyle.Top,
                 FlowDirection = FlowDirection.TopDown,
-                WrapContents = false,
-                AutoSize     = true,
-                AutoSizeMode = AutoSizeMode.GrowAndShrink,
-                BackColor    = System.Drawing.Color.Transparent
+                WrapContents  = false,
+                AutoSize      = true,
+                AutoSizeMode  = AutoSizeMode.GrowAndShrink,
+                BackColor     = System.Drawing.Color.Transparent
             };
 
             System.Action<int> addSpacer = (h) => flow.Controls.Add(
@@ -299,24 +304,20 @@ namespace PremiumLivingOPS.Views.Dashboard
 
             // ================================================================
             // Add children to pnlMain.
-            // Dock=Top panels stack from bottom-to-top in the order they are
-            // added, so the LAST added Dock=Top control appears at the very
-            // top of the form.
-            //
-            // Desired visual order (top → bottom):
-            //   pnlTopNav   (dark nav bar)     ← added last  = topmost
-            //   pnlUserBar  (breadcrumb/user)  ← added second
-            //   pnlContent  (scrollable body)  ← added first = fills remaining space
+            // Dock=Top panels stack in reverse-add order:
+            //   pnlTopNav  (added last)   → topmost
+            //   pnlUserBar (added second) → below nav bar
+            //   pnlContent (added first)  → fills remaining space
             // ================================================================
-            pnlMain.Controls.Add(pnlContent);   // Fill — must be added first
-            pnlMain.Controls.Add(pnlUserBar);   // Dock=Top — sits above content
-            pnlMain.Controls.Add(pnlTopNav);    // Dock=Top — sits above user bar
+            pnlMain.Controls.Add(pnlContent);
+            pnlMain.Controls.Add(pnlUserBar);
+            pnlMain.Controls.Add(pnlTopNav);
 
             this.Controls.Add(pnlMain);
             this.ResumeLayout(false);
         }
 
-        // ── TopNavBar click handler ─────────────────────────────────────────────────────────
+        // ── TopNavBar click handler ──────────────────────────────────────────────────
         private void OnTopNavMenuItemClicked(string itemLabel)
         {
             if (itemLabel == "Dashboard")
@@ -490,6 +491,7 @@ namespace PremiumLivingOPS.Views.Dashboard
             dgv.Rows.Add("Solid Oak Panel (IID-R-0001)",          "8",  "20", "Critical");
             dgv.Rows.Add("High-density Foam (IID-R-0002)",        "3",  "15", "Critical");
             dgv.Rows.Add("5-Door Wardrobe (IID-P-0005)",          "5",  "8",  "Low");
+            dgv.Rows.Add("Steel Bolt Set (IID-R-0003)",           "12", "50", "Critical");
             dgv.Rows.Add("Steel Bolt Set (IID-R-0003)",           "12", "50", "Critical");
             dgv.Rows.Add("Queen Size Oak Bed Frame (IID-P-0002)", "8",  "10", "Low");
 
