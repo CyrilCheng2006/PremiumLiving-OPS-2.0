@@ -8,128 +8,95 @@ namespace PremiumLivingOPS.Views.Dashboard
 {
     /// <summary>
     /// Apple-style dark top navigation bar.
-    /// Fixes applied:
-    ///   1. Wider padding on nav items (horizontal spacing increased)
-    ///   2. Stable dropdown: uses a single polling Timer instead of MouseLeave
-    ///      so moving the cursor through the gap between nav bar and popup
-    ///      no longer closes the menu.
-    ///   3. Mega-menu popup uses a real opaque Panel drawn via OnPaintBackground
-    ///      so child label text never bleeds through the background.
+    ///  1. Nav items centred horizontally, generous spacing
+    ///  2. Stable dropdown via 80 ms poll timer
+    ///  3. Opaque mega-menu panel (no text bleed-through)
+    ///  4. No category sub-headers inside the dropdown
     /// </summary>
     public class TopNavBar : Panel
     {
         // ── Colours ───────────────────────────────────────────────────────────
-        private static readonly Color NavBg        = Color.FromArgb(29,  29,  31);
-        private static readonly Color NavText      = Color.FromArgb(245, 245, 247);
-        private static readonly Color DropBg       = Color.FromArgb(38,  38,  40);   // slightly lighter for contrast
-        private static readonly Color DropText     = Color.FromArgb(210, 210, 215);
-        private static readonly Color DropTextBold = Color.FromArgb(245, 245, 247);
+        private static readonly Color NavBg    = Color.FromArgb(29,  29,  31);
+        private static readonly Color NavText  = Color.FromArgb(245, 245, 247);
+        private static readonly Color DropBg   = Color.FromArgb(38,  38,  40);
+        private static readonly Color DropText = Color.FromArgb(210, 210, 215);
 
         // ── Fonts ─────────────────────────────────────────────────────────────
         private static readonly Font FontNav      = new Font("Segoe UI", 11f,   FontStyle.Regular);
-        private static readonly Font FontDropHead = new Font("Segoe UI", 10f,   FontStyle.Bold);
         private static readonly Font FontDropItem = new Font("Segoe UI", 10.5f, FontStyle.Regular);
 
-        // FIX 1: wider horizontal padding per nav item
-        private const int ItemPadH = 20;   // padding each side inside a nav button
+        private const int ItemPadH = 20;   // horizontal padding each side of a nav button
 
         // ── Menu definition ───────────────────────────────────────────────────
-        private readonly (string Label, (string Category, string[] Items)[] Groups)[] _menus =
+        // Each entry: (top-level label, string[] of sub-items)
+        // Sub-items are shown directly – no category header, no divider.
+        private readonly (string Label, string[] Items)[] _menus =
         {
-            ("Dashboard", new (string, string[])[] { }),
+            ("Dashboard",                new string[] { }),
 
-            ("Order Processing", new (string, string[])[]
+            ("Order Processing",         new[]
             {
-                ("ORDER PROCESSING", new[]
-                {
-                    "View & Search Order",
-                    "Quotation",
-                    "Create Order",
-                    "Modify Order"
-                })
+                "View & Search Order",
+                "Quotation",
+                "Create Order",
+                "Modify Order"
             }),
 
-            ("Production Processing", new (string, string[])[]
+            ("Production Processing",    new[]
             {
-                ("PRODUCTION PROCESSING", new[]
-                {
-                    "Search Raw Material Request",
-                    "Create Raw Material Request"
-                })
+                "Search Raw Material Request",
+                "Create Raw Material Request"
             }),
 
-            ("Logistics Processing", new (string, string[])[]
+            ("Logistics Processing",     new[]
             {
-                ("LOGISTICS PROCESSING", new[]
-                {
-                    "View Shipment",
-                    "Handling Goods Received"
-                })
+                "View Shipment",
+                "Handling Goods Received"
             }),
 
-            ("Inventory Control", new (string, string[])[]
+            ("Inventory Control",        new[]
             {
-                ("INVENTORY CONTROL", new[]
-                {
-                    "View Product / Raw Material"
-                })
+                "View Product / Raw Material"
             }),
 
-            ("Raw Material", new (string, string[])[]
+            ("Raw Material",             new[]
             {
-                ("RAW MATERIAL", new[]
-                {
-                    "Create Procurement",
-                    "Search & List Procurement"
-                })
+                "Create Procurement",
+                "Search & List Procurement"
             }),
 
-            ("After-Service", new (string, string[])[]
+            ("After-Service",            new[]
             {
-                ("AFTER-SERVICE", new[]
-                {
-                    "Create Invoice",
-                    "Complaint List",
-                    "Return Order List",
-                    "Account Receivable",
-                    "Account Payable"
-                })
+                "Create Invoice",
+                "Complaint List",
+                "Return Order List",
+                "Account Receivable",
+                "Account Payable"
             }),
 
-            ("Master Data Maintenance", new (string, string[])[]
+            ("Master Data Maintenance",  new[]
             {
-                ("MASTER DATA", new[]
-                {
-                    "Supplier List",
-                    "Customer List"
-                })
+                "Supplier List",
+                "Customer List"
             }),
 
-            ("System Security & Control", new (string, string[])[]
+            ("System Security & Control", new[]
             {
-                ("SECURITY & CONTROL", new[]
-                {
-                    "Staff List",
-                    "Log List"
-                })
+                "Staff List",
+                "Log List"
             }),
 
-            ("Statistical Reports", new (string, string[])[]
+            ("Statistical Reports",      new[]
             {
-                ("REPORTS", new[]
-                {
-                    "View Report"
-                })
+                "View Report"
             })
         };
 
         // ── State ─────────────────────────────────────────────────────────────
-        private readonly List<Panel> _navItems  = new List<Panel>();
-        private          Panel       _megaPopup;
-        private          int         _activeIdx = -1;
-
-        // FIX 2: single polling timer replaces unreliable MouseLeave
-        private System.Windows.Forms.Timer _pollTimer;
+        private readonly List<Panel>               _navItems = new List<Panel>();
+        private          Panel                     _megaPopup;
+        private          int                       _activeIdx = -1;
+        private          System.Windows.Forms.Timer _pollTimer;
 
         // ── Public Events ─────────────────────────────────────────────────────
         public event Action<string> MenuItemClicked;
@@ -142,61 +109,42 @@ namespace PremiumLivingOPS.Views.Dashboard
             BackColor = NavBg;
             Padding   = new Padding(0);
 
-            // FIX 2: poll every 80 ms whether the cursor is still over the
-            // nav bar OR the popup; if not, close the popup.
             _pollTimer = new System.Windows.Forms.Timer { Interval = 80 };
             _pollTimer.Tick += PollTimer_Tick;
 
-            HandleCreated += (s, e) => BuildMegaPopup();
-            HandleCreated += (s, e) => BuildNavItems();
+            HandleCreated += (s, e) => { BuildMegaPopup(); BuildNavItems(); };
         }
 
-        // ── Build the shared mega-popup panel ─────────────────────────────────
-        // FIX 3: use an opaque OpaquePanel subclass so GDI+ does NOT punch
-        // transparent holes behind child Label controls.
+        // ── Opaque popup panel ────────────────────────────────────────────────
         private void BuildMegaPopup()
         {
             _megaPopup = new OpaquePanel
             {
                 Visible   = false,
                 BackColor = DropBg,
-                AutoSize  = false,
-                Padding   = new Padding(20, 14, 20, 18)
+                AutoSize  = false
             };
             _megaPopup.Paint += MegaPopup_Paint;
         }
 
-        // ── OpaquePanel: overrides CreateParams to prevent WS_EX_TRANSPARENT ──
         private class OpaquePanel : Panel
         {
             protected override CreateParams CreateParams
             {
-                get
-                {
-                    CreateParams cp = base.CreateParams;
-                    // Remove WS_EX_TRANSPARENT; force opaque painting
-                    cp.ExStyle &= ~0x20;
-                    return cp;
-                }
+                get { var cp = base.CreateParams; cp.ExStyle &= ~0x20; return cp; }
             }
-            // Always paint the background first so labels cannot see through it
             protected override void OnPaintBackground(PaintEventArgs e)
             {
                 e.Graphics.Clear(BackColor);
             }
         }
 
-        // ── Build nav items (centred, wider spacing) ──────────────────────────
+        // ── Build nav items ───────────────────────────────────────────────────
         private void BuildNavItems()
         {
-            // Remove old items (logo stays at index 0 if already added)
-            for (int i = Controls.Count - 1; i >= 0; i--)
-                if (Controls[i] != null && !(Controls[i] is Label lc && lc.Text.Contains("PLF")))
-                    Controls.RemoveAt(i);
             Controls.Clear();
             _navItems.Clear();
 
-            // Logo — fixed left
             Label logo = new Label
             {
                 Text      = "\uD83E\uDE91 PLF",
@@ -208,7 +156,6 @@ namespace PremiumLivingOPS.Views.Dashboard
             };
             Controls.Add(logo);
 
-            // FIX 1: ItemPadH*2 gives generous horizontal breathing room
             var widths = new int[_menus.Length];
             int totalW = 0;
             for (int i = 0; i < _menus.Length; i++)
@@ -223,7 +170,7 @@ namespace PremiumLivingOPS.Views.Dashboard
             for (int i = 0; i < _menus.Length; i++)
             {
                 int  idx     = i;
-                bool hasDrop = _menus[i].Groups.Length > 0;
+                bool hasDrop = _menus[i].Items.Length > 0;
 
                 Panel item = new Panel
                 {
@@ -232,7 +179,6 @@ namespace PremiumLivingOPS.Views.Dashboard
                     BackColor = Color.Transparent,
                     Cursor    = Cursors.Hand
                 };
-
                 Label lbl = new Label
                 {
                     Text      = _menus[i].Label,
@@ -243,8 +189,6 @@ namespace PremiumLivingOPS.Views.Dashboard
                 };
                 item.Controls.Add(lbl);
 
-                // FIX 2: on hover simply show/update the popup; the poll timer
-                // decides when to close it — no more relying on MouseLeave.
                 item.MouseEnter += (s, e) => OnNavItemHover(idx, item, hasDrop);
                 lbl.MouseEnter  += (s, e) => OnNavItemHover(idx, item, hasDrop);
 
@@ -266,29 +210,22 @@ namespace PremiumLivingOPS.Views.Dashboard
         private void OnNavItemHover(int idx, Panel navItem, bool hasDrop)
         {
             HighlightItem(idx);
-            if (hasDrop)
-                ShowMegaMenu(idx, navItem);
-            else
-                HideMegaMenu();
-            _pollTimer.Start();   // begin polling
+            if (hasDrop) ShowMegaMenu(idx, navItem);
+            else         HideMegaMenu();
+            _pollTimer.Start();
         }
 
-        // ── Polling timer: close popup when cursor leaves both zones ──────────
+        // ── Poll timer ────────────────────────────────────────────────────────
         private void PollTimer_Tick(object sender, EventArgs e)
         {
-            if (!_megaPopup.Visible)
+            if (_megaPopup == null || !_megaPopup.Visible)
             {
-                // Highlight the nav bar item under the cursor, or clear
-                bool overNav = IsOverNavBar();
-                if (!overNav) { ClearHighlight(); _pollTimer.Stop(); }
+                if (!IsOverNavBar()) { ClearHighlight(); _pollTimer.Stop(); }
                 return;
             }
-
             bool overPopup = _megaPopup.ClientRectangle.Contains(
                                  _megaPopup.PointToClient(Cursor.Position));
-            bool overBar   = IsOverNavBar();
-
-            if (!overPopup && !overBar)
+            if (!overPopup && !IsOverNavBar())
             {
                 HideMegaMenu();
                 _pollTimer.Stop();
@@ -298,11 +235,10 @@ namespace PremiumLivingOPS.Views.Dashboard
         private bool IsOverNavBar()
         {
             if (!IsHandleCreated) return false;
-            Point local = PointToClient(Cursor.Position);
-            return ClientRectangle.Contains(local);
+            return ClientRectangle.Contains(PointToClient(Cursor.Position));
         }
 
-        // ── Re-centre on form resize ──────────────────────────────────────────
+        // ── Recentre ──────────────────────────────────────────────────────────
         private void RecentreItems()
         {
             if (_navItems.Count == 0) return;
@@ -313,7 +249,7 @@ namespace PremiumLivingOPS.Views.Dashboard
             foreach (Panel p in _navItems) { p.Location = new Point(x, 0); x += p.Width; }
         }
 
-        // ── Highlight helpers ─────────────────────────────────────────────────
+        // ── Highlight ─────────────────────────────────────────────────────────
         private void HighlightItem(int idx)
         {
             for (int i = 0; i < _navItems.Count; i++)
@@ -340,108 +276,74 @@ namespace PremiumLivingOPS.Views.Dashboard
         // ── Mega Menu ──────────────────────────────────────────────────────────
         private void ShowMegaMenu(int idx, Panel navItem)
         {
-            var groups = _menus[idx].Groups;
-            if (groups.Length == 0) return;
+            string[] items = _menus[idx].Items;
+            if (items.Length == 0) return;
 
-            const int colWidth  = 230;   // slightly wider columns
-            const int padLeft   = 16;
-            const int padTop    = 16;
+            const int colWidth = 230;
+            const int padH     = 16;
+            const int padV     = 10;
+            const int rowH     = 34;
 
-            int cols   = groups.Length;
-            int popupW = cols * colWidth + padLeft * 2;
-            int popupH = padTop;
-
-            // Find tallest column
-            foreach (var g in groups)
-            {
-                int h = padTop + 28 + 4 + g.Items.Length * 34 + 16;
-                if (h > popupH) popupH = h;
-            }
+            int popupW = colWidth + padH * 2;
+            int popupH = padV * 2 + items.Length * rowH;
 
             _megaPopup.Controls.Clear();
             _megaPopup.Size = new Size(popupW, popupH);
 
-            int cx = padLeft;
-            foreach (var (category, items) in groups)
+            int iy = padV;
+            foreach (string sub in items)
             {
-                // FIX 3: use explicit non-transparent background for labels
-                Label catLbl = new Label
+                string captured = sub;
+
+                Panel row = new Panel
                 {
-                    Text      = category,
-                    Font      = FontDropHead,
-                    ForeColor = DropTextBold,
-                    BackColor = DropBg,         // opaque background
-                    AutoSize  = false,
-                    Size      = new Size(colWidth - 8, 22),
-                    Location  = new Point(cx, padTop)
+                    Size      = new Size(colWidth, rowH),
+                    Location  = new Point(padH, iy),
+                    BackColor = DropBg,
+                    Cursor    = Cursors.Hand
                 };
-                _megaPopup.Controls.Add(catLbl);
-
-                Panel div = new Panel
+                Label rowLbl = new Label
                 {
-                    Size      = new Size(colWidth - 8, 1),
-                    Location  = new Point(cx, padTop + 26),
-                    BackColor = Color.FromArgb(90, 255, 255, 255)
+                    Text      = captured,
+                    Font      = FontDropItem,
+                    ForeColor = DropText,
+                    BackColor = Color.Transparent,
+                    Dock      = DockStyle.Fill,
+                    TextAlign = ContentAlignment.MiddleLeft,
+                    Padding   = new Padding(8, 0, 0, 0)
                 };
-                _megaPopup.Controls.Add(div);
+                row.Controls.Add(rowLbl);
 
-                int iy = padTop + 34;
-                foreach (string sub in items)
+                Color hoverBg = Color.FromArgb(60, 255, 255, 255);
+                row.MouseEnter    += (s, e) => { row.BackColor = hoverBg; rowLbl.ForeColor = Color.White; };
+                row.MouseLeave    += (s, e) => { row.BackColor = DropBg;  rowLbl.ForeColor = DropText;   };
+                rowLbl.MouseEnter += (s, e) => { row.BackColor = hoverBg; rowLbl.ForeColor = Color.White; };
+                rowLbl.MouseLeave += (s, e) => { row.BackColor = DropBg;  rowLbl.ForeColor = DropText;   };
+
+                EventHandler onClick = (s, e) =>
                 {
-                    string captured = sub;
+                    HideMegaMenu();
+                    MenuItemClicked?.Invoke(captured);
+                    MessageBox.Show(
+                        $"\u231B  {captured}\n\nThis feature is currently under development.\nPlease check back in a later version.",
+                        "Coming Soon",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
+                };
+                row.Click    += onClick;
+                rowLbl.Click += onClick;
 
-                    Panel row = new Panel
-                    {
-                        Size      = new Size(colWidth - 8, 32),
-                        Location  = new Point(cx, iy),
-                        BackColor = DropBg,      // opaque so hover colour shows correctly
-                        Cursor    = Cursors.Hand
-                    };
-                    Label rowLbl = new Label
-                    {
-                        Text      = captured,
-                        Font      = FontDropItem,
-                        ForeColor = DropText,
-                        BackColor = Color.Transparent,  // inherits row.BackColor
-                        Dock      = DockStyle.Fill,
-                        TextAlign = ContentAlignment.MiddleLeft,
-                        Padding   = new Padding(8, 0, 0, 0)
-                    };
-                    row.Controls.Add(rowLbl);
-
-                    Color hoverBg = Color.FromArgb(60, 255, 255, 255);
-                    row.MouseEnter    += (s, e) => { row.BackColor = hoverBg; rowLbl.ForeColor = Color.White; };
-                    row.MouseLeave    += (s, e) => { row.BackColor = DropBg;  rowLbl.ForeColor = DropText;  };
-                    rowLbl.MouseEnter += (s, e) => { row.BackColor = hoverBg; rowLbl.ForeColor = Color.White; };
-                    rowLbl.MouseLeave += (s, e) => { row.BackColor = DropBg;  rowLbl.ForeColor = DropText;  };
-
-                    EventHandler onClick = (s, e) =>
-                    {
-                        HideMegaMenu();
-                        MenuItemClicked?.Invoke(captured);
-                        MessageBox.Show(
-                            $"\u231B  {captured}\n\nThis feature is currently under development.\nPlease check back in a later version.",
-                            "Coming Soon",
-                            MessageBoxButtons.OK,
-                            MessageBoxIcon.Information);
-                    };
-                    row.Click    += onClick;
-                    rowLbl.Click += onClick;
-
-                    _megaPopup.Controls.Add(row);
-                    iy += 34;
-                }
-                cx += colWidth;
+                _megaPopup.Controls.Add(row);
+                iy += rowH;
             }
 
-            // Position popup flush below the nav bar
+            // Position below the nav bar
             Form  owner  = FindForm();
             if (owner == null) return;
             Point formPt = owner.PointToClient(navItem.PointToScreen(new Point(0, Height)));
 
             int left = formPt.X;
-            if (left + popupW > owner.ClientSize.Width - 8)
-                left = owner.ClientSize.Width - popupW - 8;
+            if (left + popupW > owner.ClientSize.Width - 8) left = owner.ClientSize.Width - popupW - 8;
             if (left < 0) left = 0;
 
             _megaPopup.Location = new Point(left, formPt.Y);
@@ -471,7 +373,6 @@ namespace PremiumLivingOPS.Views.Dashboard
 
         private void MegaPopup_Paint(object sender, PaintEventArgs e)
         {
-            // Draw rounded border on top of the already-filled OpaquePanel
             e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
             var rect = new Rectangle(0, 0, _megaPopup.Width - 1, _megaPopup.Height - 1);
             using (GraphicsPath path = RoundedRect(rect, 10))
