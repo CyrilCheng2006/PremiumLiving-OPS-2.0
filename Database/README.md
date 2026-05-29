@@ -82,3 +82,35 @@ All subsequent logins
 ```
 
 Each account is automatically upgraded on its **first successful login after the update** — no manual SQL updates or data migration scripts are required.
+
+---
+
+## Department Navigation Access Matrix
+
+This matrix defines which Top Navigation Bar items are visible to each department.
+It is enforced at runtime by `NavAccessPolicy.GetAllowedMenus(department)` in
+`PremiumLivingOPS/Controllers/NavAccessPolicy.cs` — **no database query is required**.
+
+> **Legend:** `Y` = menu item is visible to this department &nbsp;|&nbsp; _(blank)_ = hidden
+
+| Menu Item | IT | Production | Sales | Inventory | Finance | Logistics |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|
+| Dashboard | Y | Y | Y | Y | Y | Y |
+| Order Processing | Y | | Y | | | |
+| Production Processing | Y | Y | | | | |
+| Logistics Processing | Y | | | | | Y |
+| Inventory Control | Y | Y | | Y | | |
+| Raw Material | Y | Y | | Y | | |
+| After-Service | Y | | Y | | Y | |
+| Master Data Maintenance | Y | | Y | Y | Y | Y |
+| System Security & Control | Y | | | | | |
+| Statistical Reports | Y | | Y | | Y | |
+
+### Design Notes
+
+- **IT** is the super-user department and has access to all menu items.
+- **System Security & Control** is restricted to IT only.
+- **Dashboard** is accessible to every department and cannot be hidden.
+- To update access rules, edit **only** `NavAccessPolicy.cs`; no other file needs to change.
+- The `TopNavBar` control is a pure View — it renders whatever list it receives and has
+  no knowledge of departments or access rules.
