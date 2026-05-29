@@ -6,14 +6,9 @@ using System.Windows.Forms;
 
 namespace PremiumLivingOPS.Views.Dashboard
 {
-    /// <summary>
-    /// Main Dashboard — mirrors the design of dashboard.html in PremiumLiving-OPS-HTML.
-    /// Layout:  Left sidebar (nav) | Right area: top-nav + scrollable content
-    /// Content: Alert banner, 8 KPI cards, 3 dual-column section panels.
-    /// </summary>
     public partial class DashboardForm : Form
     {
-        // ── Brand colours (matching dashboard.html CSS variables) ─────────
+        // ── Brand colours ────────────────────────────────────────────────
         internal static class Palette
         {
             public static readonly Color BgPage       = Color.FromArgb(240, 244, 249);
@@ -42,20 +37,18 @@ namespace PremiumLivingOPS.Views.Dashboard
             public static readonly Color TagGrayFg    = Color.FromArgb(71,  85,  105);
         }
 
-        // ── Fonts ──────────────────────────────────────────────────
-        private static readonly Font FontBody      = new Font("Segoe UI", 9f,   FontStyle.Regular);
-        private static readonly Font FontBodyBold  = new Font("Segoe UI", 9f,   FontStyle.Bold);
-        private static readonly Font FontSmall     = new Font("Segoe UI", 8f,   FontStyle.Regular);
-        private static readonly Font FontSmallBold = new Font("Segoe UI", 8f,   FontStyle.Bold);
-        private static readonly Font FontTitle     = new Font("Segoe UI", 16f,  FontStyle.Bold);
-        private static readonly Font FontNav       = new Font("Segoe UI", 9.5f, FontStyle.Regular);
-        private static readonly Font FontKpiVal    = new Font("Segoe UI", 20f,  FontStyle.Bold);
-        private static readonly Font FontKpiLabel  = new Font("Segoe UI", 7.5f, FontStyle.Bold);
+        // ── Fonts (all bumped up) ──────────────────────────────────
+        private static readonly Font FontBody      = new Font("Segoe UI", 11f,  FontStyle.Regular);
+        private static readonly Font FontBodyBold  = new Font("Segoe UI", 11f,  FontStyle.Bold);
+        private static readonly Font FontSmall     = new Font("Segoe UI", 10f,  FontStyle.Regular);
+        private static readonly Font FontSmallBold = new Font("Segoe UI", 10f,  FontStyle.Bold);
+        private static readonly Font FontTitle     = new Font("Segoe UI", 20f,  FontStyle.Bold);
+        private static readonly Font FontNav       = new Font("Segoe UI", 11f,  FontStyle.Regular);
+        private static readonly Font FontKpiVal    = new Font("Segoe UI", 24f,  FontStyle.Bold);
+        private static readonly Font FontKpiLabel  = new Font("Segoe UI", 9f,   FontStyle.Bold);
 
-        // ── Active nav item tracking ────────────────────────────────────
         private Panel _activeNavItem;
 
-        // ── Pure-.NET circle Region helper (replaces CreateEllipseRgn P/Invoke) ─
         private static Region MakeCircleRegion(int width, int height)
         {
             GraphicsPath path = new GraphicsPath();
@@ -63,7 +56,6 @@ namespace PremiumLivingOPS.Views.Dashboard
             return new Region(path);
         }
 
-        // ── Constructor ────────────────────────────────────────────
         public DashboardForm()
         {
             InitializeComponent();
@@ -75,7 +67,6 @@ namespace PremiumLivingOPS.Views.Dashboard
         // ====================================================================
         private void PopulateDashboard()
         {
-            // Top-nav: show logged-in user
             if (SessionManager.IsLoggedIn)
             {
                 lblTopNavUser.Text = SessionManager.CurrentUser.StaffName;
@@ -90,7 +81,6 @@ namespace PremiumLivingOPS.Views.Dashboard
             lblPageSub.Text = "Premium Living Furniture Co.  \u00B7  Overview as of " +
                               DateTime.Now.ToString("d MMMM yyyy");
 
-            // KPI Cards
             SetKpiCard(kpiOrders,     "TOTAL ORDERS (Mar)",   "6",       Palette.Primary,  "2 Pending \u00B7 1 Processing \u00B7 1 Shipped");
             SetKpiCard(kpiDelivered,  "DELIVERED THIS MONTH", "2",       Palette.Success,  "ORD-0045 \u00B7 ORD-0044");
             SetKpiCard(kpiQuotations, "PENDING QUOTATIONS",   "2",       Palette.Warning,  "QT-2026-0033 \u00B7 QT-2026-0034");
@@ -100,41 +90,35 @@ namespace PremiumLivingOPS.Views.Dashboard
             SetKpiCard(kpiSuppliers,  "ACTIVE SUPPLIERS",     "3",       Palette.Primary,  "1 On Hold \u00B7 1 Inactive");
             SetKpiCard(kpiCustomers,  "TOTAL CUSTOMERS",      "5",       Palette.Primary,  "1 VIP \u00B7 2 Corporate");
 
-            // Recent Orders
-            AddOrderRow("ORD-2026-0048", "Chan Siu Ming",     "HK$21,300",  "Processing", Palette.TagBlueBg,   Palette.TagBlueFg);
-            AddOrderRow("ORD-2026-0047", "Lee Wai Kwan",      "HK$29,400",  "Shipped",    Palette.TagGreenBg,  Palette.TagGreenFg);
-            AddOrderRow("ORD-2026-0046", "ABC Furniture Ltd",  "HK$120,700", "Pending",    Palette.TagYellowBg, Palette.TagYellowFg);
-            AddOrderRow("ORD-2026-0045", "Wong Ka Fai",       "HK$26,500",  "Delivered",  Palette.TagGreenBg,  Palette.TagGreenFg);
-            AddOrderRow("ORD-2026-0044", "Sunrise Interiors",  "HK$57,600",  "Delivered",  Palette.TagGreenBg,  Palette.TagGreenFg);
+            AddOrderRow("ORD-2026-0048", "Chan Siu Ming",    "HK$21,300",  "Processing", Palette.TagBlueBg,   Palette.TagBlueFg);
+            AddOrderRow("ORD-2026-0047", "Lee Wai Kwan",     "HK$29,400",  "Shipped",    Palette.TagGreenBg,  Palette.TagGreenFg);
+            AddOrderRow("ORD-2026-0046", "ABC Furniture Ltd", "HK$120,700", "Pending",    Palette.TagYellowBg, Palette.TagYellowFg);
+            AddOrderRow("ORD-2026-0045", "Wong Ka Fai",      "HK$26,500",  "Delivered",  Palette.TagGreenBg,  Palette.TagGreenFg);
+            AddOrderRow("ORD-2026-0044", "Sunrise Interiors", "HK$57,600",  "Delivered",  Palette.TagGreenBg,  Palette.TagGreenFg);
 
-            // Pending Quotations
             AddQuotRow("QT-2026-0034", "Chan Siu Ming", "HK$38,400", "29 Mar 2026");
             AddQuotRow("QT-2026-0033", "Cheung Wai Ho", "HK$30,800", "24 Mar 2026");
 
-            // Active Shipments
             AddShipRow("DLV-2026-0033", "Chan Siu Ming", "15 Mar 2026", "Scheduled",  Palette.TagYellowBg, Palette.TagYellowFg);
             AddShipRow("DLV-2026-0031", "Lee Wai Kwan",  "12 Mar 2026", "In Transit", Palette.TagBlueBg,   Palette.TagBlueFg);
             AddShipRow("DLV-2026-0029", "Wong Ka Fai",   "10 Mar 2026", "Delivered",  Palette.TagGreenBg,  Palette.TagGreenFg);
 
-            // Supplier Payments
             AddSupplierRow("Green Wood Co.", "INV-S-0041", "HK$14,000", "Pending", Palette.TagYellowBg, Palette.TagYellowFg);
             AddSupplierRow("MetalPro HK",    "INV-S-0039", "HK$2,400",  "Overdue", Palette.TagRedBg,    Palette.TagRedFg);
             AddSupplierRow("FabricPlus Ltd", "INV-S-0035", "HK$9,800",  "Paid",    Palette.TagGreenBg,  Palette.TagGreenFg);
 
-            // Activity Feed
-            AddActivity(Palette.Primary, "ORD-2026-0048",   " created for Chan Siu Ming \u2013 HK$21,300",  "15 Mar 15:42");
-            AddActivity(Palette.Success, "QT-2026-0034",    " saved as Pending quotation",              "15 Mar 14:20");
-            AddActivity(Palette.Warning, "Low stock alert", " triggered for Solid Oak Panel (8 left)",  "15 Mar 11:05");
-            AddActivity(Palette.Success, "ORD-2026-0044",   " marked Delivered \u2013 Sunrise Interiors",   "08 Mar 09:30");
-            AddActivity(Palette.Danger,  "CMP-2026-0006",   " filed \u2013 Missing assembly kit",            "10 Mar 11:44");
-            AddActivity(Palette.Warning, "MetalPro HK",     " invoice INV-S-0039 now Overdue",          "15 Mar 00:00");
-            AddActivity(Palette.Primary, "DLV-2026-0031",   " status updated to In Transit",            "12 Mar 08:15");
+            AddActivity(Palette.Primary, "ORD-2026-0048",   " created for Chan Siu Ming \u2013 HK$21,300", "15 Mar 15:42");
+            AddActivity(Palette.Success, "QT-2026-0034",    " saved as Pending quotation",             "15 Mar 14:20");
+            AddActivity(Palette.Warning, "Low stock alert", " triggered for Solid Oak Panel (8 left)", "15 Mar 11:05");
+            AddActivity(Palette.Success, "ORD-2026-0044",   " marked Delivered \u2013 Sunrise Interiors",  "08 Mar 09:30");
+            AddActivity(Palette.Danger,  "CMP-2026-0006",   " filed \u2013 Missing assembly kit",           "10 Mar 11:44");
+            AddActivity(Palette.Warning, "MetalPro HK",     " invoice INV-S-0039 now Overdue",         "15 Mar 00:00");
+            AddActivity(Palette.Primary, "DLV-2026-0031",   " status updated to In Transit",           "12 Mar 08:15");
         }
 
         // ====================================================================
-        // HELPER METHODS
+        // HELPERS
         // ====================================================================
-
         private void SetKpiCard(Panel card, string label, string value, Color accent, string sub)
         {
             foreach (Control ctrl in card.Controls)
@@ -145,8 +129,7 @@ namespace PremiumLivingOPS.Views.Dashboard
             }
         }
 
-        private void AddOrderRow(string orderId, string customer, string total, string status,
-                                 Color tagBg, Color tagFg)
+        private void AddOrderRow(string orderId, string customer, string total, string status, Color tagBg, Color tagFg)
         {
             int idx = dgvOrders.Rows.Add(orderId, customer, total, status);
             dgvOrders.Rows[idx].Tag = new[] { tagBg, tagFg };
@@ -155,15 +138,13 @@ namespace PremiumLivingOPS.Views.Dashboard
         private void AddQuotRow(string quotId, string customer, string amount, string validUntil)
             => dgvQuotations.Rows.Add(quotId, customer, amount, validUntil);
 
-        private void AddShipRow(string shipId, string customer, string date, string status,
-                                Color tagBg, Color tagFg)
+        private void AddShipRow(string shipId, string customer, string date, string status, Color tagBg, Color tagFg)
         {
             int idx = dgvShipments.Rows.Add(shipId, customer, date, status);
             dgvShipments.Rows[idx].Tag = new[] { tagBg, tagFg };
         }
 
-        private void AddSupplierRow(string supplier, string invoice, string amount, string status,
-                                    Color tagBg, Color tagFg)
+        private void AddSupplierRow(string supplier, string invoice, string amount, string status, Color tagBg, Color tagFg)
         {
             int idx = dgvSuppliers.Rows.Add(supplier, invoice, amount, status);
             dgvSuppliers.Rows[idx].Tag = new[] { tagBg, tagFg };
@@ -173,50 +154,35 @@ namespace PremiumLivingOPS.Views.Dashboard
         {
             Panel row = new Panel
             {
-                Dock      = DockStyle.Top,
-                Height    = 38,
-                Padding   = new Padding(0, 6, 0, 6),
+                Dock = DockStyle.Top, Height = 44,
+                Padding = new Padding(0, 8, 0, 8),
                 BackColor = Color.Transparent
             };
 
-            // Circular dot using pure .NET Region (no P/Invoke)
             Panel dot = new Panel
             {
-                Width     = 10,
-                Height    = 10,
-                BackColor = dotColor,
-                Location  = new Point(0, 14)
+                Width = 12, Height = 12, BackColor = dotColor, Location = new Point(0, 16)
             };
-            dot.Region = MakeCircleRegion(10, 10);
+            dot.Region = MakeCircleRegion(12, 12);
 
             Label lblBold = new Label
             {
-                Text      = boldText,
-                Font      = FontBodyBold,
-                ForeColor = Palette.TextMain,
-                AutoSize  = true,
-                Location  = new Point(18, 11)
+                Text = boldText, Font = FontBodyBold, ForeColor = Palette.TextMain,
+                AutoSize = true, Location = new Point(20, 13)
             };
-
             Label lblNorm = new Label
             {
-                Text      = normalText,
-                Font      = FontBody,
-                ForeColor = Palette.TextMain,
-                AutoSize  = true,
-                Location  = new Point(18 + TextRenderer.MeasureText(boldText, FontBodyBold).Width, 11)
+                Text = normalText, Font = FontBody, ForeColor = Palette.TextMain,
+                AutoSize = true,
+                Location = new Point(20 + TextRenderer.MeasureText(boldText, FontBodyBold).Width, 13)
             };
-
             Label lblTime = new Label
             {
-                Text      = time,
-                Font      = FontSmall,
-                ForeColor = Palette.TextMuted,
-                AutoSize  = true,
-                Anchor    = AnchorStyles.Top | AnchorStyles.Right,
+                Text = time, Font = FontSmall, ForeColor = Palette.TextMuted,
+                AutoSize = true, Anchor = AnchorStyles.Top | AnchorStyles.Right,
                 TextAlign = ContentAlignment.TopRight
             };
-            lblTime.Location = new Point(pnlActivity.Width - lblTime.PreferredWidth - 6, 12);
+            lblTime.Location = new Point(pnlActivity.Width - lblTime.PreferredWidth - 6, 14);
 
             row.Controls.Add(dot);
             row.Controls.Add(lblBold);
@@ -243,11 +209,6 @@ namespace PremiumLivingOPS.Views.Dashboard
         // ====================================================================
         // EVENT HANDLERS
         // ====================================================================
-
-        /// <summary>
-        /// Highlights the Dashboard nav item. Sub-items do NOT call this —
-        /// they show a Coming Soon dialog instead.
-        /// </summary>
         private void SetActiveNav(Panel navPanel)
         {
             if (_activeNavItem != null)
@@ -256,7 +217,7 @@ namespace PremiumLivingOPS.Views.Dashboard
                 foreach (Control c in _activeNavItem.Controls)
                 {
                     if (c is Label l) l.ForeColor = Palette.SidebarText;
-                    if (c is Panel accent && c.Dock == DockStyle.Left && c.Width == 3)
+                    if (c is Panel && c.Dock == DockStyle.Left && c.Width == 3)
                         c.BackColor = Color.Transparent;
                 }
             }
@@ -265,7 +226,7 @@ namespace PremiumLivingOPS.Views.Dashboard
             foreach (Control c in _activeNavItem.Controls)
             {
                 if (c is Label l) l.ForeColor = Color.White;
-                if (c is Panel accent && c.Dock == DockStyle.Left && c.Width == 3)
+                if (c is Panel && c.Dock == DockStyle.Left && c.Width == 3)
                     c.BackColor = Palette.Primary;
             }
         }
@@ -273,44 +234,38 @@ namespace PremiumLivingOPS.Views.Dashboard
         private void btnLogout_Click(object sender, EventArgs e)
         {
             if (MessageBox.Show("Are you sure you want to log out?",
-                                "Logout",
-                                MessageBoxButtons.YesNo,
-                                MessageBoxIcon.Question) == DialogResult.Yes)
+                                "Logout", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
             {
                 SessionManager.Clear();
                 Application.Restart();
             }
         }
 
-        // Badge painting for Status columns
         private void PaintStatusCell(object sender, DataGridViewCellPaintingEventArgs e, int statusColIndex)
         {
             if (e.RowIndex < 0 || e.ColumnIndex != statusColIndex) return;
-
             var row = ((DataGridView)sender).Rows[e.RowIndex];
             if (row.Tag is Color[] colours && colours.Length == 2)
             {
                 e.Paint(e.CellBounds, DataGridViewPaintParts.Background | DataGridViewPaintParts.Border);
-
                 string text = e.Value?.ToString() ?? "";
                 SizeF  sz   = e.Graphics.MeasureString(text, FontSmallBold);
                 RectangleF badge = new RectangleF(
                     e.CellBounds.X + 6,
                     e.CellBounds.Y + (e.CellBounds.Height - sz.Height - 6) / 2,
-                    sz.Width + 16, sz.Height + 6);
+                    sz.Width + 18, sz.Height + 6);
 
                 using (GraphicsPath gp = new GraphicsPath())
                 {
                     float r = badge.Height / 2f;
-                    gp.AddArc(badge.X,              badge.Y,              r * 2, r * 2, 180, 90);
-                    gp.AddArc(badge.Right - r * 2,  badge.Y,              r * 2, r * 2, 270, 90);
-                    gp.AddArc(badge.Right - r * 2,  badge.Bottom - r * 2, r * 2, r * 2,   0, 90);
-                    gp.AddArc(badge.X,              badge.Bottom - r * 2, r * 2, r * 2,  90, 90);
+                    gp.AddArc(badge.X,             badge.Y,              r*2, r*2, 180, 90);
+                    gp.AddArc(badge.Right - r*2,   badge.Y,              r*2, r*2, 270, 90);
+                    gp.AddArc(badge.Right - r*2,   badge.Bottom - r*2,   r*2, r*2,   0, 90);
+                    gp.AddArc(badge.X,             badge.Bottom - r*2,   r*2, r*2,  90, 90);
                     gp.CloseFigure();
-
                     e.Graphics.FillPath(new SolidBrush(colours[0]), gp);
                     e.Graphics.DrawString(text, FontSmallBold, new SolidBrush(colours[1]),
-                        badge.X + 8, badge.Y + 3);
+                        badge.X + 9, badge.Y + 3);
                 }
                 e.Handled = true;
             }
@@ -318,10 +273,8 @@ namespace PremiumLivingOPS.Views.Dashboard
 
         private void dgvOrders_CellPainting(object sender, DataGridViewCellPaintingEventArgs e)
             => PaintStatusCell(sender, e, 3);
-
         private void dgvShipments_CellPainting(object sender, DataGridViewCellPaintingEventArgs e)
             => PaintStatusCell(sender, e, 3);
-
         private void dgvSuppliers_CellPainting(object sender, DataGridViewCellPaintingEventArgs e)
             => PaintStatusCell(sender, e, 3);
     }
