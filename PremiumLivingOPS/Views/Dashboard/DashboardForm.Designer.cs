@@ -8,12 +8,7 @@ namespace PremiumLivingOPS.Views.Dashboard
     {
         private System.ComponentModel.IContainer components = null;
 
-        private Panel pnlSidebar;
-        private Label lblSidebarTitle;
-        private Label lblSidebarSub;
-        private Panel navDashboard;
-
-        // ── NEW: Apple-style dark top nav bar ──
+        // ── TopNavBar (replaces Sidebar entirely) ──
         private TopNavBar pnlTopNav;
 
         // Legacy controls still needed by DashboardForm.cs
@@ -58,102 +53,16 @@ namespace PremiumLivingOPS.Views.Dashboard
             this.Font          = new Font("Segoe UI", 16f);
 
             // ================================================================
-            // SIDEBAR  (width 288)
-            // ================================================================
-            pnlSidebar = new Panel { Dock = DockStyle.Left, Width = 288, BackColor = Palette.SidebarBg };
-
-            Panel pnlLogo = new Panel
-            {
-                Dock = DockStyle.Top, Height = 88,
-                BackColor = Palette.SidebarBg,
-                Padding = new Padding(20, 18, 20, 8)
-            };
-            lblSidebarTitle = new Label
-            {
-                Text = "\uD83E\uDE91 PLF System",
-                Font = new Font("Segoe UI", 17.6f, FontStyle.Bold),
-                ForeColor = Color.White, AutoSize = false,
-                Dock = DockStyle.Fill, TextAlign = ContentAlignment.TopLeft
-            };
-            lblSidebarSub = new Label
-            {
-                Text = "Premium Living Furniture Co.",
-                Font = new Font("Segoe UI", 11.2f),
-                ForeColor = Color.FromArgb(122, 154, 189), AutoSize = false,
-                Dock = DockStyle.Bottom, Height = 22,
-                TextAlign = ContentAlignment.BottomLeft
-            };
-            pnlLogo.Controls.Add(lblSidebarTitle);
-            pnlLogo.Controls.Add(lblSidebarSub);
-
-            Panel pnlLogoDivider = new Panel
-            { Dock = DockStyle.Top, Height = 1, BackColor = Color.FromArgb(30, 53, 88) };
-
-            FlowLayoutPanel navFlow = new FlowLayoutPanel
-            {
-                Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown,
-                AutoScroll = true, WrapContents = false,
-                BackColor = Palette.SidebarBg
-            };
-
-            navDashboard = MakeNavItem("\uD83C\uDFE0", "Dashboard", true);
-            navFlow.Controls.Add(navDashboard);
-
-            navFlow.Controls.Add(MakeNavGroup("\uD83D\uDCCB  1. ORDER PROCESSING MGT"));
-            navFlow.Controls.Add(MakeNavSubItem("View & Search Order"));
-            navFlow.Controls.Add(MakeNavSubItem("Quotation"));
-            navFlow.Controls.Add(MakeNavSubItem("Create Order"));
-            navFlow.Controls.Add(MakeNavSubItem("Modify Order"));
-
-            navFlow.Controls.Add(MakeNavGroup("\uD83C\uDFED  2. PRODUCTION PROCESSING MGT"));
-            navFlow.Controls.Add(MakeNavSubItem("Search Raw Material Request"));
-            navFlow.Controls.Add(MakeNavSubItem("Create Raw Material Request"));
-
-            navFlow.Controls.Add(MakeNavGroup("\uD83D\uDE9A  3. LOGISTICS PROCESSING MGT"));
-            navFlow.Controls.Add(MakeNavSubItem("View Shipment"));
-            navFlow.Controls.Add(MakeNavSubItem("Handling Goods Received"));
-
-            navFlow.Controls.Add(MakeNavGroup("\uD83D\uDCE6  4. INVENTORY CONTROL MGT"));
-            navFlow.Controls.Add(MakeNavSubItem("View Product / Raw Material"));
-
-            navFlow.Controls.Add(MakeNavGroup("\uD83E\uDEB5  5. RAW MATERIAL MGT"));
-            navFlow.Controls.Add(MakeNavSubItem("Create Procurement"));
-            navFlow.Controls.Add(MakeNavSubItem("Search & List Procurement"));
-
-            navFlow.Controls.Add(MakeNavGroup("\uD83D\uDEE0\uFE0F  6. AFTER-SERVICE MGT"));
-            navFlow.Controls.Add(MakeNavSubItem("Create Invoice"));
-            navFlow.Controls.Add(MakeNavSubItem("Complaint List"));
-            navFlow.Controls.Add(MakeNavSubItem("Return Order List"));
-            navFlow.Controls.Add(MakeNavSubItem("Account Receivable"));
-            navFlow.Controls.Add(MakeNavSubItem("Account Payable"));
-
-            navFlow.Controls.Add(MakeNavGroup("\uD83D\uDDC2\uFE0F  7. MASTER DATA MAINTENANCE"));
-            navFlow.Controls.Add(MakeNavSubItem("Supplier List"));
-            navFlow.Controls.Add(MakeNavSubItem("Customer List"));
-
-            navFlow.Controls.Add(MakeNavGroup("\uD83D\uDD10  8. SYSTEM SECURITY & CONTROL"));
-            navFlow.Controls.Add(MakeNavSubItem("Staff List"));
-            navFlow.Controls.Add(MakeNavSubItem("Log List"));
-
-            navFlow.Controls.Add(MakeNavGroup("\uD83D\uDCCA  9. STATISTICAL REPORTS"));
-            navFlow.Controls.Add(MakeNavSubItem("View Report"));
-
-            _activeNavItem = navDashboard;
-
-            pnlSidebar.Controls.Add(navFlow);
-            pnlSidebar.Controls.Add(pnlLogoDivider);
-            pnlSidebar.Controls.Add(pnlLogo);
-
-            // ================================================================
-            // MAIN AREA
+            // MAIN AREA (full width — Sidebar removed)
             // ================================================================
             Panel pnlMain = new Panel { Dock = DockStyle.Fill, BackColor = Palette.BgPage };
 
             // ── Apple-style dark TopNavBar (height 44, Dock = Top) ──
             pnlTopNav = new TopNavBar();
+            // Wire up menu item clicks (navigates just like sidebar did)
+            pnlTopNav.MenuItemClicked += OnTopNavMenuItemClicked;
 
-            // Right-side user info row sits INSIDE a thin panel below the nav bar
-            // so existing DashboardForm.cs code (lblTopNavUser, pnlAvatar, btnLogout) still works.
+            // Right-side user info bar (user name, avatar, logout)
             Panel pnlUserBar = new Panel
             {
                 Dock      = DockStyle.Top,
@@ -177,7 +86,7 @@ namespace PremiumLivingOPS.Views.Dashboard
             };
             pnlAvatar = new Panel
             {
-                Width = 36, Height = 36,
+                Width     = 36, Height = 36,
                 BackColor = Palette.Primary,
                 Anchor    = AnchorStyles.Top | AnchorStyles.Right
             };
@@ -329,10 +238,10 @@ namespace PremiumLivingOPS.Views.Dashboard
             // Flow
             FlowLayoutPanel flow = new FlowLayoutPanel
             {
-                Dock = DockStyle.Top, FlowDirection = FlowDirection.TopDown,
-                WrapContents = false, AutoSize = true,
-                AutoSizeMode = AutoSizeMode.GrowAndShrink,
-                BackColor = Color.Transparent
+                Dock          = DockStyle.Top, FlowDirection = FlowDirection.TopDown,
+                WrapContents  = false, AutoSize = true,
+                AutoSizeMode  = AutoSizeMode.GrowAndShrink,
+                BackColor     = Color.Transparent
             };
 
             System.Action<int> addSpacer = (h) => flow.Controls.Add(
@@ -358,111 +267,37 @@ namespace PremiumLivingOPS.Views.Dashboard
             };
 
             // Stack order (Dock=Top stacks bottom-up, so add in reverse visual order)
-            pnlMain.Controls.Add(pnlContent);   // fills remaining space
-            pnlMain.Controls.Add(pnlUserBar);   // 2nd from top
-            pnlMain.Controls.Add(pnlTopNav);    // topmost dark nav bar
+            pnlMain.Controls.Add(pnlContent);  // fills remaining space
+            pnlMain.Controls.Add(pnlUserBar);  // user bar below nav
+            pnlMain.Controls.Add(pnlTopNav);   // topmost dark nav bar
 
+            // No Sidebar — pnlMain fills full width
             this.Controls.Add(pnlMain);
-            this.Controls.Add(pnlSidebar);
 
             this.ResumeLayout(false);
+        }
+
+        // ── TopNavBar click handler (mirrors original Sidebar SubItem behaviour) ──
+        private void OnTopNavMenuItemClicked(string itemLabel)
+        {
+            if (itemLabel == "Dashboard")
+            {
+                lblBreadcrumb.Text = "Dashboard";
+                return;
+            }
+            // Update breadcrumb
+            lblBreadcrumb.Text = itemLabel;
+            // Show coming-soon for all non-dashboard items (same as sidebar)
+            MessageBox.Show(
+                $"\u231B  {itemLabel}\n\nThis feature is currently under development.\nPlease check back in a later version.",
+                "Coming Soon",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
         }
 
         // ====================================================================
         // FACTORY HELPERS (unchanged)
         // ====================================================================
-
-        private Panel MakeNavItem(string icon, string label, bool active)
-        {
-            Panel p = new Panel
-            {
-                Width = 288, Height = 50,
-                BackColor = active ? Palette.SidebarHover : Color.Transparent,
-                Cursor = Cursors.Hand
-            };
-            Panel accent = new Panel
-            { Dock = DockStyle.Left, Width = 4, BackColor = active ? Palette.Primary : Color.Transparent };
-            Label lblIcon = new Label
-            {
-                Text = icon,
-                Font = new Font("Segoe UI", 16f),
-                ForeColor = active ? Color.White : Palette.SidebarText,
-                AutoSize = false, Width = 37, Height = 50,
-                TextAlign = ContentAlignment.MiddleCenter, Location = new Point(10, 0)
-            };
-            Label lblText = new Label
-            {
-                Text = label,
-                Font = new Font("Segoe UI", 14.4f),
-                ForeColor = active ? Color.White : Palette.SidebarText,
-                AutoSize = false, Width = 230, Height = 50,
-                TextAlign = ContentAlignment.MiddleLeft, Location = new Point(50, 0)
-            };
-            p.Controls.Add(accent);
-            p.Controls.Add(lblIcon);
-            p.Controls.Add(lblText);
-
-            p.MouseEnter  += (s, e) => { if (p != _activeNavItem) p.BackColor = Palette.SidebarHover; };
-            p.MouseLeave  += (s, e) => { if (p != _activeNavItem) p.BackColor = Color.Transparent; };
-            p.Click       += (s, e) => SetActiveNav(p);
-            lblIcon.Click += (s, e) => SetActiveNav(p);
-            lblText.Click += (s, e) => SetActiveNav(p);
-            return p;
-        }
-
-        private Label MakeNavGroup(string title) => new Label
-        {
-            Text = title,
-            Font = new Font("Segoe UI", 10.4f, FontStyle.Bold),
-            ForeColor = Color.FromArgb(74, 96, 128),
-            AutoSize = false, Width = 288, Height = 35,
-            TextAlign = ContentAlignment.BottomLeft,
-            Padding = new Padding(14, 0, 0, 2),
-            Margin = new Padding(0, 8, 0, 0)
-        };
-
-        private Panel MakeNavSubItem(string label)
-        {
-            Panel p = new Panel
-            {
-                Width = 288, Height = 42,
-                BackColor = Color.Transparent,
-                Cursor = Cursors.Hand
-            };
-            Panel indentLine = new Panel
-            {
-                Width = 2, Height = 21,
-                BackColor = Color.FromArgb(50, 80, 120),
-                Location = new Point(24, 10)
-            };
-            Label lblText = new Label
-            {
-                Text = label,
-                Font = new Font("Segoe UI", 13.6f),
-                ForeColor = Palette.SidebarText,
-                AutoSize = false, Width = 248, Height = 42,
-                TextAlign = ContentAlignment.MiddleLeft,
-                Location = new Point(40, 0)
-            };
-            p.Controls.Add(indentLine);
-            p.Controls.Add(lblText);
-
-            p.MouseEnter       += (s, e) => { p.BackColor = Palette.SidebarHover; lblText.ForeColor = Color.White; };
-            p.MouseLeave       += (s, e) => { p.BackColor = Color.Transparent;    lblText.ForeColor = Palette.SidebarText; };
-            lblText.MouseEnter += (s, e) => { p.BackColor = Palette.SidebarHover; lblText.ForeColor = Color.White; };
-            lblText.MouseLeave += (s, e) => { p.BackColor = Color.Transparent;    lblText.ForeColor = Palette.SidebarText; };
-
-            System.EventHandler showComingSoon = (s, e) =>
-                MessageBox.Show(
-                    $"\u231B  {label}\n\nThis feature is currently under development.\nPlease check back in a later version.",
-                    "Coming Soon",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Information);
-
-            p.Click       += showComingSoon;
-            lblText.Click += showComingSoon;
-            return p;
-        }
 
         private Panel MakeKpiCard(Color accent)
         {
