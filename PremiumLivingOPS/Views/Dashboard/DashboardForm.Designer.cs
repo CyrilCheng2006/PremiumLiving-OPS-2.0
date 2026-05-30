@@ -52,9 +52,9 @@ namespace PremiumLivingOPS.Views.Dashboard
             Panel pnlMain = new Panel { Dock = DockStyle.Fill, BackColor = Palette.BgPage };
 
             // ── AppShell (TopNavBar + UserBar) ──────────────────────────
+            // NOTE: Events (MenuItemClicked, LogoutClicked) are wired in
+            // BindViewModel() — DO NOT subscribe here to avoid double-firing.
             _shell = new AppShell();
-            _shell.MenuItemClicked += OnTopNavMenuItemClicked;
-            _shell.LogoutClicked   += btnLogout_Click;
             _shell.SetPopupContainer(pnlMain);
 
             // ── Content area ─────────────────────────────────────────────
