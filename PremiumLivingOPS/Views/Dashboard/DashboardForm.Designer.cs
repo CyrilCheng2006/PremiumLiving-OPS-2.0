@@ -9,7 +9,7 @@ namespace PremiumLivingOPS.Views.Dashboard
     {
         private System.ComponentModel.IContainer components = null;
 
-        // ── Shell (TopNavBar + UserBar) ─────────────────────────────────
+        // ── Shell (TopNavBar + UserBar) ──────────────────────────────────
         // Replaces the separate pnlTopNav + pnlUserBar that used to live here.
         // All other forms that need the nav chrome should declare the same field.
         private AppShell _shell;
@@ -41,7 +41,7 @@ namespace PremiumLivingOPS.Views.Dashboard
         {
             this.SuspendLayout();
 
-            this.Text          = "Premium Living OPS 2.0 \u2014 Dashboard";
+            this.Text          = "Premium Living OPS — Dashboard";
             this.Size          = new Size(1440, 900);
             this.MinimumSize   = new Size(1200, 700);
             this.StartPosition = FormStartPosition.CenterScreen;
@@ -51,13 +51,13 @@ namespace PremiumLivingOPS.Views.Dashboard
 
             Panel pnlMain = new Panel { Dock = DockStyle.Fill, BackColor = Palette.BgPage };
 
-            // ── AppShell (TopNavBar + UserBar) ─────────────────────────
+            // ── AppShell (TopNavBar + UserBar) ──────────────────────────
             _shell = new AppShell();
             _shell.MenuItemClicked += OnTopNavMenuItemClicked;
             _shell.LogoutClicked   += btnLogout_Click;
             _shell.SetPopupContainer(pnlMain);
 
-            // ── Content area ────────────────────────────────────────────
+            // ── Content area ─────────────────────────────────────────────
             pnlContent = new Panel
             {
                 Dock       = DockStyle.Fill,
@@ -121,7 +121,7 @@ namespace PremiumLivingOPS.Views.Dashboard
             tlpKpi2.Controls.Add(kpiSuppliers, 2, 0); tlpKpi2.Controls.Add(kpiCustomers, 3, 0);
             pnlKpi2.Controls.Add(tlpKpi2);
 
-            // ── Section rows ─────────────────────────────────────────────
+            // ── Section rows ───────────────────────────────────────────────
             tlpRow1 = MakeSectionRow();
             Panel secOrders   = MakeSectionCard("Recent Orders");
             Panel secLowStock = MakeSectionCard("\u26A0\uFE0F Low Stock Alerts");
@@ -191,7 +191,7 @@ namespace PremiumLivingOPS.Views.Dashboard
             this.ResumeLayout(false);
         }
 
-        // ── Designer-only UI factory helpers ─────────────────────────────
+        // ── Designer-only UI factory helpers ───────────────────────────────
 
         private Panel MakeKpiCard(System.Drawing.Color accent)
         {
