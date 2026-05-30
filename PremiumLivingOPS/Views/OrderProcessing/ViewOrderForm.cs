@@ -12,26 +12,14 @@ namespace PremiumLivingOPS.Views.OrderProcessing
     /// <summary>
     /// View Order — Tab 1 of Order Processing Management.
     ///
-    /// MVC contract (View layer):
-    ///   • Calls OrderProcessingController for all data.
-    ///   • Uses AppShell (TopNavBar + UserBar) for navigation chrome.
-    ///   • Contains NO business logic and NO direct DB calls.
-    ///
-    /// Search card (matching order-list.html):
-    ///   • Order No.  — txtSearchOrderNo   ┐
-    ///   • Customer   — txtSearchCustomer  ┘ both merged into a single keyword
-    ///   • Status     — cboStatus
-    ///   • Date From  — dtpDateFrom (enabled by chkDateFrom checkbox)
-    ///
-    /// Controller signature: GetViewOrderVM(string status, string keyword, DateTime? dateFrom)
-    ///   keyword = OrderNo field if non-empty, else Customer field.
+    /// Search is triggered ONLY by btnSearch (or Enter in a text box).
+    /// Reset clears all search fields and reloads all orders.
     /// </summary>
     public partial class ViewOrderForm : Form
     {
         private readonly OrderProcessingController _ctrl = new OrderProcessingController();
         private List<OrderEntity> _currentOrders        = new List<OrderEntity>();
 
-        // Status badge colour map  (text : background, foreground)
         private static readonly Dictionary<string, (Color bg, Color fg)> StatusColors =
             new Dictionary<string, (Color, Color)>
             {
@@ -48,27 +36,22 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             this.Load += ViewOrderForm_Load;
         }
 
-        // ── Load ──────────────────────────────────────────────────────────────
+        // ── Load ─────────────────────────────────────────────────────────────────────
         private void ViewOrderForm_Load(object sender, EventArgs e)
         {
-            // Wire AppShell events — must be done once, before first RefreshGrid
             _shell.MenuItemClicked += OnTopNavMenuItemClicked;
             _shell.LogoutClicked   += btnLogout_Click;
-
-            RefreshGrid();
+            RefreshGrid();   // initial load with no filters
         }
 
-        // ── Refresh / Search ──────────────────────────────────────────────────
+        // ── Search (triggered by btnSearch or Enter key) ─────────────────────
         private void RefreshGrid()
         {
-            // Read search-card fields
             string orderNo  = txtSearchOrderNo.Text.Trim();
             string customer = txtSearchCustomer.Text.Trim();
             string status   = cboStatus.SelectedItem?.ToString();
             DateTime? dateFrom = chkDateFrom.Checked ? (DateTime?)dtpDateFrom.Value.Date : null;
 
-            // Controller signature: GetViewOrderVM(string status, string keyword, DateTime? dateFrom)
-            // keyword = Order No. if filled, otherwise Customer name.
             string keyword = !string.IsNullOrEmpty(orderNo)  ? orderNo
                            : !string.IsNullOrEmpty(customer) ? customer
                            : null;
@@ -84,7 +67,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             _currentOrders = vm.Orders;
 
-            // Populate grid
             dgvOrders.Rows.Clear();
             foreach (var o in _currentOrders)
                 dgvOrders.Rows.Add(
@@ -100,7 +82,19 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             UpdateActionButtons();
         }
 
-        // ── KPI Summary bar ───────────────────────────────────────────────────
+        // ── Reset: clear all search fields then reload ────────────────────────
+        private void ResetFilters()
+        {
+            txtSearchOrderNo.Text  = string.Empty;
+            txtSearchCustomer.Text = string.Empty;
+            cboStatus.SelectedIndex = 0;          // "All"
+            chkDateFrom.Checked    = false;
+            dtpDateFrom.Value      = DateTime.Today.AddMonths(-1);
+            dtpDateFrom.Enabled    = false;
+            RefreshGrid();
+        }
+
+        // ── KPI bar ───────────────────────────────────────────────────────────────────
         private void RefreshKpi()
         {
             pnlKpi.Controls.Clear();
@@ -157,7 +151,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 pill.Controls.Add(lblCount);
                 pill.Controls.Add(lblName);
 
-                // Click on pill filters the status combo and refreshes
                 string filterLabel = label == "All Orders" ? "All" : label;
                 pill.Click += (s, e) =>
                 {
@@ -170,7 +163,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             }
         }
 
-        // ── Button state ──────────────────────────────────────────────────────
+        // ── Button state ──────────────────────────────────────────────────────────────────
         private void UpdateActionButtons()
         {
             bool sel = dgvOrders.SelectedRows.Count > 0;
@@ -178,7 +171,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             btnModifyOrder.Enabled = sel;
         }
 
-        // ── DGV events ────────────────────────────────────────────────────────
+        // ── DGV events ────────────────────────────────────────────────────────────────────
         private void dgvOrders_SelectionChanged(object sender, EventArgs e)
             => UpdateActionButtons();
 
@@ -203,14 +196,14 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             OpenDetailDialog();
         }
 
-        // ── Helper: get selected Order ID ─────────────────────────────────────
+        // ── Helper ────────────────────────────────────────────────────────────────────────
         private string SelectedOrderId()
         {
             if (dgvOrders.SelectedRows.Count == 0) return null;
             return dgvOrders.SelectedRows[0].Cells["colOrderID"].Value?.ToString();
         }
 
-        // ── View Details button ───────────────────────────────────────────────
+        // ── View Details ──────────────────────────────────────────────────────────────────
         private void btnViewDetail_Click(object sender, EventArgs e) => OpenDetailDialog();
 
         private void OpenDetailDialog()
@@ -228,7 +221,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             ShowDetailDialog(detail);
         }
 
-        // ── Modify Order button ───────────────────────────────────────────────
+        // ── Modify Order ──────────────────────────────────────────────────────────────────
         private void btnModifyOrder_Click(object sender, EventArgs e)
         {
             string id = SelectedOrderId();
@@ -237,7 +230,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             FormNavigator.NavigateTo(this, "Order Processing", "Modify Order");
         }
 
-        // ── Detail dialog ─────────────────────────────────────────────────────
+        // ── Detail dialog ──────────────────────────────────────────────────────────────────
         private void ShowDetailDialog(OrderDetailViewModel detail)
         {
             var o = detail.Order;
@@ -254,7 +247,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 MinimizeBox     = false
             };
 
-            // Header band
             var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 72, BackColor = Color.FromArgb(19, 35, 61) };
             var lblDialogTitle = new Label
             {
@@ -274,7 +266,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlHeader.Controls.Add(lblDialogTitle);
             pnlHeader.Controls.Add(lblStatusBadge);
 
-            // Info grid
             var pnlInfo = new Panel { Dock = DockStyle.Top, Height = 210, Padding = new Padding(24, 16, 24, 0), BackColor = Color.White };
             pnlInfo.Paint += (s, e) =>
             {
@@ -302,12 +293,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 pnlInfo.Controls.Add(pRow);
             }
 
-            // Line items section label
             var pnlLineLabel = new Panel { Dock = DockStyle.Top, Height = 38, BackColor = Color.FromArgb(246, 249, 255), Padding = new Padding(24, 0, 0, 0) };
             pnlLineLabel.Controls.Add(new Label { Text = "ORDER ITEMS", Font = new Font("Segoe UI", 10f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft });
             pnlLineLabel.Paint += PaintBottomBorderStatic;
 
-            // Line items DGV
             var dgv = new DataGridView
             {
                 ReadOnly = true, AllowUserToAddRows = false, RowHeadersVisible = false,
@@ -329,11 +318,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             foreach (var l in detail.Lines)
                 dgv.Rows.Add(l.ItemID, l.ItemName, l.Quantity, $"HK$ {l.Price:N2}", $"HK$ {l.LineTotal:N2}");
 
-            // Grand total row
             var pnlTotalRow = new Panel { Dock = DockStyle.Bottom, Height = 46, BackColor = Color.FromArgb(246, 249, 255), Padding = new Padding(0, 0, 24, 0) };
             pnlTotalRow.Controls.Add(new Label { Text = $"Grand Total:   HK$ {o.GrandTotal:N2}", Font = new Font("Segoe UI", 13f, FontStyle.Bold), ForeColor = Color.FromArgb(15, 31, 53), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleRight });
 
-            // Close button bar
             var pnlFooter = new Panel { Dock = DockStyle.Bottom, Height = 60, BackColor = Color.White, Padding = new Padding(0, 10, 24, 10) };
             pnlFooter.Paint += PaintTopBorderStatic;
             var btnClose = new Button { Text = "Close", Font = new Font("Segoe UI", 12f), ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White, FlatStyle = FlatStyle.Flat, Dock = DockStyle.Right, Width = 110, Cursor = Cursors.Hand };
@@ -351,13 +338,13 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             dlg.ShowDialog(this);
         }
 
-        // ── Static border painters ──────────────────────────────────────────────
+        // ── Static border painters ───────────────────────────────────────────────────────
         private static void PaintBottomBorderStatic(object s, PaintEventArgs e)
         { var p = (Panel)s; using var pen = new Pen(Color.FromArgb(221, 227, 236), 1); e.Graphics.DrawLine(pen, 0, p.Height-1, p.Width, p.Height-1); }
         private static void PaintTopBorderStatic(object s, PaintEventArgs e)
         { var p = (Panel)s; using var pen = new Pen(Color.FromArgb(221, 227, 236), 1); e.Graphics.DrawLine(pen, 0, 0, p.Width, 0); }
 
-        // ── Geometry helper ───────────────────────────────────────────────────
+        // ── Geometry helper ───────────────────────────────────────────────────────────────────
         private static GraphicsPath RoundedRect(Rectangle r, int radius)
         {
             var path = new GraphicsPath();
@@ -370,7 +357,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             return path;
         }
 
-        // ── Nav / Logout ──────────────────────────────────────────────────────
+        // ── Nav / Logout ──────────────────────────────────────────────────────────────────────
         private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
             => FormNavigator.NavigateTo(this, menuLabel, subItem);
 

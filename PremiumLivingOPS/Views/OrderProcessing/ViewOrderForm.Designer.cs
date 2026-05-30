@@ -54,6 +54,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Dock = DockStyle.Fill,
                 PlaceholderText = "ORD-XXXX"
             };
+            // Enter key in Order No. box triggers search
             txtSearchOrderNo.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) RefreshGrid(); };
 
             txtSearchCustomer = new TextBox
@@ -63,6 +64,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Dock = DockStyle.Fill,
                 PlaceholderText = "Name or ID"
             };
+            // Enter key in Customer box triggers search
             txtSearchCustomer.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) RefreshGrid(); };
 
             cboStatus = new ComboBox
@@ -73,7 +75,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             };
             cboStatus.Items.AddRange(new object[] { "All", "Pending", "Processing", "Shipped", "Delivered", "Cancelled" });
             cboStatus.SelectedIndex = 0;
-            cboStatus.SelectedIndexChanged += (s, e) => RefreshGrid();
+            // Status change does NOT auto-search; user must click Search
 
             chkDateFrom = new CheckBox { Text = "", Width = 24, Checked = false, Cursor = Cursors.Hand };
             dtpDateFrom = new DateTimePicker
@@ -84,8 +86,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Enabled = false,
                 Dock    = DockStyle.Fill
             };
-            chkDateFrom.CheckedChanged += (s, e) => { dtpDateFrom.Enabled = chkDateFrom.Checked; RefreshGrid(); };
-            dtpDateFrom.ValueChanged   += (s, e) => { if (chkDateFrom.Checked) RefreshGrid(); };
+            // Checkbox only toggles DateTimePicker enabled state; no auto-search
+            chkDateFrom.CheckedChanged += (s, e) => { dtpDateFrom.Enabled = chkDateFrom.Checked; };
 
             // ── MakeCell: 2-row TLP
             TableLayoutPanel MakeCell(string caption, Control ctrl, bool rightPad = true)
@@ -173,8 +175,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             var pnlBtns = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             btnSearch  = MakePrimaryBtn("🔍  Search", new Point(0,   0), 210, 60);
             btnRefresh = MakeOutlineBtn("↺  Reset",  new Point(218, 0), 210, 60);
-            btnSearch.Click  += (s, e) => RefreshGrid();
-            btnRefresh.Click += (s, e) => RefreshGrid();
+            btnSearch.Click  += (s, e) => RefreshGrid();      // search on click
+            btnRefresh.Click += (s, e) => ResetFilters();     // reset on click
             pnlBtns.Controls.Add(btnSearch);
             pnlBtns.Controls.Add(btnRefresh);
 
