@@ -82,7 +82,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             // ── MakeCell
             // label  : Y=8,  H=18  (bottom=26)
-            // control: Y=44, H=34  (gap from label bottom = 18px)
+            // control: Y=44, H=34
+            // IMPORTANT: add ctrl FIRST, then lbl, then call lbl.BringToFront()
+            // so the label is painted on top of the control's white system border.
             Panel MakeCell(string caption, Control ctrl, bool rightPad = true)
             {
                 var cell = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
@@ -93,6 +95,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     Text      = caption,
                     Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
                     ForeColor = Color.FromArgb(98, 112, 135),
+                    BackColor = Color.White,
                     AutoSize  = false,
                     Location  = new Point(0, 8),
                     Height    = 18,
@@ -102,8 +105,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 ctrl.Height   = 34;
                 ctrl.Anchor   = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right;
 
-                cell.Controls.Add(lbl);
+                // Add ctrl first (lower z-order), then lbl (higher z-order)
                 cell.Controls.Add(ctrl);
+                cell.Controls.Add(lbl);
+                lbl.BringToFront();
 
                 cell.Resize += (s, e) =>
                 {
@@ -121,6 +126,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Text      = "Date From",
                 Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(98, 112, 135),
+                BackColor = Color.White,
                 AutoSize  = false,
                 Location  = new Point(0, 8),
                 Height    = 18,
@@ -131,9 +137,11 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             dtpDateFrom.Location = new Point(30, 44);
             dtpDateFrom.Height   = 34;
             dtpDateFrom.Anchor   = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right;
-            cellDate.Controls.Add(lblDate);
+            // Add controls first, label last so label is on top
             cellDate.Controls.Add(chkDateFrom);
             cellDate.Controls.Add(dtpDateFrom);
+            cellDate.Controls.Add(lblDate);
+            lblDate.BringToFront();
             cellDate.Resize += (s, e) =>
             {
                 lblDate.Width     = cellDate.ClientSize.Width;
