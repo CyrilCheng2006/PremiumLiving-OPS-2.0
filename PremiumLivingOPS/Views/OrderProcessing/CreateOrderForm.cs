@@ -32,6 +32,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         // ── Load ─────────────────────────────────────────────────────────────────
         private void CreateOrderForm_Load(object sender, EventArgs e)
         {
+            // Wire AppShell events — must be done once, before first data load
+            _shell.MenuItemClicked += OnTopNavMenuItemClicked;
+            _shell.LogoutClicked   += btnLogout_Click;
+
             var vm = _ctrl.GetCreateOrderVM();
 
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
@@ -195,7 +199,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 OrderContactName = txtContactName.Text.Trim(),
                 OrderStatus      = "Pending",
                 IssuedTime       = DateTime.Now,
-                // FIX: Staff.StaffId (lowercase 'd') is the correct property name
                 SalesID          = SessionManager.CurrentUser?.StaffId ?? ""
             };
 

@@ -27,6 +27,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         // ── Load ───────────────────────────────────────────────────────────
         private void QuotationForm_Load(object sender, EventArgs e)
         {
+            // Wire AppShell events — must be done once, before first RefreshData
+            _shell.MenuItemClicked += OnTopNavMenuItemClicked;
+            _shell.LogoutClicked   += btnLogout_Click;
+
             RefreshData();
         }
 
@@ -34,7 +38,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         {
             var vm = _ctrl.GetQuotationVM();
 
-            // UserBarInfo has: DisplayName, Department  (no Role property)
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
             _shell.SetBreadcrumb("Order Processing  ›  Quotation");

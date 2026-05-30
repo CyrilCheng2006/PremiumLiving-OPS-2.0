@@ -46,7 +46,14 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         }
 
         // ── Load ──────────────────────────────────────────────────────────────
-        private void ViewOrderForm_Load(object sender, EventArgs e) => RefreshGrid();
+        private void ViewOrderForm_Load(object sender, EventArgs e)
+        {
+            // Wire AppShell events — must be done once, before first RefreshGrid
+            _shell.MenuItemClicked += OnTopNavMenuItemClicked;
+            _shell.LogoutClicked   += btnLogout_Click;
+
+            RefreshGrid();
+        }
 
         // ── Refresh / Search ──────────────────────────────────────────────────
         private void RefreshGrid()

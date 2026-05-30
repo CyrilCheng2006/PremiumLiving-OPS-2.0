@@ -35,8 +35,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         // ── Load ───────────────────────────────────────────────────────────────────
         private void ModifyOrderForm_Load(object sender, EventArgs e)
         {
-            // GetModifyOrderVM returns UserBar, AllowedMenus, Products
-            // (SelectedOrder + Lines are only populated when orderId is supplied)
+            // Wire AppShell events — must be done once, before first data load
+            _shell.MenuItemClicked += OnTopNavMenuItemClicked;
+            _shell.LogoutClicked   += btnLogout_Click;
+
             var vm = _ctrl.GetModifyOrderVM();
 
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
@@ -49,11 +51,11 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             cboAddProduct.Items.Add(new ComboItem("-- Select Product --", ""));
             foreach (var p in _products)
                 cboAddProduct.Items.Add(new ComboItem(
-                    $"{p.ItemID}  –  {p.ItemName}  (HK$ {p.SalesPrice:N2})",   // FIX #4: was p.DisplayText
+                    $"{p.ItemID}  –  {p.ItemName}  (HK$ {p.SalesPrice:N2})",
                     p.ItemID));
             cboAddProduct.SelectedIndex = 0;
 
-            // Populate search combo — use ViewOrderVM which carries the full order list  FIX #1 & #5
+            // Populate search combo
             ReloadOrderCombo();
 
             // Status combo
@@ -68,7 +70,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             SetEditPanelEnabled(false);
 
-            // FIX #6: If ViewOrderForm passed a PendingOrderId, auto-load that order
+            // If ViewOrderForm passed a PendingOrderId, auto-load that order
             if (!string.IsNullOrEmpty(PendingOrderId))
             {
                 SelectAndLoadOrder(PendingOrderId);
@@ -92,7 +94,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         /// <summary>Loads a specific order by ID into the edit panel.</summary>
         private void SelectAndLoadOrder(string orderId)
         {
-            // FIX #1: GetModifyOrderVM(orderId) returns SelectedOrder + Lines directly
             var vm = _ctrl.GetModifyOrderVM(orderId);
             _currentOrder = vm.SelectedOrder;
             if (_currentOrder == null)
@@ -285,7 +286,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 GrandTotal       = sub - discountAmount
             };
 
-            // FIX #2: method is SaveOrderChanges(), not SubmitModifyOrder()
             bool ok = _ctrl.SaveOrderChanges(header, new List<OrderLineEntity>(_lines));
             if (ok)
             {
@@ -319,7 +319,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             if (confirm != DialogResult.Yes) return;
 
-            // FIX #3: CancelOrder() returns bool, not a (bool, string) tuple
             bool ok = _ctrl.CancelOrder(_currentOrder.OrderID);
             if (ok)
             {
@@ -356,14 +355,13 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
         /// <summary>
         /// Rebuilds cboSearchOrder from the View Order list.
-        /// FIX #1 + #5: ModifyOrderViewModel has no Orders list;
+        /// ModifyOrderViewModel has no Orders list;
         /// we source the dropdown from GetViewOrderVM() instead.
         /// </summary>
         private void ReloadOrderCombo()
         {
             string currentId = _currentOrder?.OrderID;
 
-            // Reuse ViewOrderVM which carries the full order list
             var listVm = _ctrl.GetViewOrderVM();
 
             cboSearchOrder.Items.Clear();
