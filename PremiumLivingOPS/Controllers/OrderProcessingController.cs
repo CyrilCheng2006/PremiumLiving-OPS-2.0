@@ -1,6 +1,7 @@
 using PremiumLivingOPS.Models.DAL;
 using PremiumLivingOPS.Models.Entities;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace PremiumLivingOPS.Controllers
 {
@@ -29,6 +30,7 @@ namespace PremiumLivingOPS.Controllers
                     DisplayName = user?.StaffName ?? "Unknown",
                     Department  = user?.Department ?? ""
                 },
+                // NavAccessPolicy returns string[] — ViewModel now stores string[]
                 AllowedMenus = NavAccessPolicy.GetAllowedMenus(user?.Role ?? ""),
                 Orders       = _repo.SearchOrders(status, keyword)
             };
@@ -72,7 +74,8 @@ namespace PremiumLivingOPS.Controllers
 
         public CreateOrderViewModel GetCreateOrderVM()
         {
-            var user = SessionManager.CurrentUser;
+            var user  = SessionManager.CurrentUser;
+            var allQ  = _repo.GetAllQuotations();
             return new CreateOrderViewModel
             {
                 UserBar = new UserBarViewModel
@@ -80,13 +83,17 @@ namespace PremiumLivingOPS.Controllers
                     DisplayName = user?.StaffName ?? "Unknown",
                     Department  = user?.Department ?? ""
                 },
-                AllowedMenus = NavAccessPolicy.GetAllowedMenus(user?.Role ?? ""),
-                Customers    = _repo.GetAllCustomers(),
-                Products     = _repo.GetAllProducts(),
-                Quotations   = _repo.GetAllQuotations()
+                AllowedMenus      = NavAccessPolicy.GetAllowedMenus(user?.Role ?? ""),
+                Customers         = _repo.GetAllCustomers(),
+                Products          = _repo.GetAllProducts(),
+                Quotations        = allQ,
+                // Pre-filtered list for the Create Order combo
+                PendingQuotations = allQ
+                    .FindAll(q => q.QuotationStatus == "Pending")
             };
         }
 
+        /// <summary>Saves a new order header + all line items. Returns true on success.</summary>
         public bool SaveNewOrder(OrderEntity order, List<OrderLineEntity> lines)
         {
             if (!_repo.CreateOrder(order)) return false;
@@ -111,7 +118,7 @@ namespace PremiumLivingOPS.Controllers
                     Department  = user?.Department ?? ""
                 },
                 AllowedMenus  = NavAccessPolicy.GetAllowedMenus(user?.Role ?? ""),
-                SelectedOrder = orderId != null ? _repo.GetOrderById(orderId) : null,
+                SelectedOrder = orderId != null ? _repo.GetOrderById(orderId)  : null,
                 Lines         = orderId != null ? _repo.GetOrderLines(orderId) : new List<OrderLineEntity>(),
                 Products      = _repo.GetAllProducts()
             };

@@ -71,15 +71,18 @@ namespace PremiumLivingOPS.Models.Entities
         public string ItemName   { get; set; }
         public double SalesPrice { get; set; }
         public string Category   { get; set; }
+
+        /// <summary>Convenience display string for ComboBox items.</summary>
+        public string DisplayText => $"{ItemID}  –  {ItemName}  (HK$ {SalesPrice:N2})";
     }
 
     // ── ViewModels (passed from Controller → View) ───────────────────────────
 
     public class ViewOrderViewModel
     {
-        public UserBarViewModel      UserBar      { get; set; }
-        public List<string>          AllowedMenus { get; set; }
-        public List<OrderEntity>     Orders       { get; set; }
+        public UserBarViewModel  UserBar      { get; set; }
+        public string[]          AllowedMenus { get; set; }   // string[] to match AppShell.SetVisibleMenus
+        public List<OrderEntity> Orders       { get; set; }
     }
 
     /// <summary>Full detail of one order including its line items.</summary>
@@ -91,24 +94,27 @@ namespace PremiumLivingOPS.Models.Entities
 
     public class QuotationViewModel
     {
-        public UserBarViewModel         UserBar      { get; set; }
-        public List<string>             AllowedMenus { get; set; }
-        public List<QuotationEntity>    Quotations   { get; set; }
+        public UserBarViewModel      UserBar      { get; set; }
+        public string[]              AllowedMenus { get; set; }
+        public List<QuotationEntity> Quotations   { get; set; }
     }
 
     public class CreateOrderViewModel
     {
-        public UserBarViewModel      UserBar      { get; set; }
-        public List<string>          AllowedMenus { get; set; }
-        public List<CustomerEntity>  Customers    { get; set; }
-        public List<ProductLookup>   Products     { get; set; }
-        public List<QuotationEntity> Quotations   { get; set; }
+        public UserBarViewModel      UserBar           { get; set; }
+        public string[]              AllowedMenus      { get; set; }
+        public List<CustomerEntity>  Customers         { get; set; }
+        public List<ProductLookup>   Products          { get; set; }
+        /// <summary>All quotations (filter by status in View if needed).</summary>
+        public List<QuotationEntity> Quotations        { get; set; }
+        /// <summary>Convenience: only Pending quotations, for the Create Order combo.</summary>
+        public List<QuotationEntity> PendingQuotations { get; set; }
     }
 
     public class ModifyOrderViewModel
     {
         public UserBarViewModel      UserBar       { get; set; }
-        public List<string>          AllowedMenus  { get; set; }
+        public string[]              AllowedMenus  { get; set; }
         public OrderEntity           SelectedOrder { get; set; }
         public List<OrderLineEntity> Lines         { get; set; }
         public List<ProductLookup>   Products      { get; set; }
