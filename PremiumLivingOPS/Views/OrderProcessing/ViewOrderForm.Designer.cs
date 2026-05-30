@@ -39,31 +39,13 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             _shell.MenuItemClicked += OnTopNavMenuItemClicked;
             _shell.LogoutClicked   += btnLogout_Click;
 
-            // ── Outer content panel (fills below AppShell) ───────────
-            Panel pnlContent = new Panel
-            {
-                Dock      = DockStyle.Fill,
-                Padding   = new Padding(28, 20, 28, 24),
-                BackColor = Palette.BgPage
-            };
-
-            // ── Page title ───────────────────────────────────────
-            Label lblTitle = new Label
-            {
-                Text      = "View Orders",
-                Font      = new Font("Segoe UI", 22f, FontStyle.Bold),
-                ForeColor = Palette.TextMain,
-                Dock      = DockStyle.Top,
-                Height    = 42
-            };
-
-            // ── Filter toolbar ─────────────────────────────────
+            // ── Filter toolbar (Top) ─────────────────────────────
             Panel pnlToolbar = new Panel
             {
                 Dock      = DockStyle.Top,
                 Height    = 52,
                 BackColor = Palette.BgCard,
-                Padding   = new Padding(12, 9, 12, 9)
+                Padding   = new Padding(16, 10, 16, 10)
             };
             pnlToolbar.Paint += (s, e) =>
                 e.Graphics.DrawRectangle(
@@ -76,13 +58,13 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Font      = new Font("Segoe UI", 11f),
                 ForeColor = Palette.TextMuted,
                 AutoSize  = true,
-                Location  = new Point(12, 14)
+                Location  = new Point(16, 15)
             };
             cboStatusFilter = new ComboBox
             {
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 Width         = 160,
-                Location      = new Point(72, 12),
+                Location      = new Point(76, 13),
                 Font          = new Font("Segoe UI", 11f)
             };
             cboStatusFilter.Items.AddRange(new object[]
@@ -97,8 +79,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 ForeColor = Palette.Primary,
                 FlatStyle = FlatStyle.Flat,
                 Width     = 100,
-                Height    = 32,
-                Location  = new Point(246, 10)
+                Height    = 30,
+                Location  = new Point(252, 11)
             };
             btnRefresh.FlatAppearance.BorderColor = Palette.Primary;
             btnRefresh.FlatAppearance.BorderSize  = 1;
@@ -108,15 +90,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlToolbar.Controls.Add(cboStatusFilter);
             pnlToolbar.Controls.Add(btnRefresh);
 
-            // Spacer between toolbar and grids
-            Panel pnlSpacer = new Panel
-            {
-                Dock      = DockStyle.Top,
-                Height    = 10,
-                BackColor = Palette.BgPage
-            };
-
-            // ── Detail panel (BOTTOM, fixed height) ────────────────
+            // ── Detail panel — line items (Bottom, fixed height) ──────
             Panel pnlDetail = new Panel
             {
                 Dock      = DockStyle.Bottom,
@@ -131,10 +105,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             lblDetailTitle = new Label
             {
                 Text      = "Select an order to view details",
-                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
                 ForeColor = Palette.TextMain,
                 Dock      = DockStyle.Top,
-                Height    = 40,
+                Height    = 38,
                 Padding   = new Padding(12, 10, 0, 0)
             };
 
@@ -151,10 +125,11 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 { Name = "colLineTotal", HeaderText = "Line Total", FillWeight = 20 });
             dgvLines.Dock = DockStyle.Fill;
 
+            // Controls added bottom-up: Fill first, then Top items
             pnlDetail.Controls.Add(dgvLines);
             pnlDetail.Controls.Add(lblDetailTitle);
 
-            // ── Orders grid (FILL — takes all remaining space) ───────
+            // ── Orders grid (Fill — takes all remaining space) ─────────
             dgvOrders = MakeDgv();
             dgvOrders.Columns.Add(new DataGridViewTextBoxColumn
                 { Name = "colOrderID",  HeaderText = "Order ID",      FillWeight = 14 });
@@ -171,22 +146,28 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             dgvOrders.SelectionChanged += dgvOrders_SelectionChanged;
             dgvOrders.Dock = DockStyle.Fill;
 
-            // ── Add controls in REVERSE DockStyle.Top order ───────────
-            // DockStyle.Bottom and DockStyle.Fill must be added before Top items
-            // so the layout engine reserves space correctly.
-            pnlContent.Controls.Add(dgvOrders);   // Fill — added first
-            pnlContent.Controls.Add(pnlDetail);   // Bottom
-            pnlContent.Controls.Add(pnlSpacer);   // Top (added last among Top items → topmost)
-            pnlContent.Controls.Add(pnlToolbar);  // Top
-            pnlContent.Controls.Add(lblTitle);    // Top (topmost visually → added last)
+            // ── Main content panel ─────────────────────────────────
+            // DockStyle layout rules:
+            //   - Add Fill/Bottom controls FIRST (they are claimed last by layout)
+            //   - Add Top controls AFTER (they push down from the top)
+            // Result: toolbar at top, detail panel at bottom, orders grid fills middle.
+            Panel pnlMain = new Panel
+            {
+                Dock    = DockStyle.Fill,
+                Padding = new Padding(20, 12, 20, 12)
+            };
+            pnlMain.Controls.Add(dgvOrders);   // Fill  (added first)
+            pnlMain.Controls.Add(pnlDetail);   // Bottom
+            pnlMain.Controls.Add(pnlToolbar);  // Top   (added last → appears at top)
 
-            this.Controls.Add(pnlContent);  // Fill
-            this.Controls.Add(_shell);      // Top (AppShell docks to top of Form)
+            // ── Compose form ─────────────────────────────────────
+            this.Controls.Add(pnlMain);  // Fill
+            this.Controls.Add(_shell);   // Top  (AppShell docks above pnlMain)
 
             this.ResumeLayout(false);
         }
 
-        // ── DGV factory ─────────────────────────────────────────────
+        // ── DGV factory ─────────────────────────────────────────
         private DataGridView MakeDgv()
         {
             return new DataGridView
