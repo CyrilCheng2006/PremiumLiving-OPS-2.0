@@ -48,37 +48,37 @@ namespace PremiumLivingOPS.Views.Auth
             });
 
             // ── lblTitle ─────────────────────────────────────────────
-            this.lblTitle.Font      = new System.Drawing.Font("Segoe UI", 14F, System.Drawing.FontStyle.Bold);
+            this.lblTitle.Font      = new System.Drawing.Font("Segoe UI", 18F, System.Drawing.FontStyle.Bold);
             this.lblTitle.ForeColor = System.Drawing.Color.FromArgb(31, 73, 125);
             this.lblTitle.Location  = new System.Drawing.Point(20, 30);
             this.lblTitle.Name      = "lblTitle";
             this.lblTitle.Size      = new System.Drawing.Size(320, 36);
-            this.lblTitle.Text      = "Premium Living OPS 2.0";
+            this.lblTitle.Text      = "Premium Living OPS";
             this.lblTitle.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
 
             // ── lblStaffId ───────────────────────────────────────────
-            this.lblStaffId.Font     = new System.Drawing.Font("Segoe UI", 9F);
+            this.lblStaffId.Font     = new System.Drawing.Font("Segoe UI", 912F);
             this.lblStaffId.Location = new System.Drawing.Point(40, 100);
             this.lblStaffId.Name     = "lblStaffId";
             this.lblStaffId.Size     = new System.Drawing.Size(80, 22);
             this.lblStaffId.Text     = "Staff ID:";
 
             // ── txtStaffId ───────────────────────────────────────────
-            this.txtStaffId.Font     = new System.Drawing.Font("Segoe UI", 10F);
+            this.txtStaffId.Font     = new System.Drawing.Font("Segoe UI", 11F);
             this.txtStaffId.Location = new System.Drawing.Point(130, 98);
             this.txtStaffId.Name     = "txtStaffId";
             this.txtStaffId.Size     = new System.Drawing.Size(180, 26);
             this.txtStaffId.KeyDown += new System.Windows.Forms.KeyEventHandler(this.txtStaffId_KeyDown);
 
             // ── lblPassword ──────────────────────────────────────────
-            this.lblPassword.Font     = new System.Drawing.Font("Segoe UI", 9F);
+            this.lblPassword.Font     = new System.Drawing.Font("Segoe UI", 12F);
             this.lblPassword.Location = new System.Drawing.Point(40, 150);
             this.lblPassword.Name     = "lblPassword";
             this.lblPassword.Size     = new System.Drawing.Size(80, 22);
             this.lblPassword.Text     = "Password:";
 
             // ── txtPassword ──────────────────────────────────────────
-            this.txtPassword.Font         = new System.Drawing.Font("Segoe UI", 10F);
+            this.txtPassword.Font         = new System.Drawing.Font("Segoe UI", 11F);
             this.txtPassword.Location     = new System.Drawing.Point(130, 148);
             this.txtPassword.Name         = "txtPassword";
             this.txtPassword.PasswordChar = '*';
@@ -88,7 +88,7 @@ namespace PremiumLivingOPS.Views.Auth
             // ── btnLogin ─────────────────────────────────────────────
             this.btnLogin.BackColor = System.Drawing.Color.FromArgb(31, 73, 125);
             this.btnLogin.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnLogin.Font      = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold);
+            this.btnLogin.Font      = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold);
             this.btnLogin.ForeColor = System.Drawing.Color.White;
             this.btnLogin.Location  = new System.Drawing.Point(110, 220);
             this.btnLogin.Name      = "btnLogin";
@@ -107,7 +107,7 @@ namespace PremiumLivingOPS.Views.Auth
             this.MaximizeBox    = false;
             this.Name           = "LoginForm";
             this.StartPosition  = System.Windows.Forms.FormStartPosition.CenterScreen;
-            this.Text           = "Login — Premium Living OPS 2.0";
+            this.Text           = "Login — Premium Living OPS";
 
             this.pnlMain.ResumeLayout(false);
             this.pnlMain.PerformLayout();
