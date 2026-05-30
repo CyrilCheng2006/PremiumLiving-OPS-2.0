@@ -8,10 +8,13 @@ namespace PremiumLivingOPS.Views.Shared
     /// Handles top-navigation routing for every Form in the application.
     ///
     /// Single-Window Pattern:
-    ///   1. Show the target form (inheriting current window bounds/state).
-    ///   2. Once target is fully painted, hide the current form.
-    ///   3. When target is closed, dispose it — the current form is never
-    ///      closed so Application.Run() keeps the message loop alive.
+    ///   1. Hide the current form immediately.
+    ///   2. Show the target form (inheriting current window bounds/state).
+    ///   3. When the target is closed, dispose it and re-show the previous
+    ///      form so Application.Run() keeps the message loop alive.
+    ///
+    /// This ensures only ONE window is visible at any time — no new-window
+    /// flash, no brief double-window state.
     /// </summary>
     public static class FormNavigator
     {
@@ -37,31 +40,25 @@ namespace PremiumLivingOPS.Views.Shared
                 return;
             }
 
-            // Inherit window position and state for a seamless transition.
+            // Inherit window position and state so the transition feels seamless.
             target.StartPosition = FormStartPosition.Manual;
             target.Bounds        = current.Bounds;
             target.WindowState   = current.WindowState;
 
-            // When the new page finishes loading and is first painted,
-            // hide the old page. Using Shown (fired after first paint) so
-            // there is no visible gap between the two forms.
-            target.Shown += (s, e) =>
-            {
-                current.Hide();
-            };
+            // Hide current form BEFORE showing target — only one window visible at a time.
+            current.Hide();
+            target.Show();
 
-            // When the target is closed by the user, re-show the form it
-            // replaced so the application is never left with no visible window.
+            // When the target is closed, re-show the form it replaced so the
+            // application is never left with no visible window.
             target.FormClosed += (s, e) =>
             {
                 current.Show();
                 target.Dispose();
             };
-
-            target.Show();
         }
 
-        // ── Routing table ─────────────────────────────────────────
+        // ── Routing table ─────────────────────────────────────────────────────
         private static Form Resolve(string menu, string sub)
         {
             menu = menu?.Trim() ?? "";
