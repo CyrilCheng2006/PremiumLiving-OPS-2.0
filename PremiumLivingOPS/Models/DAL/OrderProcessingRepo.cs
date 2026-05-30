@@ -221,6 +221,27 @@ namespace PremiumLivingOPS.Models.DAL
             }
         }
 
+        /// <summary>
+        /// Updates ONLY the OrderStatus column for a given order.
+        /// Used by CancelOrder in the controller to set status = 'Cancelled'.
+        /// Returns true if at least one row was affected.
+        /// </summary>
+        public bool UpdateOrderStatus(string orderId, string newStatus)
+        {
+            using (var conn = DatabaseHelper.GetConnection())
+            {
+                conn.Open();
+                const string sql =
+                    "UPDATE `Order` SET OrderStatus = @status WHERE OrderID = @id";
+                using (var cmd = new MySqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@status", newStatus);
+                    cmd.Parameters.AddWithValue("@id",     orderId);
+                    return cmd.ExecuteNonQuery() > 0;
+                }
+            }
+        }
+
         /// <summary>Deletes all OrderLine rows for an order, then re-inserts the new set.</summary>
         public bool ReplaceOrderLines(string orderId, List<OrderLineEntity> lines)
         {

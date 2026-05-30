@@ -38,7 +38,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         {
             var vm = _ctrl.GetCreateOrderVM();
 
-            _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Role);
+            // UserBarInfo has: DisplayName, Department  (no Role property)
+            _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
             _shell.SetBreadcrumb("Order Processing  ›  Create Order");
 
