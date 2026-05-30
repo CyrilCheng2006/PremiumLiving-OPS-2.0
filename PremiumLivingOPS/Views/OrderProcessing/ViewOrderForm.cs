@@ -28,9 +28,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         private readonly OrderProcessingController _ctrl = new OrderProcessingController();
         private List<OrderEntity> _currentOrders        = new List<OrderEntity>();
 
-        // AppShell instance (navigation chrome)
-        private AppShell _shell;
-
         // Status badge colour map  (text : background, foreground)
         private static readonly Dictionary<string, (Color bg, Color fg)> StatusColors =
             new Dictionary<string, (Color, Color)>
@@ -45,26 +42,17 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         public ViewOrderForm()
         {
             InitializeComponent();
-
-            // Initialise AppShell and wire navigation events
-            _shell = new AppShell();
-            _shell.Dock = DockStyle.Top;
-            _shell.MenuItemClicked += OnMenuItemClicked;   // Action<string, string>
-            _shell.LogoutClicked   += OnLogoutClicked;     // EventHandler
-            this.Controls.Add(_shell);
-            _shell.BringToFront();
-
             this.Load += ViewOrderForm_Load;
         }
 
-        // ── Load ────────────────────────────────────────────────────────────────
+        // ── Load ──────────────────────────────────────────────────────────────
         private void ViewOrderForm_Load(object sender, EventArgs e) => RefreshGrid();
 
-        // ── Refresh / Search ────────────────────────────────────────────────────
+        // ── Refresh / Search ──────────────────────────────────────────────────
         private void RefreshGrid()
         {
             string status  = cboStatus.SelectedItem?.ToString();
-            string keyword = txtOrderNo.Text.Trim();
+            string keyword = txtSearch.Text.Trim();
 
             var vm = _ctrl.GetViewOrderVM(
                 status  == "All" || string.IsNullOrEmpty(status)  ? null : status,
@@ -92,7 +80,11 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             UpdateActionButtons();
         }
 
-        // ── KPI Summary bar ─────────────────────────────────────────────────────
+        // ── KPI Summary bar ───────────────────────────────────────────────────
+        /// <summary>
+        /// Rebuilds the five KPI pills at the top of the grid area.
+        /// Called after every RefreshGrid().
+        /// </summary>
         private void RefreshKpi()
         {
             pnlKpi.Controls.Clear();
@@ -129,7 +121,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     using var brush = new SolidBrush(((Panel)s).BackColor);
                     e.Graphics.FillPath(brush, path);
                 };
-                pill.Region = null;
+                pill.Region = null; // use full rectangle; rounded corners are painted
 
                 var lblCount = new Label
                 {
@@ -150,6 +142,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 pill.Controls.Add(lblCount);
                 pill.Controls.Add(lblName);
 
+                // Click on pill filters the status combo
                 string filterLabel = label == "All Orders" ? "All" : label == "Delivered" ? "Delivered" : label;
                 pill.Click += (s, e) =>
                 {
@@ -162,32 +155,31 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             }
         }
 
-        // ── Button state ───────────────────────────────────────────────────────
-        private void UpdateActionButtons() { }
-
-        // ── Toolbar events ─────────────────────────────────────────────────────
-        private void btnSearch_Click(object sender, EventArgs e)   => RefreshGrid();
-        private void btnClear_Click(object sender, EventArgs e)
+        // ── Button state ──────────────────────────────────────────────────────
+        private void UpdateActionButtons()
         {
-            txtOrderNo.Clear();
-            txtCustomer.Clear();
-            cboStatus.SelectedIndex = 0;
-            chkDateFrom.Checked = false;
-            chkDateTo.Checked   = false;
-            RefreshGrid();
+            bool sel = dgvOrders.SelectedRows.Count > 0;
+            btnViewDetail.Enabled  = sel;
+            btnModifyOrder.Enabled = sel;
         }
-        private void btnCreateOrder_Click(object sender, EventArgs e)
-            => FormNavigator.NavigateTo(this, "Order Processing", "Create Order");
 
+        // ── Toolbar events ────────────────────────────────────────────────────
+        private void btnSearch_Click(object sender, EventArgs e)   => RefreshGrid();
+        private void btnRefresh_Click(object sender, EventArgs e)  => RefreshGrid();
         private void cboStatus_Changed(object sender, EventArgs e) => RefreshGrid();
-        private void txtOrderNo_KeyDown(object sender, KeyEventArgs e)
+        private void txtSearch_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.KeyCode == Keys.Enter) RefreshGrid();
         }
 
-        // ── DGV events ─────────────────────────────────────────────────────
-        private void dgvOrders_SelectionChanged(object sender, EventArgs e) { }
+        // ── DGV events ────────────────────────────────────────────────────────
+        private void dgvOrders_SelectionChanged(object sender, EventArgs e)
+            => UpdateActionButtons();
 
+        /// <summary>
+        /// Paint status column cells as coloured pill badges,
+        /// matching the HTML tag design (rounded background + coloured text).
+        /// </summary>
         private void dgvOrders_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
             if (dgvOrders.Columns[e.ColumnIndex].Name != "colStatus" || e.Value == null) return;
@@ -204,27 +196,23 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             }
         }
 
+        /// <summary>Double-click a row to open the View Detail dialog immediately.</summary>
         private void dgvOrders_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
         {
             if (e.RowIndex < 0) return;
             OpenDetailDialog();
         }
 
-        private void dgvOrders_CellClick(object sender, DataGridViewCellEventArgs e)
-        {
-            if (e.RowIndex < 0) return;
-            if (dgvOrders.Columns[e.ColumnIndex].Name == "colAction")
-                OpenDetailDialog();
-        }
-
-        // ── Helper: get selected Order ID ─────────────────────────────────────────
+        // ── Helper: get selected Order ID ─────────────────────────────────────
         private string SelectedOrderId()
         {
             if (dgvOrders.SelectedRows.Count == 0) return null;
             return dgvOrders.SelectedRows[0].Cells["colOrderID"].Value?.ToString();
         }
 
-        // ── View Details ─────────────────────────────────────────────────────────
+        // ── View Details button ───────────────────────────────────────────────
+        private void btnViewDetail_Click(object sender, EventArgs e) => OpenDetailDialog();
+
         private void OpenDetailDialog()
         {
             string id = SelectedOrderId();
@@ -240,8 +228,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             ShowDetailDialog(detail);
         }
 
-        // ── Modify Order ─────────────────────────────────────────────────────────
-        private void ModifyOrder()
+        // ── Modify Order button ───────────────────────────────────────────────
+        private void btnModifyOrder_Click(object sender, EventArgs e)
         {
             string id = SelectedOrderId();
             if (id == null) return;
@@ -250,6 +238,13 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         }
 
         // ── Detail dialog ─────────────────────────────────────────────────────
+        /// <summary>
+        /// Styled read-only detail dialog, inspired by the HTML modal design:
+        ///   • Dark navy header band with Order ID and status badge
+        ///   • Two-column info grid
+        ///   • Clean line-items DataGridView
+        ///   • Rounded Close button
+        /// </summary>
         private void ShowDetailDialog(OrderDetailViewModel detail)
         {
             var o = detail.Order;
@@ -266,11 +261,12 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 MinimizeBox     = false
             };
 
+            // ── Header band ──────────────────────────────────────────────────
             var pnlHeader = new Panel
             {
                 Dock      = DockStyle.Top,
                 Height    = 72,
-                BackColor = Color.FromArgb(19, 35, 61)
+                BackColor = Color.FromArgb(19, 35, 61)   // sidebar-bg colour
             };
 
             var lblDialogTitle = new Label
@@ -282,6 +278,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Location  = new Point(24, 20)
             };
 
+            // Status badge inside header
             StatusColors.TryGetValue(o.OrderStatus ?? "", out var sc);
             var lblStatusBadge = new Label
             {
@@ -297,6 +294,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlHeader.Controls.Add(lblDialogTitle);
             pnlHeader.Controls.Add(lblStatusBadge);
 
+            // ── Info grid (two columns) ───────────────────────────────────────
             var pnlInfo = new Panel
             {
                 Dock      = DockStyle.Top,
@@ -307,6 +305,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlInfo.Paint += (s, e) =>
             {
                 using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
+                ((Control)s).Height.Equals(0); // dummy read to avoid warning
                 e.Graphics.DrawLine(pen, 24, ((Panel)s).Height - 1,
                     ((Panel)s).Width - 24, ((Panel)s).Height - 1);
             };
@@ -327,7 +326,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             for (int i = 0; i < fields.Length; i++)
             {
-                int col = i % 2;
+                int col = i % 2;           // 0 = left, 1 = right
                 int row = i / 2;
                 int x = col == 0 ? 0 : 390;
                 int y = row * 38;
@@ -353,6 +352,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 pnlInfo.Controls.Add(pRow);
             }
 
+            // ── Line items section label ──────────────────────────────────────
             var pnlLineLabel = new Panel
             {
                 Dock      = DockStyle.Top,
@@ -370,6 +370,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             });
             pnlLineLabel.Paint += PaintBottomBorderStatic;
 
+            // ── Line items DataGridView ───────────────────────────────────────
             var dgv = new DataGridView
             {
                 ReadOnly              = true,
@@ -411,6 +412,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 dgv.Rows.Add(l.ItemID, l.ItemName, l.Quantity,
                              $"HK$ {l.Price:N2}", $"HK$ {l.LineTotal:N2}");
 
+            // ── Grand total row ───────────────────────────────────────────────
             var pnlTotalRow = new Panel
             {
                 Dock      = DockStyle.Bottom,
@@ -427,6 +429,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 TextAlign = ContentAlignment.MiddleRight
             });
 
+            // ── Close button bar ──────────────────────────────────────────────
             var pnlFooter = new Panel
             {
                 Dock      = DockStyle.Bottom,
@@ -452,6 +455,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             btnClose.Click += (s, ev) => dlg.Close();
             pnlFooter.Controls.Add(btnClose);
 
+            // ── Assemble dialog (DockStyle order) ─────────────────────────────
             dlg.Controls.Add(dgv);
             dlg.Controls.Add(pnlTotalRow);
             dlg.Controls.Add(pnlLineLabel);
@@ -462,7 +466,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             dlg.ShowDialog(this);
         }
 
-        // ── Static border painters ──────────────────────────────────────────────
+        // ── Static border painters (for dialogs) ──────────────────────────────
         private static void PaintBottomBorderStatic(object s, PaintEventArgs e)
         {
             var p = (Panel)s;
@@ -476,7 +480,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             e.Graphics.DrawLine(pen, 0, 0, p.Width, 0);
         }
 
-        // ── Geometry helper ───────────────────────────────────────────────────────
+        // ── Geometry helper ───────────────────────────────────────────────────
         private static GraphicsPath RoundedRect(Rectangle r, int radius)
         {
             var path = new GraphicsPath();
@@ -489,13 +493,11 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             return path;
         }
 
-        // ── Nav / Logout ────────────────────────────────────────────────────────
-        // Handles AppShell.MenuItemClicked  (Action<string, string>)
-        private void OnMenuItemClicked(string menuLabel, string subItem)
+        // ── Nav / Logout ──────────────────────────────────────────────────────
+        private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
             => FormNavigator.NavigateTo(this, menuLabel, subItem);
 
-        // Handles AppShell.LogoutClicked  (EventHandler)
-        private void OnLogoutClicked(object sender, EventArgs e)
+        private void btnLogout_Click(object sender, EventArgs e)
         {
             SessionManager.Clear();
             Application.Restart();
