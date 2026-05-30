@@ -1,5 +1,6 @@
 using PremiumLivingOPS.Controllers;
 using PremiumLivingOPS.Models.Entities;
+using PremiumLivingOPS.Views.Shared;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -236,23 +237,17 @@ namespace PremiumLivingOPS.Views.Dashboard
         // ── Nav / logout ──────────────────────────────────────────────────────
         /// <summary>
         /// Called by AppShell whenever a nav item is clicked.
-        /// Breadcrumb is already updated by AppShell before this fires;
-        /// this method handles page navigation / placeholder messaging.
+        /// Delegates to FormNavigator which owns the full routing table.
+        /// FormNavigator shows "Coming Soon" only for unimplemented modules.
         /// </summary>
         private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
         {
-            // Dashboard (top-level, no sub-item) → already on this page.
+            // Already on Dashboard — do nothing.
             if (menuLabel == "Dashboard" && string.IsNullOrEmpty(subItem))
                 return;
 
-            // Build a display string for the Coming Soon dialog.
-            string display = string.IsNullOrEmpty(subItem)
-                ? menuLabel
-                : $"{menuLabel}  ›  {subItem}";
-
-            MessageBox.Show(
-                $"⌛  {display}\n\nThis feature is currently under development.",
-                "Coming Soon", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            // All other clicks: FormNavigator handles routing + Coming Soon.
+            FormNavigator.NavigateTo(this, menuLabel, subItem);
         }
 
         private void btnLogout_Click(object sender, EventArgs e)
