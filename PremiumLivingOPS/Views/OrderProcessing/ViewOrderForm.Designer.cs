@@ -47,15 +47,14 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             _shell = new AppShell();
             _shell.SetPopupContainer(pnlMain);
 
-            // ═════════════════════════════════════════════════════════════
-            // SEARCH CARD
-            // One TableLayoutPanel owns all 3 rows with fixed pixel heights:
-            //   Row 0 = 36px  : "Search Orders" title + bottom divider
-            //   Row 1 = 62px  : 4-column field strip
-            //   Row 2 = 46px  : Search + Refresh buttons
-            // Total content = 144px.  Card padding top+bottom = 14+10 = 24px.
-            // pnlSearchOuter height = 14(outer top) + 144 + 10(card bottom pad) = 168px.
-            // ═════════════════════════════════════════════════════════════
+            // ═══════════════════════════════════════════════════════════
+            // SEARCH CARD  —  master TableLayoutPanel, 3 rows, fixed px heights:
+            //   Row 0 =  44px : title + divider
+            //   Row 1 =  80px : 4-column field strip (label 20 + gap 8 + ctrl 34 + buffer 18)
+            //   Row 2 =  56px : Search + Refresh buttons
+            // tblCard Padding (18,12,18,12)  → adds 24px vertically
+            // pnlSearchOuter Height = 14(outer top pad) + 24(tlp pad) + 180(rows) + 2(border) = 220px
+            // ═══════════════════════════════════════════════════════════
 
             // ── Input controls
             txtSearchOrderNo = new TextBox
@@ -82,16 +81,15 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             chkDateFrom = new CheckBox { Text = "", Width = 24, Checked = false, Cursor = Cursors.Hand };
             dtpDateFrom = new DateTimePicker
             {
-                Format = DateTimePickerFormat.Short,
-                Value  = DateTime.Today.AddMonths(-1),
-                Font   = new Font("Segoe UI", 12f),
+                Format  = DateTimePickerFormat.Short,
+                Value   = DateTime.Today.AddMonths(-1),
+                Font    = new Font("Segoe UI", 12f),
                 Enabled = false
             };
             chkDateFrom.CheckedChanged += (s, e) => { dtpDateFrom.Enabled = chkDateFrom.Checked; RefreshGrid(); };
             dtpDateFrom.ValueChanged   += (s, e) => { if (chkDateFrom.Checked) RefreshGrid(); };
 
-            // ── Helper: builds a label-on-top + control-below cell panel
-            // The cell panel uses absolute positions so heights are guaranteed.
+            // ── MakeCell: label (Y=0, H=20) + control (Y=28, H=34), widths via Resize
             Panel MakeCell(string caption, Control ctrl, bool rightPad = true)
             {
                 var cell = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
@@ -102,18 +100,17 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     Text      = caption,
                     Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
                     ForeColor = Color.FromArgb(98, 112, 135),
-                    Location  = new Point(0, 0),
+                    Location  = new Point(0, 2),
                     Height    = 20,
                     Anchor    = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right
                 };
-                ctrl.Location = new Point(0, 22);
-                ctrl.Height   = 30;
+                ctrl.Location = new Point(0, 28);
+                ctrl.Height   = 34;
                 ctrl.Anchor   = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right;
 
                 cell.Controls.Add(lbl);
                 cell.Controls.Add(ctrl);
 
-                // Keep label and control widths in sync with cell width
                 cell.Resize += (s, e) =>
                 {
                     int w = cell.ClientSize.Width - (rightPad ? 12 : 0);
@@ -123,21 +120,21 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 return cell;
             }
 
-            // Date-From cell: label + [checkbox | datepicker] row
+            // Date-From cell: label + [checkbox | datepicker]
             var cellDate = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             var lblDate  = new Label
             {
                 Text      = "Date From",
                 Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(98, 112, 135),
-                Location  = new Point(0, 0),
+                Location  = new Point(0, 2),
                 Height    = 20,
                 Anchor    = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right
             };
-            chkDateFrom.Location = new Point(0, 24);
-            chkDateFrom.Height   = 26;
-            dtpDateFrom.Location = new Point(28, 24);
-            dtpDateFrom.Height   = 26;
+            chkDateFrom.Location = new Point(0,  28);
+            chkDateFrom.Height   = 30;
+            dtpDateFrom.Location = new Point(30, 28);
+            dtpDateFrom.Height   = 30;
             dtpDateFrom.Anchor   = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right;
             cellDate.Controls.Add(lblDate);
             cellDate.Controls.Add(chkDateFrom);
@@ -145,13 +142,12 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             cellDate.Resize += (s, e) =>
             {
                 lblDate.Width     = cellDate.ClientSize.Width;
-                dtpDateFrom.Width = cellDate.ClientSize.Width - 30;
+                dtpDateFrom.Width = Math.Max(0, cellDate.ClientSize.Width - 32);
             };
 
-            // ── Row 1: 4-column fields  (62 px)
+            // ── 4-column fields TLP
             var tblFields = new TableLayoutPanel
             {
-                Location        = new Point(0, 0),   // positioned by outer TLP
                 Dock            = DockStyle.Fill,
                 ColumnCount     = 4,
                 RowCount        = 1,
@@ -168,31 +164,31 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             tblFields.Controls.Add(MakeCell("Status",    cboStatus),         2, 0);
             tblFields.Controls.Add(cellDate,                                 3, 0);
 
-            // ── Row 2: buttons  (46 px)
+            // ── Buttons panel
             var pnlBtns = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            btnSearch  = MakePrimaryBtn("Search",      new Point(0,   6), 110, 32);
-            btnRefresh = MakeOutlineBtn("↻  Refresh",  new Point(118, 6), 120, 32);
+            btnSearch  = MakePrimaryBtn("Search",      new Point(0,   10), 110, 34);
+            btnRefresh = MakeOutlineBtn("↻  Refresh",  new Point(118, 10), 120, 34);
             btnSearch.Click  += (s, e) => RefreshGrid();
             btnRefresh.Click += (s, e) => RefreshGrid();
             pnlBtns.Controls.Add(btnSearch);
             pnlBtns.Controls.Add(btnRefresh);
 
-            // ── Master TableLayoutPanel for the card body (3 rows, fixed heights)
+            // ── Master card TLP  (3 rows, absolute heights)
             var tblCard = new TableLayoutPanel
             {
-                Dock        = DockStyle.Fill,
-                RowCount    = 3,
-                ColumnCount = 1,
-                BackColor   = Color.Transparent,
+                Dock            = DockStyle.Fill,
+                RowCount        = 3,
+                ColumnCount     = 1,
+                BackColor       = Color.Transparent,
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                Padding     = new Padding(18, 10, 18, 8)
+                Padding         = new Padding(18, 12, 18, 12)
             };
             tblCard.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute, 36f));  // title
-            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute, 62f));  // fields
-            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute, 46f));  // buttons
+            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  44f));  // title row
+            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  80f));  // fields row
+            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  56f));  // button row
 
-            // Row 0: title panel
+            // Title row
             var pnlTitle = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             var lblTitle = new Label
             {
@@ -206,21 +202,21 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlTitle.Controls.Add(lblTitle);
             pnlTitle.Controls.Add(divider);
 
-            tblCard.Controls.Add(pnlTitle,   0, 0);
-            tblCard.Controls.Add(tblFields,  0, 1);
-            tblCard.Controls.Add(pnlBtns,    0, 2);
+            tblCard.Controls.Add(pnlTitle,  0, 0);
+            tblCard.Controls.Add(tblFields, 0, 1);
+            tblCard.Controls.Add(pnlBtns,   0, 2);
 
             // White card shell
             var pnlCard = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
             pnlCard.Paint += PaintCardBorder;
             pnlCard.Controls.Add(tblCard);
 
-            // Outer grey wrapper (top-docked, fixed height)
-            // 36 + 62 + 46 = 144 content + 10+8 TLP padding + 14 outer top margin = 176
+            // Outer grey wrapper
+            // row heights 44+80+56=180 + TLP padding 12+12=24 + outer top 14 + border 2 = 220
             var pnlSearchOuter = new Panel
             {
                 Dock      = DockStyle.Top,
-                Height    = 176,
+                Height    = 220,
                 BackColor = Color.FromArgb(240, 244, 249),
                 Padding   = new Padding(20, 14, 20, 8)
             };
@@ -276,18 +272,18 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             dgvOrders.CellFormatting   += dgvOrders_CellFormatting;
             dgvOrders.CellDoubleClick  += dgvOrders_CellDoubleClick;
 
-            var pnlGridCard = new Panel { Dock = DockStyle.Fill, Padding = new Padding(20, 12, 20, 0), BackColor = Color.FromArgb(240, 244, 249) };
+            var pnlGridCard  = new Panel { Dock = DockStyle.Fill, Padding = new Padding(20, 12, 20, 0), BackColor = Color.FromArgb(240, 244, 249) };
             var pnlGridInner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
             pnlGridInner.Paint += PaintCardBorder;
             pnlGridInner.Controls.Add(dgvOrders);
             pnlGridCard.Controls.Add(pnlGridInner);
 
-            // ── Assemble — Fill first, Bottom, then Top controls in desired top-to-bottom order
+            // ── Assemble
             pnlMain.Controls.Add(pnlGridCard);    // Fill
             pnlMain.Controls.Add(pnlActions);     // Bottom
-            pnlMain.Controls.Add(pnlKpi);         // Top #2 (renders below search)
-            pnlMain.Controls.Add(pnlSearchOuter); // Top #1 (renders below AppShell)
-            pnlMain.Controls.Add(_shell);          // Top #0 (AppShell — topmost)
+            pnlMain.Controls.Add(pnlKpi);         // Top #2
+            pnlMain.Controls.Add(pnlSearchOuter); // Top #1
+            pnlMain.Controls.Add(_shell);          // Top #0 (topmost)
 
             this.Controls.Add(pnlMain);
             this.ResumeLayout(false);
