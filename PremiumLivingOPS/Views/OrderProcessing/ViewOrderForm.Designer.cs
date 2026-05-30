@@ -32,20 +32,20 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             this.StartPosition = FormStartPosition.CenterScreen;
             this.BackColor     = Palette.BgPage;
             this.WindowState   = FormWindowState.Maximized;
-            this.Font          = new Font("Segoe UI", 11f);
+            this.Font          = new Font("Segoe UI", 14f); // 11 × 1.3 ≈ 14
 
-            // ── AppShell (TopNavBar + UserBar) ──────────────────────
+            // ── AppShell ───────────────────────────────────────
             _shell = new AppShell();
             _shell.MenuItemClicked += OnTopNavMenuItemClicked;
             _shell.LogoutClicked   += btnLogout_Click;
 
-            // ── Filter toolbar (Top) ─────────────────────────────
+            // ── Filter toolbar (Top, height 52→68) ───────────────
             Panel pnlToolbar = new Panel
             {
                 Dock      = DockStyle.Top,
-                Height    = 52,
+                Height    = 68,           // 52 × 1.3
                 BackColor = Palette.BgCard,
-                Padding   = new Padding(16, 10, 16, 10)
+                Padding   = new Padding(20, 13, 20, 13)  // 16/10 × 1.3
             };
             pnlToolbar.Paint += (s, e) =>
                 e.Graphics.DrawRectangle(
@@ -55,17 +55,17 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             lblFilterLabel = new Label
             {
                 Text      = "Status:",
-                Font      = new Font("Segoe UI", 11f),
+                Font      = new Font("Segoe UI", 14f),   // 11 × 1.3
                 ForeColor = Palette.TextMuted,
                 AutoSize  = true,
-                Location  = new Point(16, 15)
+                Location  = new Point(20, 20)            // 16/15 × 1.3
             };
             cboStatusFilter = new ComboBox
             {
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                Width         = 160,
-                Location      = new Point(76, 13),
-                Font          = new Font("Segoe UI", 11f)
+                Width         = 208,                     // 160 × 1.3
+                Location      = new Point(100, 17),      // 76/13 × 1.3
+                Font          = new Font("Segoe UI", 14f)
             };
             cboStatusFilter.Items.AddRange(new object[]
                 { "All", "Pending", "Processing", "Delivered", "Cancelled" });
@@ -75,12 +75,12 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             btnRefresh = new Button
             {
                 Text      = "↻ Refresh",
-                Font      = new Font("Segoe UI", 11f),
+                Font      = new Font("Segoe UI", 14f),
                 ForeColor = Palette.Primary,
                 FlatStyle = FlatStyle.Flat,
-                Width     = 100,
-                Height    = 30,
-                Location  = new Point(252, 11)
+                Width     = 130,                         // 100 × 1.3
+                Height    = 39,                          // 30 × 1.3
+                Location  = new Point(328, 14)           // 252/11 × 1.3
             };
             btnRefresh.FlatAppearance.BorderColor = Palette.Primary;
             btnRefresh.FlatAppearance.BorderSize  = 1;
@@ -90,11 +90,11 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlToolbar.Controls.Add(cboStatusFilter);
             pnlToolbar.Controls.Add(btnRefresh);
 
-            // ── Detail panel — line items (Bottom, fixed height) ──────
+            // ── Detail panel — line items (Bottom, height 260→338) ───
             Panel pnlDetail = new Panel
             {
                 Dock      = DockStyle.Bottom,
-                Height    = 260,
+                Height    = 338,                         // 260 × 1.3
                 BackColor = Palette.BgCard
             };
             pnlDetail.Paint += (s, e) =>
@@ -105,11 +105,11 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             lblDetailTitle = new Label
             {
                 Text      = "Select an order to view details",
-                Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
+                Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
                 ForeColor = Palette.TextMain,
                 Dock      = DockStyle.Top,
-                Height    = 38,
-                Padding   = new Padding(12, 10, 0, 0)
+                Height    = 49,                          // 38 × 1.3
+                Padding   = new Padding(16, 13, 0, 0)    // 12/10 × 1.3
             };
 
             dgvLines = MakeDgv();
@@ -125,11 +125,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 { Name = "colLineTotal", HeaderText = "Line Total", FillWeight = 20 });
             dgvLines.Dock = DockStyle.Fill;
 
-            // Controls added bottom-up: Fill first, then Top items
             pnlDetail.Controls.Add(dgvLines);
             pnlDetail.Controls.Add(lblDetailTitle);
 
-            // ── Orders grid (Fill — takes all remaining space) ─────────
+            // ── Orders grid (Fill) ──────────────────────────────
             dgvOrders = MakeDgv();
             dgvOrders.Columns.Add(new DataGridViewTextBoxColumn
                 { Name = "colOrderID",  HeaderText = "Order ID",      FillWeight = 14 });
@@ -146,28 +145,24 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             dgvOrders.SelectionChanged += dgvOrders_SelectionChanged;
             dgvOrders.Dock = DockStyle.Fill;
 
-            // ── Main content panel ─────────────────────────────────
-            // DockStyle layout rules:
-            //   - Add Fill/Bottom controls FIRST (they are claimed last by layout)
-            //   - Add Top controls AFTER (they push down from the top)
-            // Result: toolbar at top, detail panel at bottom, orders grid fills middle.
+            // ── Main content panel ──────────────────────────────
             Panel pnlMain = new Panel
             {
                 Dock    = DockStyle.Fill,
-                Padding = new Padding(20, 12, 20, 12)
+                Padding = new Padding(26, 16, 26, 16)    // 20/12 × 1.3
             };
-            pnlMain.Controls.Add(dgvOrders);   // Fill  (added first)
-            pnlMain.Controls.Add(pnlDetail);   // Bottom
-            pnlMain.Controls.Add(pnlToolbar);  // Top   (added last → appears at top)
+            // DockStyle order: Fill first, Bottom second, Top last
+            pnlMain.Controls.Add(dgvOrders);
+            pnlMain.Controls.Add(pnlDetail);
+            pnlMain.Controls.Add(pnlToolbar);
 
-            // ── Compose form ─────────────────────────────────────
-            this.Controls.Add(pnlMain);  // Fill
-            this.Controls.Add(_shell);   // Top  (AppShell docks above pnlMain)
+            this.Controls.Add(pnlMain);
+            this.Controls.Add(_shell);
 
             this.ResumeLayout(false);
         }
 
-        // ── DGV factory ─────────────────────────────────────────
+        // ── DGV factory ──────────────────────────────────────
         private DataGridView MakeDgv()
         {
             return new DataGridView
@@ -180,26 +175,26 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 BackgroundColor       = Palette.BgCard,
                 BorderStyle           = BorderStyle.None,
                 GridColor             = Palette.BorderColor,
-                Font                  = new Font("Segoe UI", 11f),
+                Font                  = new Font("Segoe UI", 14f),   // 11 × 1.3
                 AutoSizeColumnsMode   = DataGridViewAutoSizeColumnsMode.Fill,
                 CellBorderStyle       = DataGridViewCellBorderStyle.SingleHorizontal,
-                RowTemplate           = { Height = 36 },
+                RowTemplate           = { Height = 47 },             // 36 × 1.3
                 MultiSelect           = false,
                 ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
                 {
                     BackColor = System.Drawing.Color.FromArgb(246, 249, 255),
                     ForeColor = Palette.TextMuted,
-                    Font      = new Font("Segoe UI", 10.5f, FontStyle.Bold),
-                    Padding   = new Padding(6)
+                    Font      = new Font("Segoe UI", 13.5f, FontStyle.Bold), // 10.5 × 1.3
+                    Padding   = new Padding(8)                       // 6 × 1.3
                 },
-                ColumnHeadersHeight = 40,
+                ColumnHeadersHeight = 52,                            // 40 × 1.3
                 DefaultCellStyle = new DataGridViewCellStyle
                 {
                     BackColor          = Palette.BgCard,
                     ForeColor          = Palette.TextMain,
                     SelectionBackColor = System.Drawing.Color.FromArgb(240, 246, 255),
                     SelectionForeColor = Palette.TextMain,
-                    Padding            = new Padding(8, 5, 8, 5)
+                    Padding            = new Padding(10, 7, 10, 7)   // 8/5 × 1.3
                 }
             };
         }
