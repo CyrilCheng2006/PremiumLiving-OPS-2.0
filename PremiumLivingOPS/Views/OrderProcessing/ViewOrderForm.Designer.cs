@@ -50,11 +50,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             // ════════════════════════════════════════════════════
             // SEARCH CARD — pnlSearchOuter = 320px
             //   tblCard Padding (18,18,18,18) = 36px vertical
-            //   available for rows = 320 - 14(outer top) - 8(outer bottom) - 36(pad) - 2(border) = 260px
-            //   Row 0 =  60px  title + divider       ( 60/260 = 23.1% )
-            //   Row 1 = 118px  field strip            (118/260 = 45.4% )
-            //   Row 2 =  82px  buttons                ( 82/260 = 31.5% )
-            //   total = 260px ✓
+            //   Row 0 =  60px  title + divider
+            //   Row 1 = 118px  field strip  (label Y=4 H=20 | ctrl Y=42 H=36 | bottom=78, buffer=40)
+            //   Row 2 =  82px  buttons
             // ════════════════════════════════════════════════════
 
             // ── Input controls
@@ -90,7 +88,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             chkDateFrom.CheckedChanged += (s, e) => { dtpDateFrom.Enabled = chkDateFrom.Checked; RefreshGrid(); };
             dtpDateFrom.ValueChanged   += (s, e) => { if (chkDateFrom.Checked) RefreshGrid(); };
 
-            // ── MakeCell: label (Y=4, H=20) + control (Y=30, H=36)
+            // ── MakeCell: label (Y=4, H=20) + control (Y=42, H=36)
+            // Gap between label bottom (Y=24) and control top (Y=42) = 18px — no overlap
             Panel MakeCell(string caption, Control ctrl, bool rightPad = true)
             {
                 var cell = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
@@ -105,7 +104,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     Height    = 20,
                     Anchor    = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right
                 };
-                ctrl.Location = new Point(0, 30);
+                ctrl.Location = new Point(0, 42);
                 ctrl.Height   = 36;
                 ctrl.Anchor   = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right;
 
@@ -132,9 +131,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Height    = 20,
                 Anchor    = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right
             };
-            chkDateFrom.Location = new Point(0,  30);
+            chkDateFrom.Location = new Point(0,  42);
             chkDateFrom.Height   = 36;
-            dtpDateFrom.Location = new Point(30, 30);
+            dtpDateFrom.Location = new Point(30, 42);
             dtpDateFrom.Height   = 36;
             dtpDateFrom.Anchor   = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right;
             cellDate.Controls.Add(lblDate);
@@ -185,9 +184,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Padding         = new Padding(18, 18, 18, 18)
             };
             tblCard.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  60f));  // title
-            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute, 118f));  // fields
-            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  82f));  // buttons
+            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  60f));
+            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute, 118f));
+            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  82f));
 
             // Title row
             var pnlTitle = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
