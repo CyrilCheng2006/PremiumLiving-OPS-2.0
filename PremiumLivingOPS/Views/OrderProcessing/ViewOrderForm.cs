@@ -46,11 +46,11 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         {
             InitializeComponent();
 
-            // Initialise AppShell and wire navigation event
+            // Initialise AppShell and wire navigation events
             _shell = new AppShell();
             _shell.Dock = DockStyle.Top;
-            _shell.TopNavMenuItemClicked += OnTopNavMenuItemClicked;
-            _shell.LogoutClicked += btnLogout_Click;
+            _shell.MenuItemClicked += OnMenuItemClicked;   // Action<string, string>
+            _shell.LogoutClicked   += OnLogoutClicked;     // EventHandler
             this.Controls.Add(_shell);
             _shell.BringToFront();
 
@@ -490,10 +490,12 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         }
 
         // ── Nav / Logout ────────────────────────────────────────────────────────
-        private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
+        // Handles AppShell.MenuItemClicked  (Action<string, string>)
+        private void OnMenuItemClicked(string menuLabel, string subItem)
             => FormNavigator.NavigateTo(this, menuLabel, subItem);
 
-        private void btnLogout_Click(object sender, EventArgs e)
+        // Handles AppShell.LogoutClicked  (EventHandler)
+        private void OnLogoutClicked(object sender, EventArgs e)
         {
             SessionManager.Clear();
             Application.Restart();
