@@ -49,7 +49,7 @@ namespace PremiumLivingOPS.Views.Shared
             ("Raw Material",              new[] { "Create Procurement", "Search Procurement" }),
             ("After-Service",             new[] { "Create Invoice", "Complaint List", "Return Order List", "Account Receivable", "Account Payable" }),
             ("Master Data Maintenance",   new[] { "Supplier List", "Customer List" }),
-            ("System Security & Control", new[] { "Staff List", "Log List" }),
+            ("System Control",            new[] { "Staff List", "Log List" }),
             ("Statistical Reports",       new[] { "View Report" })
         };
 
