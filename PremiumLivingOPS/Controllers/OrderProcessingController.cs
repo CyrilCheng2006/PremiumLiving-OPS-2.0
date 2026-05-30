@@ -35,7 +35,7 @@ namespace PremiumLivingOPS.Controllers
                     DisplayName = user?.StaffName ?? "Unknown",
                     Department  = user?.Department ?? ""
                 },
-                AllowedMenus = NavAccessPolicy.GetAllowedMenus(user?.Role ?? ""),
+                AllowedMenus = NavAccessPolicy.GetAllowedMenus(user?.Department ?? ""),
                 Orders       = _repo.SearchOrders(status, keyword, dateFrom, dateTo)
             };
         }
@@ -66,7 +66,7 @@ namespace PremiumLivingOPS.Controllers
                     DisplayName = user?.StaffName ?? "Unknown",
                     Department  = user?.Department ?? ""
                 },
-                AllowedMenus = NavAccessPolicy.GetAllowedMenus(user?.Role ?? ""),
+                AllowedMenus = NavAccessPolicy.GetAllowedMenus(user?.Department ?? ""),
                 Quotations   = _repo.GetAllQuotations()
             };
         }
@@ -87,7 +87,7 @@ namespace PremiumLivingOPS.Controllers
                     DisplayName = user?.StaffName ?? "Unknown",
                     Department  = user?.Department ?? ""
                 },
-                AllowedMenus      = NavAccessPolicy.GetAllowedMenus(user?.Role ?? ""),
+                AllowedMenus      = NavAccessPolicy.GetAllowedMenus(user?.Department ?? ""),
                 Customers         = _repo.GetAllCustomers(),
                 Products          = _repo.GetAllProducts(),
                 Quotations        = allQ,
@@ -120,7 +120,7 @@ namespace PremiumLivingOPS.Controllers
                     DisplayName = user?.StaffName ?? "Unknown",
                     Department  = user?.Department ?? ""
                 },
-                AllowedMenus  = NavAccessPolicy.GetAllowedMenus(user?.Role ?? ""),
+                AllowedMenus  = NavAccessPolicy.GetAllowedMenus(user?.Department ?? ""),
                 SelectedOrder = orderId != null ? _repo.GetOrderById(orderId)  : null,
                 Lines         = orderId != null ? _repo.GetOrderLines(orderId) : new List<OrderLineEntity>(),
                 Products      = _repo.GetAllProducts()
