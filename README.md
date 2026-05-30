@@ -30,20 +30,27 @@ The system replaces manual paper-based workflows with a centralised, role-based 
 
 ```
 PremiumLiving-OPS-2.0/
-├── PremiumLivingOPS.sln                      ← Done
+├── PremiumLivingOPS.sln                                    ← Done
 │
 ├── Database/
-│   ├── schema.sql                            ← Done   ← Full database schema (DDL)
-│   └── sample_data.sql                       ← Done   ← Seed data with 13 business scenarios
+│   ├── schema.sql                                          ← Done   ← Full database schema (DDL)
+│   └── sample_data.sql                                     ← Done   ← Seed data with 13 business scenarios
 │
-├── PremiumLivingOPS/                                  ← Visual Studio Project Root
-│   ├── PremiumLivingOPS.csproj               ← Done
-│   ├── Program.cs                            ← Done
+├── PremiumLivingOPS/                                                ← Visual Studio Project Root
+│   ├── PremiumLivingOPS.csproj                             ← Done
+│   ├── Program.cs                                          ← Done
 │   │
 │   ├── Models/
-│   │   ├── Entities/                                  ← Step 1: Entity Classes (C#)
+│   │   ├── Entities/                                                ← Entity & ViewModel Classes
+│   │   │   ├── Staff.cs                                    ← Done
+│   │   │   ├── OrderProcessingViewModel.cs                 ← Done   ← Entities + ViewModels for Order Processing
+│   │   │   │                                                           (OrderEntity, OrderLineEntity,
+│   │   │   │                                                            QuotationEntity, CustomerEntity,
+│   │   │   │                                                            ProductLookup, ViewOrderViewModel,
+│   │   │   │                                                            QuotationViewModel,
+│   │   │   │                                                            CreateOrderViewModel,
+│   │   │   │                                                            ModifyOrderViewModel)
 │   │   │   ├── Customer.cs
-│   │   │   ├── Staff.cs                      ← Done
 │   │   │   ├── Product.cs
 │   │   │   ├── RawMaterial.cs
 │   │   │   ├── Order.cs
@@ -60,10 +67,20 @@ PremiumLiving-OPS-2.0/
 │   │   │   ├── PurchaseInvoice.cs
 │   │   │   ├── WarehouseTransfer.cs
 │   │   │   └── AuditLog.cs
-│   │   └── DAL/                                       ← Step 2: Repository Classes (MySQL)
-│   │       ├── DatabaseHelper.cs             ← Done   ← MySQL connection manager
+│   │   │
+│   │   └── DAL/                                                     ← Repository Classes (MySQL)
+│   │       ├── DatabaseHelper.cs                           ← Done   ← MySQL connection manager
+│   │       ├── OrderProcessingRepo.cs                      ← Done   ← All SQL for Order Processing module
+│   │       │                                                           (GetAllOrders, GetOrdersByStatus,
+│   │       │                                                            GetOrderById, GetOrderLines,
+│   │       │                                                            GetAllQuotations, GetPendingQuotations,
+│   │       │                                                            GetAllCustomers, GetAllProducts,
+│   │       │                                                            CreateOrder, CreateOrderLine,
+│   │       │                                                            UpdateOrder, UpdateOrderStatus,
+│   │       │                                                            ReplaceOrderLines,
+│   │       │                                                            UpdateQuotationStatus)
+│   │       ├── StaffRepo.cs                                ← Done
 │   │       ├── CustomerRepo.cs
-│   │       ├── StaffRepo.cs                  ← Done
 │   │       ├── ProductRepo.cs
 │   │       ├── RawMaterialRepo.cs
 │   │       ├── OrderRepo.cs
@@ -75,33 +92,55 @@ PremiumLiving-OPS-2.0/
 │   │       ├── SupplierRepo.cs
 │   │       └── AuditLogRepo.cs
 │   │
-│   ├── Controllers/                                   ← Step 3: Business Logic
+│   ├── Controllers/                                                  ← Business Logic (no UI dependencies)
+│   │   ├── SessionManager.cs                               ← Done   ← Current user session state
+│   │   ├── NavAccessPolicy.cs                              ← Done   ← Role-based menu access rules
+│   │   ├── DashboardController.cs                          ← Done
+│   │   └── OrderProcessingController.cs                    ← Done   ← All business logic for Order Processing
+│   │                                                                   (GetViewOrderVM, GetOrderLines,
+│   │                                                                    GetQuotationVM, UpdateQuotationStatus,
+│   │                                                                    GetCreateOrderVM, SubmitCreateOrder,
+│   │                                                                    GetModifyOrderVM, SubmitModifyOrder,
+│   │                                                                    CancelOrder)
 │   │
-│   └── Views/                                         ← Step 4: Windows Forms
+│   └── Views/                                                        ← Windows Forms (UI only)
 │       │
-│       ├── Shared/                           ← Done   ← Reusable chrome — used by ALL pages
-│       │   ├── AppShell.cs                   ← Done   ← Hosts TopNavBar + UserBar (116 px)
-│       │   │                                           ← TableLayoutPanel layout (no overlap)
-│       │   │                                           ← Exposes: SetUser / SetVisibleMenus /
-│       │   │                                              SetBreadcrumb / SetPopupContainer
-│       │   │                                              MenuItemClicked / LogoutClicked events
-│       │   ├── TopNavBar.cs                  ← Done   ← Apple-style top nav (44 px)
-│       │   │                                           ← Mega-menu dropdown per role
-│       │   └── UserInfoLabel.cs              ← Done   ← User name + department display
+│       ├── Shared/                                         ← Done   ← Reusable chrome — used by ALL pages
+│       │   ├── AppShell.cs                                 ← Done   ← Hosts TopNavBar + UserBar (116 px)
+│       │   │                                                           TableLayoutPanel layout (no overlap)
+│       │   │                                                           Exposes: SetUser / SetVisibleMenus /
+│       │   │                                                           SetBreadcrumb / SetPopupContainer
+│       │   │                                                           MenuItemClicked / LogoutClicked events
+│       │   ├── TopNavBar.cs                                ← Done   ← Apple-style top nav (44 px)
+│       │   │                                                           Mega-menu dropdown per role
+│       │   ├── UserInfoLabel.cs                            ← Done   ← User name + department display
+│       │   ├── Palette.cs                                  ← Done   ← Centralised colour constants
+│       │   │                                                           (BgPage, BgCard, Primary, Danger,
+│       │   │                                                            Success, TextMain, TextMuted,
+│       │   │                                                            BorderColor)
+│       │   └── FormNavigator.cs                            ← Done   ← TopNavBar routing — maps
+│       │                                                               (menuLabel, subItem) → target Form
 │       │
 │       ├── Auth/
-│       │   └── LoginForm.cs                  ← Done
+│       │   └── LoginForm.cs                                ← Done
 │       │
 │       ├── Dashboard/
-│       │   ├── DashboardForm.cs              ← Done   ← Consumes AppShell
-│       │   ├── DashboardForm.Designer.cs     ← Done
-│       │   ├── TopNavBar.cs                  (stub)   ← Moved to Views/Shared/
-│       │   └── UserInfoLabel.cs              (stub)   ← Moved to Views/Shared/
+│       │   ├── DashboardForm.cs                            ← Done   ← Consumes AppShell
+│       │   └── DashboardForm.Designer.cs                   ← Done
 │       │
-│       ├── OrderProcessing/
-│       │   ├── OrderListForm.cs
-│       │   ├── QuotationForm.cs
-│       │   └── CreateOrderForm.cs
+│       ├── OrderProcessing/                                ← Done   ← All 4 tabs complete
+│       │   ├── ViewOrderForm.cs                            ← Done   ← Tab 1: View & filter orders
+│       │   ├── ViewOrderForm.Designer.cs                   ← Done     DataGridView + status filter
+│       │   │                                                           + drill-down order lines panel
+│       │   ├── QuotationForm.cs                            ← Done   ← Tab 2: List & update quotations
+│       │   ├── QuotationForm.Designer.cs                   ← Done     Status filter + Change Status
+│       │   ├── CreateOrderForm.cs                          ← Done   ← Tab 3: Create new order
+│       │   ├── CreateOrderForm.Designer.cs                 ← Done     Order Header card + Order Lines card
+│       │   │                                                           Real-time Grand Total calculation
+│       │   ├── ModifyOrderForm.cs                          ← Done   ← Tab 4: Edit Order + Cancel Order
+│       │   └── ModifyOrderForm.Designer.cs                 ← Done     Progressive disclosure (load first)
+│       │                                                               Business rules: Delivered/Completed
+│       │                                                               orders cannot be cancelled
 │       │
 │       ├── Logistics/
 │       │   ├── ShipmentListForm.cs
@@ -170,19 +209,38 @@ _shell.SetVisibleMenus(vm.AllowedMenus);
 _shell.SetBreadcrumb("Order Processing");
 ```
 
+### Order Processing — MVC Data Flow
+
+```
+ View (*.cs / *.Designer.cs)
+   │  calls
+   ▼
+ Controller (OrderProcessingController.cs)
+   │  reads session      │  calls
+   ▼                     ▼
+ SessionManager    OrderProcessingRepo.cs
+ NavAccessPolicy       │  executes SQL via
+                       ▼
+                  DatabaseHelper  ──►  MySQL Database
+                                        (schema.sql tables:
+                                         Order, OrderLine,
+                                         Quotation, Customer,
+                                         Product, Item, Staff)
+```
+
 ---
 
 ## 📱 Application Modules & Pages
 
 ```
 Dashboard
-├── 1. Order Processing Management
-│   ├── View & Search Order
-│   ├── Quotation
-│   ├── Create Order
-│   └── Modify Order                          [Prototype 2]
-│       ├── Cancel Order
-│       └── Edit Order
+├── 1. Order Processing Management            ← Done
+│   ├── View & Search Order                   ← Done   (ViewOrderForm)
+│   ├── Quotation                             ← Done   (QuotationForm)
+│   ├── Create Order                          ← Done   (CreateOrderForm)
+│   └── Modify Order                          ← Done   (ModifyOrderForm)
+│       ├── Cancel Order                      ← Done
+│       └── Edit Order                        ← Done
 │
 ├── 2. Production Processing Management       [Prototype 2]
 │   ├── Search Raw Material Request
@@ -312,17 +370,19 @@ The `sample_data.sql` file includes **13 realistic business scenarios** for test
 ## 🚀 Development Roadmap
 
 ### Prototype 1
-- [ ] **Phase 1** — Database Schema + MySQL Connection (`DatabaseHelper.cs`) + Login (UC-019)
-- [ ] **Phase 2** — Sales Module (Order, Quotation, Invoice, Complaint)
-- [ ] **Phase 3** — Inventory & Procurement Module
-- [ ] **Phase 4** — Logistics Module (Shipment, Delivery, Return)
-- [ ] **Phase 5** — Finance + Admin Module
+- [x] **Phase 0** — Database Schema + MySQL Connection (`DatabaseHelper.cs`) + Login (UC-019)
+- [x] **Phase 1** — Shared Chrome: `AppShell`, `TopNavBar`, `UserBar`, `Palette`, `FormNavigator`
+- [x] **Phase 2** — Dashboard
+- [x] **Phase 3** — Order Processing Management (all 4 tabs: View Order, Quotation, Create Order, Modify Order)
+- [ ] **Phase 4** — Inventory & Procurement Module
+- [ ] **Phase 5** — Logistics Module (Shipment, Delivery, Return)
+- [ ] **Phase 6** — After-service Module (Invoice, Complaint, Return Order, Finance)
+- [ ] **Phase 7** — Master Data & System Security
 
 ### Prototype 2
-- [ ] **Phase 6** — Order Modification (Cancel / Edit Order)
-- [ ] **Phase 7** — Production Processing Management
-- [ ] **Phase 8** — Raw Material Management (Procurement)
-- [ ] **Phase 9** — Statistical Reports
+- [ ] **Phase 8** — Production Processing Management
+- [ ] **Phase 9** — Raw Material Management (Procurement)
+- [ ] **Phase 10** — Statistical Reports
 
 ---
 
