@@ -17,11 +17,11 @@ namespace PremiumLivingOPS.Views.OrderProcessing
     ///   • Uses AppShell (TopNavBar + UserBar) for navigation chrome.
     ///   • Contains NO business logic and NO direct DB calls.
     ///
-    /// UI Design inspired by PremiumLiving-OPS-HTML / order-list.html:
-    ///   • Clean white toolbar + KPI summary bar
-    ///   • Colour-coded status badges (pill labels) in the grid
-    ///   • Styled detail dialog matching the HTML modal design
-    ///   • Double-click on row opens View Detail dialog
+    /// Search card (matching order-list.html):
+    ///   • Order No.  — txtSearchOrderNo
+    ///   • Customer   — txtSearchCustomer
+    ///   • Status     — cboStatus
+    ///   • Date From  — dtpDateFrom (enabled by chkDateFrom checkbox)
     /// </summary>
     public partial class ViewOrderForm : Form
     {
@@ -58,12 +58,18 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         // ── Refresh / Search ──────────────────────────────────────────────────
         private void RefreshGrid()
         {
-            string status  = cboStatus.SelectedItem?.ToString();
-            string keyword = txtSearch.Text.Trim();
+            // ── Read the four search-card fields (matches order-list.html applyFilter) ──
+            string orderNo   = txtSearchOrderNo.Text.Trim();
+            string customer  = txtSearchCustomer.Text.Trim();
+            string status    = cboStatus.SelectedItem?.ToString();
+            DateTime? dateFrom = chkDateFrom.Checked ? (DateTime?)dtpDateFrom.Value.Date : null;
 
+            // Pass to controller (status "All" or empty = no filter)
             var vm = _ctrl.GetViewOrderVM(
                 status  == "All" || string.IsNullOrEmpty(status)  ? null : status,
-                string.IsNullOrEmpty(keyword) ? null : keyword);
+                string.IsNullOrEmpty(orderNo)   ? null : orderNo,
+                string.IsNullOrEmpty(customer)  ? null : customer,
+                dateFrom);
 
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
@@ -88,10 +94,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         }
 
         // ── KPI Summary bar ───────────────────────────────────────────────────
-        /// <summary>
-        /// Rebuilds the five KPI pills at the top of the grid area.
-        /// Called after every RefreshGrid().
-        /// </summary>
         private void RefreshKpi()
         {
             pnlKpi.Controls.Clear();
@@ -128,7 +130,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     using var brush = new SolidBrush(((Panel)s).BackColor);
                     e.Graphics.FillPath(brush, path);
                 };
-                pill.Region = null; // use full rectangle; rounded corners are painted
 
                 var lblCount = new Label
                 {
@@ -149,8 +150,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 pill.Controls.Add(lblCount);
                 pill.Controls.Add(lblName);
 
-                // Click on pill filters the status combo
-                string filterLabel = label == "All Orders" ? "All" : label == "Delivered" ? "Delivered" : label;
+                // Click on pill filters the status combo and refreshes
+                string filterLabel = label == "All Orders" ? "All" : label;
                 pill.Click += (s, e) =>
                 {
                     cboStatus.SelectedItem = filterLabel;
@@ -170,27 +171,13 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             btnModifyOrder.Enabled = sel;
         }
 
-        // ── Toolbar events ────────────────────────────────────────────────────
-        private void btnSearch_Click(object sender, EventArgs e)   => RefreshGrid();
-        private void btnRefresh_Click(object sender, EventArgs e)  => RefreshGrid();
-        private void cboStatus_Changed(object sender, EventArgs e) => RefreshGrid();
-        private void txtSearch_KeyDown(object sender, KeyEventArgs e)
-        {
-            if (e.KeyCode == Keys.Enter) RefreshGrid();
-        }
-
         // ── DGV events ────────────────────────────────────────────────────────
         private void dgvOrders_SelectionChanged(object sender, EventArgs e)
             => UpdateActionButtons();
 
-        /// <summary>
-        /// Paint status column cells as coloured pill badges,
-        /// matching the HTML tag design (rounded background + coloured text).
-        /// </summary>
         private void dgvOrders_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
             if (dgvOrders.Columns[e.ColumnIndex].Name != "colStatus" || e.Value == null) return;
-
             string status = e.Value.ToString();
             if (StatusColors.TryGetValue(status, out var colors))
             {
@@ -203,7 +190,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             }
         }
 
-        /// <summary>Double-click a row to open the View Detail dialog immediately.</summary>
         private void dgvOrders_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
         {
             if (e.RowIndex < 0) return;
@@ -245,13 +231,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         }
 
         // ── Detail dialog ─────────────────────────────────────────────────────
-        /// <summary>
-        /// Styled read-only detail dialog, inspired by the HTML modal design:
-        ///   • Dark navy header band with Order ID and status badge
-        ///   • Two-column info grid
-        ///   • Clean line-items DataGridView
-        ///   • Rounded Close button
-        /// </summary>
         private void ShowDetailDialog(OrderDetailViewModel detail)
         {
             var o = detail.Order;
@@ -268,24 +247,14 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 MinimizeBox     = false
             };
 
-            // ── Header band ──────────────────────────────────────────────────
-            var pnlHeader = new Panel
-            {
-                Dock      = DockStyle.Top,
-                Height    = 72,
-                BackColor = Color.FromArgb(19, 35, 61)   // sidebar-bg colour
-            };
-
+            // Header band
+            var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 72, BackColor = Color.FromArgb(19, 35, 61) };
             var lblDialogTitle = new Label
             {
-                Text      = $"Order Details  —  {o.OrderID}",
-                Font      = new Font("Segoe UI", 15f, FontStyle.Bold),
-                ForeColor = Color.White,
-                AutoSize  = true,
-                Location  = new Point(24, 20)
+                Text = $"Order Details  —  {o.OrderID}",
+                Font = new Font("Segoe UI", 15f, FontStyle.Bold),
+                ForeColor = Color.White, AutoSize = true, Location = new Point(24, 20)
             };
-
-            // Status badge inside header
             StatusColors.TryGetValue(o.OrderStatus ?? "", out var sc);
             var lblStatusBadge = new Label
             {
@@ -293,122 +262,57 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
                 ForeColor = sc.fg != default ? sc.fg : Color.White,
                 BackColor = sc.bg != default ? sc.bg : Color.FromArgb(80, 80, 80),
-                AutoSize  = true,
-                Location  = new Point(440, 22),
-                Padding   = new Padding(8, 4, 8, 4)
+                AutoSize  = true, Location = new Point(440, 22), Padding = new Padding(8, 4, 8, 4)
             };
-
             pnlHeader.Controls.Add(lblDialogTitle);
             pnlHeader.Controls.Add(lblStatusBadge);
 
-            // ── Info grid (two columns) ───────────────────────────────────────
-            var pnlInfo = new Panel
-            {
-                Dock      = DockStyle.Top,
-                Height    = 210,
-                Padding   = new Padding(24, 16, 24, 0),
-                BackColor = Color.White
-            };
+            // Info grid
+            var pnlInfo = new Panel { Dock = DockStyle.Top, Height = 210, Padding = new Padding(24, 16, 24, 0), BackColor = Color.White };
             pnlInfo.Paint += (s, e) =>
             {
                 using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
-                ((Control)s).Height.Equals(0); // dummy read to avoid warning
-                e.Graphics.DrawLine(pen, 24, ((Panel)s).Height - 1,
-                    ((Panel)s).Width - 24, ((Panel)s).Height - 1);
+                e.Graphics.DrawLine(pen, 24, ((Panel)s).Height - 1, ((Panel)s).Width - 24, ((Panel)s).Height - 1);
             };
-
             var fields = new[]
             {
-                ("Order No.",     o.OrderID),
-                ("Customer",      o.CustomerName),
-                ("Sales Staff",   o.SalesName),
-                ("Contact",       o.OrderContactName),
+                ("Order No.",     o.OrderID),       ("Customer",      o.CustomerName),
+                ("Sales Staff",   o.SalesName),     ("Contact",       o.OrderContactName),
                 ("Issued Date",   o.IssuedTime.ToString("yyyy-MM-dd")),
                 ("Delivery Date", o.DeliveryDate.ToString("yyyy-MM-dd")),
                 ("Grand Total",   $"HK$ {o.GrandTotal:N2}"),
                 ("Shipping Addr", o.ShippingAddress),
-                ("Billing Addr",  o.BillingAddress),
-                ("Status",        o.OrderStatus),
+                ("Billing Addr",  o.BillingAddress), ("Status", o.OrderStatus),
             };
-
             for (int i = 0; i < fields.Length; i++)
             {
-                int col = i % 2;           // 0 = left, 1 = right
-                int row = i / 2;
+                int col = i % 2; int row = i / 2;
                 int x = col == 0 ? 0 : 390;
                 int y = row * 38;
-
                 var pRow = new Panel { Location = new Point(x, y), Width = 360, Height = 38 };
-
-                pRow.Controls.Add(new Label
-                {
-                    Text      = fields[i].Item1,
-                    Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
-                    ForeColor = Color.FromArgb(98, 112, 135),
-                    Width     = 120, Location = new Point(0, 10),
-                    TextAlign = ContentAlignment.MiddleLeft
-                });
-                pRow.Controls.Add(new Label
-                {
-                    Text      = fields[i].Item2 ?? "—",
-                    Font      = new Font("Segoe UI", 12f),
-                    ForeColor = Color.FromArgb(15, 31, 53),
-                    AutoSize  = true, Location = new Point(124, 10)
-                });
-
+                pRow.Controls.Add(new Label { Text = fields[i].Item1, Font = new Font("Segoe UI", 10f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), Width = 120, Location = new Point(0, 10), TextAlign = ContentAlignment.MiddleLeft });
+                pRow.Controls.Add(new Label { Text = fields[i].Item2 ?? "—",   Font = new Font("Segoe UI", 12f), ForeColor = Color.FromArgb(15, 31, 53), AutoSize = true, Location = new Point(124, 10) });
                 pnlInfo.Controls.Add(pRow);
             }
 
-            // ── Line items section label ──────────────────────────────────────
-            var pnlLineLabel = new Panel
-            {
-                Dock      = DockStyle.Top,
-                Height    = 38,
-                BackColor = Color.FromArgb(246, 249, 255),
-                Padding   = new Padding(24, 0, 0, 0)
-            };
-            pnlLineLabel.Controls.Add(new Label
-            {
-                Text      = "ORDER ITEMS",
-                Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(98, 112, 135),
-                Dock      = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleLeft
-            });
+            // Line items section label
+            var pnlLineLabel = new Panel { Dock = DockStyle.Top, Height = 38, BackColor = Color.FromArgb(246, 249, 255), Padding = new Padding(24, 0, 0, 0) };
+            pnlLineLabel.Controls.Add(new Label { Text = "ORDER ITEMS", Font = new Font("Segoe UI", 10f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft });
             pnlLineLabel.Paint += PaintBottomBorderStatic;
 
-            // ── Line items DataGridView ───────────────────────────────────────
+            // Line items DGV
             var dgv = new DataGridView
             {
-                ReadOnly              = true,
-                AllowUserToAddRows    = false,
-                RowHeadersVisible     = false,
-                SelectionMode         = DataGridViewSelectionMode.FullRowSelect,
-                BackgroundColor       = Color.White,
-                BorderStyle           = BorderStyle.None,
-                GridColor             = Color.FromArgb(221, 227, 236),
-                Font                  = new Font("Segoe UI", 12f),
-                AutoSizeColumnsMode   = DataGridViewAutoSizeColumnsMode.Fill,
-                CellBorderStyle       = DataGridViewCellBorderStyle.SingleHorizontal,
-                RowTemplate           = { Height = 40 },
-                Dock                  = DockStyle.Fill,
-                ColumnHeadersHeight   = 38,
-                EnableHeadersVisualStyles = false,
-                ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
-                {
-                    BackColor = Color.FromArgb(246, 249, 255),
-                    ForeColor = Color.FromArgb(98, 112, 135),
-                    Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
-                    Padding   = new Padding(10, 0, 0, 0)
-                },
-                DefaultCellStyle = new DataGridViewCellStyle
-                {
-                    BackColor          = Color.White,
-                    ForeColor          = Color.FromArgb(15, 31, 53),
-                    SelectionBackColor = Color.FromArgb(219, 234, 254),
-                    SelectionForeColor = Color.FromArgb(15, 31, 53),
-                    Padding            = new Padding(10, 4, 10, 4)
-                }
+                ReadOnly = true, AllowUserToAddRows = false, RowHeadersVisible = false,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                BackgroundColor = Color.White, BorderStyle = BorderStyle.None,
+                GridColor = Color.FromArgb(221, 227, 236), Font = new Font("Segoe UI", 12f),
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal,
+                RowTemplate = { Height = 40 }, Dock = DockStyle.Fill,
+                ColumnHeadersHeight = 38, EnableHeadersVisualStyles = false,
+                ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle { BackColor = Color.FromArgb(246, 249, 255), ForeColor = Color.FromArgb(98, 112, 135), Font = new Font("Segoe UI", 10f, FontStyle.Bold), Padding = new Padding(10, 0, 0, 0) },
+                DefaultCellStyle = new DataGridViewCellStyle { BackColor = Color.White, ForeColor = Color.FromArgb(15, 31, 53), SelectionBackColor = Color.FromArgb(219, 234, 254), SelectionForeColor = Color.FromArgb(15, 31, 53), Padding = new Padding(10, 4, 10, 4) }
             };
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cItem",  HeaderText = "ITEM ID",    FillWeight = 18 });
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cName",  HeaderText = "ITEM NAME",  FillWeight = 42 });
@@ -416,76 +320,35 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cPrice", HeaderText = "UNIT PRICE", FillWeight = 15 });
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cTotal", HeaderText = "LINE TOTAL", FillWeight = 15 });
             foreach (var l in detail.Lines)
-                dgv.Rows.Add(l.ItemID, l.ItemName, l.Quantity,
-                             $"HK$ {l.Price:N2}", $"HK$ {l.LineTotal:N2}");
+                dgv.Rows.Add(l.ItemID, l.ItemName, l.Quantity, $"HK$ {l.Price:N2}", $"HK$ {l.LineTotal:N2}");
 
-            // ── Grand total row ───────────────────────────────────────────────
-            var pnlTotalRow = new Panel
-            {
-                Dock      = DockStyle.Bottom,
-                Height    = 46,
-                BackColor = Color.FromArgb(246, 249, 255),
-                Padding   = new Padding(0, 0, 24, 0)
-            };
-            pnlTotalRow.Controls.Add(new Label
-            {
-                Text      = $"Grand Total:   HK$ {o.GrandTotal:N2}",
-                Font      = new Font("Segoe UI", 13f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(15, 31, 53),
-                Dock      = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleRight
-            });
+            // Grand total row
+            var pnlTotalRow = new Panel { Dock = DockStyle.Bottom, Height = 46, BackColor = Color.FromArgb(246, 249, 255), Padding = new Padding(0, 0, 24, 0) };
+            pnlTotalRow.Controls.Add(new Label { Text = $"Grand Total:   HK$ {o.GrandTotal:N2}", Font = new Font("Segoe UI", 13f, FontStyle.Bold), ForeColor = Color.FromArgb(15, 31, 53), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleRight });
 
-            // ── Close button bar ──────────────────────────────────────────────
-            var pnlFooter = new Panel
-            {
-                Dock      = DockStyle.Bottom,
-                Height    = 60,
-                BackColor = Color.White,
-                Padding   = new Padding(0, 10, 24, 10)
-            };
+            // Close button bar
+            var pnlFooter = new Panel { Dock = DockStyle.Bottom, Height = 60, BackColor = Color.White, Padding = new Padding(0, 10, 24, 10) };
             pnlFooter.Paint += PaintTopBorderStatic;
-
-            var btnClose = new Button
-            {
-                Text      = "Close",
-                Font      = new Font("Segoe UI", 12f),
-                ForeColor = Color.FromArgb(15, 31, 53),
-                BackColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Dock      = DockStyle.Right,
-                Width     = 110,
-                Cursor    = Cursors.Hand
-            };
+            var btnClose = new Button { Text = "Close", Font = new Font("Segoe UI", 12f), ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White, FlatStyle = FlatStyle.Flat, Dock = DockStyle.Right, Width = 110, Cursor = Cursors.Hand };
             btnClose.FlatAppearance.BorderColor = Color.FromArgb(221, 227, 236);
             btnClose.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
             btnClose.Click += (s, ev) => dlg.Close();
             pnlFooter.Controls.Add(btnClose);
 
-            // ── Assemble dialog (DockStyle order) ─────────────────────────────
             dlg.Controls.Add(dgv);
             dlg.Controls.Add(pnlTotalRow);
             dlg.Controls.Add(pnlLineLabel);
             dlg.Controls.Add(pnlInfo);
             dlg.Controls.Add(pnlHeader);
             dlg.Controls.Add(pnlFooter);
-
             dlg.ShowDialog(this);
         }
 
-        // ── Static border painters (for dialogs) ──────────────────────────────
+        // ── Static border painters ──────────────────────────────────────────────
         private static void PaintBottomBorderStatic(object s, PaintEventArgs e)
-        {
-            var p = (Panel)s;
-            using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
-            e.Graphics.DrawLine(pen, 0, p.Height - 1, p.Width, p.Height - 1);
-        }
+        { var p = (Panel)s; using var pen = new Pen(Color.FromArgb(221, 227, 236), 1); e.Graphics.DrawLine(pen, 0, p.Height-1, p.Width, p.Height-1); }
         private static void PaintTopBorderStatic(object s, PaintEventArgs e)
-        {
-            var p = (Panel)s;
-            using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
-            e.Graphics.DrawLine(pen, 0, 0, p.Width, 0);
-        }
+        { var p = (Panel)s; using var pen = new Pen(Color.FromArgb(221, 227, 236), 1); e.Graphics.DrawLine(pen, 0, 0, p.Width, 0); }
 
         // ── Geometry helper ───────────────────────────────────────────────────
         private static GraphicsPath RoundedRect(Rectangle r, int radius)
