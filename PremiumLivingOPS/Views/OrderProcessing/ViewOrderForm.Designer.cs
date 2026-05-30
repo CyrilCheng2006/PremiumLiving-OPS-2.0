@@ -47,14 +47,15 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             _shell = new AppShell();
             _shell.SetPopupContainer(pnlMain);
 
-            // ═══════════════════════════════════════════════════════
-            // SEARCH CARD  — 3 rows, fixed px heights (doubled):
-            //   Row 0 =  88px : title + divider
-            //   Row 1 = 160px : 4-column field strip
-            //   Row 2 = 112px : Search + Refresh buttons
-            // tblCard Padding (18,24,18,24) → 48px vertical
-            // pnlSearchOuter Height = 14 + 48 + 360 + 2 = 424 → 420px
-            // ═══════════════════════════════════════════════════════
+            // ════════════════════════════════════════════════════
+            // SEARCH CARD — pnlSearchOuter = 320px
+            //   tblCard Padding (18,18,18,18) = 36px vertical
+            //   available for rows = 320 - 14(outer top) - 8(outer bottom) - 36(pad) - 2(border) = 260px
+            //   Row 0 =  60px  title + divider       ( 60/260 = 23.1% )
+            //   Row 1 = 118px  field strip            (118/260 = 45.4% )
+            //   Row 2 =  82px  buttons                ( 82/260 = 31.5% )
+            //   total = 260px ✓
+            // ════════════════════════════════════════════════════
 
             // ── Input controls
             txtSearchOrderNo = new TextBox
@@ -89,7 +90,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             chkDateFrom.CheckedChanged += (s, e) => { dtpDateFrom.Enabled = chkDateFrom.Checked; RefreshGrid(); };
             dtpDateFrom.ValueChanged   += (s, e) => { if (chkDateFrom.Checked) RefreshGrid(); };
 
-            // ── MakeCell: label (Y=4, H=22) + control (Y=36, H=38)
+            // ── MakeCell: label (Y=4, H=20) + control (Y=30, H=36)
             Panel MakeCell(string caption, Control ctrl, bool rightPad = true)
             {
                 var cell = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
@@ -101,11 +102,11 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
                     ForeColor = Color.FromArgb(98, 112, 135),
                     Location  = new Point(0, 4),
-                    Height    = 22,
+                    Height    = 20,
                     Anchor    = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right
                 };
-                ctrl.Location = new Point(0, 36);
-                ctrl.Height   = 38;
+                ctrl.Location = new Point(0, 30);
+                ctrl.Height   = 36;
                 ctrl.Anchor   = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right;
 
                 cell.Controls.Add(lbl);
@@ -128,13 +129,13 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(98, 112, 135),
                 Location  = new Point(0, 4),
-                Height    = 22,
+                Height    = 20,
                 Anchor    = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right
             };
-            chkDateFrom.Location = new Point(0,  36);
-            chkDateFrom.Height   = 38;
-            dtpDateFrom.Location = new Point(30, 36);
-            dtpDateFrom.Height   = 38;
+            chkDateFrom.Location = new Point(0,  30);
+            chkDateFrom.Height   = 36;
+            dtpDateFrom.Location = new Point(30, 30);
+            dtpDateFrom.Height   = 36;
             dtpDateFrom.Anchor   = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right;
             cellDate.Controls.Add(lblDate);
             cellDate.Controls.Add(chkDateFrom);
@@ -166,14 +167,14 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             // ── Buttons panel
             var pnlBtns = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            btnSearch  = MakePrimaryBtn("Search",     new Point(0,   20), 120, 40);
-            btnRefresh = MakeOutlineBtn("↻  Refresh", new Point(130, 20), 130, 40);
+            btnSearch  = MakePrimaryBtn("Search",     new Point(0,   16), 116, 38);
+            btnRefresh = MakeOutlineBtn("↻  Refresh", new Point(124, 16), 126, 38);
             btnSearch.Click  += (s, e) => RefreshGrid();
             btnRefresh.Click += (s, e) => RefreshGrid();
             pnlBtns.Controls.Add(btnSearch);
             pnlBtns.Controls.Add(btnRefresh);
 
-            // ── Master card TLP (3 rows, doubled absolute heights)
+            // ── Master card TLP
             var tblCard = new TableLayoutPanel
             {
                 Dock            = DockStyle.Fill,
@@ -181,12 +182,12 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 ColumnCount     = 1,
                 BackColor       = Color.Transparent,
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                Padding         = new Padding(18, 24, 18, 24)
+                Padding         = new Padding(18, 18, 18, 18)
             };
             tblCard.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  88f));  // title row  (44×2)
-            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute, 160f));  // fields row (80×2)
-            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute, 112f));  // button row (56×2)
+            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  60f));  // title
+            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute, 118f));  // fields
+            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  82f));  // buttons
 
             // Title row
             var pnlTitle = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
@@ -206,16 +207,16 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             tblCard.Controls.Add(tblFields, 0, 1);
             tblCard.Controls.Add(pnlBtns,   0, 2);
 
-            // White card shell
+            // White card
             var pnlCard = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
             pnlCard.Paint += PaintCardBorder;
             pnlCard.Controls.Add(tblCard);
 
-            // Outer grey wrapper — height doubled to 420px
+            // Outer wrapper — 320px
             var pnlSearchOuter = new Panel
             {
                 Dock      = DockStyle.Top,
-                Height    = 420,
+                Height    = 320,
                 BackColor = Color.FromArgb(240, 244, 249),
                 Padding   = new Padding(20, 14, 20, 8)
             };
@@ -282,7 +283,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlMain.Controls.Add(pnlActions);     // Bottom
             pnlMain.Controls.Add(pnlKpi);         // Top #2
             pnlMain.Controls.Add(pnlSearchOuter); // Top #1
-            pnlMain.Controls.Add(_shell);          // Top #0 (topmost)
+            pnlMain.Controls.Add(_shell);          // Top #0
 
             this.Controls.Add(pnlMain);
             this.ResumeLayout(false);
