@@ -13,12 +13,12 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         // Shell
         private AppShell _shell;
 
-        // ── Search card controls (matching order-list.html Search Orders section)
-        private TextBox          txtSearchOrderNo;   // Order No.
-        private TextBox          txtSearchCustomer;  // Customer
-        private ComboBox         cboStatus;          // Status
-        private DateTimePicker   dtpDateFrom;        // Date From
-        private CheckBox         chkDateFrom;        // enable/disable date filter
+        // ── Search card controls
+        private TextBox          txtSearchOrderNo;
+        private TextBox          txtSearchCustomer;
+        private ComboBox         cboStatus;
+        private DateTimePicker   dtpDateFrom;
+        private CheckBox         chkDateFrom;
         private Button           btnSearch;
         private Button           btnRefresh;
 
@@ -51,131 +51,44 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             this.WindowState   = FormWindowState.Maximized;
             this.Font          = new Font("Segoe UI", 13f);
 
-            // ── Root panel ────────────────────────────────────────────────────────
+            // ── Root panel
             Panel pnlMain = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(240, 244, 249) };
 
             // AppShell
             _shell = new AppShell();
             _shell.SetPopupContainer(pnlMain);
 
-            // ═══════════════════════════════════════════════════════════════════════
-            // SEARCH CARD  —  replicates the "Search Orders" section-card in
-            //                  PremiumLiving-OPS-HTML / order-list.html
+            // ═══════════════════════════════════════════════════════════════════
+            // SEARCH CARD
             //
-            // Layout (inside the white card):
-            //   Row 1 title   : "Search Orders"  (bold label + bottom divider)
-            //   Row 2 inputs  : [Order No.] [Customer] [Status ▾] [Date From ☐]
-            //   Row 3 buttons : [Search (primary)]  [Refresh (outline)]
-            // ═══════════════════════════════════════════════════════════════════════
-            Panel pnlSearchOuter = new Panel
-            {
-                Dock      = DockStyle.Top,
-                Height    = 136,
-                BackColor = Color.FromArgb(240, 244, 249),
-                Padding   = new Padding(20, 14, 20, 0)
-            };
+            // Uses a TableLayoutPanel with 3 rows so nothing overlaps:
+            //   Row 0 (auto) : Title label + divider
+            //   Row 1 (auto) : 4-column field grid
+            //   Row 2 (auto) : Search + Refresh buttons
+            //
+            // pnlSearchOuter height is set explicitly after all rows are measured.
+            // ═══════════════════════════════════════════════════════════════════
 
-            // White card inside outer padding panel
-            Panel pnlSearchCard = new Panel
-            {
-                Dock      = DockStyle.Fill,
-                BackColor = Color.White,
-                Padding   = new Padding(18, 14, 18, 14)
-            };
-            pnlSearchCard.Paint += PaintCardBorder;
+            // ── Fields ──────────────────────────────────────────────────────────
 
-            // ── Section title + divider ─────────────────────────────────────────
-            var lblSearchTitle = new Label
-            {
-                Text      = "Search Orders",
-                Font      = new Font("Segoe UI", 13f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(15, 31, 53),
-                AutoSize  = true,
-                Location  = new Point(18, 14)
-            };
-
-            Panel pnlDivider = new Panel
-            {
-                BackColor = Color.FromArgb(221, 227, 236),
-                Height    = 1,
-                Left      = 18,
-                Top       = 40,
-                Anchor    = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top
-            };
-            // Width set after card is added (Resize event)
-            pnlSearchCard.Resize += (s, e) => pnlDivider.Width = pnlSearchCard.Width - 36;
-
-            // ── Field helper: label + control stacked ──────────────────────────
-            // Each field group: label on top, control below, fixed width
-            // Positioned manually to match 4-column grid from HTML cols-4
-
-            int fieldTop    = 52;   // y of the label inside card
-            int ctrlTop     = 72;   // y of the input inside card
-            int fieldH      = 34;   // height of inputs / combos
-            int col1X       = 18;
-            // column widths scale at runtime via Anchor; we set initial widths
-            // but all four fields anchor Left+Right evenly via a sub-panel grid
-
-            // We use a FlowLayoutPanel row so the four fields share space equally
-            // and reflow when the form is resized.
-            var pnlFields = new TableLayoutPanel
-            {
-                Left        = 18,
-                Top         = 50,
-                Height      = 72,
-                Anchor      = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top,
-                ColumnCount = 4,
-                RowCount    = 1,
-                BackColor   = Color.Transparent,
-                CellBorderStyle = TableLayoutPanelCellBorderStyle.None
-            };
-            pnlFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
-            pnlFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
-            pnlFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
-            pnlFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
-            pnlFields.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-
-            // Width anchored to card after add
-            pnlSearchCard.Resize += (s, e) => pnlFields.Width = pnlSearchCard.Width - 36;
-
-            // Helper: creates a label+control stacked sub-panel for one column
-            Panel MakeFieldPanel(string labelText, Control ctrl)
-            {
-                var p = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(0, 0, 12, 0) };
-                var lbl = new Label
-                {
-                    Text      = labelText,
-                    Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
-                    ForeColor = Color.FromArgb(98, 112, 135),
-                    Dock      = DockStyle.Top,
-                    Height    = 22
-                };
-                ctrl.Dock   = DockStyle.Fill;
-                ctrl.Height = fieldH;
-                p.Controls.Add(ctrl);
-                p.Controls.Add(lbl);
-                return p;
-            }
-
-            // ── Field 1 : Order No. ─────────────────────────────────────────────
             txtSearchOrderNo = new TextBox
             {
                 Font            = new Font("Segoe UI", 12f),
                 BorderStyle     = BorderStyle.FixedSingle,
-                PlaceholderText = "ORD-XXXX"
+                PlaceholderText = "ORD-XXXX",
+                Height          = 32
             };
             txtSearchOrderNo.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) RefreshGrid(); };
 
-            // ── Field 2 : Customer ──────────────────────────────────────────────
             txtSearchCustomer = new TextBox
             {
                 Font            = new Font("Segoe UI", 12f),
                 BorderStyle     = BorderStyle.FixedSingle,
-                PlaceholderText = "Name or ID"
+                PlaceholderText = "Name or ID",
+                Height          = 32
             };
             txtSearchCustomer.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) RefreshGrid(); };
 
-            // ── Field 3 : Status ────────────────────────────────────────────────
             cboStatus = new ComboBox
             {
                 DropDownStyle = ComboBoxStyle.DropDownList,
@@ -185,10 +98,47 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             cboStatus.SelectedIndex = 0;
             cboStatus.SelectedIndexChanged += (s, e) => RefreshGrid();
 
-            // ── Field 4 : Date From (with enable checkbox) ──────────────────────
-            // A small panel that holds a checkbox label + DateTimePicker side by side
-            var pnlDateField = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(0, 0, 12, 0) };
-            var lblDateFrom = new Label
+            chkDateFrom = new CheckBox
+            {
+                Text    = "",
+                Width   = 24,
+                Checked = false,
+                Cursor  = Cursors.Hand,
+                Dock    = DockStyle.Left
+            };
+            dtpDateFrom = new DateTimePicker
+            {
+                Format  = DateTimePickerFormat.Short,
+                Value   = DateTime.Today.AddMonths(-1),
+                Font    = new Font("Segoe UI", 12f),
+                Enabled = false,
+                Dock    = DockStyle.Fill
+            };
+            chkDateFrom.CheckedChanged += (s, e) => { dtpDateFrom.Enabled = chkDateFrom.Checked; RefreshGrid(); };
+            dtpDateFrom.ValueChanged   += (s, e) => { if (chkDateFrom.Checked) RefreshGrid(); };
+
+            // ── Helper: label + control stacked in a DockStyle panel ─────────
+            Panel MakeFieldPanel(string labelText, Control ctrl)
+            {
+                var outer = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(0, 0, 12, 0) };
+                var lbl   = new Label
+                {
+                    Text      = labelText,
+                    Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
+                    ForeColor = Color.FromArgb(98, 112, 135),
+                    Dock      = DockStyle.Top,
+                    Height    = 22
+                };
+                ctrl.Dock = DockStyle.Fill;
+                // Controls added bottom-first so DockStyle.Top label sits above Fill control
+                outer.Controls.Add(ctrl);
+                outer.Controls.Add(lbl);
+                return outer;
+            }
+
+            // Date From cell: label on top, then [checkbox][picker] row
+            var pnlDateOuter = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(0, 0, 0, 0) };
+            var lblDateFrom  = new Label
             {
                 Text      = "Date From",
                 Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
@@ -196,70 +146,102 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Dock      = DockStyle.Top,
                 Height    = 22
             };
-            // Row for checkbox + picker
             var pnlDateRow = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            chkDateFrom = new CheckBox
-            {
-                Text      = "",
-                Width     = 24,
-                Dock      = DockStyle.Left,
-                Checked   = false,
-                Cursor    = Cursors.Hand
-            };
-            dtpDateFrom = new DateTimePicker
-            {
-                Format    = DateTimePickerFormat.Short,
-                Value     = DateTime.Today.AddMonths(-1),
-                Font      = new Font("Segoe UI", 12f),
-                Dock      = DockStyle.Fill,
-                Enabled   = false   // disabled until checkbox ticked
-            };
-            chkDateFrom.CheckedChanged += (s, e) =>
-            {
-                dtpDateFrom.Enabled = chkDateFrom.Checked;
-                RefreshGrid();
-            };
-            dtpDateFrom.ValueChanged += (s, e) => { if (chkDateFrom.Checked) RefreshGrid(); };
-
             pnlDateRow.Controls.Add(dtpDateFrom);
             pnlDateRow.Controls.Add(chkDateFrom);
-            pnlDateField.Controls.Add(pnlDateRow);
-            pnlDateField.Controls.Add(lblDateFrom);
+            pnlDateOuter.Controls.Add(pnlDateRow);
+            pnlDateOuter.Controls.Add(lblDateFrom);
 
-            // Add four field panels into the TableLayoutPanel columns
-            pnlFields.Controls.Add(MakeFieldPanel("Order No.",   txtSearchOrderNo),  0, 0);
-            pnlFields.Controls.Add(MakeFieldPanel("Customer",    txtSearchCustomer), 1, 0);
-            pnlFields.Controls.Add(MakeFieldPanel("Status",      cboStatus),         2, 0);
-            pnlFields.Controls.Add(pnlDateField,                                     3, 0);
+            // ── 4-column field row ───────────────────────────────────────────
+            var tblFields = new TableLayoutPanel
+            {
+                Dock        = DockStyle.Top,
+                Height      = 62,
+                ColumnCount = 4,
+                RowCount    = 1,
+                BackColor   = Color.Transparent,
+                CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+            };
+            tblFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
+            tblFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
+            tblFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
+            tblFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
+            tblFields.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+            tblFields.Controls.Add(MakeFieldPanel("Order No.",  txtSearchOrderNo),  0, 0);
+            tblFields.Controls.Add(MakeFieldPanel("Customer",   txtSearchCustomer), 1, 0);
+            tblFields.Controls.Add(MakeFieldPanel("Status",     cboStatus),         2, 0);
+            tblFields.Controls.Add(pnlDateOuter,                                    3, 0);
 
-            // ── Button row ──────────────────────────────────────────────────────
+            // ── Button row ───────────────────────────────────────────────────
             var pnlBtnRow = new Panel
             {
-                Left      = 18,
-                Top       = 128,   // below fields
-                Height    = 36,
-                Anchor    = AnchorStyles.Left | AnchorStyles.Top,
-                BackColor = Color.Transparent
+                Dock      = DockStyle.Top,
+                Height    = 44,
+                BackColor = Color.Transparent,
+                Padding   = new Padding(0, 6, 0, 0)
             };
-            // (Top is calculated: pnlFields.Top + pnlFields.Height + 6)
-            pnlSearchCard.Resize += (s, e) => { pnlBtnRow.Top = pnlFields.Top + pnlFields.Height + 6; };
-
-            btnSearch  = MakePrimaryBtn("Search",      new Point(0,  0), 110, 36);
-            btnRefresh = MakeOutlineBtn("↻  Refresh",  new Point(118, 0), 120, 36);
+            btnSearch  = MakePrimaryBtn("Search",     new Point(0,   6), 110, 34);
+            btnRefresh = MakeOutlineBtn("↻  Refresh", new Point(118, 6), 120, 34);
             btnSearch.Click  += (s, e) => RefreshGrid();
             btnRefresh.Click += (s, e) => RefreshGrid();
-
             pnlBtnRow.Controls.Add(btnSearch);
             pnlBtnRow.Controls.Add(btnRefresh);
 
-            // Assemble search card
+            // ── Title + divider row ──────────────────────────────────────────
+            var pnlTitleRow = new Panel
+            {
+                Dock      = DockStyle.Top,
+                Height    = 38,
+                BackColor = Color.Transparent
+            };
+            var lblSearchTitle = new Label
+            {
+                Text      = "Search Orders",
+                Font      = new Font("Segoe UI", 13f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(15, 31, 53),
+                AutoSize  = false,
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+            var pnlTitleDivider = new Panel
+            {
+                Dock      = DockStyle.Bottom,
+                Height    = 1,
+                BackColor = Color.FromArgb(221, 227, 236)
+            };
+            pnlTitleRow.Controls.Add(lblSearchTitle);
+            pnlTitleRow.Controls.Add(pnlTitleDivider);
+
+            // ── White card: stack rows bottom-first for DockStyle.Top order ──
+            //   Added order  =>  render order (top to bottom)
+            //   [3] pnlBtnRow  →  bottom row
+            //   [2] tblFields  →  middle row
+            //   [1] pnlTitleRow→  top row
+            //   (DockStyle.Top stacks in reverse-add order)
+            Panel pnlSearchCard = new Panel
+            {
+                Dock      = DockStyle.Fill,
+                BackColor = Color.White,
+                Padding   = new Padding(18, 0, 18, 10)
+            };
+            pnlSearchCard.Paint += PaintCardBorder;
+            // Add in reverse order so DockStyle.Top renders title→fields→buttons
             pnlSearchCard.Controls.Add(pnlBtnRow);
-            pnlSearchCard.Controls.Add(pnlFields);
-            pnlSearchCard.Controls.Add(pnlDivider);
-            pnlSearchCard.Controls.Add(lblSearchTitle);
+            pnlSearchCard.Controls.Add(tblFields);
+            pnlSearchCard.Controls.Add(pnlTitleRow);
+
+            // Outer padding panel
+            // Height = top-padding(14) + titleRow(38) + fieldsRow(62) + btnRow(44) + bottom-padding(10) = 168
+            Panel pnlSearchOuter = new Panel
+            {
+                Dock      = DockStyle.Top,
+                Height    = 168,
+                BackColor = Color.FromArgb(240, 244, 249),
+                Padding   = new Padding(20, 14, 20, 0)
+            };
             pnlSearchOuter.Controls.Add(pnlSearchCard);
 
-            // ── KPI bar ───────────────────────────────────────────────────────────
+            // ── KPI bar ──────────────────────────────────────────────────────
             pnlKpi = new Panel
             {
                 Dock      = DockStyle.Top,
@@ -269,7 +251,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             };
             pnlKpi.Paint += PaintBottomBorder;
 
-            // ── Action bar (bottom) ───────────────────────────────────────────────
+            // ── Action bar (bottom) ──────────────────────────────────────────
             pnlActions = new Panel
             {
                 Dock      = DockStyle.Bottom,
@@ -285,11 +267,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             btnModifyOrder.Enabled = false;
             btnViewDetail.Click  += btnViewDetail_Click;
             btnModifyOrder.Click += btnModifyOrder_Click;
-
             pnlActions.Controls.Add(btnViewDetail);
             pnlActions.Controls.Add(btnModifyOrder);
 
-            // ── Orders DataGridView ───────────────────────────────────────────────
+            // ── Orders DataGridView ──────────────────────────────────────────
             dgvOrders = new DataGridView
             {
                 ReadOnly              = true,
@@ -332,28 +313,22 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDelivery", HeaderText = "DELIVERY DATE", FillWeight = 13 });
             dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTotal",    HeaderText = "GRAND TOTAL",   FillWeight = 13 });
             dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",   HeaderText = "STATUS",        FillWeight = 10 });
-            dgvOrders.SelectionChanged   += dgvOrders_SelectionChanged;
-            dgvOrders.CellFormatting     += dgvOrders_CellFormatting;
-            dgvOrders.CellDoubleClick    += dgvOrders_CellDoubleClick;
+            dgvOrders.SelectionChanged += dgvOrders_SelectionChanged;
+            dgvOrders.CellFormatting   += dgvOrders_CellFormatting;
+            dgvOrders.CellDoubleClick  += dgvOrders_CellDoubleClick;
 
-            // Grid wrapper card
-            Panel pnlGridCard = new Panel
-            {
-                Dock      = DockStyle.Fill,
-                Padding   = new Padding(20, 12, 20, 0),
-                BackColor = Color.FromArgb(240, 244, 249)
-            };
-            Panel pnlCard = new Panel { Dock = DockStyle.Fill, BackColor = Color.White, Padding = new Padding(0) };
+            Panel pnlGridCard = new Panel { Dock = DockStyle.Fill, Padding = new Padding(20, 12, 20, 0), BackColor = Color.FromArgb(240, 244, 249) };
+            Panel pnlCard     = new Panel { Dock = DockStyle.Fill, BackColor = Color.White, Padding = new Padding(0) };
             pnlCard.Paint += PaintCardBorder;
             pnlCard.Controls.Add(dgvOrders);
             pnlGridCard.Controls.Add(pnlCard);
 
-            // ── Assemble root ─────────────────────────────────────────────────────
-            pnlMain.Controls.Add(pnlGridCard);     // Fill
-            pnlMain.Controls.Add(pnlActions);      // Bottom
-            pnlMain.Controls.Add(pnlKpi);          // Top
-            pnlMain.Controls.Add(pnlSearchOuter);  // Top  (replaces old pnlToolbar)
-            pnlMain.Controls.Add(_shell);           // Top  (AppShell — topmost)
+            // ── Assemble root (Fill first, then Bottom, then Top in order) ───
+            pnlMain.Controls.Add(pnlGridCard);    // Fill
+            pnlMain.Controls.Add(pnlActions);     // Bottom
+            pnlMain.Controls.Add(pnlKpi);         // Top (added 2nd → below AppShell)
+            pnlMain.Controls.Add(pnlSearchOuter); // Top (added 1st → below AppShell)
+            pnlMain.Controls.Add(_shell);          // Top (AppShell — topmost)
 
             this.Controls.Add(pnlMain);
             this.ResumeLayout(false);
@@ -391,7 +366,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             return b;
         }
 
-        // ── Border painters ────────────────────────────────────────────────
+        // ── Border painters ──────────────────────────────────────────────────
         private static void PaintBottomBorder(object s, PaintEventArgs e)
         { var p = (Panel)s; using var pen = new Pen(Color.FromArgb(221, 227, 236), 1); e.Graphics.DrawLine(pen, 0, p.Height-1, p.Width, p.Height-1); }
         private static void PaintTopBorder(object s, PaintEventArgs e)
