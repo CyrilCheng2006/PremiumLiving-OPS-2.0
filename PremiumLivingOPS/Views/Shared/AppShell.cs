@@ -104,7 +104,7 @@ namespace PremiumLivingOPS.Views.Shared
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
                 Padding      = new Padding(12, 0, 12, 0),
                 Cursor       = Cursors.Hand,
-                Margin       = new Padding(0, 0, 16, 0)
+                Margin       = new Padding(0, 0, 0, 0)
             };
             _btnLogout.FlatAppearance.BorderColor = Danger;
             _btnLogout.FlatAppearance.BorderSize  = 1;
