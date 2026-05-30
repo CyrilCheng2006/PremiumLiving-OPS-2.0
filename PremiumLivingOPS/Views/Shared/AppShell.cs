@@ -35,6 +35,15 @@ namespace PremiumLivingOPS.Views.Shared
     ///   │  Breadcrumb    │      (stretch)        │  UserInfo | Logout   │
     ///   └────────────────┴──────────────────────┴──────────────────────┘
     ///   AutoSize           100% stretch                AutoSize
+    ///
+    /// Vertical centring
+    /// ─────────────────
+    /// tlpBar row is 100% height (72 px).  Every cell child uses
+    /// Anchor = AnchorStyles.None so the TableLayoutPanel centres it
+    /// both horizontally and vertically inside the cell.
+    /// pnlRight is a plain Panel (not FlowLayoutPanel) so that the
+    /// TableLayoutPanel can measure and centre it correctly; the two
+    /// right-side controls are positioned manually inside pnlRight.
     /// </summary>
     public class AppShell : Panel
     {
@@ -80,7 +89,7 @@ namespace PremiumLivingOPS.Views.Shared
                 Font      = new Font("Segoe UI", 16f, FontStyle.Bold),
                 ForeColor = TextMain,
                 AutoSize  = true,
-                Anchor    = AnchorStyles.None,
+                Anchor    = AnchorStyles.None,   // TLP will centre vertically
                 Margin    = new Padding(22, 0, 0, 0)
             };
 
@@ -89,7 +98,6 @@ namespace PremiumLivingOPS.Views.Shared
             {
                 UserName   = "...",
                 Department = "",
-                Margin     = new Padding(0, 0, 8, 0)
             };
 
             // ── Logout button ──────────────────────────────────────
@@ -104,26 +112,51 @@ namespace PremiumLivingOPS.Views.Shared
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
                 Padding      = new Padding(12, 0, 12, 0),
                 Cursor       = Cursors.Hand,
-                Margin       = new Padding(0, 0, 0, 0)
             };
             _btnLogout.FlatAppearance.BorderColor = Danger;
             _btnLogout.FlatAppearance.BorderSize  = 1;
             _btnLogout.Click += (s, e) => LogoutClicked?.Invoke(s, e);
 
             // ── Right sub-panel: UserInfo + Logout side by side ────
-            // FlowLayoutPanel keeps the two controls glued together and
-            // naturally sizes to their combined width — no manual Width reads.
-            FlowLayoutPanel pnlRight = new FlowLayoutPanel
+            // Use a plain Panel so TableLayoutPanel can centre it via
+            // Anchor = AnchorStyles.None.  Controls inside are laid out
+            // in the Paint/Layout event so the button stays vertically
+            // centred even when AutoSize changes its height.
+            Panel pnlRight = new Panel
             {
-                FlowDirection = FlowDirection.LeftToRight,
                 AutoSize      = true,
                 AutoSizeMode  = AutoSizeMode.GrowAndShrink,
                 BackColor     = Color.Transparent,
-                Anchor        = AnchorStyles.None,
-                WrapContents  = false
+                Anchor        = AnchorStyles.None,   // TLP centres this cell
             };
+
+            // Position children inside pnlRight: UserInfoLabel on the
+            // left, Log Out button to its right, both vertically centred.
             pnlRight.Controls.Add(_lblUser);
             pnlRight.Controls.Add(_btnLogout);
+
+            // Centre children vertically whenever pnlRight is laid out.
+            pnlRight.Layout += (s, e) =>
+            {
+                // Ensure AutoSize has measured both children first.
+                _lblUser.PerformLayout();
+                _btnLogout.PerformLayout();
+
+                int panelH = pnlRight.Height;
+
+                // Vertically centre UserInfoLabel
+                _lblUser.Left = 0;
+                _lblUser.Top  = (panelH - _lblUser.Height) / 2;
+
+                // Place Log Out button to the right of UserInfoLabel,
+                // with an 8 px gap, and vertically centred.
+                _btnLogout.Left = _lblUser.Right + 8;
+                _btnLogout.Top  = (panelH - _btnLogout.Height) / 2;
+
+                // Keep pnlRight wide enough to contain both controls
+                // plus a 16 px right margin.
+                pnlRight.Width = _btnLogout.Right + 16;
+            };
 
             // ── Bottom border ──────────────────────────────────────
             Panel border = new Panel
@@ -137,6 +170,8 @@ namespace PremiumLivingOPS.Views.Shared
             // Col 0: Breadcrumb  (AutoSize)
             // Col 1: Stretch filler (100%)
             // Col 2: pnlRight    (AutoSize)
+            // Row 0: 100% height — combined with Anchor=None on children
+            //        this achieves automatic vertical centring.
             TableLayoutPanel tlpBar = new TableLayoutPanel
             {
                 Dock        = DockStyle.Fill,
@@ -146,9 +181,9 @@ namespace PremiumLivingOPS.Views.Shared
                 Padding     = new Padding(0),
                 Margin      = new Padding(0)
             };
-            tlpBar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));       // col 0
-            tlpBar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f)); // col 1
-            tlpBar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));       // col 2
+            tlpBar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));        // col 0
+            tlpBar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));   // col 1
+            tlpBar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));        // col 2
             tlpBar.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
             tlpBar.Controls.Add(_lblBreadcrumb, 0, 0);
