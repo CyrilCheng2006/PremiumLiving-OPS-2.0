@@ -7,8 +7,6 @@ namespace PremiumLivingOPS.Models.DAL
 {
     /// <summary>
     /// Repository (DAL layer) for Order Processing module.
-    /// Encapsulates all SQL queries for Order, OrderLine, Quotation,
-    /// Customer, and Product tables.
     /// All methods use parameterised queries via DatabaseHelper.
     /// </summary>
     public class OrderProcessingRepo
@@ -17,14 +15,17 @@ namespace PremiumLivingOPS.Models.DAL
         //  ORDER queries
         // ════════════════════════════════════════════════════════════════
 
-        /// <summary>Returns all orders with customer and sales-staff names.</summary>
-        public List<OrderEntity> GetAllOrders()
+        /// <summary>
+        /// Returns orders optionally filtered by status and/or keyword.
+        /// Keyword matches OrderID, CustomerName, SalesName, OrderContactName.
+        /// </summary>
+        public List<OrderEntity> SearchOrders(string status = null, string keyword = null)
         {
             var list = new List<OrderEntity>();
             using (var conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
-                const string sql =
+                var sql =
                     @"SELECT o.OrderID, o.QuotationID, o.CustomerID, c.CustomerName,
                              o.AddressID, o.SalesID, s.StaffName AS SalesName,
                              o.IssuedTime, o.DeliveryDate, o.ShippingAddress, o.BillingAddress,
@@ -33,41 +34,38 @@ namespace PremiumLivingOPS.Models.DAL
                       FROM `Order` o
                       JOIN Customer c ON o.CustomerID = c.CustomerID
                       JOIN Staff   s ON o.SalesID     = s.StaffID
-                      ORDER BY o.IssuedTime DESC";
-                using (var cmd = new MySqlCommand(sql, conn))
-                using (var rdr = cmd.ExecuteReader())
-                    while (rdr.Read()) list.Add(MapOrder(rdr));
-            }
-            return list;
-        }
+                      WHERE 1=1";
 
-        /// <summary>Returns orders filtered by status.</summary>
-        public List<OrderEntity> GetOrdersByStatus(string status)
-        {
-            var list = new List<OrderEntity>();
-            using (var conn = DatabaseHelper.GetConnection())
-            {
-                conn.Open();
-                const string sql =
-                    @"SELECT o.OrderID, o.QuotationID, o.CustomerID, c.CustomerName,
-                             o.AddressID, o.SalesID, s.StaffName AS SalesName,
-                             o.IssuedTime, o.DeliveryDate, o.ShippingAddress, o.BillingAddress,
-                             o.SubTotal, o.DiscountType, o.DiscountValue, o.DiscountAmount,
-                             o.GrandTotal, o.OrderContactName, o.OrderStatus
-                      FROM `Order` o
-                      JOIN Customer c ON o.CustomerID = c.CustomerID
-                      JOIN Staff   s ON o.SalesID     = s.StaffID
-                      WHERE o.OrderStatus = @status
-                      ORDER BY o.IssuedTime DESC";
+                if (!string.IsNullOrEmpty(status))
+                    sql += " AND o.OrderStatus = @status";
+
+                if (!string.IsNullOrEmpty(keyword))
+                    sql += @" AND (o.OrderID            LIKE @kw
+                                OR c.CustomerName       LIKE @kw
+                                OR s.StaffName          LIKE @kw
+                                OR o.OrderContactName   LIKE @kw)";
+
+                sql += " ORDER BY o.IssuedTime DESC";
+
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
-                    cmd.Parameters.AddWithValue("@status", status);
+                    if (!string.IsNullOrEmpty(status))
+                        cmd.Parameters.AddWithValue("@status", status);
+                    if (!string.IsNullOrEmpty(keyword))
+                        cmd.Parameters.AddWithValue("@kw", "%" + keyword + "%");
+
                     using (var rdr = cmd.ExecuteReader())
                         while (rdr.Read()) list.Add(MapOrder(rdr));
                 }
             }
             return list;
         }
+
+        /// <summary>Returns all orders.</summary>
+        public List<OrderEntity> GetAllOrders() => SearchOrders();
+
+        /// <summary>Returns orders filtered by status.</summary>
+        public List<OrderEntity> GetOrdersByStatus(string status) => SearchOrders(status);
 
         /// <summary>Returns a single order by OrderID.</summary>
         public OrderEntity GetOrderById(string orderId)
@@ -125,7 +123,7 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
-        /// <summary>Inserts a new Order header. Returns true on success.</summary>
+        /// <summary>Inserts a new Order header.</summary>
         public bool CreateOrder(OrderEntity order)
         {
             using (var conn = DatabaseHelper.GetConnection())
@@ -184,7 +182,7 @@ namespace PremiumLivingOPS.Models.DAL
             }
         }
 
-        /// <summary>Updates Order header fields (status, delivery date, addresses, contact).</summary>
+        /// <summary>Updates Order header fields.</summary>
         public bool UpdateOrder(OrderEntity order)
         {
             using (var conn = DatabaseHelper.GetConnection())
@@ -221,18 +219,13 @@ namespace PremiumLivingOPS.Models.DAL
             }
         }
 
-        /// <summary>
-        /// Updates ONLY the OrderStatus column for a given order.
-        /// Used by CancelOrder in the controller to set status = 'Cancelled'.
-        /// Returns true if at least one row was affected.
-        /// </summary>
+        /// <summary>Updates ONLY the OrderStatus column.</summary>
         public bool UpdateOrderStatus(string orderId, string newStatus)
         {
             using (var conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
-                const string sql =
-                    "UPDATE `Order` SET OrderStatus = @status WHERE OrderID = @id";
+                const string sql = "UPDATE `Order` SET OrderStatus = @status WHERE OrderID = @id";
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
                     cmd.Parameters.AddWithValue("@status", newStatus);
@@ -242,7 +235,7 @@ namespace PremiumLivingOPS.Models.DAL
             }
         }
 
-        /// <summary>Deletes all OrderLine rows for an order, then re-inserts the new set.</summary>
+        /// <summary>Deletes all OrderLine rows then re-inserts the new set.</summary>
         public bool ReplaceOrderLines(string orderId, List<OrderLineEntity> lines)
         {
             using (var conn = DatabaseHelper.GetConnection())
@@ -273,11 +266,7 @@ namespace PremiumLivingOPS.Models.DAL
                         tx.Commit();
                         return true;
                     }
-                    catch
-                    {
-                        tx.Rollback();
-                        return false;
-                    }
+                    catch { tx.Rollback(); return false; }
                 }
             }
         }
@@ -286,7 +275,6 @@ namespace PremiumLivingOPS.Models.DAL
         //  QUOTATION queries
         // ════════════════════════════════════════════════════════════════
 
-        /// <summary>Returns all quotations with customer names.</summary>
         public List<QuotationEntity> GetAllQuotations()
         {
             var list = new List<QuotationEntity>();
@@ -307,7 +295,6 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
-        /// <summary>Returns only Pending quotations.</summary>
         public List<QuotationEntity> GetPendingQuotations()
         {
             var list = new List<QuotationEntity>();
@@ -329,7 +316,6 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
-        /// <summary>Updates the status of a Quotation.</summary>
         public bool UpdateQuotationStatus(string quotationId, string newStatus)
         {
             using (var conn = DatabaseHelper.GetConnection())
@@ -349,7 +335,6 @@ namespace PremiumLivingOPS.Models.DAL
         //  CUSTOMER queries
         // ════════════════════════════════════════════════════════════════
 
-        /// <summary>Returns all customers for drop-down population.</summary>
         public List<CustomerEntity> GetAllCustomers()
         {
             var list = new List<CustomerEntity>();
@@ -376,7 +361,6 @@ namespace PremiumLivingOPS.Models.DAL
         //  PRODUCT queries
         // ════════════════════════════════════════════════════════════════
 
-        /// <summary>Returns all products (Item JOIN Product) for order-line entry.</summary>
         public List<ProductLookup> GetAllProducts()
         {
             var list = new List<ProductLookup>();
@@ -411,20 +395,20 @@ namespace PremiumLivingOPS.Models.DAL
             return new OrderEntity
             {
                 OrderID          = rdr.GetString("OrderID"),
-                QuotationID      = rdr.IsDBNull(rdr.GetOrdinal("QuotationID"))  ? null : rdr.GetString("QuotationID"),
+                QuotationID      = rdr.IsDBNull(rdr.GetOrdinal("QuotationID"))   ? null : rdr.GetString("QuotationID"),
                 CustomerID       = rdr.GetString("CustomerID"),
                 CustomerName     = rdr.GetString("CustomerName"),
-                AddressID        = rdr.IsDBNull(rdr.GetOrdinal("AddressID"))     ? null : rdr.GetString("AddressID"),
+                AddressID        = rdr.IsDBNull(rdr.GetOrdinal("AddressID"))      ? null : rdr.GetString("AddressID"),
                 SalesID          = rdr.GetString("SalesID"),
                 SalesName        = rdr.GetString("SalesName"),
                 IssuedTime       = rdr.GetDateTime("IssuedTime"),
                 DeliveryDate     = rdr.GetDateTime("DeliveryDate"),
                 ShippingAddress  = rdr.GetString("ShippingAddress"),
                 BillingAddress   = rdr.GetString("BillingAddress"),
-                SubTotal         = rdr.IsDBNull(rdr.GetOrdinal("SubTotal"))      ? 0   : rdr.GetDouble("SubTotal"),
-                DiscountType     = rdr.IsDBNull(rdr.GetOrdinal("DiscountType"))  ? null : rdr.GetString("DiscountType"),
-                DiscountValue    = rdr.IsDBNull(rdr.GetOrdinal("DiscountValue")) ? 0   : rdr.GetDouble("DiscountValue"),
-                DiscountAmount   = rdr.IsDBNull(rdr.GetOrdinal("DiscountAmount"))? 0   : rdr.GetDouble("DiscountAmount"),
+                SubTotal         = rdr.IsDBNull(rdr.GetOrdinal("SubTotal"))       ? 0   : rdr.GetDouble("SubTotal"),
+                DiscountType     = rdr.IsDBNull(rdr.GetOrdinal("DiscountType"))   ? null : rdr.GetString("DiscountType"),
+                DiscountValue    = rdr.IsDBNull(rdr.GetOrdinal("DiscountValue"))  ? 0   : rdr.GetDouble("DiscountValue"),
+                DiscountAmount   = rdr.IsDBNull(rdr.GetOrdinal("DiscountAmount")) ? 0   : rdr.GetDouble("DiscountAmount"),
                 GrandTotal       = rdr.GetDouble("GrandTotal"),
                 OrderContactName = rdr.GetString("OrderContactName"),
                 OrderStatus      = rdr.GetString("OrderStatus")
@@ -440,7 +424,7 @@ namespace PremiumLivingOPS.Models.DAL
                 CustomerName      = rdr.GetString("CustomerName"),
                 ExpiryDate        = rdr.GetDateTime("ExpiryDate"),
                 TotalAmount       = rdr.GetDouble("TotalAmount"),
-                DepositRequired   = rdr.IsDBNull(rdr.GetOrdinal("DepositRequired")) ? 0 : rdr.GetDouble("DepositRequired"),
+                DepositRequired   = rdr.IsDBNull(rdr.GetOrdinal("DepositRequired"))   ? 0    : rdr.GetDouble("DepositRequired"),
                 LeadTimeEstimated = rdr.IsDBNull(rdr.GetOrdinal("LeadTimeEstimated")) ? null : rdr.GetString("LeadTimeEstimated"),
                 TermsandCondition = rdr.IsDBNull(rdr.GetOrdinal("TermsandCondition")) ? null : rdr.GetString("TermsandCondition"),
                 QuotationStatus   = rdr.GetString("QuotationStatus")

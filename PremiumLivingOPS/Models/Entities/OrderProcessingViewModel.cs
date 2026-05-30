@@ -1,37 +1,39 @@
-using System;
 using System.Collections.Generic;
 
 namespace PremiumLivingOPS.Models.Entities
 {
-    // ── Shared shell info (reused across modules) ────────────────────────────
-    // UserBarInfo is already declared in DashboardViewModel.cs
+    // ── Shared sub-models ────────────────────────────────────────────────────
 
-    // ══════════════════════════════════════════════════════════════════════════
-    //  ORDER entity
-    // ══════════════════════════════════════════════════════════════════════════
-    public class OrderEntity
+    public class UserBarViewModel
     {
-        public string OrderID          { get; set; }
-        public string QuotationID      { get; set; }
-        public string CustomerID       { get; set; }
-        public string CustomerName     { get; set; }
-        public string AddressID        { get; set; }
-        public string SalesID          { get; set; }
-        public string SalesName        { get; set; }
-        public DateTime IssuedTime     { get; set; }
-        public DateTime DeliveryDate   { get; set; }
-        public string ShippingAddress  { get; set; }
-        public string BillingAddress   { get; set; }
-        public double SubTotal         { get; set; }
-        public string DiscountType     { get; set; }   // "Amount" | "Rate" | null
-        public double DiscountValue    { get; set; }
-        public double DiscountAmount   { get; set; }
-        public double GrandTotal       { get; set; }
-        public string OrderContactName { get; set; }
-        public string OrderStatus      { get; set; }
+        public string DisplayName { get; set; }
+        public string Department  { get; set; }
     }
 
-    // ── Order line item ────────────────────────────────────────────────────
+    // ── Domain entities (map directly to DB tables) ──────────────────────────
+
+    public class OrderEntity
+    {
+        public string   OrderID          { get; set; }
+        public string   QuotationID      { get; set; }
+        public string   CustomerID       { get; set; }
+        public string   CustomerName     { get; set; }
+        public string   AddressID        { get; set; }
+        public string   SalesID          { get; set; }
+        public string   SalesName        { get; set; }
+        public System.DateTime IssuedTime   { get; set; }
+        public System.DateTime DeliveryDate { get; set; }
+        public string   ShippingAddress  { get; set; }
+        public string   BillingAddress   { get; set; }
+        public double   SubTotal         { get; set; }
+        public string   DiscountType     { get; set; }
+        public double   DiscountValue    { get; set; }
+        public double   DiscountAmount   { get; set; }
+        public double   GrandTotal       { get; set; }
+        public string   OrderContactName { get; set; }
+        public string   OrderStatus      { get; set; }
+    }
+
     public class OrderLineEntity
     {
         public string OrderID  { get; set; }
@@ -42,25 +44,19 @@ namespace PremiumLivingOPS.Models.Entities
         public double LineTotal => Quantity * Price;
     }
 
-    // ══════════════════════════════════════════════════════════════════════════
-    //  QUOTATION entity
-    // ══════════════════════════════════════════════════════════════════════════
     public class QuotationEntity
     {
         public string   QuotationID       { get; set; }
         public string   CustomerID        { get; set; }
         public string   CustomerName      { get; set; }
-        public DateTime ExpiryDate        { get; set; }
+        public System.DateTime ExpiryDate { get; set; }
         public double   TotalAmount       { get; set; }
         public double   DepositRequired   { get; set; }
         public string   LeadTimeEstimated { get; set; }
         public string   TermsandCondition { get; set; }
-        public string   QuotationStatus   { get; set; }  // Converted | Rejected | Pending
+        public string   QuotationStatus   { get; set; }
     }
 
-    // ══════════════════════════════════════════════════════════════════════════
-    //  CUSTOMER lookup
-    // ══════════════════════════════════════════════════════════════════════════
     public class CustomerEntity
     {
         public string CustomerID   { get; set; }
@@ -69,59 +65,52 @@ namespace PremiumLivingOPS.Models.Entities
         public string Phone        { get; set; }
     }
 
-    // ══════════════════════════════════════════════════════════════════════════
-    //  PRODUCT lookup (for order lines)
-    // ══════════════════════════════════════════════════════════════════════════
     public class ProductLookup
     {
-        public string ItemID      { get; set; }
-        public string ItemName    { get; set; }
-        public double SalesPrice  { get; set; }
-        public string Category    { get; set; }
-        public string DisplayText => $"{ItemID} – {ItemName}";
+        public string ItemID     { get; set; }
+        public string ItemName   { get; set; }
+        public double SalesPrice { get; set; }
+        public string Category   { get; set; }
     }
 
-    // ══════════════════════════════════════════════════════════════════════════
-    //  VIEW-ORDER tab ViewModel
-    // ══════════════════════════════════════════════════════════════════════════
+    // ── ViewModels (passed from Controller → View) ───────────────────────────
+
     public class ViewOrderViewModel
     {
-        public UserBarInfo          UserBar      { get; set; } = new UserBarInfo();
-        public string[]             AllowedMenus { get; set; } = new string[0];
-        public List<OrderEntity>    Orders       { get; set; } = new List<OrderEntity>();
+        public UserBarViewModel      UserBar      { get; set; }
+        public List<string>          AllowedMenus { get; set; }
+        public List<OrderEntity>     Orders       { get; set; }
     }
 
-    // ══════════════════════════════════════════════════════════════════════════
-    //  QUOTATION tab ViewModel
-    // ══════════════════════════════════════════════════════════════════════════
+    /// <summary>Full detail of one order including its line items.</summary>
+    public class OrderDetailViewModel
+    {
+        public OrderEntity           Order { get; set; }
+        public List<OrderLineEntity> Lines { get; set; }
+    }
+
     public class QuotationViewModel
     {
-        public UserBarInfo              UserBar      { get; set; } = new UserBarInfo();
-        public string[]                 AllowedMenus { get; set; } = new string[0];
-        public List<QuotationEntity>    Quotations   { get; set; } = new List<QuotationEntity>();
+        public UserBarViewModel         UserBar      { get; set; }
+        public List<string>             AllowedMenus { get; set; }
+        public List<QuotationEntity>    Quotations   { get; set; }
     }
 
-    // ══════════════════════════════════════════════════════════════════════════
-    //  CREATE-ORDER tab ViewModel
-    // ══════════════════════════════════════════════════════════════════════════
     public class CreateOrderViewModel
     {
-        public UserBarInfo           UserBar      { get; set; } = new UserBarInfo();
-        public string[]              AllowedMenus { get; set; } = new string[0];
-        public List<CustomerEntity>  Customers    { get; set; } = new List<CustomerEntity>();
-        public List<ProductLookup>   Products     { get; set; } = new List<ProductLookup>();
-        public List<QuotationEntity> PendingQuotations { get; set; } = new List<QuotationEntity>();
+        public UserBarViewModel      UserBar      { get; set; }
+        public List<string>          AllowedMenus { get; set; }
+        public List<CustomerEntity>  Customers    { get; set; }
+        public List<ProductLookup>   Products     { get; set; }
+        public List<QuotationEntity> Quotations   { get; set; }
     }
 
-    // ══════════════════════════════════════════════════════════════════════════
-    //  MODIFY-ORDER tab ViewModel
-    // ══════════════════════════════════════════════════════════════════════════
     public class ModifyOrderViewModel
     {
-        public UserBarInfo          UserBar      { get; set; } = new UserBarInfo();
-        public string[]             AllowedMenus { get; set; } = new string[0];
-        public List<OrderEntity>    Orders       { get; set; } = new List<OrderEntity>();
-        public List<CustomerEntity> Customers    { get; set; } = new List<CustomerEntity>();
-        public List<ProductLookup>  Products     { get; set; } = new List<ProductLookup>();
+        public UserBarViewModel      UserBar       { get; set; }
+        public List<string>          AllowedMenus  { get; set; }
+        public OrderEntity           SelectedOrder { get; set; }
+        public List<OrderLineEntity> Lines         { get; set; }
+        public List<ProductLookup>   Products      { get; set; }
     }
 }
