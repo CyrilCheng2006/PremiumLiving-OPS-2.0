@@ -12,19 +12,19 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         // Shell
         private AppShell _shell;
 
-        // ── Toolbar controls ──────────────────────────────────────────────────
+        // ── Toolbar controls
         private TextBox  txtSearch;
         private Button   btnSearch;
         private ComboBox cboStatus;
         private Button   btnRefresh;
 
-        // ── KPI Summary bar ───────────────────────────────────────────────────
+        // ── KPI Summary bar
         private Panel pnlKpi;
 
-        // ── Main grid ─────────────────────────────────────────────────────────
+        // ── Main grid
         private DataGridView dgvOrders;
 
-        // ── Action bar ────────────────────────────────────────────────────────
+        // ── Action bar
         private Panel  pnlActions;
         private Button btnViewDetail;
         private Button btnModifyOrder;
@@ -43,26 +43,18 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             this.Size          = new Size(1440, 900);
             this.MinimumSize   = new Size(1200, 720);
             this.StartPosition = FormStartPosition.CenterScreen;
-            this.BackColor     = Color.FromArgb(240, 244, 249);   // --bg: #f0f4f9
+            this.BackColor     = Color.FromArgb(240, 244, 249);
             this.WindowState   = FormWindowState.Maximized;
             this.Font          = new Font("Segoe UI", 13f);
 
-            // ─────────────────────────────────────────────────────────────────
             // Root panel
-            // ─────────────────────────────────────────────────────────────────
             Panel pnlMain = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(240, 244, 249) };
 
-            // ─────────────────────────────────────────────────────────────────
-            // AppShell
-            // ─────────────────────────────────────────────────────────────────
+            // AppShell — events are bound in ViewOrderForm.cs (RefreshGrid / OnTopNavMenuItemClicked)
             _shell = new AppShell();
-            _shell.MenuItemClicked += OnTopNavMenuItemClicked;
-            _shell.LogoutClicked   += btnLogout_Click;
             _shell.SetPopupContainer(pnlMain);
 
-            // ─────────────────────────────────────────────────────────────────
             // Toolbar panel
-            // ─────────────────────────────────────────────────────────────────
             Panel pnlToolbar = new Panel
             {
                 Dock      = DockStyle.Top,
@@ -72,7 +64,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             };
             pnlToolbar.Paint += PaintBottomBorder;
 
-            // Page title
             var lblTitle = new Label
             {
                 Text      = "Order Tracking",
@@ -82,7 +73,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Location  = new Point(20, 18)
             };
 
-            // Search box
             txtSearch = new TextBox
             {
                 Width       = 240, Height = 36, Location = new Point(220, 18),
@@ -92,11 +82,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             };
             txtSearch.KeyDown += txtSearch_KeyDown;
 
-            // Search button
             btnSearch = MakePrimaryBtn("Search", new Point(468, 18), 100, 36);
             btnSearch.Click += btnSearch_Click;
 
-            // Status combo
             var lblStatus = new Label
             {
                 Text      = "Status:",
@@ -111,10 +99,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Location      = new Point(644, 18), Font = new Font("Segoe UI", 13f)
             };
             cboStatus.Items.AddRange(new object[] { "All", "Pending", "Processing", "Shipped", "Delivered", "Cancelled" });
-            cboStatus.SelectedIndex      = 0;
+            cboStatus.SelectedIndex = 0;
             cboStatus.SelectedIndexChanged += cboStatus_Changed;
 
-            // Refresh button
             btnRefresh = MakeOutlineBtn("↻  Refresh", new Point(820, 18), 120, 36);
             btnRefresh.Click += btnRefresh_Click;
 
@@ -125,9 +112,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlToolbar.Controls.Add(cboStatus);
             pnlToolbar.Controls.Add(btnRefresh);
 
-            // ─────────────────────────────────────────────────────────────────
-            // KPI Summary bar
-            // ─────────────────────────────────────────────────────────────────
+            // KPI bar
             pnlKpi = new Panel
             {
                 Dock      = DockStyle.Top,
@@ -137,9 +122,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             };
             pnlKpi.Paint += PaintBottomBorder;
 
-            // ─────────────────────────────────────────────────────────────────
             // Action bar (bottom)
-            // ─────────────────────────────────────────────────────────────────
             pnlActions = new Panel
             {
                 Dock      = DockStyle.Bottom,
@@ -159,9 +142,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlActions.Controls.Add(btnViewDetail);
             pnlActions.Controls.Add(btnModifyOrder);
 
-            // ─────────────────────────────────────────────────────────────────
-            // Orders DataGridView (Fill)
-            // ─────────────────────────────────────────────────────────────────
+            // Orders DataGridView
             dgvOrders = new DataGridView
             {
                 ReadOnly              = true,
@@ -197,7 +178,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 }
             };
             dgvOrders.EnableHeadersVisualStyles = false;
-
             dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colOrderID",  HeaderText = "ORDER NO.",     FillWeight = 14 });
             dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCustomer", HeaderText = "CUSTOMER",      FillWeight = 22 });
             dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colSales",    HeaderText = "SALES STAFF",   FillWeight = 16 });
@@ -205,122 +185,71 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDelivery", HeaderText = "DELIVERY DATE", FillWeight = 13 });
             dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTotal",    HeaderText = "GRAND TOTAL",   FillWeight = 13 });
             dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",   HeaderText = "STATUS",        FillWeight = 10 });
-
             dgvOrders.SelectionChanged   += dgvOrders_SelectionChanged;
             dgvOrders.CellFormatting     += dgvOrders_CellFormatting;
             dgvOrders.CellDoubleClick    += dgvOrders_CellDoubleClick;
 
-            // ─────────────────────────────────────────────────────────────────
             // Grid wrapper card
-            // ─────────────────────────────────────────────────────────────────
             Panel pnlGridCard = new Panel
             {
                 Dock      = DockStyle.Fill,
                 Padding   = new Padding(20, 12, 20, 0),
                 BackColor = Color.FromArgb(240, 244, 249)
             };
-
-            Panel pnlCard = new Panel
-            {
-                Dock      = DockStyle.Fill,
-                BackColor = Color.White,
-                Padding   = new Padding(0)
-            };
+            Panel pnlCard = new Panel { Dock = DockStyle.Fill, BackColor = Color.White, Padding = new Padding(0) };
             pnlCard.Paint += PaintCardBorder;
             pnlCard.Controls.Add(dgvOrders);
-
             pnlGridCard.Controls.Add(pnlCard);
 
-            // ─────────────────────────────────────────────────────────────────
-            // Assemble into pnlMain
-            // ─────────────────────────────────────────────────────────────────
-            pnlMain.Controls.Add(pnlGridCard);    // Fill
-            pnlMain.Controls.Add(pnlActions);     // Bottom
-            pnlMain.Controls.Add(pnlKpi);         // Top
-            pnlMain.Controls.Add(pnlToolbar);     // Top
-            pnlMain.Controls.Add(_shell);         // Top (AppShell sits above everything)
+            // Assemble — Add Fill last so Dock order is correct
+            pnlMain.Controls.Add(pnlGridCard);  // Fill
+            pnlMain.Controls.Add(pnlActions);   // Bottom
+            pnlMain.Controls.Add(pnlKpi);       // Top
+            pnlMain.Controls.Add(pnlToolbar);   // Top
+            pnlMain.Controls.Add(_shell);       // Top (AppShell — topmost)
 
             this.Controls.Add(pnlMain);
             this.ResumeLayout(false);
         }
 
-        // ─────────────────────────────────────────────────────────────────────
-        // Button factory helpers
-        // ─────────────────────────────────────────────────────────────────────
+        // Button factories
         private Button MakePrimaryBtn(string text, Point loc, int w, int h)
         {
-            var b = new Button
-            {
-                Text      = text,
-                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
-                ForeColor = Color.White,
-                BackColor = Color.FromArgb(47, 111, 237),
-                FlatStyle = FlatStyle.Flat,
-                Location  = loc, Width = w, Height = h,
-                Cursor    = Cursors.Hand
-            };
-            b.FlatAppearance.BorderSize  = 0;
-            b.FlatAppearance.MouseOverBackColor  = Color.FromArgb(26, 77, 192);
-            b.FlatAppearance.MouseDownBackColor  = Color.FromArgb(21, 60, 155);
+            var b = new Button { Text = text, Font = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.White, BackColor = Color.FromArgb(47, 111, 237),
+                FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand };
+            b.FlatAppearance.BorderSize = 0;
+            b.FlatAppearance.MouseOverBackColor = Color.FromArgb(26, 77, 192);
+            b.FlatAppearance.MouseDownBackColor = Color.FromArgb(21, 60, 155);
             return b;
         }
-
         private Button MakeWarningBtn(string text, Point loc, int w, int h)
         {
-            var b = new Button
-            {
-                Text      = text,
-                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
-                ForeColor = Color.White,
-                BackColor = Color.FromArgb(245, 158, 11),
-                FlatStyle = FlatStyle.Flat,
-                Location  = loc, Width = w, Height = h,
-                Cursor    = Cursors.Hand
-            };
+            var b = new Button { Text = text, Font = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.White, BackColor = Color.FromArgb(245, 158, 11),
+                FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand };
             b.FlatAppearance.BorderSize = 0;
             b.FlatAppearance.MouseOverBackColor = Color.FromArgb(217, 119, 6);
             b.FlatAppearance.MouseDownBackColor = Color.FromArgb(180, 90, 0);
             return b;
         }
-
         private Button MakeOutlineBtn(string text, Point loc, int w, int h)
         {
-            var b = new Button
-            {
-                Text      = text,
-                Font      = new Font("Segoe UI", 12f),
-                ForeColor = Color.FromArgb(15, 31, 53),
-                BackColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Location  = loc, Width = w, Height = h,
-                Cursor    = Cursors.Hand
-            };
+            var b = new Button { Text = text, Font = new Font("Segoe UI", 12f),
+                ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White,
+                FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand };
             b.FlatAppearance.BorderColor = Color.FromArgb(221, 227, 236);
             b.FlatAppearance.BorderSize  = 1;
             b.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
             return b;
         }
 
-        // ─────────────────────────────────────────────────────────────────────
         // Border painters
-        // ─────────────────────────────────────────────────────────────────────
         private static void PaintBottomBorder(object s, PaintEventArgs e)
-        {
-            var p = (Panel)s;
-            using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
-            e.Graphics.DrawLine(pen, 0, p.Height - 1, p.Width, p.Height - 1);
-        }
+        { var p = (Panel)s; using var pen = new Pen(Color.FromArgb(221, 227, 236), 1); e.Graphics.DrawLine(pen, 0, p.Height-1, p.Width, p.Height-1); }
         private static void PaintTopBorder(object s, PaintEventArgs e)
-        {
-            var p = (Panel)s;
-            using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
-            e.Graphics.DrawLine(pen, 0, 0, p.Width, 0);
-        }
+        { var p = (Panel)s; using var pen = new Pen(Color.FromArgb(221, 227, 236), 1); e.Graphics.DrawLine(pen, 0, 0, p.Width, 0); }
         private static void PaintCardBorder(object s, PaintEventArgs e)
-        {
-            var p = (Panel)s;
-            using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
-            e.Graphics.DrawRectangle(pen, 0, 0, p.Width - 1, p.Height - 1);
-        }
+        { var p = (Panel)s; using var pen = new Pen(Color.FromArgb(221, 227, 236), 1); e.Graphics.DrawRectangle(pen, 0, 0, p.Width-1, p.Height-1); }
     }
 }
