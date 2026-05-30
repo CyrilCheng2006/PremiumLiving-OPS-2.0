@@ -10,24 +10,20 @@ namespace PremiumLivingOPS.Views.OrderProcessing
     /// <summary>
     /// Modify Order — Tab 4 of Order Processing Management.
     ///
-    /// Provides two functions on the SAME tab:
-    ///   1. Edit Order   — modify header fields and order lines of an existing order.
-    ///   2. Cancel Order — set order status to "Cancelled" (guarded by business rules
-    ///                      enforced in the controller).
-    ///
     /// MVC contract (View layer):
     ///   • Calls OrderProcessingController for all data and business operations.
     ///   • Uses AppShell (TopNavBar + UserBar) for navigation chrome.
     ///   • Contains NO business logic and NO direct DB calls.
-    ///   • All totals displayed are re-calculated server-side inside the controller.
     /// </summary>
     public partial class ModifyOrderForm : Form
     {
+        // ── Static entry point: ViewOrderForm passes OrderID here before navigating ──
+        public static string PendingOrderId { get; set; } = null;
+
         private readonly OrderProcessingController _ctrl = new OrderProcessingController();
 
-        // Currently loaded order
         private OrderEntity           _currentOrder;
-        private List<OrderLineEntity> _lines = new List<OrderLineEntity>();
+        private List<OrderLineEntity> _lines    = new List<OrderLineEntity>();
         private List<ProductLookup>   _products = new List<ProductLookup>();
 
         public ModifyOrderForm()
@@ -36,37 +32,34 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             this.Load += ModifyOrderForm_Load;
         }
 
-        // ── Load ───────────────────────────────────────────────────────────
+        // ── Load ───────────────────────────────────────────────────────────────────
         private void ModifyOrderForm_Load(object sender, EventArgs e)
         {
+            // GetModifyOrderVM returns UserBar, AllowedMenus, Products
+            // (SelectedOrder + Lines are only populated when orderId is supplied)
             var vm = _ctrl.GetModifyOrderVM();
 
-            // UserBarInfo has: DisplayName, Department  (no Role property)
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
             _shell.SetBreadcrumb("Order Processing  ›  Modify Order");
 
-            // Populate product catalogue (for line-item editing)
+            // Populate product catalogue for line-item editing
             _products = vm.Products;
             cboAddProduct.Items.Clear();
             cboAddProduct.Items.Add(new ComboItem("-- Select Product --", ""));
             foreach (var p in _products)
-                cboAddProduct.Items.Add(new ComboItem(p.DisplayText, p.ItemID));
+                cboAddProduct.Items.Add(new ComboItem(
+                    $"{p.ItemID}  –  {p.ItemName}  (HK$ {p.SalesPrice:N2})",   // FIX #4: was p.DisplayText
+                    p.ItemID));
             cboAddProduct.SelectedIndex = 0;
 
-            // Populate search combo
-            cboSearchOrder.Items.Clear();
-            cboSearchOrder.Items.Add(new ComboItem("-- Select Order --", ""));
-            foreach (var o in vm.Orders)
-                cboSearchOrder.Items.Add(
-                    new ComboItem($"{o.OrderID}  –  {o.CustomerName}  [{o.OrderStatus}]",
-                                  o.OrderID));
-            cboSearchOrder.SelectedIndex = 0;
+            // Populate search combo — use ViewOrderVM which carries the full order list  FIX #1 & #5
+            ReloadOrderCombo();
 
-            // Status combo (for Edit)
+            // Status combo
             cboStatus.Items.Clear();
             cboStatus.Items.AddRange(new object[]
-                { "Pending", "Confirmed", "In Progress", "Delivered", "Completed", "Cancelled" });
+                { "Pending", "Processing", "Delivered", "Cancelled" });
 
             // Discount type combo
             cboDiscountType.Items.Clear();
@@ -74,9 +67,16 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             cboDiscountType.SelectedIndex = 0;
 
             SetEditPanelEnabled(false);
+
+            // FIX #6: If ViewOrderForm passed a PendingOrderId, auto-load that order
+            if (!string.IsNullOrEmpty(PendingOrderId))
+            {
+                SelectAndLoadOrder(PendingOrderId);
+                PendingOrderId = null;   // consume after use
+            }
         }
 
-        // ── Search / Load Order ───────────────────────────────────────────────
+        // ── Search / Load Order ────────────────────────────────────────────────────
         private void btnLoadOrder_Click(object sender, EventArgs e)
         {
             var sel = cboSearchOrder.SelectedItem as ComboItem;
@@ -86,49 +86,60 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
+            SelectAndLoadOrder(sel.Value);
+        }
 
-            // Fetch fresh VM to get the order lines
-            var vm = _ctrl.GetModifyOrderVM();
-            _currentOrder = vm.Orders.Find(o => o.OrderID == sel.Value);
-            if (_currentOrder == null) return;
+        /// <summary>Loads a specific order by ID into the edit panel.</summary>
+        private void SelectAndLoadOrder(string orderId)
+        {
+            // FIX #1: GetModifyOrderVM(orderId) returns SelectedOrder + Lines directly
+            var vm = _ctrl.GetModifyOrderVM(orderId);
+            _currentOrder = vm.SelectedOrder;
+            if (_currentOrder == null)
+            {
+                MessageBox.Show($"Order '{orderId}' not found.",
+                    "Not Found", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            _lines = vm.Lines ?? new List<OrderLineEntity>();
 
-            // Fetch line items for this order
-            _lines = _ctrl.GetOrderLines(_currentOrder.OrderID);
+            // Sync combo selection
+            for (int i = 0; i < cboSearchOrder.Items.Count; i++)
+            {
+                if (cboSearchOrder.Items[i] is ComboItem ci && ci.Value == orderId)
+                { cboSearchOrder.SelectedIndex = i; break; }
+            }
 
             PopulateHeader(_currentOrder);
             RefreshLineGrid();
             SetEditPanelEnabled(true);
 
-            // Cannot edit a Cancelled order — disable save but keep Cancel button visible
             bool isCancelled = _currentOrder.OrderStatus == "Cancelled";
             btnSaveChanges.Enabled = !isCancelled;
             btnAddLine.Enabled     = !isCancelled;
             btnRemoveLine.Enabled  = !isCancelled;
             txtAddQty.Enabled      = !isCancelled;
             cboAddProduct.Enabled  = !isCancelled;
-
-            // Already cancelled — Cancel button is irrelevant
             btnCancelOrder.Enabled = !isCancelled;
         }
 
         private void PopulateHeader(OrderEntity o)
         {
-            txtOrderID.Text       = o.OrderID;
-            txtCustomer.Text      = o.CustomerName;
-            txtContactName.Text   = o.OrderContactName;
-            txtShippingAddr.Text  = o.ShippingAddress;
-            txtBillingAddr.Text   = o.BillingAddress;
-            dtpDelivery.Value     = o.DeliveryDate > DateTime.MinValue
-                                        ? o.DeliveryDate : DateTime.Today;
+            txtOrderID.Text      = o.OrderID;
+            txtCustomer.Text     = o.CustomerName;
+            txtContactName.Text  = o.OrderContactName;
+            txtShippingAddr.Text = o.ShippingAddress;
+            txtBillingAddr.Text  = o.BillingAddress;
+            dtpDelivery.Value    = o.DeliveryDate > DateTime.MinValue
+                                       ? o.DeliveryDate : DateTime.Today;
 
             int idx = cboStatus.FindStringExact(o.OrderStatus);
             cboStatus.SelectedIndex = idx >= 0 ? idx : 0;
 
-            // Discount
             if (string.IsNullOrEmpty(o.DiscountType) || o.DiscountType == "None")
             {
                 cboDiscountType.SelectedIndex = 0;
-                txtDiscountValue.Text  = "0";
+                txtDiscountValue.Text    = "0";
                 txtDiscountValue.Enabled = false;
             }
             else
@@ -140,7 +151,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             }
         }
 
-        // ── Line-item helpers ──────────────────────────────────────────────────
+        // ── Line-item helpers ──────────────────────────────────────────────────────
         private void RefreshLineGrid()
         {
             dgvLines.Rows.Clear();
@@ -237,7 +248,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             RecalcGrandTotal(sub);
         }
 
-        // ── Save Changes (Edit Order) ────────────────────────────────────────────
+        // ── Save Changes ──────────────────────────────────────────────────────────
         private void btnSaveChanges_Click(object sender, EventArgs e)
         {
             if (_currentOrder == null)
@@ -253,7 +264,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             double sub = 0;
             foreach (var l in _lines) sub += l.LineTotal;
             double discountAmount = 0;
-            if (dtype == "Amount")     discountAmount = discountValue;
+            if (dtype == "Amount")       discountAmount = discountValue;
             else if (dtype == "Rate (%)") discountAmount = sub * discountValue / 100.0;
 
             var header = new OrderEntity
@@ -270,25 +281,26 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 OrderContactName = txtContactName.Text.Trim(),
                 DiscountType     = dtype == "None" ? null : dtype,
                 DiscountValue    = discountValue,
-                DiscountAmount   = discountAmount
+                DiscountAmount   = discountAmount,
+                GrandTotal       = sub - discountAmount
             };
 
-            var (ok, message) = _ctrl.SubmitModifyOrder(header, new List<OrderLineEntity>(_lines));
+            // FIX #2: method is SaveOrderChanges(), not SubmitModifyOrder()
+            bool ok = _ctrl.SaveOrderChanges(header, new List<OrderLineEntity>(_lines));
             if (ok)
             {
-                MessageBox.Show(message, "Success",
+                MessageBox.Show("Order updated successfully.", "Success",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
-                // Refresh the search list to reflect new status
                 ReloadOrderCombo();
             }
             else
             {
-                MessageBox.Show(message, "Error",
+                MessageBox.Show("Failed to save changes. Please try again.", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
-        // ── Cancel Order ───────────────────────────────────────────────────────────
+        // ── Cancel Order ──────────────────────────────────────────────────────────
         private void btnCancelOrder_Click(object sender, EventArgs e)
         {
             if (_currentOrder == null)
@@ -307,20 +319,20 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             if (confirm != DialogResult.Yes) return;
 
-            var (ok, message) = _ctrl.CancelOrder(_currentOrder.OrderID);
+            // FIX #3: CancelOrder() returns bool, not a (bool, string) tuple
+            bool ok = _ctrl.CancelOrder(_currentOrder.OrderID);
             if (ok)
             {
-                MessageBox.Show(message, "Cancelled",
+                MessageBox.Show("Order has been cancelled.", "Cancelled",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
 
-                // Update local state to reflect cancellation
                 _currentOrder.OrderStatus = "Cancelled";
-                btnSaveChanges.Enabled  = false;
-                btnCancelOrder.Enabled  = false;
-                btnAddLine.Enabled      = false;
-                btnRemoveLine.Enabled   = false;
-                txtAddQty.Enabled       = false;
-                cboAddProduct.Enabled   = false;
+                btnSaveChanges.Enabled = false;
+                btnCancelOrder.Enabled = false;
+                btnAddLine.Enabled     = false;
+                btnRemoveLine.Enabled  = false;
+                txtAddQty.Enabled      = false;
+                cboAddProduct.Enabled  = false;
 
                 int idx = cboStatus.FindStringExact("Cancelled");
                 if (idx >= 0) cboStatus.SelectedIndex = idx;
@@ -329,44 +341,54 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             }
             else
             {
-                MessageBox.Show(message, "Error",
+                MessageBox.Show("Failed to cancel order. Please try again.", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
-        // ── Helpers ──────────────────────────────────────────────────────────────
+        // ── Helpers ───────────────────────────────────────────────────────────────
         private void SetEditPanelEnabled(bool enabled)
         {
-            pnlEditCard.Visible    = enabled;
-            pnlLinesCard.Visible   = enabled;
-            pnlActionsBar.Visible  = enabled;
+            pnlEditCard.Visible   = enabled;
+            pnlLinesCard.Visible  = enabled;
+            pnlActionsBar.Visible = enabled;
         }
 
+        /// <summary>
+        /// Rebuilds cboSearchOrder from the View Order list.
+        /// FIX #1 + #5: ModifyOrderViewModel has no Orders list;
+        /// we source the dropdown from GetViewOrderVM() instead.
+        /// </summary>
         private void ReloadOrderCombo()
         {
-            var vm = _ctrl.GetModifyOrderVM();
             string currentId = _currentOrder?.OrderID;
+
+            // Reuse ViewOrderVM which carries the full order list
+            var listVm = _ctrl.GetViewOrderVM();
 
             cboSearchOrder.Items.Clear();
             cboSearchOrder.Items.Add(new ComboItem("-- Select Order --", ""));
-            foreach (var o in vm.Orders)
-                cboSearchOrder.Items.Add(
-                    new ComboItem(
-                        $"{o.OrderID}  –  {o.CustomerName}  [{o.OrderStatus}]",
-                        o.OrderID));
+            foreach (var o in listVm.Orders)
+                cboSearchOrder.Items.Add(new ComboItem(
+                    $"{o.OrderID}  –  {o.CustomerName}  [{o.OrderStatus}]",
+                    o.OrderID));
 
-            // Re-select the same order if still present
+            // Re-select the currently loaded order if still present
             if (!string.IsNullOrEmpty(currentId))
             {
                 for (int i = 1; i < cboSearchOrder.Items.Count; i++)
                 {
-                    if (((ComboItem)cboSearchOrder.Items[i]).Value == currentId)
+                    if (cboSearchOrder.Items[i] is ComboItem ci && ci.Value == currentId)
                     { cboSearchOrder.SelectedIndex = i; break; }
                 }
             }
+            else
+            {
+                cboSearchOrder.SelectedIndex = 0;
+            }
         }
 
-        // ── TopNavBar navigation ───────────────────────────────────────────────
+        // ── TopNavBar navigation ──────────────────────────────────────────────────
         private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
             => FormNavigator.NavigateTo(this, menuLabel, subItem);
 
@@ -376,7 +398,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             Application.Restart();
         }
 
-        // ── ComboItem helper ───────────────────────────────────────────────────
+        // ── ComboItem helper ──────────────────────────────────────────────────────
         private class ComboItem
         {
             public string Text  { get; }
