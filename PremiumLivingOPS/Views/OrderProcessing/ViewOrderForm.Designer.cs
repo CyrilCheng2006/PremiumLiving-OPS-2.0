@@ -1,6 +1,5 @@
 using System;
 using System.Drawing;
-using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 using PremiumLivingOPS.Views.Shared;
 
@@ -10,19 +9,19 @@ namespace PremiumLivingOPS.Views.OrderProcessing
     {
         private System.ComponentModel.IContainer components = null;
 
-        private AppShell         _shell;
-        private TextBox          txtSearchOrderNo;
-        private TextBox          txtSearchCustomer;
-        private ComboBox         cboStatus;
-        private DateTimePicker   dtpDateFrom;
-        private CheckBox         chkDateFrom;
-        private Button           btnSearch;
-        private Button           btnRefresh;
-        private Panel            pnlKpi;
-        private DataGridView     dgvOrders;
-        private Panel            pnlActions;
-        private Button           btnViewDetail;
-        private Button           btnModifyOrder;
+        private AppShell        _shell;
+        private TextBox         txtSearchOrderNo;
+        private TextBox         txtSearchCustomer;
+        private ComboBox        cboStatus;
+        private DateTimePicker  dtpDateFrom;
+        private CheckBox        chkDateFrom;
+        private Button          btnSearch;
+        private Button          btnRefresh;
+        private Panel           pnlKpi;
+        private DataGridView    dgvOrders;
+        private Panel           pnlActions;
+        private Button          btnViewDetail;
+        private Button          btnModifyOrder;
 
         protected override void Dispose(bool disposing)
         {
@@ -52,6 +51,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             {
                 Font = new Font("Segoe UI", 12f),
                 BorderStyle = BorderStyle.FixedSingle,
+                Dock = DockStyle.Fill,
                 PlaceholderText = "ORD-XXXX"
             };
             txtSearchOrderNo.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) RefreshGrid(); };
@@ -60,11 +60,17 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             {
                 Font = new Font("Segoe UI", 12f),
                 BorderStyle = BorderStyle.FixedSingle,
+                Dock = DockStyle.Fill,
                 PlaceholderText = "Name or ID"
             };
             txtSearchCustomer.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) RefreshGrid(); };
 
-            cboStatus = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 12f) };
+            cboStatus = new ComboBox
+            {
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Font = new Font("Segoe UI", 12f),
+                Dock = DockStyle.Fill
+            };
             cboStatus.Items.AddRange(new object[] { "All", "Pending", "Processing", "Shipped", "Delivered", "Cancelled" });
             cboStatus.SelectedIndex = 0;
             cboStatus.SelectedIndexChanged += (s, e) => RefreshGrid();
@@ -75,78 +81,84 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Format  = DateTimePickerFormat.Short,
                 Value   = DateTime.Today.AddMonths(-1),
                 Font    = new Font("Segoe UI", 12f),
-                Enabled = false
+                Enabled = false,
+                Dock    = DockStyle.Fill
             };
             chkDateFrom.CheckedChanged += (s, e) => { dtpDateFrom.Enabled = chkDateFrom.Checked; RefreshGrid(); };
             dtpDateFrom.ValueChanged   += (s, e) => { if (chkDateFrom.Checked) RefreshGrid(); };
 
-            // ── MakeCell
-            // label  : Y=8,  H=18  (bottom=26)
-            // control: Y=44, H=34
-            // IMPORTANT: add ctrl FIRST, then lbl, then call lbl.BringToFront()
-            // so the label is painted on top of the control's white system border.
-            Panel MakeCell(string caption, Control ctrl, bool rightPad = true)
+            // ────────────────────────────────────────────────────────
+            // MakeCell: 2-row TableLayoutPanel
+            //   Row 0 (22px)  → Label only
+            //   Row 1 (fill)  → Control only
+            // Native Win32 controls (TextBox/ComboBox/DateTimePicker) always
+            // paint over sibling managed controls in the same parent, regardless
+            // of Z-order.  Putting them in SEPARATE rows eliminates overlap.
+            // ────────────────────────────────────────────────────────
+            TableLayoutPanel MakeCell(string caption, Control ctrl, bool rightPad = true)
             {
-                var cell = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-                if (rightPad) cell.Padding = new Padding(0, 0, 12, 0);
+                var tlp = new TableLayoutPanel
+                {
+                    Dock        = DockStyle.Fill,
+                    RowCount    = 2,
+                    ColumnCount = 1,
+                    BackColor   = Color.Transparent,
+                    CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                    Padding     = rightPad ? new Padding(0, 0, 12, 0) : Padding.Empty
+                };
+                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+                tlp.RowStyles.Add(new RowStyle(SizeType.Absolute, 22f));   // label row
+                tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));   // control row
 
                 var lbl = new Label
                 {
                     Text      = caption,
                     Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
                     ForeColor = Color.FromArgb(98, 112, 135),
-                    BackColor = Color.White,
-                    AutoSize  = false,
-                    Location  = new Point(0, 8),
-                    Height    = 18,
-                    Anchor    = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right
+                    Dock      = DockStyle.Fill,
+                    TextAlign = ContentAlignment.BottomLeft,
+                    Padding   = new Padding(0, 0, 0, 2)
                 };
-                ctrl.Location = new Point(0, 44);
-                ctrl.Height   = 34;
-                ctrl.Anchor   = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right;
 
-                // Add ctrl first (lower z-order), then lbl (higher z-order)
-                cell.Controls.Add(ctrl);
-                cell.Controls.Add(lbl);
-                lbl.BringToFront();
+                ctrl.Dock = DockStyle.Fill;
 
-                cell.Resize += (s, e) =>
-                {
-                    int w = cell.ClientSize.Width - (rightPad ? 12 : 0);
-                    lbl.Width  = w;
-                    ctrl.Width = w;
-                };
-                return cell;
+                tlp.Controls.Add(lbl,  0, 0);   // row 0 → label
+                tlp.Controls.Add(ctrl, 0, 1);   // row 1 → input
+                return tlp;
             }
 
-            // Date-From cell
-            var cellDate = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            var lblDate  = new Label
+            // ── Date-From cell (checkbox + dtp share one row)
+            var cellDate = new TableLayoutPanel
+            {
+                Dock        = DockStyle.Fill,
+                RowCount    = 2,
+                ColumnCount = 2,
+                BackColor   = Color.Transparent,
+                CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+            };
+            cellDate.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 28f));
+            cellDate.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+            cellDate.RowStyles.Add(new RowStyle(SizeType.Absolute, 22f));  // label row
+            cellDate.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));  // control row
+
+            var lblDate = new Label
             {
                 Text      = "Date From",
                 Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(98, 112, 135),
-                BackColor = Color.White,
-                AutoSize  = false,
-                Location  = new Point(0, 8),
-                Height    = 18,
-                Anchor    = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.BottomLeft,
+                Padding   = new Padding(0, 0, 0, 2)
             };
-            chkDateFrom.Location = new Point(0,  44);
-            chkDateFrom.Height   = 34;
-            dtpDateFrom.Location = new Point(30, 44);
-            dtpDateFrom.Height   = 34;
-            dtpDateFrom.Anchor   = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right;
-            // Add controls first, label last so label is on top
-            cellDate.Controls.Add(chkDateFrom);
-            cellDate.Controls.Add(dtpDateFrom);
-            cellDate.Controls.Add(lblDate);
-            lblDate.BringToFront();
-            cellDate.Resize += (s, e) =>
-            {
-                lblDate.Width     = cellDate.ClientSize.Width;
-                dtpDateFrom.Width = Math.Max(0, cellDate.ClientSize.Width - 32);
-            };
+            chkDateFrom.Dock   = DockStyle.Fill;
+            dtpDateFrom.Dock   = DockStyle.Fill;
+
+            // Row 0: label spans both columns
+            cellDate.SetColumnSpan(lblDate, 2);
+            cellDate.Controls.Add(lblDate,     0, 0);
+            // Row 1: checkbox col-0, dtp col-1
+            cellDate.Controls.Add(chkDateFrom, 0, 1);
+            cellDate.Controls.Add(dtpDateFrom, 1, 1);
 
             // ── 4-column fields TLP
             var tblFields = new TableLayoutPanel
@@ -169,14 +181,14 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             // ── Buttons panel
             var pnlBtns = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            btnSearch  = MakePrimaryBtn("Search",     new Point(0,   16), 116, 38);
-            btnRefresh = MakeOutlineBtn("↻  Refresh", new Point(124, 16), 126, 38);
+            btnSearch  = MakePrimaryBtn("Search",     new Point(0,   12), 116, 38);
+            btnRefresh = MakeOutlineBtn("↻  Refresh", new Point(124, 12), 126, 38);
             btnSearch.Click  += (s, e) => RefreshGrid();
             btnRefresh.Click += (s, e) => RefreshGrid();
             pnlBtns.Controls.Add(btnSearch);
             pnlBtns.Controls.Add(btnRefresh);
 
-            // ── Master card TLP
+            // ── Master card TLP (title 50 + fields 90 + buttons 62)
             var tblCard = new TableLayoutPanel
             {
                 Dock            = DockStyle.Fill,
@@ -184,12 +196,12 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 ColumnCount     = 1,
                 BackColor       = Color.Transparent,
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                Padding         = new Padding(18, 18, 18, 18)
+                Padding         = new Padding(18, 14, 18, 14)
             };
             tblCard.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  60f));
-            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute, 118f));
-            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  82f));
+            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute, 50f));
+            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute, 90f));
+            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute, 62f));
 
             // Title row
             var pnlTitle = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
@@ -214,11 +226,11 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlCard.Paint += PaintCardBorder;
             pnlCard.Controls.Add(tblCard);
 
-            // Outer wrapper — 320px
+            // Outer wrapper — 230px
             var pnlSearchOuter = new Panel
             {
                 Dock      = DockStyle.Top,
-                Height    = 320,
+                Height    = 230,
                 BackColor = Color.FromArgb(240, 244, 249),
                 Padding   = new Padding(20, 14, 20, 8)
             };
@@ -281,11 +293,11 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlGridCard.Controls.Add(pnlGridInner);
 
             // ── Assemble
-            pnlMain.Controls.Add(pnlGridCard);    // Fill
-            pnlMain.Controls.Add(pnlActions);     // Bottom
-            pnlMain.Controls.Add(pnlKpi);         // Top #2
-            pnlMain.Controls.Add(pnlSearchOuter); // Top #1
-            pnlMain.Controls.Add(_shell);          // Top #0
+            pnlMain.Controls.Add(pnlGridCard);
+            pnlMain.Controls.Add(pnlActions);
+            pnlMain.Controls.Add(pnlKpi);
+            pnlMain.Controls.Add(pnlSearchOuter);
+            pnlMain.Controls.Add(_shell);
 
             this.Controls.Add(pnlMain);
             this.ResumeLayout(false);
@@ -295,7 +307,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         private Button MakePrimaryBtn(string text, Point loc, int w, int h)
         {
             var b = new Button { Text = text, Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.White,
-                BackColor = Color.FromArgb(47, 111, 237), FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand };
+                BackColor = Color.FromArgb(47, 111, 237), FlatStyle = FlatStyle.Flat,
+                Location = loc, Width = w, Height = h, Cursor = Cursors.Hand };
             b.FlatAppearance.BorderSize = 0;
             b.FlatAppearance.MouseOverBackColor = Color.FromArgb(26, 77, 192);
             b.FlatAppearance.MouseDownBackColor = Color.FromArgb(21, 60, 155);
@@ -304,7 +317,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         private Button MakeWarningBtn(string text, Point loc, int w, int h)
         {
             var b = new Button { Text = text, Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.White,
-                BackColor = Color.FromArgb(245, 158, 11), FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand };
+                BackColor = Color.FromArgb(245, 158, 11), FlatStyle = FlatStyle.Flat,
+                Location = loc, Width = w, Height = h, Cursor = Cursors.Hand };
             b.FlatAppearance.BorderSize = 0;
             b.FlatAppearance.MouseOverBackColor = Color.FromArgb(217, 119, 6);
             b.FlatAppearance.MouseDownBackColor = Color.FromArgb(180, 90, 0);
@@ -313,7 +327,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         private Button MakeOutlineBtn(string text, Point loc, int w, int h)
         {
             var b = new Button { Text = text, Font = new Font("Segoe UI", 12f), ForeColor = Color.FromArgb(15, 31, 53),
-                BackColor = Color.White, FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand };
+                BackColor = Color.White, FlatStyle = FlatStyle.Flat,
+                Location = loc, Width = w, Height = h, Cursor = Cursors.Hand };
             b.FlatAppearance.BorderColor = Color.FromArgb(221, 227, 236);
             b.FlatAppearance.BorderSize  = 1;
             b.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
@@ -322,10 +337,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
         // ── Border painters
         private static void PaintBottomBorder(object s, PaintEventArgs e)
-        { var p = (Panel)s; using var pen = new Pen(Color.FromArgb(221, 227, 236), 1); e.Graphics.DrawLine(pen, 0, p.Height - 1, p.Width, p.Height - 1); }
+        { var p = (Panel)s; using var pen = new Pen(Color.FromArgb(221, 227, 236), 1); e.Graphics.DrawLine(pen, 0, p.Height-1, p.Width, p.Height-1); }
         private static void PaintTopBorder(object s, PaintEventArgs e)
         { var p = (Panel)s; using var pen = new Pen(Color.FromArgb(221, 227, 236), 1); e.Graphics.DrawLine(pen, 0, 0, p.Width, 0); }
         private static void PaintCardBorder(object s, PaintEventArgs e)
-        { var p = (Panel)s; using var pen = new Pen(Color.FromArgb(221, 227, 236), 1); e.Graphics.DrawRectangle(pen, 0, 0, p.Width - 1, p.Height - 1); }
+        { var p = (Panel)s; using var pen = new Pen(Color.FromArgb(221, 227, 236), 1); e.Graphics.DrawRectangle(pen, 0, 0, p.Width-1, p.Height-1); }
     }
 }
