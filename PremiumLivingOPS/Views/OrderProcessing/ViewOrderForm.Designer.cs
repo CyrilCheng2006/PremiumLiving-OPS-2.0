@@ -87,14 +87,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             chkDateFrom.CheckedChanged += (s, e) => { dtpDateFrom.Enabled = chkDateFrom.Checked; RefreshGrid(); };
             dtpDateFrom.ValueChanged   += (s, e) => { if (chkDateFrom.Checked) RefreshGrid(); };
 
-            // ────────────────────────────────────────────────────────
-            // MakeCell: 2-row TableLayoutPanel
-            //   Row 0 (22px)  → Label only
-            //   Row 1 (fill)  → Control only
-            // Native Win32 controls (TextBox/ComboBox/DateTimePicker) always
-            // paint over sibling managed controls in the same parent, regardless
-            // of Z-order.  Putting them in SEPARATE rows eliminates overlap.
-            // ────────────────────────────────────────────────────────
+            // ── MakeCell: 2-row TLP
+            //   Row 0 (30px absolute) → Label
+            //   Row 1 (80% percent)   → Control
             TableLayoutPanel MakeCell(string caption, Control ctrl, bool rightPad = true)
             {
                 var tlp = new TableLayoutPanel
@@ -107,8 +102,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     Padding     = rightPad ? new Padding(0, 0, 12, 0) : Padding.Empty
                 };
                 tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-                tlp.RowStyles.Add(new RowStyle(SizeType.Absolute, 22f));   // label row
-                tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));   // control row
+                tlp.RowStyles.Add(new RowStyle(SizeType.Absolute, 30f));    // label row
+                tlp.RowStyles.Add(new RowStyle(SizeType.Percent,  80f));    // control row
 
                 var lbl = new Label
                 {
@@ -122,12 +117,12 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
                 ctrl.Dock = DockStyle.Fill;
 
-                tlp.Controls.Add(lbl,  0, 0);   // row 0 → label
-                tlp.Controls.Add(ctrl, 0, 1);   // row 1 → input
+                tlp.Controls.Add(lbl,  0, 0);
+                tlp.Controls.Add(ctrl, 0, 1);
                 return tlp;
             }
 
-            // ── Date-From cell (checkbox + dtp share one row)
+            // ── Date-From cell
             var cellDate = new TableLayoutPanel
             {
                 Dock        = DockStyle.Fill,
@@ -138,8 +133,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             };
             cellDate.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 28f));
             cellDate.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-            cellDate.RowStyles.Add(new RowStyle(SizeType.Absolute, 22f));  // label row
-            cellDate.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));  // control row
+            cellDate.RowStyles.Add(new RowStyle(SizeType.Absolute, 30f));   // label row
+            cellDate.RowStyles.Add(new RowStyle(SizeType.Percent,  80f));   // control row
 
             var lblDate = new Label
             {
@@ -150,13 +145,11 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 TextAlign = ContentAlignment.BottomLeft,
                 Padding   = new Padding(0, 0, 0, 2)
             };
-            chkDateFrom.Dock   = DockStyle.Fill;
-            dtpDateFrom.Dock   = DockStyle.Fill;
+            chkDateFrom.Dock = DockStyle.Fill;
+            dtpDateFrom.Dock = DockStyle.Fill;
 
-            // Row 0: label spans both columns
             cellDate.SetColumnSpan(lblDate, 2);
             cellDate.Controls.Add(lblDate,     0, 0);
-            // Row 1: checkbox col-0, dtp col-1
             cellDate.Controls.Add(chkDateFrom, 0, 1);
             cellDate.Controls.Add(dtpDateFrom, 1, 1);
 
@@ -181,14 +174,14 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             // ── Buttons panel
             var pnlBtns = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            btnSearch  = MakePrimaryBtn("Search",     new Point(0,   12), 116, 38);
-            btnRefresh = MakeOutlineBtn("↻  Refresh", new Point(124, 12), 126, 38);
+            btnSearch  = MakePrimaryBtn("Search",     new Point(0,   16), 116, 38);
+            btnRefresh = MakeOutlineBtn("↻  Refresh", new Point(124, 16), 126, 38);
             btnSearch.Click  += (s, e) => RefreshGrid();
             btnRefresh.Click += (s, e) => RefreshGrid();
             pnlBtns.Controls.Add(btnSearch);
             pnlBtns.Controls.Add(btnRefresh);
 
-            // ── Master card TLP (title 50 + fields 90 + buttons 62)
+            // ── Master card TLP
             var tblCard = new TableLayoutPanel
             {
                 Dock            = DockStyle.Fill,
@@ -199,9 +192,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Padding         = new Padding(18, 14, 18, 14)
             };
             tblCard.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute, 50f));
-            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute, 90f));
-            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute, 62f));
+            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  50f));  // title row
+            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute, 120f));  // fields row
+            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  80f));  // buttons row
 
             // Title row
             var pnlTitle = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
@@ -226,11 +219,11 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlCard.Paint += PaintCardBorder;
             pnlCard.Controls.Add(tblCard);
 
-            // Outer wrapper — 230px
+            // Outer wrapper — 330px
             var pnlSearchOuter = new Panel
             {
                 Dock      = DockStyle.Top,
-                Height    = 230,
+                Height    = 330,
                 BackColor = Color.FromArgb(240, 244, 249),
                 Padding   = new Padding(20, 14, 20, 8)
             };
