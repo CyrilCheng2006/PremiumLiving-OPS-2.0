@@ -1,5 +1,6 @@
 using PremiumLivingOPS.Views.OrderProcessing;
 using System;
+using System.Drawing;
 using System.Windows.Forms;
 
 namespace PremiumLivingOPS.Views.Shared
@@ -7,30 +8,19 @@ namespace PremiumLivingOPS.Views.Shared
     /// <summary>
     /// Handles top-navigation routing for every Form in the application.
     ///
-    /// MVC contract (View layer helper):
-    ///   Each Form's OnTopNavMenuItemClicked handler delegates to
-    ///   FormNavigator.NavigateTo(currentForm, menuLabel, subItem).
-    ///   This class opens the correct destination Form and hides the
-    ///   caller, so the application always has exactly one visible window.
-    ///
-    /// Pattern:
-    ///   1. Open the new form.
-    ///   2. Subscribe to the new form's FormClosed event.
-    ///   3. On close, re-show the caller (so Back navigation works).
-    ///   4. Hide (not Close) the caller while the child is open.
+    /// Single-Window Pattern:
+    ///   The destination Form is shown maximised at the same screen position
+    ///   as the current Form, then the current Form is closed.
+    ///   This gives the illusion of in-place navigation with no extra window.
     /// </summary>
     public static class FormNavigator
     {
-        /// <summary>
-        /// Navigate from <paramref name="current"/> to the page identified by
-        /// (<paramref name="menuLabel"/>, <paramref name="subItem"/>).
-        /// </summary>
         public static void NavigateTo(Form current, string menuLabel, string subItem = "")
         {
             Form target = Resolve(menuLabel, subItem);
+
             if (target == null)
             {
-                // Module not yet implemented
                 string display = string.IsNullOrEmpty(subItem)
                     ? menuLabel
                     : $"{menuLabel}  ›  {subItem}";
@@ -40,22 +30,32 @@ namespace PremiumLivingOPS.Views.Shared
                 return;
             }
 
-            // Same form — do nothing
+            // Already on the same page — do nothing.
             if (target.GetType() == current.GetType())
             {
                 target.Dispose();
                 return;
             }
 
-            target.FormClosed += (s, e) => current.Show();
-            current.Hide();
+            // Carry over window state so the transition feels seamless.
+            target.StartPosition = FormStartPosition.Manual;
+            target.Bounds        = current.Bounds;
+            target.WindowState   = current.WindowState;
+
+            // Show the new form, then close (not just hide) the old one.
+            // Using Load event ensures target is fully initialised before
+            // the current form disappears.
+            target.Load += (s, e) =>
+            {
+                current.Close();
+            };
+
             target.Show();
         }
 
-        // ── Routing table ─────────────────────────────────────────────────────
+        // ── Routing table ─────────────────────────────────────────────────
         private static Form Resolve(string menu, string sub)
         {
-            // Normalise
             menu = menu?.Trim() ?? "";
             sub  = sub?.Trim()  ?? "";
 
@@ -67,16 +67,15 @@ namespace PremiumLivingOPS.Views.Shared
                 case "Order Processing":
                     switch (sub)
                     {
-                        case "View Order":    return new ViewOrderForm();
-                        case "Quotation":     return new QuotationForm();
-                        case "Create Order":  return new CreateOrderForm();
-                        case "Modify Order":  return new ModifyOrderForm();
-                        default:              return new ViewOrderForm(); // default tab
+                        case "View Order":   return new ViewOrderForm();
+                        case "Quotation":    return new QuotationForm();
+                        case "Create Order": return new CreateOrderForm();
+                        case "Modify Order": return new ModifyOrderForm();
+                        default:             return new ViewOrderForm();
                     }
 
-                // ── Additional modules added here as they are implemented ──────
                 default:
-                    return null;  // "Coming Soon" message shown by caller
+                    return null;  // Coming Soon
             }
         }
     }
