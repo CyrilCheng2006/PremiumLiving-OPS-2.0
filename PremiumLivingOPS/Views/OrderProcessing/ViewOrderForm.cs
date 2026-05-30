@@ -28,9 +28,18 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             this.Load += ViewOrderForm_Load;
         }
 
-        // ── Load ───────────────────────────────────────────────────────────────
+        // ── Load ───────────────────────────────────────────────────────
         private void ViewOrderForm_Load(object sender, EventArgs e)
         {
+            // Set SplitterDistance here, after the form is fully laid out,
+            // to avoid InvalidOperationException during InitializeComponent.
+            int available = _split.Height;
+            int desired   = (int)(available * 0.60);  // 60% for the order grid
+            int min1      = _split.Panel1MinSize;
+            int min2      = _split.Panel2MinSize;
+            // Clamp to the valid range [Panel1MinSize .. Height - Panel2MinSize]
+            _split.SplitterDistance = Math.Max(min1, Math.Min(desired, available - min2));
+
             RefreshData();
         }
 
@@ -38,7 +47,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         {
             var vm = _ctrl.GetViewOrderVM(statusFilter);
 
-            // UserBarInfo has: DisplayName, Department  (no Role property)
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
             _shell.SetBreadcrumb("Order Processing  ›  View Order");
@@ -62,7 +70,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             lblDetailTitle.Text = "Select an order to view details";
         }
 
-        // ── Event handlers ──────────────────────────────────────────────────────
+        // ── Event handlers ──────────────────────────────────────────────
         private void cboStatusFilter_SelectedIndexChanged(object sender, EventArgs e)
         {
             string sel = cboStatusFilter.SelectedItem?.ToString();
@@ -90,7 +98,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             RefreshData(sel == "All" ? null : sel);
         }
 
-        // ── TopNavBar navigation ────────────────────────────────────────────────
+        // ── TopNavBar navigation ──────────────────────────────────────────
         private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
             => FormNavigator.NavigateTo(this, menuLabel, subItem);
 

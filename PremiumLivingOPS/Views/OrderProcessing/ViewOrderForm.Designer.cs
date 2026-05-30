@@ -15,6 +15,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         private ComboBox     cboStatusFilter;
         private Button       btnRefresh;
         private Label        lblFilterLabel;
+        // Exposed so ViewOrderForm_Load can set SplitterDistance after layout.
+        private SplitContainer _split;
 
         protected override void Dispose(bool disposing)
         {
@@ -34,15 +36,15 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             this.WindowState   = FormWindowState.Maximized;
             this.Font          = new Font("Segoe UI", 11f);
 
-            // ── Root panel ────────────────────────────────────────────
+            // ── Root panel ───────────────────────────────────────────────────
             Panel pnlMain = new Panel { Dock = DockStyle.Fill, BackColor = Palette.BgPage };
 
-            // ── AppShell (TopNavBar + UserBar) ─────────────────────────
+            // ── AppShell (TopNavBar + UserBar) ───────────────────────────
             _shell = new AppShell();
             _shell.MenuItemClicked += OnTopNavMenuItemClicked;
             _shell.LogoutClicked   += btnLogout_Click;
 
-            // ── Content ────────────────────────────────────────────────
+            // ── Content ──────────────────────────────────────────────────
             Panel pnlContent = new Panel
             {
                 Dock      = DockStyle.Fill,
@@ -159,18 +161,19 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlDetail.Controls.Add(dgvLines);
             pnlDetail.Controls.Add(lblDetailTitle);
 
-            // SplitContainer: orders on top, line items on bottom
-            SplitContainer split = new SplitContainer
+            // SplitContainer: orders on top, line items on bottom.
+            // SplitterDistance is NOT set here — it is set in ViewOrderForm_Load
+            // after the form has been laid out, so the value is always valid.
+            _split = new SplitContainer
             {
-                Dock             = DockStyle.Fill,
-                Orientation      = Orientation.Horizontal,
-                SplitterDistance = 400,
-                Panel1MinSize    = 200,
-                Panel2MinSize    = 180,
-                BackColor        = Palette.BgPage
+                Dock          = DockStyle.Fill,
+                Orientation   = Orientation.Horizontal,
+                Panel1MinSize = 200,
+                Panel2MinSize = 180,
+                BackColor     = Palette.BgPage
             };
-            split.Panel1.Controls.Add(dgvOrders);
-            split.Panel2.Controls.Add(pnlDetail);
+            _split.Panel1.Controls.Add(dgvOrders);
+            _split.Panel2.Controls.Add(pnlDetail);
 
             // Header strip (title + toolbar) — fixed-height FlowLayoutPanel
             FlowLayoutPanel flow = new FlowLayoutPanel
@@ -192,7 +195,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             flow.Resize += (s, e) => pnlToolbar.Width = flow.Width;
 
-            pnlContent.Controls.Add(split);
+            pnlContent.Controls.Add(_split);
             pnlContent.Controls.Add(flow);
 
             pnlMain.Controls.Add(pnlContent);
@@ -202,7 +205,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             this.ResumeLayout(false);
         }
 
-        // ── DGV factory ────────────────────────────────────────────────
+        // ── DGV factory ───────────────────────────────────────────────────
         private DataGridView MakeDgv()
         {
             return new DataGridView
@@ -222,7 +225,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 MultiSelect           = false,
                 ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
                 {
-                    BackColor = Color.FromArgb(246, 249, 255),
+                    BackColor = System.Drawing.Color.FromArgb(246, 249, 255),
                     ForeColor = Palette.TextMuted,
                     Font      = new Font("Segoe UI", 10.5f, FontStyle.Bold),
                     Padding   = new Padding(6)
@@ -232,7 +235,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 {
                     BackColor          = Palette.BgCard,
                     ForeColor          = Palette.TextMain,
-                    SelectionBackColor = Color.FromArgb(240, 246, 255),
+                    SelectionBackColor = System.Drawing.Color.FromArgb(240, 246, 255),
                     SelectionForeColor = Palette.TextMain,
                     Padding            = new Padding(8, 5, 8, 5)
                 }
