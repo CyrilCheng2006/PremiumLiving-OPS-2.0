@@ -7,16 +7,6 @@ using System.Windows.Forms;
 
 namespace PremiumLivingOPS.Views.OrderProcessing
 {
-    /// <summary>
-    /// View Order — Tab 1 of Order Processing Management.
-    /// Displays all orders in a DataGridView with status filtering.
-    /// Selecting a row shows its line items in a detail panel.
-    ///
-    /// MVC contract (View layer):
-    ///   • Instantiates OrderProcessingController to request ViewOrderViewModel.
-    ///   • Uses AppShell for TopNavBar + UserBar chrome.
-    ///   • Contains NO business logic and NO direct DB calls.
-    /// </summary>
     public partial class ViewOrderForm : Form
     {
         private readonly OrderProcessingController _ctrl = new OrderProcessingController();
@@ -28,18 +18,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             this.Load += ViewOrderForm_Load;
         }
 
-        // ── Load ───────────────────────────────────────────────────────
         private void ViewOrderForm_Load(object sender, EventArgs e)
         {
-            // Set SplitterDistance here, after the form is fully laid out,
-            // to avoid InvalidOperationException during InitializeComponent.
-            int available = _split.Height;
-            int desired   = (int)(available * 0.60);  // 60% for the order grid
-            int min1      = _split.Panel1MinSize;
-            int min2      = _split.Panel2MinSize;
-            // Clamp to the valid range [Panel1MinSize .. Height - Panel2MinSize]
-            _split.SplitterDistance = Math.Max(min1, Math.Min(desired, available - min2));
-
             RefreshData();
         }
 
@@ -51,7 +31,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             _shell.SetVisibleMenus(vm.AllowedMenus);
             _shell.SetBreadcrumb("Order Processing  ›  View Order");
 
-            // Bind order grid
             dgvOrders.Rows.Clear();
             foreach (var o in vm.Orders)
             {
@@ -65,12 +44,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 );
             }
 
-            // Clear detail panel
             dgvLines.Rows.Clear();
             lblDetailTitle.Text = "Select an order to view details";
         }
 
-        // ── Event handlers ──────────────────────────────────────────────
         private void cboStatusFilter_SelectedIndexChanged(object sender, EventArgs e)
         {
             string sel = cboStatusFilter.SelectedItem?.ToString();
@@ -98,7 +75,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             RefreshData(sel == "All" ? null : sel);
         }
 
-        // ── TopNavBar navigation ──────────────────────────────────────────
         private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
             => FormNavigator.NavigateTo(this, menuLabel, subItem);
 
