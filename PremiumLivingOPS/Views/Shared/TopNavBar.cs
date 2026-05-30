@@ -48,16 +48,16 @@ namespace PremiumLivingOPS.Views.Shared
         // Label strings must match NavAccessPolicy constants exactly.
         private static readonly (string Label, string[] Items)[] AllMenus =
         {
-            ("Dashboard",                 new string[] { }),
-            ("Order Processing",          new[] { "View Order", "Quotation", "Create Order", "Modify Order" }),
-            ("Production Processing",     new[] { "Search Raw Material Request", "Create Raw Material Request" }),
-            ("Logistics Processing",      new[] { "View Shipment", "Handling Goods Received" }),
-            ("Inventory Control",         new[] { "View Product / Raw Material" }),
-            ("Raw Material",              new[] { "Create Procurement", "Search Procurement" }),
-            ("After-Service",             new[] { "Create Invoice", "Complaint List", "Return Order List", "Account Receivable", "Account Payable" }),
-            ("Master Data Maintenance",   new[] { "Supplier List", "Customer List" }),
-            ("System Security & Control", new[] { "Staff List", "Log List" }),   // must match NavAccessPolicy.SystemSecurity
-            ("Statistical Reports",       new[] { "View Report" })
+            ("Dashboard",               new string[] { }),
+            ("Order Processing",        new[] { "View Order", "Quotation", "Create Order", "Modify Order" }),
+            ("Production Processing",   new[] { "Search Raw Material Request", "Create Raw Material Request" }),
+            ("Logistics Processing",    new[] { "View Shipment", "Handling Goods Received" }),
+            ("Inventory Control",       new[] { "View Product / Raw Material" }),
+            ("Raw Material",            new[] { "Create Procurement", "Search Procurement" }),
+            ("After-Service",           new[] { "Create Invoice", "Complaint List", "Return Order List", "Account Receivable", "Account Payable" }),
+            ("Master Data Maintenance", new[] { "Supplier List", "Customer List" }),
+            ("System Control",          new[] { "Staff List", "Log List" }),   // must match NavAccessPolicy.SystemControl
+            ("Statistical Reports",     new[] { "View Report" })
         };
 
         // ── Active (filtered) menu ──────────────────────────────────
@@ -166,8 +166,8 @@ namespace PremiumLivingOPS.Views.Shared
 
             for (int i = 0; i < _menus.Length; i++)
             {
-                int  idx     = i;
-                bool hasDrop = _menus[i].Items.Length > 0;
+                int  idx      = i;
+                bool hasDrop  = _menus[i].Items.Length > 0;
                 string menuLabel = _menus[i].Label;
 
                 Panel item = new Panel

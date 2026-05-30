@@ -13,22 +13,22 @@ namespace PremiumLivingOPS.Controllers
     ///   TopNavBar (View) receives the list via SetVisibleMenus() and renders
     ///   only the permitted items — it never reads SessionManager directly.
     ///
-    /// Menu labels must match the Label strings defined in TopNavBar._menus
+    /// Menu labels must match the Label strings defined in TopNavBar.AllMenus
     /// exactly (case-sensitive).
     /// </summary>
     public static class NavAccessPolicy
     {
-        // All menu labels that exist in TopNavBar
-        private const string Dashboard        = "Dashboard";
-        private const string OrderProc        = "Order Processing";
-        private const string ProductionProc   = "Production Processing";
-        private const string LogisticsProc    = "Logistics Processing";
-        private const string InventoryCtrl    = "Inventory Control";
-        private const string RawMaterial      = "Raw Material";
-        private const string AfterService     = "After-Service";
-        private const string MasterData       = "Master Data Maintenance";
-        private const string SystemSecurity   = "System Security & Control";
-        private const string StatReports      = "Statistical Reports";
+        // All menu labels that exist in TopNavBar.AllMenus
+        private const string Dashboard      = "Dashboard";
+        private const string OrderProc      = "Order Processing";
+        private const string ProductionProc = "Production Processing";
+        private const string LogisticsProc  = "Logistics Processing";
+        private const string InventoryCtrl  = "Inventory Control";
+        private const string RawMaterial    = "Raw Material";
+        private const string AfterService   = "After-Service";
+        private const string MasterData     = "Master Data Maintenance";
+        private const string SystemControl  = "System Control";   // renamed from "System Security & Control"
+        private const string StatReports    = "Statistical Reports";
 
         // ── Access matrix ────────────────────────────────────────────
         // Key   : Department value stored in Staff.Department (DB ENUM)
@@ -40,7 +40,7 @@ namespace PremiumLivingOPS.Controllers
             {
                 Dashboard, OrderProc, ProductionProc, LogisticsProc,
                 InventoryCtrl, RawMaterial, AfterService,
-                MasterData, SystemSecurity, StatReports
+                MasterData, SystemControl, StatReports
             },
             ["Production"] = new HashSet<string>
             {
@@ -84,7 +84,7 @@ namespace PremiumLivingOPS.Controllers
             {
                 Dashboard, OrderProc, ProductionProc, LogisticsProc,
                 InventoryCtrl, RawMaterial, AfterService,
-                MasterData, SystemSecurity, StatReports
+                MasterData, SystemControl, StatReports
             };
 
             return ordered.Where(m => allowed.Contains(m)).ToArray();
