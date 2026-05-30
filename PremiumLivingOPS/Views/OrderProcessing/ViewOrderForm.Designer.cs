@@ -189,9 +189,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Padding         = new Padding(18, 14, 18, 14)
             };
             tblCard.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  60f));  // title row
-            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute, 130f));  // fields row
-            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  60f));  // button row (was 80f)
+            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  60f));   // Row 0 — 標題列
+            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute, 125f));   // Row 1 — 欄位列
+            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  65f));   // Row 2 — 按鈕列
 
             var pnlTitle = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             var lblTitle = new Label
