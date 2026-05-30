@@ -170,10 +170,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             tblFields.Controls.Add(cellDate,                                 3, 0);
 
             // ── Buttons panel
-            // Both buttons: 175 x 55, y=12 so they sit centred in the 80px row
+            // Both buttons: 210 x 60, gap = 8px
             var pnlBtns = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            btnSearch  = MakePrimaryBtn("🔍  Search", new Point(0,   12), 175, 55);
-            btnRefresh = MakeOutlineBtn("↺  Reset",  new Point(183, 12), 175, 55);
+            btnSearch  = MakePrimaryBtn("🔍  Search", new Point(0,   10), 210, 60);
+            btnRefresh = MakeOutlineBtn("↺  Reset",  new Point(218, 10), 210, 60);
             btnSearch.Click  += (s, e) => RefreshGrid();
             btnRefresh.Click += (s, e) => RefreshGrid();
             pnlBtns.Controls.Add(btnSearch);
