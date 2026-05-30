@@ -39,8 +39,8 @@ namespace PremiumLivingOPS.Controllers
             {
                 UserBar = new UserBarInfo
                 {
-                    DisplayName = user != null ? $"{user.FirstName} {user.LastName}" : "Guest",
-                    Role        = user?.JobTitle ?? "",
+                    DisplayName    = user != null ? $"{user.FirstName} {user.LastName}" : "Guest",
+                    Role           = user?.JobTitle ?? "",
                     AvatarInitials = GetInitials(user)
                 },
                 AllowedMenus = allowed,
@@ -138,7 +138,7 @@ namespace PremiumLivingOPS.Controllers
             // Recalculate totals server-side for integrity
             double sub = 0;
             foreach (var l in lines) sub += l.Quantity * l.Price;
-            header.SubTotal = sub;
+            header.SubTotal   = sub;
             header.GrandTotal = sub - header.DiscountAmount;
 
             try
@@ -207,7 +207,11 @@ namespace PremiumLivingOPS.Controllers
             if (lines == null || lines.Count == 0)
                 return (false, "At least one order line is required.");
 
-            // Recalculate totals
+            // Guard: Cancelled orders cannot be edited
+            if (header.OrderStatus == "Cancelled")
+                return (false, "Cancelled orders cannot be modified.");
+
+            // Recalculate totals server-side for integrity
             double sub = 0;
             foreach (var l in lines) sub += l.Quantity * l.Price;
             header.SubTotal   = sub;
@@ -228,7 +232,44 @@ namespace PremiumLivingOPS.Controllers
             }
         }
 
-        // ── Helper ───────────────────────────────────────────────────────────────
+        /// <summary>
+        /// Cancels an existing order by setting its OrderStatus to "Cancelled".
+        /// Business rules enforced:
+        ///   • Only orders in "Pending" or "Confirmed" status may be cancelled.
+        ///   • "Delivered" and "Completed" orders cannot be cancelled.
+        /// Returns (success, message).
+        /// </summary>
+        public (bool ok, string message) CancelOrder(string orderId)
+        {
+            if (string.IsNullOrWhiteSpace(orderId))
+                return (false, "Order ID is missing.");
+
+            // Load current status to enforce business rules
+            var order = _repo.GetOrderById(orderId);
+            if (order == null)
+                return (false, $"Order '{orderId}' not found.");
+
+            if (order.OrderStatus == "Cancelled")
+                return (false, "This order is already cancelled.");
+
+            if (order.OrderStatus == "Delivered" || order.OrderStatus == "Completed")
+                return (false,
+                    $"Orders with status '{order.OrderStatus}' cannot be cancelled.");
+
+            try
+            {
+                bool ok = _repo.UpdateOrderStatus(orderId, "Cancelled");
+                return ok
+                    ? (true,  $"Order '{orderId}' has been cancelled.")
+                    : (false, "Failed to cancel the order. Please try again.");
+            }
+            catch (Exception ex)
+            {
+                return (false, "Database error: " + ex.Message);
+            }
+        }
+
+        // ── Helper ──────────────────────────────────────────────────────────────────────
         private static string GetInitials(Staff user)
         {
             if (user == null) return "?";
