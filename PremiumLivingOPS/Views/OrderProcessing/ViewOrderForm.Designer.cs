@@ -47,11 +47,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             _shell = new AppShell();
             _shell.SetPopupContainer(pnlMain);
 
-            // ═══════════════════════════════════════════════════════════
-            // SEARCH CARD — pnlSearchOuter = 320px
-            //   Row 1 field strip: label Y=4 H=20 (bottom=24) | ctrl Y=56 H=36 (gap=32px)
-            // ═══════════════════════════════════════════════════════════
-
             // ── Input controls
             txtSearchOrderNo = new TextBox
             {
@@ -85,8 +80,11 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             chkDateFrom.CheckedChanged += (s, e) => { dtpDateFrom.Enabled = chkDateFrom.Checked; RefreshGrid(); };
             dtpDateFrom.ValueChanged   += (s, e) => { if (chkDateFrom.Checked) RefreshGrid(); };
 
-            // ── MakeCell: label (Y=4, H=20, bottom=24) + control (Y=56, H=36)
-            // Gap = 56 - 24 = 32px — guaranteed no overlap
+            // ── MakeCell
+            // Layout inside each cell (118px tall row):
+            //   label  : Y=8,  H=18  (bottom = 26)
+            //   control: Y=32, H=34  (top = 32, gap from label bottom = 6px)
+            // The label sits above the control's white system-drawn border area.
             Panel MakeCell(string caption, Control ctrl, bool rightPad = true)
             {
                 var cell = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
@@ -97,12 +95,13 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     Text      = caption,
                     Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
                     ForeColor = Color.FromArgb(98, 112, 135),
-                    Location  = new Point(0, 4),
-                    Height    = 20,
+                    AutoSize  = false,
+                    Location  = new Point(0, 8),
+                    Height    = 18,
                     Anchor    = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right
                 };
-                ctrl.Location = new Point(0, 56);
-                ctrl.Height   = 36;
+                ctrl.Location = new Point(0, 32);
+                ctrl.Height   = 34;
                 ctrl.Anchor   = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right;
 
                 cell.Controls.Add(lbl);
@@ -124,14 +123,15 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Text      = "Date From",
                 Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(98, 112, 135),
-                Location  = new Point(0, 4),
-                Height    = 20,
+                AutoSize  = false,
+                Location  = new Point(0, 8),
+                Height    = 18,
                 Anchor    = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right
             };
-            chkDateFrom.Location = new Point(0,  56);
-            chkDateFrom.Height   = 36;
-            dtpDateFrom.Location = new Point(30, 56);
-            dtpDateFrom.Height   = 36;
+            chkDateFrom.Location = new Point(0,  32);
+            chkDateFrom.Height   = 34;
+            dtpDateFrom.Location = new Point(30, 32);
+            dtpDateFrom.Height   = 34;
             dtpDateFrom.Anchor   = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right;
             cellDate.Controls.Add(lblDate);
             cellDate.Controls.Add(chkDateFrom);
