@@ -42,6 +42,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             _shell = new AppShell();
             _shell.MenuItemClicked += OnTopNavMenuItemClicked;
             _shell.LogoutClicked   += btnLogout_Click;
+            _shell.SetPopupContainer(pnlMain);
 
             // ── Content ────────────────────────────────────────────────
             Panel pnlContent = new Panel

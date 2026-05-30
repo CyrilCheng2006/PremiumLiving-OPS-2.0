@@ -48,11 +48,17 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             this.Font          = new Font("Segoe UI", 13f);
 
             // ─────────────────────────────────────────────────────────────────
+            // Root panel
+            // ─────────────────────────────────────────────────────────────────
+            Panel pnlMain = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(240, 244, 249) };
+
+            // ─────────────────────────────────────────────────────────────────
             // AppShell
             // ─────────────────────────────────────────────────────────────────
             _shell = new AppShell();
             _shell.MenuItemClicked += OnTopNavMenuItemClicked;
             _shell.LogoutClicked   += btnLogout_Click;
+            _shell.SetPopupContainer(pnlMain);
 
             // ─────────────────────────────────────────────────────────────────
             // Toolbar panel
@@ -120,7 +126,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlToolbar.Controls.Add(btnRefresh);
 
             // ─────────────────────────────────────────────────────────────────
-            // KPI Summary bar  (5 pills: Total / Pending / Processing / Delivered / Cancelled)
+            // KPI Summary bar
             // ─────────────────────────────────────────────────────────────────
             pnlKpi = new Panel
             {
@@ -130,7 +136,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Padding   = new Padding(20, 12, 20, 0)
             };
             pnlKpi.Paint += PaintBottomBorder;
-            // KPI labels are created dynamically in ViewOrderForm.cs → RefreshKpi()
 
             // ─────────────────────────────────────────────────────────────────
             // Action bar (bottom)
@@ -191,7 +196,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     Padding            = new Padding(12, 6, 12, 6)
                 }
             };
-            // Remove the column header bottom line
             dgvOrders.EnableHeadersVisualStyles = false;
 
             dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colOrderID",  HeaderText = "ORDER NO.",     FillWeight = 14 });
@@ -201,14 +205,13 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDelivery", HeaderText = "DELIVERY DATE", FillWeight = 13 });
             dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTotal",    HeaderText = "GRAND TOTAL",   FillWeight = 13 });
             dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",   HeaderText = "STATUS",        FillWeight = 10 });
-            // Hidden action column placeholder (action handled by button bar)
 
             dgvOrders.SelectionChanged   += dgvOrders_SelectionChanged;
             dgvOrders.CellFormatting     += dgvOrders_CellFormatting;
             dgvOrders.CellDoubleClick    += dgvOrders_CellDoubleClick;
 
             // ─────────────────────────────────────────────────────────────────
-            // Grid wrapper card with padding
+            // Grid wrapper card
             // ─────────────────────────────────────────────────────────────────
             Panel pnlGridCard = new Panel
             {
@@ -217,7 +220,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 BackColor = Color.FromArgb(240, 244, 249)
             };
 
-            // Inner white card
             Panel pnlCard = new Panel
             {
                 Dock      = DockStyle.Fill,
@@ -230,14 +232,15 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlGridCard.Controls.Add(pnlCard);
 
             // ─────────────────────────────────────────────────────────────────
-            // Assemble (DockStyle: Fill first, then Bottom, then Top-stacked)
+            // Assemble into pnlMain
             // ─────────────────────────────────────────────────────────────────
-            this.Controls.Add(pnlGridCard);    // Fill
-            this.Controls.Add(pnlActions);     // Bottom
-            this.Controls.Add(pnlKpi);         // Top (added last = rendered just below toolbar)
-            this.Controls.Add(pnlToolbar);     // Top (added last = topmost)
-            this.Controls.Add(_shell);         // Top (AppShell sits above everything)
+            pnlMain.Controls.Add(pnlGridCard);    // Fill
+            pnlMain.Controls.Add(pnlActions);     // Bottom
+            pnlMain.Controls.Add(pnlKpi);         // Top
+            pnlMain.Controls.Add(pnlToolbar);     // Top
+            pnlMain.Controls.Add(_shell);         // Top (AppShell sits above everything)
 
+            this.Controls.Add(pnlMain);
             this.ResumeLayout(false);
         }
 
