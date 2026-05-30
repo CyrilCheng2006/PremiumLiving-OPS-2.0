@@ -47,13 +47,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             _shell = new AppShell();
             _shell.SetPopupContainer(pnlMain);
 
-            // ════════════════════════════════════════════════════
+            // ═══════════════════════════════════════════════════════════
             // SEARCH CARD — pnlSearchOuter = 320px
-            //   tblCard Padding (18,18,18,18) = 36px vertical
-            //   Row 0 =  60px  title + divider
-            //   Row 1 = 118px  field strip  (label Y=4 H=20 | ctrl Y=42 H=36 | bottom=78, buffer=40)
-            //   Row 2 =  82px  buttons
-            // ════════════════════════════════════════════════════
+            //   Row 1 field strip: label Y=4 H=20 (bottom=24) | ctrl Y=56 H=36 (gap=32px)
+            // ═══════════════════════════════════════════════════════════
 
             // ── Input controls
             txtSearchOrderNo = new TextBox
@@ -88,8 +85,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             chkDateFrom.CheckedChanged += (s, e) => { dtpDateFrom.Enabled = chkDateFrom.Checked; RefreshGrid(); };
             dtpDateFrom.ValueChanged   += (s, e) => { if (chkDateFrom.Checked) RefreshGrid(); };
 
-            // ── MakeCell: label (Y=4, H=20) + control (Y=42, H=36)
-            // Gap between label bottom (Y=24) and control top (Y=42) = 18px — no overlap
+            // ── MakeCell: label (Y=4, H=20, bottom=24) + control (Y=56, H=36)
+            // Gap = 56 - 24 = 32px — guaranteed no overlap
             Panel MakeCell(string caption, Control ctrl, bool rightPad = true)
             {
                 var cell = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
@@ -104,7 +101,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     Height    = 20,
                     Anchor    = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right
                 };
-                ctrl.Location = new Point(0, 42);
+                ctrl.Location = new Point(0, 56);
                 ctrl.Height   = 36;
                 ctrl.Anchor   = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right;
 
@@ -131,9 +128,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Height    = 20,
                 Anchor    = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right
             };
-            chkDateFrom.Location = new Point(0,  42);
+            chkDateFrom.Location = new Point(0,  56);
             chkDateFrom.Height   = 36;
-            dtpDateFrom.Location = new Point(30, 42);
+            dtpDateFrom.Location = new Point(30, 56);
             dtpDateFrom.Height   = 36;
             dtpDateFrom.Anchor   = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right;
             cellDate.Controls.Add(lblDate);
