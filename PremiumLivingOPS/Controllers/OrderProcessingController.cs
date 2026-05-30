@@ -13,6 +13,11 @@ namespace PremiumLivingOPS.Controllers
     ///   • Calls NavAccessPolicy to determine permitted menus.
     ///   • Delegates all DB access to OrderProcessingRepo.
     ///   • Returns ViewModels to the View layer; contains NO UI dependencies.
+    ///
+    /// Staff property reference (Staff.cs):
+    ///   StaffId, StaffName, Role, Department, Email, Password, DisplayName
+    /// UserBarInfo property reference (DashboardViewModel.cs):
+    ///   DisplayName (string), Department (string)
     /// </summary>
     public class OrderProcessingController
     {
@@ -28,8 +33,9 @@ namespace PremiumLivingOPS.Controllers
         /// </summary>
         public ViewOrderViewModel GetViewOrderVM(string statusFilter = null)
         {
-            var user    = SessionManager.CurrentUser;
-            var allowed = NavAccessPolicy.GetAllowedMenus(user?.Department);
+            var user       = SessionManager.CurrentUser;
+            var department = user?.Department ?? string.Empty;
+            var allowed    = NavAccessPolicy.GetAllowedMenus(department);
 
             var orders = string.IsNullOrEmpty(statusFilter)
                 ? _repo.GetAllOrders()
@@ -39,9 +45,8 @@ namespace PremiumLivingOPS.Controllers
             {
                 UserBar = new UserBarInfo
                 {
-                    DisplayName    = user != null ? $"{user.FirstName} {user.LastName}" : "Guest",
-                    Role           = user?.JobTitle ?? "",
-                    AvatarInitials = GetInitials(user)
+                    DisplayName = user?.StaffName ?? "Guest",
+                    Department  = department
                 },
                 AllowedMenus = allowed,
                 Orders       = orders
@@ -62,16 +67,16 @@ namespace PremiumLivingOPS.Controllers
         /// </summary>
         public QuotationViewModel GetQuotationVM()
         {
-            var user    = SessionManager.CurrentUser;
-            var allowed = NavAccessPolicy.GetAllowedMenus(user?.Department);
+            var user       = SessionManager.CurrentUser;
+            var department = user?.Department ?? string.Empty;
+            var allowed    = NavAccessPolicy.GetAllowedMenus(department);
 
             return new QuotationViewModel
             {
                 UserBar = new UserBarInfo
                 {
-                    DisplayName    = user != null ? $"{user.FirstName} {user.LastName}" : "Guest",
-                    Role           = user?.JobTitle ?? "",
-                    AvatarInitials = GetInitials(user)
+                    DisplayName = user?.StaffName ?? "Guest",
+                    Department  = department
                 },
                 AllowedMenus = allowed,
                 Quotations   = _repo.GetAllQuotations()
@@ -92,16 +97,16 @@ namespace PremiumLivingOPS.Controllers
         /// </summary>
         public CreateOrderViewModel GetCreateOrderVM()
         {
-            var user    = SessionManager.CurrentUser;
-            var allowed = NavAccessPolicy.GetAllowedMenus(user?.Department);
+            var user       = SessionManager.CurrentUser;
+            var department = user?.Department ?? string.Empty;
+            var allowed    = NavAccessPolicy.GetAllowedMenus(department);
 
             return new CreateOrderViewModel
             {
                 UserBar = new UserBarInfo
                 {
-                    DisplayName    = user != null ? $"{user.FirstName} {user.LastName}" : "Guest",
-                    Role           = user?.JobTitle ?? "",
-                    AvatarInitials = GetInitials(user)
+                    DisplayName = user?.StaffName ?? "Guest",
+                    Department  = department
                 },
                 AllowedMenus      = allowed,
                 Customers         = _repo.GetAllCustomers(),
@@ -117,7 +122,7 @@ namespace PremiumLivingOPS.Controllers
         /// Returns (success, message).
         /// </summary>
         public (bool ok, string message) SubmitCreateOrder(
-            OrderEntity          header,
+            OrderEntity           header,
             List<OrderLineEntity> lines)
         {
             var user = SessionManager.CurrentUser;
@@ -131,7 +136,8 @@ namespace PremiumLivingOPS.Controllers
             if (lines == null || lines.Count == 0)
                 return (false, "At least one order line is required.");
 
-            header.SalesID     = user.StaffID;
+            // Staff.cs uses StaffId (capital I, lowercase d)
+            header.SalesID     = user.StaffId;
             header.IssuedTime  = DateTime.Now;
             header.OrderStatus = "Pending";
 
@@ -175,16 +181,16 @@ namespace PremiumLivingOPS.Controllers
         /// </summary>
         public ModifyOrderViewModel GetModifyOrderVM()
         {
-            var user    = SessionManager.CurrentUser;
-            var allowed = NavAccessPolicy.GetAllowedMenus(user?.Department);
+            var user       = SessionManager.CurrentUser;
+            var department = user?.Department ?? string.Empty;
+            var allowed    = NavAccessPolicy.GetAllowedMenus(department);
 
             return new ModifyOrderViewModel
             {
                 UserBar = new UserBarInfo
                 {
-                    DisplayName    = user != null ? $"{user.FirstName} {user.LastName}" : "Guest",
-                    Role           = user?.JobTitle ?? "",
-                    AvatarInitials = GetInitials(user)
+                    DisplayName = user?.StaffName ?? "Guest",
+                    Department  = department
                 },
                 AllowedMenus = allowed,
                 Orders       = _repo.GetAllOrders(),
@@ -235,8 +241,9 @@ namespace PremiumLivingOPS.Controllers
         /// <summary>
         /// Cancels an existing order by setting its OrderStatus to "Cancelled".
         /// Business rules enforced:
-        ///   • Only orders in "Pending" or "Confirmed" status may be cancelled.
+        ///   • Only orders in "Pending", "Confirmed", or "In Progress" may be cancelled.
         ///   • "Delivered" and "Completed" orders cannot be cancelled.
+        ///   • Already-cancelled orders are rejected with a specific message.
         /// Returns (success, message).
         /// </summary>
         public (bool ok, string message) CancelOrder(string orderId)
@@ -267,15 +274,6 @@ namespace PremiumLivingOPS.Controllers
             {
                 return (false, "Database error: " + ex.Message);
             }
-        }
-
-        // ── Helper ──────────────────────────────────────────────────────────────────────
-        private static string GetInitials(Staff user)
-        {
-            if (user == null) return "?";
-            string f = user.FirstName?.Length > 0 ? user.FirstName[0].ToString() : "";
-            string l = user.LastName?.Length  > 0 ? user.LastName[0].ToString()  : "";
-            return (f + l).ToUpper();
         }
     }
 }
