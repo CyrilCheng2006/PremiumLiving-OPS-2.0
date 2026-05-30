@@ -30,19 +30,20 @@ The system replaces manual paper-based workflows with a centralised, role-based 
 
 ```
 PremiumLiving-OPS-2.0/
-├── PremiumLivingOPS.sln          ← Done
+├── PremiumLivingOPS.sln                      ← Done
 │
 ├── Database/
-│   ├── schema.sql                ← Done        ← Full database schema (DDL)
-│   └── sample_data.sql           ← Done        ← Seed data with 13 business scenarios
+│   ├── schema.sql                            ← Done   ← Full database schema (DDL)
+│   └── sample_data.sql                       ← Done   ← Seed data with 13 business scenarios
 │
-├── PremiumLivingOPS/                     ← Visual Studio Project Root
-│   ├── PremiumLivingOPS.csproj   ← Done
-│   ├── Program.cs                ← Done
+├── PremiumLivingOPS/                                  ← Visual Studio Project Root
+│   ├── PremiumLivingOPS.csproj               ← Done
+│   ├── Program.cs                            ← Done
+│   │
 │   ├── Models/
-│   │   ├── Entities/                     ← Step 1: Entity Classes (C#)
+│   │   ├── Entities/                                  ← Step 1: Entity Classes (C#)
 │   │   │   ├── Customer.cs
-│   │   │   ├── Staff.cs          ← Done
+│   │   │   ├── Staff.cs                      ← Done
 │   │   │   ├── Product.cs
 │   │   │   ├── RawMaterial.cs
 │   │   │   ├── Order.cs
@@ -59,10 +60,10 @@ PremiumLiving-OPS-2.0/
 │   │   │   ├── PurchaseInvoice.cs
 │   │   │   ├── WarehouseTransfer.cs
 │   │   │   └── AuditLog.cs
-│   │   └── DAL/                          ← Step 2: Repository Classes (MySQL)
-│   │       ├── DatabaseHelper.cs ← Done        ← MySQL connection manager
+│   │   └── DAL/                                       ← Step 2: Repository Classes (MySQL)
+│   │       ├── DatabaseHelper.cs             ← Done   ← MySQL connection manager
 │   │       ├── CustomerRepo.cs
-│   │       ├── StaffRepo.cs      ← Done
+│   │       ├── StaffRepo.cs                  ← Done
 │   │       ├── ProductRepo.cs
 │   │       ├── RawMaterialRepo.cs
 │   │       ├── OrderRepo.cs
@@ -74,41 +75,99 @@ PremiumLiving-OPS-2.0/
 │   │       ├── SupplierRepo.cs
 │   │       └── AuditLogRepo.cs
 │   │
-│   └── Views/                            ← Step 3: Windows Forms
+│   ├── Controllers/                                   ← Step 3: Business Logic
+│   │
+│   └── Views/                                         ← Step 4: Windows Forms
+│       │
+│       ├── Shared/                           ← Done   ← Reusable chrome — used by ALL pages
+│       │   ├── AppShell.cs                   ← Done   ← Hosts TopNavBar + UserBar (116 px)
+│       │   │                                           ← TableLayoutPanel layout (no overlap)
+│       │   │                                           ← Exposes: SetUser / SetVisibleMenus /
+│       │   │                                              SetBreadcrumb / SetPopupContainer
+│       │   │                                              MenuItemClicked / LogoutClicked events
+│       │   ├── TopNavBar.cs                  ← Done   ← Apple-style top nav (44 px)
+│       │   │                                           ← Mega-menu dropdown per role
+│       │   └── UserInfoLabel.cs              ← Done   ← User name + department display
+│       │
 │       ├── Auth/
-│       │   └── LoginForm.cs      ← Done
+│       │   └── LoginForm.cs                  ← Done
+│       │
 │       ├── Dashboard/
-│       │   ├── SessionManager.cs ← Done
-│       │   └── DashboardForm.cs  ← Done
+│       │   ├── DashboardForm.cs              ← Done   ← Consumes AppShell
+│       │   ├── DashboardForm.Designer.cs     ← Done
+│       │   ├── TopNavBar.cs                  (stub)   ← Moved to Views/Shared/
+│       │   └── UserInfoLabel.cs              (stub)   ← Moved to Views/Shared/
+│       │
 │       ├── OrderProcessing/
 │       │   ├── OrderListForm.cs
 │       │   ├── QuotationForm.cs
 │       │   └── CreateOrderForm.cs
+│       │
 │       ├── Logistics/
 │       │   ├── ShipmentListForm.cs
 │       │   ├── ScheduleShipmentForm.cs
 │       │   ├── DeliveryNoteForm.cs
 │       │   ├── SupplierReceiptForm.cs
 │       │   └── PurchaseInvoiceForm.cs
+│       │
 │       ├── Inventory/
 │       │   ├── InventoryListForm.cs
 │       │   ├── InwardGoodsForm.cs
 │       │   └── WarehouseTransferForm.cs
+│       │
 │       ├── AfterService/
 │       │   ├── CreateInvoiceForm.cs
 │       │   ├── ComplaintListForm.cs
 │       │   ├── ReturnOrderListForm.cs
 │       │   ├── AccountReceivableForm.cs
 │       │   └── AccountPayableForm.cs
+│       │
 │       ├── MasterData/
 │       │   ├── SupplierListForm.cs
 │       │   └── CustomerListForm.cs
+│       │
 │       └── SystemSecurity/
 │           ├── StaffListForm.cs
 │           └── AuditLogForm.cs
-│           ← Step 4: Event Handlers inside each Form's code-behind
 │
 └── README.md
+```
+
+### Views/Shared — Chrome Architecture
+
+All pages include `AppShell` as their top chrome. `AppShell` encapsulates `TopNavBar` and `UserBar` so they never need to be re-implemented per form.
+
+```
+AppShell (Panel, Dock.Top, 116 px)
+│
+├── TopNavBar  (Panel, Dock.Top, 44 px)
+│   └── Apple-style horizontal nav · mega-menu popup · role-based visibility
+│
+└── UserBar    (Panel, Dock.Top, 72 px)
+    └── TableLayoutPanel  [3 columns]
+        ├── Col 0 AutoSize  →  Breadcrumb Label  (left, Margin.Left = 22 px)
+        ├── Col 1 100%      →  Spacer
+        └── Col 2 AutoSize  →  FlowLayoutPanel
+                                  ├── UserInfoLabel  (name + dept)
+                                  └── Log Out Button
+```
+
+**How to use AppShell in any new Form:**
+```csharp
+// 1. Declare
+private AppShell _shell;
+
+// 2. Initialise (in constructor or InitializeComponent)
+_shell = new AppShell();
+_shell.MenuItemClicked += OnMenuItemClicked;
+_shell.LogoutClicked   += OnLogoutClicked;
+_shell.SetPopupContainer(pnlMain);
+Controls.Add(_shell);
+
+// 3. Bind data (after loading ViewModel)
+_shell.SetUser(vm.DisplayName, vm.Department);
+_shell.SetVisibleMenus(vm.AllowedMenus);
+_shell.SetBreadcrumb("Order Processing");
 ```
 
 ---
@@ -267,4 +326,4 @@ The `sample_data.sql` file includes **13 realistic business scenarios** for test
 
 ---
 
-*Last updated: 2026-05-28*
+*Last updated: 2026-05-30*
