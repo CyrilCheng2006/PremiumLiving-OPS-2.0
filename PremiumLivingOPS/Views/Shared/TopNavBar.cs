@@ -16,6 +16,9 @@ namespace PremiumLivingOPS.Views.Shared
     /// • Call SetVisibleMenus(string[]) after the ViewModel is loaded
     ///   to restrict visible items to those permitted for the current user.
     /// • Subscribe to MenuItemClicked for navigation callbacks.
+    ///   The event now carries TWO strings: (menuLabel, subItemLabel).
+    ///   - Top-level click (Dashboard):   menuLabel="Dashboard", subItemLabel=""
+    ///   - Sub-item click:                menuLabel="Order Processing", subItemLabel="View Order"
     /// • TopNavBar is a pure View: it never reads SessionManager,
     ///   NavAccessPolicy, or any department/role data directly.
     /// </summary>
@@ -35,7 +38,7 @@ namespace PremiumLivingOPS.Views.Shared
         private const int RowH     = 42;
         private const int PadV     = 10;
 
-        // ── Full menu catalogue (canonical order) ─────────────────────────
+        // ── Full menu catalogue (canonical order) ────────────────────
         private static readonly (string Label, string[] Items)[] AllMenus =
         {
             ("Dashboard",                 new string[] { }),
@@ -50,10 +53,10 @@ namespace PremiumLivingOPS.Views.Shared
             ("Statistical Reports",       new[] { "View Report" })
         };
 
-        // ── Active (filtered) menu ─────────────────────────────────────
+        // ── Active (filtered) menu ──────────────────────────────────
         private (string Label, string[] Items)[] _menus;
 
-        // ── State ─────────────────────────────────────────────────────
+        // ── State ───────────────────────────────────────────────────
         private readonly List<Panel>                _navItems  = new List<Panel>();
         private readonly List<int>                  _navWidths = new List<int>();
         private          Panel                      _megaPopup;
@@ -61,7 +64,12 @@ namespace PremiumLivingOPS.Views.Shared
         private          System.Windows.Forms.Timer _pollTimer;
 
         // ── Public Events ────────────────────────────────────────────
-        public event Action<string> MenuItemClicked;
+        /// <summary>
+        /// Fired whenever a navigation item is clicked.
+        /// arg1 = parent menu label (e.g. "Order Processing")
+        /// arg2 = sub-item label   (e.g. "View Order"; empty string for top-level items)
+        /// </summary>
+        public event Action<string, string> MenuItemClicked;
 
         // ── Constructor ──────────────────────────────────────────────
         public TopNavBar()
@@ -79,7 +87,7 @@ namespace PremiumLivingOPS.Views.Shared
             HandleCreated += (s, e) => { BuildMegaPopup(); BuildNavItems(); };
         }
 
-        // ── Public API ────────────────────────────────────────────────
+        // ── Public API ───────────────────────────────────────────────
 
         /// <summary>
         /// Restricts the visible menus to those permitted for the current user.
@@ -107,7 +115,7 @@ namespace PremiumLivingOPS.Views.Shared
         /// <summary>No-op kept for source compatibility.</summary>
         public void SetPopupContainer(Control container) { /* intentional no-op */ }
 
-        // ── Popup panel ───────────────────────────────────────────────
+        // ── Popup panel ──────────────────────────────────────────────
         private void BuildMegaPopup()
         {
             _megaPopup = new OpaquePanel
@@ -131,7 +139,7 @@ namespace PremiumLivingOPS.Views.Shared
             }
         }
 
-        // ── Build nav items ─────────────────────────────────────────────
+        // ── Build nav items ──────────────────────────────────────────
         private void BuildNavItems()
         {
             Controls.Clear();
@@ -153,6 +161,7 @@ namespace PremiumLivingOPS.Views.Shared
             {
                 int  idx     = i;
                 bool hasDrop = _menus[i].Items.Length > 0;
+                string menuLabel = _menus[i].Label;
 
                 Panel item = new Panel
                 {
@@ -163,7 +172,7 @@ namespace PremiumLivingOPS.Views.Shared
                 };
                 Label lbl = new Label
                 {
-                    Text      = _menus[i].Label,
+                    Text      = menuLabel,
                     Font      = FontNav,
                     ForeColor = NavText,
                     Dock      = DockStyle.Fill,
@@ -176,7 +185,13 @@ namespace PremiumLivingOPS.Views.Shared
 
                 if (!hasDrop)
                 {
-                    EventHandler goHome = (s, e) => { HideMegaMenu(); MenuItemClicked?.Invoke("Dashboard"); };
+                    // Top-level item with no sub-menu (e.g. Dashboard)
+                    // Fire with empty sub-item string.
+                    EventHandler goHome = (s, e) =>
+                    {
+                        HideMegaMenu();
+                        MenuItemClicked?.Invoke(menuLabel, string.Empty);
+                    };
                     item.Click += goHome;
                     lbl.Click  += goHome;
                 }
@@ -231,7 +246,7 @@ namespace PremiumLivingOPS.Views.Shared
             foreach (Panel p in _navItems) { p.Location = new Point(x, 0); x += p.Width; }
         }
 
-        // ── Highlight ─────────────────────────────────────────────────
+        // ── Highlight ────────────────────────────────────────────────
         private void HighlightItem(int idx)
         {
             for (int i = 0; i < _navItems.Count; i++)
@@ -255,10 +270,11 @@ namespace PremiumLivingOPS.Views.Shared
             _activeIdx = -1;
         }
 
-        // ── Mega Menu ─────────────────────────────────────────────────
+        // ── Mega Menu ────────────────────────────────────────────────
         private void ShowMegaMenu(int idx, Panel navItem)
         {
-            string[] items = _menus[idx].Items;
+            string[] items    = _menus[idx].Items;
+            string   menuLabel = _menus[idx].Label;
             if (items.Length == 0) return;
 
             int navW     = _navWidths[idx];
@@ -277,7 +293,8 @@ namespace PremiumLivingOPS.Views.Shared
             int iy = PadV;
             foreach (string sub in items)
             {
-                string captured = sub;
+                string capturedSub  = sub;
+                string capturedMenu = menuLabel;
 
                 Panel row = new Panel
                 {
@@ -288,7 +305,7 @@ namespace PremiumLivingOPS.Views.Shared
                 };
                 Label rowLbl = new Label
                 {
-                    Text      = captured,
+                    Text      = capturedSub,
                     Font      = FontDropItem,
                     ForeColor = DropText,
                     BackColor = Color.Transparent,
@@ -304,15 +321,11 @@ namespace PremiumLivingOPS.Views.Shared
                 rowLbl.MouseEnter += (s, e) => { row.BackColor = hoverBg; rowLbl.ForeColor = Color.White; };
                 rowLbl.MouseLeave += (s, e) => { row.BackColor = DropBg;  rowLbl.ForeColor = DropText;   };
 
+                // Fire MenuItemClicked with both parent-menu and sub-item labels.
                 EventHandler onClick = (s, e) =>
                 {
                     HideMegaMenu();
-                    MenuItemClicked?.Invoke(captured);
-                    MessageBox.Show(
-                        $"\u231B  {captured}\n\nThis feature is currently under development.\nPlease check back in a later version.",
-                        "Coming Soon",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Information);
+                    MenuItemClicked?.Invoke(capturedMenu, capturedSub);
                 };
                 row.Click    += onClick;
                 rowLbl.Click += onClick;
@@ -347,7 +360,7 @@ namespace PremiumLivingOPS.Views.Shared
             ClearHighlight();
         }
 
-        // ── Paint ─────────────────────────────────────────────────────
+        // ── Paint ────────────────────────────────────────────────────
         protected override void OnPaint(PaintEventArgs e)
         {
             base.OnPaint(e);

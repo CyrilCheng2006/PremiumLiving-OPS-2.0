@@ -96,7 +96,7 @@ namespace PremiumLivingOPS.Views.Dashboard
             BindViewModel();
         }
 
-        // ── ViewModel binding ─────────────────────────────────────────────────
+        // ── ViewModel binding ────────────────────────────────────────────────
         private void BindViewModel()
         {
             DashboardViewModel vm = _controller.LoadDashboard();
@@ -105,6 +105,12 @@ namespace PremiumLivingOPS.Views.Dashboard
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
             _shell.SetBreadcrumb("Dashboard");
+
+            // Wire up nav and logout.
+            // Breadcrumb is updated automatically inside AppShell;
+            // OnTopNavMenuItemClicked handles page navigation logic.
+            _shell.MenuItemClicked += OnTopNavMenuItemClicked;
+            _shell.LogoutClicked   += btnLogout_Click;
 
             lblPageSub.Text = "Premium Living Furniture Co.  ·  Overview as of " +
                               DateTime.Now.ToString("d MMMM yyyy");
@@ -228,13 +234,25 @@ namespace PremiumLivingOPS.Views.Dashboard
         }
 
         // ── Nav / logout ──────────────────────────────────────────────────────
-        private void OnTopNavMenuItemClicked(string itemLabel)
+        /// <summary>
+        /// Called by AppShell whenever a nav item is clicked.
+        /// Breadcrumb is already updated by AppShell before this fires;
+        /// this method handles page navigation / placeholder messaging.
+        /// </summary>
+        private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
         {
-            _shell.SetBreadcrumb(itemLabel == "Dashboard" ? "Dashboard" : itemLabel);
-            if (itemLabel != "Dashboard")
-                MessageBox.Show(
-                    $"⌛  {itemLabel}\n\nThis feature is currently under development.",
-                    "Coming Soon", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            // Dashboard (top-level, no sub-item) → already on this page.
+            if (menuLabel == "Dashboard" && string.IsNullOrEmpty(subItem))
+                return;
+
+            // Build a display string for the Coming Soon dialog.
+            string display = string.IsNullOrEmpty(subItem)
+                ? menuLabel
+                : $"{menuLabel}  ›  {subItem}";
+
+            MessageBox.Show(
+                $"⌛  {display}\n\nThis feature is currently under development.",
+                "Coming Soon", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         private void btnLogout_Click(object sender, EventArgs e)

@@ -20,17 +20,23 @@ namespace PremiumLivingOPS.Views.Shared
     ///        _shell.SetBreadcrumb("Dashboard");
     ///
     /// 3. Subscribe to events:
-    ///        _shell.MenuItemClicked += OnMenuItemClicked;
+    ///        _shell.MenuItemClicked += OnMenuItemClicked;   // (menuLabel, subItem)
     ///        _shell.LogoutClicked   += OnLogoutClicked;
     ///
     /// AppShell height = TopNavBar (44 px) + UserBar (72 px) = 116 px.
     ///
+    /// Breadcrumb auto-update
+    /// ──────────────────────
+    /// AppShell subscribes internally to TopNavBar.MenuItemClicked and
+    /// automatically formats the breadcrumb:
+    ///   • Dashboard (top-level, no sub-item)  →  "Dashboard"
+    ///   • Module click with sub-item          →  "Order Processing  ›  View Order"
+    /// The host form only needs to call SetBreadcrumb() for the initial page;
+    /// subsequent nav clicks update the breadcrumb automatically.
+    ///
     /// Layout strategy
     /// ───────────────
-    /// The UserBar uses a 3-column TableLayoutPanel instead of manual
-    /// coordinate arithmetic.  This prevents overlap regardless of font
-    /// scaling, DPI, or the order in which controls are measured:
-    ///
+    /// The UserBar uses a 3-column TableLayoutPanel:
     ///   ┌────────────────┬──────────────────────┬──────────────────────┐
     ///   │  Breadcrumb    │      (stretch)        │  UserInfo | Logout   │
     ///   └────────────────┴──────────────────────┴──────────────────────┘
@@ -41,9 +47,6 @@ namespace PremiumLivingOPS.Views.Shared
     /// tlpBar row is 100% height (72 px).  Every cell child uses
     /// Anchor = AnchorStyles.None so the TableLayoutPanel centres it
     /// both horizontally and vertically inside the cell.
-    /// pnlRight is a plain Panel (not FlowLayoutPanel) so that the
-    /// TableLayoutPanel can measure and centre it correctly; the two
-    /// right-side controls are positioned manually inside pnlRight.
     /// </summary>
     public class AppShell : Panel
     {
@@ -60,12 +63,17 @@ namespace PremiumLivingOPS.Views.Shared
 
         // ── Colours (mirrors DashboardForm.Palette) ──────────────────
         private static readonly Color TextMain    = Color.FromArgb(15,  31,  53);
+        private static readonly Color TextMuted   = Color.FromArgb(98,  112, 135);
         private static readonly Color BorderColor = Color.FromArgb(221, 227, 236);
         private static readonly Color Danger      = Color.FromArgb(232, 64,  64);
 
-        // ── Public events ─────────────────────────────────────────────
-        /// <summary>Raised when any nav menu item or sub-item is clicked.</summary>
-        public event Action<string> MenuItemClicked;
+        // ── Public events ────────────────────────────────────────────
+        /// <summary>
+        /// Raised when any nav menu item or sub-item is clicked.
+        /// arg1 = parent menu label (e.g. "Order Processing")
+        /// arg2 = sub-item label   (e.g. "View Order"; empty for top-level)
+        /// </summary>
+        public event Action<string, string> MenuItemClicked;
 
         /// <summary>Raised when the Log Out button is clicked.</summary>
         public event EventHandler LogoutClicked;
@@ -78,29 +86,35 @@ namespace PremiumLivingOPS.Views.Shared
             BackColor = Color.White;
             Padding   = new Padding(0);
 
-            // ── TopNavBar ──────────────────────────────────────────
+            // ── TopNavBar ─────────────────────────────────────────
             _topNavBar = new TopNavBar();
-            _topNavBar.MenuItemClicked += label => MenuItemClicked?.Invoke(label);
 
-            // ── Breadcrumb label ───────────────────────────────────
+            // Auto-update breadcrumb on every nav click.
+            _topNavBar.MenuItemClicked += (menu, sub) =>
+            {
+                UpdateBreadcrumb(menu, sub);
+                MenuItemClicked?.Invoke(menu, sub);
+            };
+
+            // ── Breadcrumb label ──────────────────────────────────
             _lblBreadcrumb = new Label
             {
                 Text      = "Dashboard",
                 Font      = new Font("Segoe UI", 16f, FontStyle.Bold),
                 ForeColor = TextMain,
                 AutoSize  = true,
-                Anchor    = AnchorStyles.None,   // TLP will centre vertically
+                Anchor    = AnchorStyles.None,
                 Margin    = new Padding(22, 0, 0, 0)
             };
 
-            // ── UserInfoLabel ──────────────────────────────────────
+            // ── UserInfoLabel ─────────────────────────────────────
             _lblUser = new UserInfoLabel
             {
                 UserName   = "...",
                 Department = "",
             };
 
-            // ── Logout button ──────────────────────────────────────
+            // ── Logout button ─────────────────────────────────────
             _btnLogout = new Button
             {
                 Text         = "Log Out",
@@ -117,48 +131,34 @@ namespace PremiumLivingOPS.Views.Shared
             _btnLogout.FlatAppearance.BorderSize  = 1;
             _btnLogout.Click += (s, e) => LogoutClicked?.Invoke(s, e);
 
-            // ── Right sub-panel: UserInfo + Logout side by side ────
-            // Use a plain Panel so TableLayoutPanel can centre it via
-            // Anchor = AnchorStyles.None.  Controls inside are laid out
-            // in the Paint/Layout event so the button stays vertically
-            // centred even when AutoSize changes its height.
+            // ── Right sub-panel: UserInfo + Logout side by side ───
             Panel pnlRight = new Panel
             {
                 AutoSize      = true,
                 AutoSizeMode  = AutoSizeMode.GrowAndShrink,
                 BackColor     = Color.Transparent,
-                Anchor        = AnchorStyles.None,   // TLP centres this cell
+                Anchor        = AnchorStyles.None,
             };
-
-            // Position children inside pnlRight: UserInfoLabel on the
-            // left, Log Out button to its right, both vertically centred.
             pnlRight.Controls.Add(_lblUser);
             pnlRight.Controls.Add(_btnLogout);
 
-            // Centre children vertically whenever pnlRight is laid out.
             pnlRight.Layout += (s, e) =>
             {
-                // Ensure AutoSize has measured both children first.
                 _lblUser.PerformLayout();
                 _btnLogout.PerformLayout();
 
                 int panelH = pnlRight.Height;
 
-                // Vertically centre UserInfoLabel
                 _lblUser.Left = 0;
                 _lblUser.Top  = (panelH - _lblUser.Height) / 2;
 
-                // Place Log Out button to the right of UserInfoLabel,
-                // with an 8 px gap, and vertically centred.
                 _btnLogout.Left = _lblUser.Right + 8;
                 _btnLogout.Top  = (panelH - _btnLogout.Height) / 2;
 
-                // Keep pnlRight wide enough to contain both controls
-                // plus a 16 px right margin.
                 pnlRight.Width = _btnLogout.Right + 16;
             };
 
-            // ── Bottom border ──────────────────────────────────────
+            // ── Bottom border ─────────────────────────────────────
             Panel border = new Panel
             {
                 Dock      = DockStyle.Bottom,
@@ -166,12 +166,7 @@ namespace PremiumLivingOPS.Views.Shared
                 BackColor = BorderColor
             };
 
-            // ── UserBar: 3-column TableLayoutPanel ─────────────────
-            // Col 0: Breadcrumb  (AutoSize)
-            // Col 1: Stretch filler (100%)
-            // Col 2: pnlRight    (AutoSize)
-            // Row 0: 100% height — combined with Anchor=None on children
-            //        this achieves automatic vertical centring.
+            // ── UserBar: 3-column TableLayoutPanel ────────────────
             TableLayoutPanel tlpBar = new TableLayoutPanel
             {
                 Dock        = DockStyle.Fill,
@@ -187,7 +182,7 @@ namespace PremiumLivingOPS.Views.Shared
             tlpBar.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
             tlpBar.Controls.Add(_lblBreadcrumb, 0, 0);
-            tlpBar.Controls.Add(new Panel { BackColor = Color.Transparent }, 1, 0); // spacer
+            tlpBar.Controls.Add(new Panel { BackColor = Color.Transparent }, 1, 0);
             tlpBar.Controls.Add(pnlRight, 2, 0);
 
             Panel pnlUserBar = new Panel
@@ -199,13 +194,27 @@ namespace PremiumLivingOPS.Views.Shared
             pnlUserBar.Controls.Add(tlpBar);
             pnlUserBar.Controls.Add(border);
 
-            // ── Stack: TopNavBar on top, UserBar below ─────────────
-            // Controls added last-in = docked to top first.
             Controls.Add(pnlUserBar);
             Controls.Add(_topNavBar);
         }
 
-        // ── Public API ────────────────────────────────────────────────
+        // ── Breadcrumb formatting ─────────────────────────────────────
+        /// <summary>
+        /// Called automatically when the nav fires MenuItemClicked.
+        /// Formats:
+        ///   menu="Dashboard",  sub=""           →  "Dashboard"
+        ///   menu="Order Processing", sub=""     →  "Order Processing"
+        ///   menu="Order Processing", sub="View Order"  →  "Order Processing  ›  View Order"
+        /// </summary>
+        private void UpdateBreadcrumb(string menu, string sub)
+        {
+            if (string.IsNullOrEmpty(sub))
+                _lblBreadcrumb.Text = menu;
+            else
+                _lblBreadcrumb.Text = $"{menu}  ›  {sub}";
+        }
+
+        // ── Public API ───────────────────────────────────────────────
 
         /// <summary>Sets the user name and department shown in the User Bar.</summary>
         public void SetUser(string displayName, string department)
@@ -218,7 +227,11 @@ namespace PremiumLivingOPS.Views.Shared
         public void SetVisibleMenus(string[] allowedLabels)
             => _topNavBar.SetVisibleMenus(allowedLabels);
 
-        /// <summary>Updates the breadcrumb text in the User Bar.</summary>
+        /// <summary>
+        /// Manually sets the breadcrumb text (e.g. on initial page load).
+        /// Use plain text for a single-level breadcrumb, or
+        /// "Module  ›  Sub-page" for a two-level breadcrumb.
+        /// </summary>
         public void SetBreadcrumb(string text)
             => _lblBreadcrumb.Text = text;
 
