@@ -28,6 +28,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         private readonly OrderProcessingController _ctrl = new OrderProcessingController();
         private List<OrderEntity> _currentOrders        = new List<OrderEntity>();
 
+        // AppShell instance (navigation chrome)
+        private AppShell _shell;
+
         // Status badge colour map  (text : background, foreground)
         private static readonly Dictionary<string, (Color bg, Color fg)> StatusColors =
             new Dictionary<string, (Color, Color)>
@@ -42,6 +45,15 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         public ViewOrderForm()
         {
             InitializeComponent();
+
+            // Initialise AppShell and wire navigation event
+            _shell = new AppShell();
+            _shell.Dock = DockStyle.Top;
+            _shell.TopNavMenuItemClicked += OnTopNavMenuItemClicked;
+            _shell.LogoutClicked += btnLogout_Click;
+            this.Controls.Add(_shell);
+            _shell.BringToFront();
+
             this.Load += ViewOrderForm_Load;
         }
 
@@ -52,7 +64,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         private void RefreshGrid()
         {
             string status  = cboStatus.SelectedItem?.ToString();
-            string keyword = txtSearch.Text.Trim();
+            string keyword = txtOrderNo.Text.Trim();
 
             var vm = _ctrl.GetViewOrderVM(
                 status  == "All" || string.IsNullOrEmpty(status)  ? null : status,
@@ -151,25 +163,30 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         }
 
         // ── Button state ───────────────────────────────────────────────────────
-        private void UpdateActionButtons()
-        {
-            bool sel = dgvOrders.SelectedRows.Count > 0;
-            btnViewDetail.Enabled  = sel;
-            btnModifyOrder.Enabled = sel;
-        }
+        private void UpdateActionButtons() { }
 
         // ── Toolbar events ─────────────────────────────────────────────────────
         private void btnSearch_Click(object sender, EventArgs e)   => RefreshGrid();
-        private void btnRefresh_Click(object sender, EventArgs e)  => RefreshGrid();
+        private void btnClear_Click(object sender, EventArgs e)
+        {
+            txtOrderNo.Clear();
+            txtCustomer.Clear();
+            cboStatus.SelectedIndex = 0;
+            chkDateFrom.Checked = false;
+            chkDateTo.Checked   = false;
+            RefreshGrid();
+        }
+        private void btnCreateOrder_Click(object sender, EventArgs e)
+            => FormNavigator.NavigateTo(this, "Order Processing", "Create Order");
+
         private void cboStatus_Changed(object sender, EventArgs e) => RefreshGrid();
-        private void txtSearch_KeyDown(object sender, KeyEventArgs e)
+        private void txtOrderNo_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.KeyCode == Keys.Enter) RefreshGrid();
         }
 
         // ── DGV events ─────────────────────────────────────────────────────
-        private void dgvOrders_SelectionChanged(object sender, EventArgs e)
-            => UpdateActionButtons();
+        private void dgvOrders_SelectionChanged(object sender, EventArgs e) { }
 
         private void dgvOrders_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
@@ -193,6 +210,13 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             OpenDetailDialog();
         }
 
+        private void dgvOrders_CellClick(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex < 0) return;
+            if (dgvOrders.Columns[e.ColumnIndex].Name == "colAction")
+                OpenDetailDialog();
+        }
+
         // ── Helper: get selected Order ID ─────────────────────────────────────────
         private string SelectedOrderId()
         {
@@ -200,9 +224,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             return dgvOrders.SelectedRows[0].Cells["colOrderID"].Value?.ToString();
         }
 
-        // ── View Details button ─────────────────────────────────────────────────
-        private void btnViewDetail_Click(object sender, EventArgs e) => OpenDetailDialog();
-
+        // ── View Details ─────────────────────────────────────────────────────────
         private void OpenDetailDialog()
         {
             string id = SelectedOrderId();
@@ -218,8 +240,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             ShowDetailDialog(detail);
         }
 
-        // ── Modify Order button ─────────────────────────────────────────────────
-        private void btnModifyOrder_Click(object sender, EventArgs e)
+        // ── Modify Order ─────────────────────────────────────────────────────────
+        private void ModifyOrder()
         {
             string id = SelectedOrderId();
             if (id == null) return;
@@ -285,7 +307,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlInfo.Paint += (s, e) =>
             {
                 using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
-                ((Control)s).Height.Equals(0);
                 e.Graphics.DrawLine(pen, 24, ((Panel)s).Height - 1,
                     ((Panel)s).Width - 24, ((Panel)s).Height - 1);
             };
