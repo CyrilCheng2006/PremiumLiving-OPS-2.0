@@ -1,6 +1,7 @@
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
+using PremiumLivingOPS.Views.Shared;
 
 namespace PremiumLivingOPS.Views.Dashboard
 {
@@ -8,10 +9,10 @@ namespace PremiumLivingOPS.Views.Dashboard
     {
         private System.ComponentModel.IContainer components = null;
 
-        private TopNavBar     pnlTopNav;
-        private Label         lblBreadcrumb;
-        private UserInfoLabel lblTopNavUser;
-        private Button        btnLogout;
+        // ── Shell (TopNavBar + UserBar) ─────────────────────────────────
+        // Replaces the separate pnlTopNav + pnlUserBar that used to live here.
+        // All other forms that need the nav chrome should declare the same field.
+        private AppShell _shell;
 
         private Panel pnlContent;
         private Label lblPageTitle;
@@ -26,9 +27,7 @@ namespace PremiumLivingOPS.Views.Dashboard
 
         private TableLayoutPanel tlpRow1, tlpRow2, tlpRow3;
         private DataGridView     dgvOrders, dgvQuotations, dgvShipments, dgvSuppliers;
-
-        // Exposed so DashboardForm.cs (BindViewModel) can populate it from the ViewModel.
-        private DataGridView _dgvLowStock;
+        private DataGridView     _dgvLowStock;
 
         private Panel pnlActivity;
 
@@ -52,79 +51,11 @@ namespace PremiumLivingOPS.Views.Dashboard
 
             Panel pnlMain = new Panel { Dock = DockStyle.Fill, BackColor = Palette.BgPage };
 
-            pnlTopNav = new TopNavBar();
-            // Handler is defined once in DashboardForm.cs — do NOT redeclare here.
-            pnlTopNav.MenuItemClicked += OnTopNavMenuItemClicked;
-
-            // ── User Bar (72 px) ────────────────────────────────────────
-            const int UBH      = 72;
-            const int RightPad = 16;
-            const int ItemGap  = 12;
-
-            Panel pnlUserBar = new Panel
-            {
-                Dock      = DockStyle.Top,
-                Height    = UBH,
-                BackColor = System.Drawing.Color.White
-            };
-            Panel userBarBorder = new Panel
-            {
-                Dock      = DockStyle.Bottom,
-                Height    = 1,
-                BackColor = Palette.BorderColor
-            };
-
-            lblBreadcrumb = new Label
-            {
-                Text      = "Dashboard",
-                Font      = new Font("Segoe UI", 16f, FontStyle.Bold),
-                ForeColor = Palette.TextMain,
-                AutoSize  = true,
-                Location  = new Point(22, 0)
-            };
-
-            lblTopNavUser = new UserInfoLabel
-            {
-                UserName   = "...",
-                Department = ""
-            };
-
-            btnLogout = new Button
-            {
-                Text         = "Log Out",
-                Font         = new Font("Segoe UI", 12.8f),
-                ForeColor    = Palette.Danger,
-                BackColor    = System.Drawing.Color.Transparent,
-                FlatStyle    = FlatStyle.Flat,
-                AutoSize     = true,
-                AutoSizeMode = AutoSizeMode.GrowAndShrink,
-                Padding      = new Padding(14, 4, 14, 4),
-                Cursor       = Cursors.Hand
-            };
-            btnLogout.FlatAppearance.BorderColor = Palette.Danger;
-            btnLogout.FlatAppearance.BorderSize  = 1;
-            btnLogout.Click += btnLogout_Click;
-
-            System.Action layoutUserBar = () =>
-            {
-                int bw       = pnlUserBar.ClientSize.Width;
-                int logoutX  = bw - RightPad - btnLogout.Width;
-                int userLblX = logoutX - ItemGap - lblTopNavUser.Width;
-
-                btnLogout.Location     = new Point(logoutX,  (UBH - btnLogout.Height)      / 2);
-                lblTopNavUser.Location = new Point(userLblX, (UBH - lblTopNavUser.Height)  / 2);
-                lblBreadcrumb.Location = new Point(22,        (UBH - lblBreadcrumb.Height) / 2);
-            };
-
-            pnlUserBar.Resize += (s, e) => layoutUserBar();
-            this.Load         += (s, e) => layoutUserBar();
-
-            pnlUserBar.Controls.Add(lblBreadcrumb);
-            pnlUserBar.Controls.Add(lblTopNavUser);
-            pnlUserBar.Controls.Add(btnLogout);
-            pnlUserBar.Controls.Add(userBarBorder);
-
-            pnlTopNav.SetPopupContainer(pnlMain);
+            // ── AppShell (TopNavBar + UserBar) ─────────────────────────
+            _shell = new AppShell();
+            _shell.MenuItemClicked += OnTopNavMenuItemClicked;
+            _shell.LogoutClicked   += btnLogout_Click;
+            _shell.SetPopupContainer(pnlMain);
 
             // ── Content area ────────────────────────────────────────────
             pnlContent = new Panel
@@ -157,7 +88,6 @@ namespace PremiumLivingOPS.Views.Dashboard
                 Padding   = new Padding(13, 0, 13, 0)
             };
             Panel alertBorder = new Panel { Dock = DockStyle.Left, Width = 4, BackColor = Palette.Warning };
-            // Text is set dynamically in BindViewModel() based on LowStock.Count from the ViewModel.
             lblAlert = new Label
             {
                 Text      = "",
@@ -198,7 +128,6 @@ namespace PremiumLivingOPS.Views.Dashboard
             dgvOrders    = MakeDgv(new[] { "Order No.", "Customer", "Total", "Status" });
             dgvOrders.CellPainting += dgvOrders_CellPainting;
             secOrders.Controls.Add(dgvOrders);
-            // _dgvLowStock columns only — rows are bound in BindViewModel() from the ViewModel.
             _dgvLowStock = MakeDgv(new[] { "Item", "On Hand", "Min", "Status" });
             _dgvLowStock.CellPainting += (s, e) => PaintStatusCell(s, e, 3);
             secLowStock.Controls.Add(_dgvLowStock);
@@ -256,15 +185,13 @@ namespace PremiumLivingOPS.Views.Dashboard
             };
 
             pnlMain.Controls.Add(pnlContent);
-            pnlMain.Controls.Add(pnlUserBar);
-            pnlMain.Controls.Add(pnlTopNav);
+            pnlMain.Controls.Add(_shell);       // shell docks Top over content
 
             this.Controls.Add(pnlMain);
             this.ResumeLayout(false);
         }
 
         // ── Designer-only UI factory helpers ─────────────────────────────
-        // (Pure control construction — no data, no business logic)
 
         private Panel MakeKpiCard(System.Drawing.Color accent)
         {

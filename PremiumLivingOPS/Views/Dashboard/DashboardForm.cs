@@ -11,15 +11,13 @@ namespace PremiumLivingOPS.Views.Dashboard
     /// <summary>
     /// Dashboard View — responsibility is UI binding only.
     ///
-    /// Rules enforced:
-    ///   ✔  All data (including user display name and allowed menus) comes
-    ///       exclusively from DashboardViewModel supplied by DashboardController.
-    ///   ✔  Never reads SessionManager or NavAccessPolicy directly.
-    ///   ✔  No SQL, no hardcoded data, no business logic.
+    /// Chrome (TopNavBar + UserBar) is now provided by AppShell (_shell),
+    /// declared in DashboardForm.Designer.cs and bound here via BindViewModel().
+    /// Any future form that needs the same chrome simply declares its own AppShell.
     /// </summary>
     public partial class DashboardForm : Form
     {
-        // ── Palette ───────────────────────────────────────────────────
+        // ── Palette ──────────────────────────────────────────────────────────
         internal static class Palette
         {
             public static readonly Color BgPage       = Color.FromArgb(240, 244, 249);
@@ -80,17 +78,17 @@ namespace PremiumLivingOPS.Views.Dashboard
             }
         }
 
-        // ── Fonts ─────────────────────────────────────────────────────
+        // ── Fonts ────────────────────────────────────────────────────────────
         private static readonly Font FontBody      = new Font("Segoe UI", 16f,   FontStyle.Regular);
         private static readonly Font FontBodyBold  = new Font("Segoe UI", 16f,   FontStyle.Bold);
         private static readonly Font FontSmall     = new Font("Segoe UI", 13.6f, FontStyle.Regular);
         private static readonly Font FontSmallBold = new Font("Segoe UI", 13.6f, FontStyle.Bold);
 
-        // ── Fields ────────────────────────────────────────────────────
+        // ── Fields ───────────────────────────────────────────────────────────
         private readonly DashboardController _controller;
         private Panel _activeNavItem;
 
-        // ── Constructor ───────────────────────────────────────────────
+        // ── Constructor ──────────────────────────────────────────────────────
         public DashboardForm()
         {
             _controller = new DashboardController();
@@ -98,38 +96,32 @@ namespace PremiumLivingOPS.Views.Dashboard
             BindViewModel();
         }
 
-        // ── ViewModel binding ─────────────────────────────────────────
+        // ── ViewModel binding ─────────────────────────────────────────────────
         private void BindViewModel()
         {
             DashboardViewModel vm = _controller.LoadDashboard();
 
-            // 1. User Bar
-            lblTopNavUser.UserName   = vm.UserBar.DisplayName;
-            lblTopNavUser.Department = vm.UserBar.Department;
-
-            // 2. Nav filtering
-            // pnlTopNav is the TopNavBar field declared in DashboardForm.Designer.cs.
-            // SetVisibleMenus() is a pure View API — it only decides what to render.
-            // The allowed-menu list (vm.AllowedMenus) was computed by NavAccessPolicy
-            // inside DashboardController.LoadDashboard(), so no policy logic lives here.
-            pnlTopNav.SetVisibleMenus(vm.AllowedMenus);
+            // 1. Shell chrome (TopNavBar + UserBar)
+            _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
+            _shell.SetVisibleMenus(vm.AllowedMenus);
+            _shell.SetBreadcrumb("Dashboard");
 
             lblPageSub.Text = "Premium Living Furniture Co.  ·  Overview as of " +
                               DateTime.Now.ToString("d MMMM yyyy");
 
-            // 3. Low-stock alert banner
+            // 2. Low-stock alert banner
             int lowCount = vm.LowStock.Count;
             pnlAlert.Visible = lowCount > 0;
             if (lowCount > 0)
                 lblAlert.Text = $"⚠️  {lowCount} item(s) are currently below minimum stock threshold.";
 
-            // 4. KPI cards
+            // 3. KPI cards
             Panel[] kpiPanels = { kpiOrders, kpiDelivered, kpiQuotations, kpiLowStock,
                                   kpiRevenue, kpiAR,        kpiSuppliers,  kpiCustomers };
             for (int i = 0; i < kpiPanels.Length && i < vm.Kpis.Count; i++)
                 SetKpiCard(kpiPanels[i], vm.Kpis[i]);
 
-            // 5. Recent Orders
+            // 4. Recent Orders
             foreach (var row in vm.Orders)
             {
                 var (bg, fg) = Palette.TagColours(row.Status);
@@ -137,14 +129,14 @@ namespace PremiumLivingOPS.Views.Dashboard
                 dgvOrders.Rows[idx].Tag = new[] { bg, fg };
             }
 
-            // 6. Low-Stock grid
+            // 5. Low-Stock grid
             BindLowStockGrid(vm.LowStock);
 
-            // 7. Pending Quotations
+            // 6. Pending Quotations
             foreach (var row in vm.Quotations)
                 dgvQuotations.Rows.Add(row.QuotationId, row.Customer, row.Amount, row.ValidUntil);
 
-            // 8. Active Shipments
+            // 7. Active Shipments
             foreach (var row in vm.Shipments)
             {
                 var (bg, fg) = Palette.TagColours(row.Status);
@@ -152,7 +144,7 @@ namespace PremiumLivingOPS.Views.Dashboard
                 dgvShipments.Rows[idx].Tag = new[] { bg, fg };
             }
 
-            // 9. Supplier Payments
+            // 8. Supplier Payments
             foreach (var row in vm.Suppliers)
             {
                 var (bg, fg) = Palette.TagColours(row.Status);
@@ -160,13 +152,13 @@ namespace PremiumLivingOPS.Views.Dashboard
                 dgvSuppliers.Rows[idx].Tag = new[] { bg, fg };
             }
 
-            // 10. Activity feed
+            // 9. Activity feed
             foreach (var row in vm.Activities)
                 AddActivity(Palette.FromKey(row.CategoryKey),
                             row.BoldText, row.NormalText, row.TimeLabel);
         }
 
-        // ── Helpers ───────────────────────────────────────────────────
+        // ── Helpers ───────────────────────────────────────────────────────────
         private void SetKpiCard(Panel card, DashboardKpi kpi)
         {
             Color accent = Palette.FromKey(kpi.AccentKey);
@@ -235,14 +227,14 @@ namespace PremiumLivingOPS.Views.Dashboard
             return new Region(p);
         }
 
-        // ── Nav / logout ──────────────────────────────────────────────
+        // ── Nav / logout ──────────────────────────────────────────────────────
         private void OnTopNavMenuItemClicked(string itemLabel)
         {
-            if (itemLabel == "Dashboard") { lblBreadcrumb.Text = "Dashboard"; return; }
-            lblBreadcrumb.Text = itemLabel;
-            MessageBox.Show(
-                $"⌛  {itemLabel}\n\nThis feature is currently under development.",
-                "Coming Soon", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            _shell.SetBreadcrumb(itemLabel == "Dashboard" ? "Dashboard" : itemLabel);
+            if (itemLabel != "Dashboard")
+                MessageBox.Show(
+                    $"⌛  {itemLabel}\n\nThis feature is currently under development.",
+                    "Coming Soon", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         private void btnLogout_Click(object sender, EventArgs e)
@@ -275,7 +267,7 @@ namespace PremiumLivingOPS.Views.Dashboard
             }
         }
 
-        // ── Cell painting ─────────────────────────────────────────────
+        // ── Cell painting ─────────────────────────────────────────────────────
         private void PaintStatusCell(object sender, DataGridViewCellPaintingEventArgs e, int statusColIndex)
         {
             if (e.RowIndex < 0 || e.ColumnIndex != statusColIndex) return;
