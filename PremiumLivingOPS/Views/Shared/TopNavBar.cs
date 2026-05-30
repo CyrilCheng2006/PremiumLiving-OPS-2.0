@@ -21,6 +21,12 @@ namespace PremiumLivingOPS.Views.Shared
     ///   - Sub-item click:                menuLabel="Order Processing", subItemLabel="View Order"
     /// • TopNavBar is a pure View: it never reads SessionManager,
     ///   NavAccessPolicy, or any department/role data directly.
+    ///
+    /// IMPORTANT — string contract
+    /// ────────────────────────────
+    /// AllMenus Label strings MUST exactly match the constants defined in
+    /// NavAccessPolicy.cs.  Do NOT rename a label here without updating the
+    /// corresponding constant in NavAccessPolicy (and vice-versa).
     /// </summary>
     public class TopNavBar : Panel
     {
@@ -39,6 +45,7 @@ namespace PremiumLivingOPS.Views.Shared
         private const int PadV     = 10;
 
         // ── Full menu catalogue (canonical order) ────────────────────
+        // Label strings must match NavAccessPolicy constants exactly.
         private static readonly (string Label, string[] Items)[] AllMenus =
         {
             ("Dashboard",                 new string[] { }),
@@ -49,7 +56,7 @@ namespace PremiumLivingOPS.Views.Shared
             ("Raw Material",              new[] { "Create Procurement", "Search Procurement" }),
             ("After-Service",             new[] { "Create Invoice", "Complaint List", "Return Order List", "Account Receivable", "Account Payable" }),
             ("Master Data Maintenance",   new[] { "Supplier List", "Customer List" }),
-            ("System Control",            new[] { "Staff List", "Log List" }),
+            ("System Security & Control", new[] { "Staff List", "Log List" }),   // must match NavAccessPolicy.SystemSecurity
             ("Statistical Reports",       new[] { "View Report" })
         };
 
@@ -185,8 +192,6 @@ namespace PremiumLivingOPS.Views.Shared
 
                 if (!hasDrop)
                 {
-                    // Top-level item with no sub-menu (e.g. Dashboard)
-                    // Fire with empty sub-item string.
                     EventHandler goHome = (s, e) =>
                     {
                         HideMegaMenu();
@@ -273,7 +278,7 @@ namespace PremiumLivingOPS.Views.Shared
         // ── Mega Menu ────────────────────────────────────────────────
         private void ShowMegaMenu(int idx, Panel navItem)
         {
-            string[] items    = _menus[idx].Items;
+            string[] items     = _menus[idx].Items;
             string   menuLabel = _menus[idx].Label;
             if (items.Length == 0) return;
 
@@ -321,7 +326,6 @@ namespace PremiumLivingOPS.Views.Shared
                 rowLbl.MouseEnter += (s, e) => { row.BackColor = hoverBg; rowLbl.ForeColor = Color.White; };
                 rowLbl.MouseLeave += (s, e) => { row.BackColor = DropBg;  rowLbl.ForeColor = DropText;   };
 
-                // Fire MenuItemClicked with both parent-menu and sub-item labels.
                 EventHandler onClick = (s, e) =>
                 {
                     HideMegaMenu();
