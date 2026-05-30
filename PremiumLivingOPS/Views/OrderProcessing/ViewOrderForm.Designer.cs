@@ -100,8 +100,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     Padding     = rightPad ? new Padding(0, 0, 12, 0) : Padding.Empty
                 };
                 tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-                tlp.RowStyles.Add(new RowStyle(SizeType.Absolute, 40f));   // label row
-                tlp.RowStyles.Add(new RowStyle(SizeType.Percent,  70f));   // control row
+                tlp.RowStyles.Add(new RowStyle(SizeType.Absolute, 40f));
+                tlp.RowStyles.Add(new RowStyle(SizeType.Percent,  70f));
 
                 var lbl = new Label
                 {
@@ -170,10 +170,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             tblFields.Controls.Add(cellDate,                                 3, 0);
 
             // ── Buttons panel
-            // Buttons enlarged: h=46, y=16 so they sit centred within the 80px row
+            // Both buttons: 175 x 55, y=12 so they sit centred in the 80px row
             var pnlBtns = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            btnSearch  = MakePrimaryBtn("Search",     new Point(0,   16), 130, 46);
-            btnRefresh = MakeOutlineBtn("↻  Refresh", new Point(138, 16), 136, 46);
+            btnSearch  = MakePrimaryBtn("🔍  Search", new Point(0,   12), 175, 55);
+            btnRefresh = MakeOutlineBtn("↺  Reset",  new Point(183, 12), 175, 55);
             btnSearch.Click  += (s, e) => RefreshGrid();
             btnRefresh.Click += (s, e) => RefreshGrid();
             pnlBtns.Controls.Add(btnSearch);
