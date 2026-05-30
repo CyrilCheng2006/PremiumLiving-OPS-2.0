@@ -18,10 +18,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         private readonly OrderProcessingController _ctrl = new OrderProcessingController();
         private AppShell _shell;
 
-        // KPI pill buttons keyed by status string
         private readonly Dictionary<string, Button> _kpiButtons = new Dictionary<string, Button>();
 
-        // Tag colours matching order-list.html
         private static readonly Dictionary<string, (Color bg, Color fg)> StatusColors =
             new Dictionary<string, (Color, Color)>(StringComparer.OrdinalIgnoreCase)
             {
@@ -38,7 +36,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             WireEvents();
         }
 
-        // ── Initialisation ──────────────────────────────────────────────────
+        // ── Load ───────────────────────────────────────────────────────────────
         protected override void OnLoad(EventArgs e)
         {
             base.OnLoad(e);
@@ -49,9 +47,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
         private void AttachShell()
         {
-            // AppShell is DockStyle.Top (44 nav + 72 user bar = 116 px total).
-            // Add it directly to the Form; pnlContent (DockStyle.Fill) occupies
-            // the remaining space automatically.
             _shell = new AppShell();
             Controls.Add(_shell);
             _shell.BringToFront();
@@ -59,21 +54,21 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             var vm = _ctrl.GetViewOrderVM();
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
-            // SetBreadcrumb accepts a single formatted string
             _shell.SetBreadcrumb("Order Processing  ›  View Orders");
-
-            // Allow mega-menu popup to escape the AppShell clip region
             _shell.SetPopupContainer(this);
 
-            // Wire logout — navigate back to Login
+            // Nav menu clicks — delegate to FormNavigator (requires current Form)
+            _shell.MenuItemClicked += (menu, sub) =>
+                FormNavigator.NavigateTo(this, menu, sub);
+
+            // Logout: clear session then navigate to Login via FormNavigator
             _shell.LogoutClicked += (s, ev) =>
             {
-                SessionManager.CurrentUser = null;
-                FormNavigator.NavigateTo(new Auth.LoginForm());
+                SessionManager.Clear();                          // ✔ correct API
+                FormNavigator.NavigateTo(this, "Login", "");    // ✔ passes current Form
             };
         }
 
-        /// <summary>Builds the five KPI status pills in pnlKpi.</summary>
         private void BuildKpiBar()
         {
             pnlKpi.Controls.Clear();
@@ -287,10 +282,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         private static GraphicsPath RoundedRect(Rectangle r, int radius)
         {
             var path = new GraphicsPath();
-            path.AddArc(r.X,                      r.Y,                       radius * 2, radius * 2, 180, 90);
-            path.AddArc(r.Right  - radius * 2,    r.Y,                       radius * 2, radius * 2, 270, 90);
-            path.AddArc(r.Right  - radius * 2,    r.Bottom - radius * 2,     radius * 2, radius * 2,   0, 90);
-            path.AddArc(r.X,                      r.Bottom - radius * 2,     radius * 2, radius * 2,  90, 90);
+            path.AddArc(r.X,                   r.Y,                   radius * 2, radius * 2, 180, 90);
+            path.AddArc(r.Right - radius * 2,  r.Y,                   radius * 2, radius * 2, 270, 90);
+            path.AddArc(r.Right - radius * 2,  r.Bottom - radius * 2, radius * 2, radius * 2,   0, 90);
+            path.AddArc(r.X,                   r.Bottom - radius * 2, radius * 2, radius * 2,  90, 90);
             path.CloseFigure();
             return path;
         }
@@ -313,12 +308,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 dlg.MinimizeBox     = false;
                 dlg.BackColor       = Color.White;
 
-                // Header
                 var header = new Panel { Dock = DockStyle.Top, Height = 56, BackColor = Color.FromArgb(15, 23, 42) };
                 StatusColors.TryGetValue(o.OrderStatus, out var sc);
-                var hBg = sc.bg != default ? sc.bg : Color.Gray;
-                var hFg = sc.fg != default ? sc.fg : Color.White;
-
                 header.Controls.Add(new Label
                 {
                     Text = $"Order Details  —  {o.OrderID}",
@@ -328,7 +319,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 });
                 var badge = new Label
                 {
-                    Text = o.OrderStatus, BackColor = hBg, ForeColor = hFg,
+                    Text = o.OrderStatus,
+                    BackColor = sc.bg != default ? sc.bg : Color.Gray,
+                    ForeColor = sc.fg != default ? sc.fg : Color.White,
                     Font = new Font("Segoe UI", 9F, FontStyle.Bold),
                     AutoSize = false, Width = 90, Height = 28,
                     TextAlign = ContentAlignment.MiddleCenter,
@@ -337,7 +330,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 badge.Location = new Point(dlg.ClientSize.Width - 120, 14);
                 header.Controls.Add(badge);
 
-                // Info table
                 var tbl = new TableLayoutPanel
                 {
                     Dock = DockStyle.Top, Height = 160, ColumnCount = 4, RowCount = 6,
@@ -370,7 +362,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                                             ForeColor = Color.FromArgb(37, 99, 235),
                                             Padding = new Padding(20, 8, 0, 0) };
 
-                // Items grid
                 var dgv = new DataGridView
                 {
                     Dock = DockStyle.Fill, BackgroundColor = Color.White, BorderStyle = BorderStyle.None,
@@ -392,7 +383,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     dgv.Rows.Add(line.ItemID, line.ItemName, line.Quantity,
                                  $"HK$ {line.Price:N2}", $"HK$ {line.Quantity * line.Price:N2}");
 
-                // Grand total
                 var pnlGT = new Panel { Dock = DockStyle.Bottom, Height = 36, BackColor = Color.FromArgb(249, 250, 252) };
                 pnlGT.Controls.Add(new Label
                 {
@@ -401,7 +391,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleRight, Padding = new Padding(0, 0, 20, 0)
                 });
 
-                // Footer
                 var pnlFoot = new Panel { Dock = DockStyle.Bottom, Height = 48, BackColor = Color.White, Padding = new Padding(0, 8, 20, 0) };
                 var btnClose = new Button
                 {
