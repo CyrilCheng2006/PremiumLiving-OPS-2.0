@@ -35,7 +35,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             var vm = _ctrl.GetCreateOrderVM();
 
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
-            _shell.SetVisibleMenus(vm.AllowedMenus);    // string[] — matches AppShell signature
+            _shell.SetVisibleMenus(vm.AllowedMenus);
             _shell.SetBreadcrumb("Order Processing  ›  Create Order");
 
             // Customer combo
@@ -45,7 +45,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 cboCustomer.Items.Add(new ComboItem(c.CustomerName, c.CustomerID));
             cboCustomer.SelectedIndex = 0;
 
-            // Quotation combo — FIX #3: use PendingQuotations (now exists in VM)
+            // Quotation combo — PendingQuotations pre-filtered in Controller
             cboQuotation.Items.Clear();
             cboQuotation.Items.Add(new ComboItem("-- None --", ""));
             foreach (var q in vm.PendingQuotations)
@@ -54,7 +54,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     q.QuotationID));
             cboQuotation.SelectedIndex = 0;
 
-            // Product combo — FIX #4: use p.DisplayText (now a property on ProductLookup)
+            // Product combo — DisplayText property on ProductLookup
             _products = vm.Products;
             cboProduct.Items.Clear();
             cboProduct.Items.Add(new ComboItem("-- Select Product --", ""));
@@ -177,7 +177,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             double sub = 0;
             foreach (var l in _lines) sub += l.LineTotal;
             double discountAmount = 0;
-            if (dtype == "Amount")       discountAmount = discountValue;
+            if (dtype == "Amount")        discountAmount = discountValue;
             else if (dtype == "Rate (%)") discountAmount = sub * discountValue / 100.0;
 
             var header = new OrderEntity
@@ -194,11 +194,11 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 GrandTotal       = sub - discountAmount,
                 OrderContactName = txtContactName.Text.Trim(),
                 OrderStatus      = "Pending",
-                IssuedTime       = System.DateTime.Now,
-                SalesID          = SessionManager.CurrentUser?.StaffID ?? ""
+                IssuedTime       = DateTime.Now,
+                // FIX: Staff.StaffId (lowercase 'd') is the correct property name
+                SalesID          = SessionManager.CurrentUser?.StaffId ?? ""
             };
 
-            // FIX #5: SaveNewOrder() returns bool (not a tuple)
             bool ok = _ctrl.SaveNewOrder(header, new List<OrderLineEntity>(_lines));
             if (ok)
             {
