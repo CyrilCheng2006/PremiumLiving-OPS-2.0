@@ -88,8 +88,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             dtpDateFrom.ValueChanged   += (s, e) => { if (chkDateFrom.Checked) RefreshGrid(); };
 
             // ── MakeCell: 2-row TLP
-            //   Row 0 (30px absolute) → Label
-            //   Row 1 (80% percent)   → Control
+            //   Row 0 (40px absolute) → Label
+            //   Row 1 (70% percent)   → Control
             TableLayoutPanel MakeCell(string caption, Control ctrl, bool rightPad = true)
             {
                 var tlp = new TableLayoutPanel
@@ -102,8 +102,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     Padding     = rightPad ? new Padding(0, 0, 12, 0) : Padding.Empty
                 };
                 tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-                tlp.RowStyles.Add(new RowStyle(SizeType.Absolute, 30f));    // label row
-                tlp.RowStyles.Add(new RowStyle(SizeType.Percent,  80f));    // control row
+                tlp.RowStyles.Add(new RowStyle(SizeType.Absolute, 40f));   // label row
+                tlp.RowStyles.Add(new RowStyle(SizeType.Percent,  70f));   // control row
 
                 var lbl = new Label
                 {
@@ -133,8 +133,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             };
             cellDate.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 28f));
             cellDate.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-            cellDate.RowStyles.Add(new RowStyle(SizeType.Absolute, 30f));   // label row
-            cellDate.RowStyles.Add(new RowStyle(SizeType.Percent,  80f));   // control row
+            cellDate.RowStyles.Add(new RowStyle(SizeType.Absolute, 40f));  // label row
+            cellDate.RowStyles.Add(new RowStyle(SizeType.Percent,  70f));  // control row
 
             var lblDate = new Label
             {
@@ -174,8 +174,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             // ── Buttons panel
             var pnlBtns = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            btnSearch  = MakePrimaryBtn("Search",     new Point(0,   16), 116, 38);
-            btnRefresh = MakeOutlineBtn("↻  Refresh", new Point(124, 16), 126, 38);
+            btnSearch  = MakePrimaryBtn("Search",     new Point(0,   20), 116, 38);
+            btnRefresh = MakeOutlineBtn("↻  Refresh", new Point(124, 20), 126, 38);
             btnSearch.Click  += (s, e) => RefreshGrid();
             btnRefresh.Click += (s, e) => RefreshGrid();
             pnlBtns.Controls.Add(btnSearch);
@@ -192,8 +192,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Padding         = new Padding(18, 14, 18, 14)
             };
             tblCard.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  50f));  // title row
-            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute, 120f));  // fields row
+            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  60f));  // title row
+            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute, 130f));  // fields row
             tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  80f));  // buttons row
 
             // Title row
@@ -219,11 +219,11 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlCard.Paint += PaintCardBorder;
             pnlCard.Controls.Add(tblCard);
 
-            // Outer wrapper — 330px
+            // Outer wrapper — 300px
             var pnlSearchOuter = new Panel
             {
                 Dock      = DockStyle.Top,
-                Height    = 330,
+                Height    = 300,
                 BackColor = Color.FromArgb(240, 244, 249),
                 Padding   = new Padding(20, 14, 20, 8)
             };
