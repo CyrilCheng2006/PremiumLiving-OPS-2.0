@@ -18,10 +18,13 @@ namespace PremiumLivingOPS.Views.OrderProcessing
     ///   • Contains NO business logic and NO direct DB calls.
     ///
     /// Search card (matching order-list.html):
-    ///   • Order No.  — txtSearchOrderNo
-    ///   • Customer   — txtSearchCustomer
+    ///   • Order No.  — txtSearchOrderNo   ┐
+    ///   • Customer   — txtSearchCustomer  ┘ both merged into a single keyword
     ///   • Status     — cboStatus
     ///   • Date From  — dtpDateFrom (enabled by chkDateFrom checkbox)
+    ///
+    /// Controller signature: GetViewOrderVM(string status, string keyword, DateTime? dateFrom)
+    ///   keyword = OrderNo field if non-empty, else Customer field.
     /// </summary>
     public partial class ViewOrderForm : Form
     {
@@ -58,17 +61,21 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         // ── Refresh / Search ──────────────────────────────────────────────────
         private void RefreshGrid()
         {
-            // ── Read the four search-card fields (matches order-list.html applyFilter) ──
-            string orderNo   = txtSearchOrderNo.Text.Trim();
-            string customer  = txtSearchCustomer.Text.Trim();
-            string status    = cboStatus.SelectedItem?.ToString();
+            // Read search-card fields
+            string orderNo  = txtSearchOrderNo.Text.Trim();
+            string customer = txtSearchCustomer.Text.Trim();
+            string status   = cboStatus.SelectedItem?.ToString();
             DateTime? dateFrom = chkDateFrom.Checked ? (DateTime?)dtpDateFrom.Value.Date : null;
 
-            // Pass to controller (status "All" or empty = no filter)
+            // Controller signature: GetViewOrderVM(string status, string keyword, DateTime? dateFrom)
+            // keyword = Order No. if filled, otherwise Customer name.
+            string keyword = !string.IsNullOrEmpty(orderNo)  ? orderNo
+                           : !string.IsNullOrEmpty(customer) ? customer
+                           : null;
+
             var vm = _ctrl.GetViewOrderVM(
-                status  == "All" || string.IsNullOrEmpty(status)  ? null : status,
-                string.IsNullOrEmpty(orderNo)   ? null : orderNo,
-                string.IsNullOrEmpty(customer)  ? null : customer,
+                status == "All" || string.IsNullOrEmpty(status) ? null : status,
+                keyword,
                 dateFrom);
 
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
