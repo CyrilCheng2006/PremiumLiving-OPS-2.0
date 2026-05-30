@@ -170,10 +170,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             tblFields.Controls.Add(cellDate,                                 3, 0);
 
             // ── Buttons panel
-            // Both buttons: 210 x 60, gap = 8px
             var pnlBtns = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            btnSearch  = MakePrimaryBtn("🔍  Search", new Point(0,   10), 210, 60);
-            btnRefresh = MakeOutlineBtn("↺  Reset",  new Point(218, 10), 210, 60);
+            btnSearch  = MakePrimaryBtn("🔍  Search", new Point(0,   0), 210, 60);
+            btnRefresh = MakeOutlineBtn("↺  Reset",  new Point(218, 0), 210, 60);
             btnSearch.Click  += (s, e) => RefreshGrid();
             btnRefresh.Click += (s, e) => RefreshGrid();
             pnlBtns.Controls.Add(btnSearch);
@@ -190,9 +189,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Padding         = new Padding(18, 14, 18, 14)
             };
             tblCard.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  60f));
-            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute, 130f));
-            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  80f));
+            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  60f));  // title row
+            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute, 130f));  // fields row
+            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  60f));  // button row (was 80f)
 
             var pnlTitle = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             var lblTitle = new Label
