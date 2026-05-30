@@ -96,13 +96,13 @@ namespace PremiumLivingOPS.Views.Shared
             _btnLogout = new Button
             {
                 Text         = "Log Out",
-                Font         = new Font("Segoe UI", 12.8f),
+                Font         = new Font("Segoe UI", 9f),
                 ForeColor    = Danger,
                 BackColor    = Color.Transparent,
                 FlatStyle    = FlatStyle.Flat,
                 AutoSize     = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
-                Padding      = new Padding(14, 4, 14, 4),
+                Padding      = new Padding(12, 0, 12, 0),
                 Cursor       = Cursors.Hand,
                 Margin       = new Padding(0, 0, 16, 0)
             };
