@@ -1,4 +1,3 @@
-using PremiumLivingOPS.Controllers;
 using System;
 using System.Drawing;
 using System.Windows.Forms;
@@ -10,10 +9,10 @@ namespace PremiumLivingOPS.Views.Shared
     ///
     /// Usage (any Form)
     /// ────────────────
-    /// 1. Add AppShell to the form's top:
+    /// 1. Declare and add to the form:
     ///        private AppShell _shell;
     ///        _shell = new AppShell();
-    ///        Controls.Add(_shell);
+    ///        pnlMain.Controls.Add(_shell);
     ///
     /// 2. After loading your ViewModel, call:
     ///        _shell.SetUser(displayName, department);
@@ -25,11 +24,22 @@ namespace PremiumLivingOPS.Views.Shared
     ///        _shell.LogoutClicked   += OnLogoutClicked;
     ///
     /// AppShell height = TopNavBar (44 px) + UserBar (72 px) = 116 px.
+    ///
+    /// Layout strategy
+    /// ───────────────
+    /// The UserBar uses a 3-column TableLayoutPanel instead of manual
+    /// coordinate arithmetic.  This prevents overlap regardless of font
+    /// scaling, DPI, or the order in which controls are measured:
+    ///
+    ///   ┌────────────────┬──────────────────────┬──────────────────────┐
+    ///   │  Breadcrumb    │      (stretch)        │  UserInfo | Logout   │
+    ///   └────────────────┴──────────────────────┴──────────────────────┘
+    ///   AutoSize           100% stretch                AutoSize
     /// </summary>
     public class AppShell : Panel
     {
         // ── Heights ──────────────────────────────────────────────────
-        public const int NavBarHeight = 44;
+        public const int NavBarHeight  = 44;
         public const int UserBarHeight = 72;
         public const int TotalHeight   = NavBarHeight + UserBarHeight;
 
@@ -38,11 +48,9 @@ namespace PremiumLivingOPS.Views.Shared
         private readonly UserInfoLabel _lblUser;
         private readonly Label         _lblBreadcrumb;
         private readonly Button        _btnLogout;
-        private readonly Panel         _pnlUserBar;
 
         // ── Colours (mirrors DashboardForm.Palette) ──────────────────
-        private static readonly Color TextMain   = Color.FromArgb(15,  31,  53);
-        private static readonly Color TextMuted  = Color.FromArgb(98, 112, 135);
+        private static readonly Color TextMain    = Color.FromArgb(15,  31,  53);
         private static readonly Color BorderColor = Color.FromArgb(221, 227, 236);
         private static readonly Color Danger      = Color.FromArgb(232, 64,  64);
 
@@ -65,35 +73,26 @@ namespace PremiumLivingOPS.Views.Shared
             _topNavBar = new TopNavBar();
             _topNavBar.MenuItemClicked += label => MenuItemClicked?.Invoke(label);
 
-            // ── User Bar ───────────────────────────────────────────
-            _pnlUserBar = new Panel
-            {
-                Dock      = DockStyle.Top,
-                Height    = UserBarHeight,
-                BackColor = Color.White
-            };
-
-            Panel border = new Panel
-            {
-                Dock      = DockStyle.Bottom,
-                Height    = 1,
-                BackColor = BorderColor
-            };
-
+            // ── Breadcrumb label ───────────────────────────────────
             _lblBreadcrumb = new Label
             {
                 Text      = "Dashboard",
                 Font      = new Font("Segoe UI", 16f, FontStyle.Bold),
                 ForeColor = TextMain,
-                AutoSize  = true
+                AutoSize  = true,
+                Anchor    = AnchorStyles.None,
+                Margin    = new Padding(22, 0, 0, 0)
             };
 
+            // ── UserInfoLabel ──────────────────────────────────────
             _lblUser = new UserInfoLabel
             {
                 UserName   = "...",
-                Department = ""
+                Department = "",
+                Margin     = new Padding(0, 0, 8, 0)
             };
 
+            // ── Logout button ──────────────────────────────────────
             _btnLogout = new Button
             {
                 Text         = "Log Out",
@@ -104,26 +103,71 @@ namespace PremiumLivingOPS.Views.Shared
                 AutoSize     = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
                 Padding      = new Padding(14, 4, 14, 4),
-                Cursor       = Cursors.Hand
+                Cursor       = Cursors.Hand,
+                Margin       = new Padding(0, 0, 16, 0)
             };
             _btnLogout.FlatAppearance.BorderColor = Danger;
             _btnLogout.FlatAppearance.BorderSize  = 1;
             _btnLogout.Click += (s, e) => LogoutClicked?.Invoke(s, e);
 
-            _pnlUserBar.Controls.Add(_lblBreadcrumb);
-            _pnlUserBar.Controls.Add(_lblUser);
-            _pnlUserBar.Controls.Add(_btnLogout);
-            _pnlUserBar.Controls.Add(border);
+            // ── Right sub-panel: UserInfo + Logout side by side ────
+            // FlowLayoutPanel keeps the two controls glued together and
+            // naturally sizes to their combined width — no manual Width reads.
+            FlowLayoutPanel pnlRight = new FlowLayoutPanel
+            {
+                FlowDirection = FlowDirection.LeftToRight,
+                AutoSize      = true,
+                AutoSizeMode  = AutoSizeMode.GrowAndShrink,
+                BackColor     = Color.Transparent,
+                Anchor        = AnchorStyles.None,
+                WrapContents  = false
+            };
+            pnlRight.Controls.Add(_lblUser);
+            pnlRight.Controls.Add(_btnLogout);
 
-            // UserBar layout: re-run on every resize
-            _pnlUserBar.Resize += (s, e) => LayoutUserBar();
+            // ── Bottom border ──────────────────────────────────────
+            Panel border = new Panel
+            {
+                Dock      = DockStyle.Bottom,
+                Height    = 1,
+                BackColor = BorderColor
+            };
 
-            // Controls added bottom-first so Dock.Top stacks correctly:
-            // pnlUserBar docks Top first, then TopNavBar docks Top on top of it.
-            Controls.Add(_pnlUserBar);
+            // ── UserBar: 3-column TableLayoutPanel ─────────────────
+            // Col 0: Breadcrumb  (AutoSize)
+            // Col 1: Stretch filler (100%)
+            // Col 2: pnlRight    (AutoSize)
+            TableLayoutPanel tlpBar = new TableLayoutPanel
+            {
+                Dock        = DockStyle.Fill,
+                ColumnCount = 3,
+                RowCount    = 1,
+                BackColor   = Color.Transparent,
+                Padding     = new Padding(0),
+                Margin      = new Padding(0)
+            };
+            tlpBar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));       // col 0
+            tlpBar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f)); // col 1
+            tlpBar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));       // col 2
+            tlpBar.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+
+            tlpBar.Controls.Add(_lblBreadcrumb, 0, 0);
+            tlpBar.Controls.Add(new Panel { BackColor = Color.Transparent }, 1, 0); // spacer
+            tlpBar.Controls.Add(pnlRight, 2, 0);
+
+            Panel pnlUserBar = new Panel
+            {
+                Dock      = DockStyle.Top,
+                Height    = UserBarHeight,
+                BackColor = Color.White
+            };
+            pnlUserBar.Controls.Add(tlpBar);
+            pnlUserBar.Controls.Add(border);
+
+            // ── Stack: TopNavBar on top, UserBar below ─────────────
+            // Controls added last-in = docked to top first.
+            Controls.Add(pnlUserBar);
             Controls.Add(_topNavBar);
-
-            HandleCreated += (s, e) => LayoutUserBar();
         }
 
         // ── Public API ────────────────────────────────────────────────
@@ -133,7 +177,6 @@ namespace PremiumLivingOPS.Views.Shared
         {
             _lblUser.UserName   = displayName;
             _lblUser.Department = department;
-            LayoutUserBar();
         }
 
         /// <summary>Restricts TopNavBar to the allowed menu labels.</summary>
@@ -149,27 +192,9 @@ namespace PremiumLivingOPS.Views.Shared
 
         /// <summary>
         /// Must be called once so the mega-menu popup can escape the AppShell clip region.
-        /// Pass the form's root Panel (or the Form itself) as the container.
+        /// Pass the form's root Panel as the container.
         /// </summary>
         public void SetPopupContainer(Control container)
             => _topNavBar.SetPopupContainer(container);
-
-        // ── Layout ────────────────────────────────────────────────────
-        private void LayoutUserBar()
-        {
-            const int RightPad = 16;
-            const int ItemGap  = 12;
-            int h  = _pnlUserBar.ClientSize.Height;
-            int bw = _pnlUserBar.ClientSize.Width;
-
-            if (bw == 0 || h == 0) return;
-
-            int logoutX  = bw - RightPad - _btnLogout.Width;
-            int userLblX = logoutX - ItemGap - _lblUser.Width;
-
-            _btnLogout.Location     = new Point(logoutX,  (h - _btnLogout.Height)     / 2);
-            _lblUser.Location       = new Point(userLblX, (h - _lblUser.Height)       / 2);
-            _lblBreadcrumb.Location = new Point(22,       (h - _lblBreadcrumb.Height) / 2);
-        }
     }
 }
