@@ -8,7 +8,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
     {
         private System.ComponentModel.IContainer components = null;
 
-        private AppShell    _shell;
+        private AppShell     _shell;
         private DataGridView dgvOrders;
         private DataGridView dgvLines;
         private Label        lblDetailTitle;
@@ -34,23 +34,23 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             this.WindowState   = FormWindowState.Maximized;
             this.Font          = new Font("Segoe UI", 11f);
 
+            // ── Root panel ────────────────────────────────────────────
             Panel pnlMain = new Panel { Dock = DockStyle.Fill, BackColor = Palette.BgPage };
 
-            // ── AppShell ────────────────────────────────────────────────
+            // ── AppShell (TopNavBar + UserBar) ─────────────────────────
             _shell = new AppShell();
             _shell.MenuItemClicked += OnTopNavMenuItemClicked;
             _shell.LogoutClicked   += btnLogout_Click;
-            _shell.SetPopupContainer(pnlMain);
 
-            // ── Content panel ──────────────────────────────────────────
+            // ── Content ────────────────────────────────────────────────
             Panel pnlContent = new Panel
             {
-                Dock    = DockStyle.Fill,
-                Padding = new Padding(24, 20, 24, 24),
+                Dock      = DockStyle.Fill,
+                Padding   = new Padding(28, 20, 28, 24),
                 BackColor = Palette.BgPage
             };
 
-            // ── Page title ────────────────────────────────────────────
+            // Page title
             Label lblTitle = new Label
             {
                 Text      = "View Orders",
@@ -60,7 +60,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Location  = new Point(0, 0)
             };
 
-            // ── Filter toolbar ────────────────────────────────────────
+            // Filter toolbar
             Panel pnlToolbar = new Panel
             {
                 Height    = 48,
@@ -68,8 +68,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Padding   = new Padding(12, 8, 12, 8)
             };
             pnlToolbar.Paint += (s, e) =>
-                e.Graphics.DrawRectangle(new System.Drawing.Pen(Palette.BorderColor, 1), 0, 0,
-                    ((Panel)s).Width - 1, ((Panel)s).Height - 1);
+                e.Graphics.DrawRectangle(
+                    new System.Drawing.Pen(Palette.BorderColor, 1),
+                    0, 0, ((Panel)s).Width - 1, ((Panel)s).Height - 1);
 
             lblFilterLabel = new Label
             {
@@ -86,13 +87,14 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Location      = new Point(70, 10),
                 Font          = new Font("Segoe UI", 11f)
             };
-            cboStatusFilter.Items.AddRange(new object[] { "All", "Pending", "Processing", "Delivered", "Cancelled" });
+            cboStatusFilter.Items.AddRange(new object[]
+                { "All", "Pending", "Processing", "Delivered", "Cancelled" });
             cboStatusFilter.SelectedIndex = 0;
             cboStatusFilter.SelectedIndexChanged += cboStatusFilter_SelectedIndexChanged;
 
             btnRefresh = new Button
             {
-                Text      = "\u21BB Refresh",
+                Text      = "↻ Refresh",
                 Font      = new Font("Segoe UI", 11f),
                 ForeColor = Palette.Primary,
                 FlatStyle = FlatStyle.Flat,
@@ -108,21 +110,29 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlToolbar.Controls.Add(cboStatusFilter);
             pnlToolbar.Controls.Add(btnRefresh);
 
-            // ── Orders DataGridView ─────────────────────────────────
+            // Orders grid
             dgvOrders = MakeDgv();
-            dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colOrderID",   HeaderText = "Order ID",       FillWeight = 15, SortMode = DataGridViewColumnSortMode.NotSortable });
-            dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCustomer",  HeaderText = "Customer",       FillWeight = 25, SortMode = DataGridViewColumnSortMode.NotSortable });
-            dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colIssued",    HeaderText = "Issued Date",    FillWeight = 15, SortMode = DataGridViewColumnSortMode.NotSortable });
-            dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDelivery",  HeaderText = "Delivery Date",  FillWeight = 15, SortMode = DataGridViewColumnSortMode.NotSortable });
-            dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTotal",     HeaderText = "Grand Total",    FillWeight = 15, SortMode = DataGridViewColumnSortMode.NotSortable });
-            dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",    HeaderText = "Status",         FillWeight = 15, SortMode = DataGridViewColumnSortMode.NotSortable });
+            dgvOrders.Columns.Add(new DataGridViewTextBoxColumn
+                { Name = "colOrderID",  HeaderText = "Order ID",      FillWeight = 14 });
+            dgvOrders.Columns.Add(new DataGridViewTextBoxColumn
+                { Name = "colCustomer", HeaderText = "Customer",      FillWeight = 26 });
+            dgvOrders.Columns.Add(new DataGridViewTextBoxColumn
+                { Name = "colIssued",   HeaderText = "Issued Date",   FillWeight = 14 });
+            dgvOrders.Columns.Add(new DataGridViewTextBoxColumn
+                { Name = "colDelivery", HeaderText = "Delivery Date", FillWeight = 14 });
+            dgvOrders.Columns.Add(new DataGridViewTextBoxColumn
+                { Name = "colTotal",    HeaderText = "Grand Total",   FillWeight = 16 });
+            dgvOrders.Columns.Add(new DataGridViewTextBoxColumn
+                { Name = "colStatus",   HeaderText = "Status",        FillWeight = 16 });
             dgvOrders.SelectionChanged += dgvOrders_SelectionChanged;
+            dgvOrders.Dock = DockStyle.Fill;
 
-            // ── Line items panel ─────────────────────────────────────
-            Panel pnlDetail = new Panel { Height = 260, BackColor = Palette.BgCard };
+            // Detail panel (line items)
+            Panel pnlDetail = new Panel { Height = 270, BackColor = Palette.BgCard };
             pnlDetail.Paint += (s, e) =>
-                e.Graphics.DrawRectangle(new System.Drawing.Pen(Palette.BorderColor, 1), 0, 0,
-                    ((Panel)s).Width - 1, ((Panel)s).Height - 1);
+                e.Graphics.DrawRectangle(
+                    new System.Drawing.Pen(Palette.BorderColor, 1),
+                    0, 0, ((Panel)s).Width - 1, ((Panel)s).Height - 1);
 
             lblDetailTitle = new Label
             {
@@ -133,81 +143,83 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Height    = 40,
                 Padding   = new Padding(12, 10, 0, 0)
             };
-
             dgvLines = MakeDgv();
-            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colItemID",   HeaderText = "Item ID",    FillWeight = 15, SortMode = DataGridViewColumnSortMode.NotSortable });
-            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colItemName", HeaderText = "Item Name",  FillWeight = 35, SortMode = DataGridViewColumnSortMode.NotSortable });
-            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colQty",      HeaderText = "Qty",        FillWeight = 10, SortMode = DataGridViewColumnSortMode.NotSortable });
-            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPrice",    HeaderText = "Unit Price", FillWeight = 20, SortMode = DataGridViewColumnSortMode.NotSortable });
-            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLineTotal",HeaderText = "Line Total", FillWeight = 20, SortMode = DataGridViewColumnSortMode.NotSortable });
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn
+                { Name = "colItemID",    HeaderText = "Item ID",    FillWeight = 14 });
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn
+                { Name = "colItemName",  HeaderText = "Item Name",  FillWeight = 36 });
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn
+                { Name = "colQty",       HeaderText = "Qty",        FillWeight = 10 });
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn
+                { Name = "colPrice",     HeaderText = "Unit Price", FillWeight = 20 });
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn
+                { Name = "colLineTotal", HeaderText = "Line Total", FillWeight = 20 });
             dgvLines.Dock = DockStyle.Fill;
 
             pnlDetail.Controls.Add(dgvLines);
             pnlDetail.Controls.Add(lblDetailTitle);
 
-            // ── Layout using SplitContainer ───────────────────────────
+            // SplitContainer: orders on top, line items on bottom
             SplitContainer split = new SplitContainer
             {
-                Dock           = DockStyle.Fill,
-                Orientation    = Orientation.Horizontal,
+                Dock             = DockStyle.Fill,
+                Orientation      = Orientation.Horizontal,
                 SplitterDistance = 400,
-                Panel1MinSize  = 200,
-                Panel2MinSize  = 180,
-                BackColor      = Palette.BgPage
+                Panel1MinSize    = 200,
+                Panel2MinSize    = 180,
+                BackColor        = Palette.BgPage
             };
             split.Panel1.Controls.Add(dgvOrders);
             split.Panel2.Controls.Add(pnlDetail);
 
+            // Header strip (title + toolbar) — fixed-height FlowLayoutPanel
             FlowLayoutPanel flow = new FlowLayoutPanel
             {
-                Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown,
-                WrapContents = false, AutoSize = false, BackColor = Palette.BgPage
+                Dock          = DockStyle.Top,
+                Height        = lblTitle.PreferredHeight + 12 + 48 + 8,
+                FlowDirection = FlowDirection.TopDown,
+                WrapContents  = false,
+                AutoSize      = false,
+                BackColor     = Palette.BgPage,
+                Padding       = new Padding(0)
             };
             flow.Controls.Add(lblTitle);
-            flow.Controls.Add(new Panel { Height = 12, Width = 10, BackColor = Palette.BgPage });
+            flow.Controls.Add(new Panel
+                { Height = 12, Width = 10, BackColor = Palette.BgPage });
             flow.Controls.Add(pnlToolbar);
-            flow.Controls.Add(new Panel { Height = 8,  Width = 10, BackColor = Palette.BgPage });
+            flow.Controls.Add(new Panel
+                { Height = 8,  Width = 10, BackColor = Palette.BgPage });
+
+            flow.Resize += (s, e) => pnlToolbar.Width = flow.Width;
 
             pnlContent.Controls.Add(split);
             pnlContent.Controls.Add(flow);
 
-            pnlContent.Resize += (s, e) =>
-            {
-                int w = pnlContent.ClientSize.Width - pnlContent.Padding.Horizontal;
-                flow.Width     = w;
-                pnlToolbar.Width = w;
-                split.Width    = w;
-                split.Height   = pnlContent.ClientSize.Height
-                                 - pnlContent.Padding.Vertical
-                                 - lblTitle.Height - 12 - 48 - 8;
-                split.Top      = lblTitle.Height + 12 + 48 + 8 + pnlContent.Padding.Top;
-            };
-
             pnlMain.Controls.Add(pnlContent);
-            pnlMain.Controls.Add(_shell);
+            pnlMain.Controls.Add(_shell);   // Dock = Top
 
             this.Controls.Add(pnlMain);
             this.ResumeLayout(false);
         }
 
-        // ── DGV factory ───────────────────────────────────────────────────
+        // ── DGV factory ────────────────────────────────────────────────
         private DataGridView MakeDgv()
         {
             return new DataGridView
             {
-                ReadOnly             = true,
-                AllowUserToAddRows   = false,
-                AllowUserToDeleteRows= false,
-                RowHeadersVisible    = false,
-                SelectionMode        = DataGridViewSelectionMode.FullRowSelect,
-                BackgroundColor      = Palette.BgCard,
-                BorderStyle          = BorderStyle.None,
-                GridColor            = Palette.BorderColor,
-                Font                 = new Font("Segoe UI", 11f),
-                AutoSizeColumnsMode  = DataGridViewAutoSizeColumnsMode.Fill,
-                CellBorderStyle      = DataGridViewCellBorderStyle.SingleHorizontal,
-                RowTemplate          = { Height = 36 },
-                MultiSelect          = false,
+                ReadOnly              = true,
+                AllowUserToAddRows    = false,
+                AllowUserToDeleteRows = false,
+                RowHeadersVisible     = false,
+                SelectionMode         = DataGridViewSelectionMode.FullRowSelect,
+                BackgroundColor       = Palette.BgCard,
+                BorderStyle           = BorderStyle.None,
+                GridColor             = Palette.BorderColor,
+                Font                  = new Font("Segoe UI", 11f),
+                AutoSizeColumnsMode   = DataGridViewAutoSizeColumnsMode.Fill,
+                CellBorderStyle       = DataGridViewCellBorderStyle.SingleHorizontal,
+                RowTemplate           = { Height = 36 },
+                MultiSelect           = false,
                 ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
                 {
                     BackColor = Color.FromArgb(246, 249, 255),

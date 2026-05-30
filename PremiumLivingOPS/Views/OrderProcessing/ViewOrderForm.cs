@@ -3,7 +3,6 @@ using PremiumLivingOPS.Models.Entities;
 using PremiumLivingOPS.Views.Shared;
 using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.Windows.Forms;
 
 namespace PremiumLivingOPS.Views.OrderProcessing
@@ -40,9 +39,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             var vm = _ctrl.GetViewOrderVM(statusFilter);
 
             // Populate AppShell
-            _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Role, vm.UserBar.AvatarInitials);
+            // AppShell.SetUser(displayName, department) — 2 parameters
+            _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Role);
             _shell.SetVisibleMenus(vm.AllowedMenus);
-            _shell.SetBreadcrumb("Order Processing", "View Order");
+            _shell.SetBreadcrumb("Order Processing  ›  View Order");
 
             // Bind order grid
             dgvOrders.Rows.Clear();
@@ -81,7 +81,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             lblDetailTitle.Text = $"Line Items — {orderId}";
             dgvLines.Rows.Clear();
             foreach (var l in _currentLines)
-                dgvLines.Rows.Add(l.ItemID, l.ItemName, l.Quantity, $"HK$ {l.Price:N2}", $"HK$ {l.LineTotal:N2}");
+                dgvLines.Rows.Add(l.ItemID, l.ItemName, l.Quantity,
+                                  $"HK$ {l.Price:N2}", $"HK$ {l.LineTotal:N2}");
         }
 
         private void btnRefresh_Click(object sender, EventArgs e)
@@ -90,9 +91,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             RefreshData(sel == "All" ? null : sel);
         }
 
-        // ── TopNavBar navigation (delegated from AppShell) ──────────────────────
-        private void OnTopNavMenuItemClicked(object sender, string menuLabel)
-            => FormNavigator.NavigateTo(this, menuLabel);
+        // ── TopNavBar navigation ────────────────────────────────────────────────
+        private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
+            => FormNavigator.NavigateTo(this, menuLabel, subItem);
 
         private void btnLogout_Click(object sender, EventArgs e)
         {
