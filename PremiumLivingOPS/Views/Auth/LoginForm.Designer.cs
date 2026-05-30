@@ -48,7 +48,7 @@ namespace PremiumLivingOPS.Views.Auth
             });
 
             // ── lblTitle ─────────────────────────────────────────────
-            this.lblTitle.Font      = new System.Drawing.Font("Segoe UI", 18F, System.Drawing.FontStyle.Bold);
+            this.lblTitle.Font      = new System.Drawing.Font("Segoe UI", 16F, System.Drawing.FontStyle.Bold);
             this.lblTitle.ForeColor = System.Drawing.Color.FromArgb(31, 73, 125);
             this.lblTitle.Location  = new System.Drawing.Point(20, 30);
             this.lblTitle.Name      = "lblTitle";
@@ -57,7 +57,7 @@ namespace PremiumLivingOPS.Views.Auth
             this.lblTitle.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
 
             // ── lblStaffId ───────────────────────────────────────────
-            this.lblStaffId.Font     = new System.Drawing.Font("Segoe UI", 912F);
+            this.lblStaffId.Font     = new System.Drawing.Font("Segoe UI", 12F);
             this.lblStaffId.Location = new System.Drawing.Point(40, 100);
             this.lblStaffId.Name     = "lblStaffId";
             this.lblStaffId.Size     = new System.Drawing.Size(80, 22);
