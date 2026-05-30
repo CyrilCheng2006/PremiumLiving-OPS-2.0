@@ -81,10 +81,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             dtpDateFrom.ValueChanged   += (s, e) => { if (chkDateFrom.Checked) RefreshGrid(); };
 
             // ── MakeCell
-            // Layout inside each cell (118px tall row):
-            //   label  : Y=8,  H=18  (bottom = 26)
-            //   control: Y=32, H=34  (top = 32, gap from label bottom = 6px)
-            // The label sits above the control's white system-drawn border area.
+            // label  : Y=8,  H=18  (bottom=26)
+            // control: Y=44, H=34  (gap from label bottom = 18px)
             Panel MakeCell(string caption, Control ctrl, bool rightPad = true)
             {
                 var cell = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
@@ -100,7 +98,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     Height    = 18,
                     Anchor    = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right
                 };
-                ctrl.Location = new Point(0, 32);
+                ctrl.Location = new Point(0, 44);
                 ctrl.Height   = 34;
                 ctrl.Anchor   = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right;
 
@@ -128,9 +126,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Height    = 18,
                 Anchor    = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right
             };
-            chkDateFrom.Location = new Point(0,  32);
+            chkDateFrom.Location = new Point(0,  44);
             chkDateFrom.Height   = 34;
-            dtpDateFrom.Location = new Point(30, 32);
+            dtpDateFrom.Location = new Point(30, 44);
             dtpDateFrom.Height   = 34;
             dtpDateFrom.Anchor   = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right;
             cellDate.Controls.Add(lblDate);
