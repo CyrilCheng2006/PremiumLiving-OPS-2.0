@@ -120,7 +120,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             }
 
             // ── Date-From cell
-            // col-0 = 33px (checkbox + 5px extra gap), col-1 = fill (dtp)
             var cellDate = new TableLayoutPanel
             {
                 Dock        = DockStyle.Fill,
@@ -129,10 +128,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 BackColor   = Color.Transparent,
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
-            cellDate.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 33f));  // was 28, +5
+            cellDate.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 33f));
             cellDate.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-            cellDate.RowStyles.Add(new RowStyle(SizeType.Absolute, 40f));         // label row
-            cellDate.RowStyles.Add(new RowStyle(SizeType.Percent,  70f));         // control row
+            cellDate.RowStyles.Add(new RowStyle(SizeType.Absolute, 40f));
+            cellDate.RowStyles.Add(new RowStyle(SizeType.Percent,  70f));
 
             var lblDate = new Label
             {
@@ -171,9 +170,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             tblFields.Controls.Add(cellDate,                                 3, 0);
 
             // ── Buttons panel
+            // Buttons enlarged: h=46, y=16 so they sit centred within the 80px row
             var pnlBtns = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            btnSearch  = MakePrimaryBtn("Search",     new Point(0,   20), 116, 38);
-            btnRefresh = MakeOutlineBtn("↻  Refresh", new Point(124, 20), 126, 38);
+            btnSearch  = MakePrimaryBtn("Search",     new Point(0,   16), 130, 46);
+            btnRefresh = MakeOutlineBtn("↻  Refresh", new Point(138, 16), 136, 46);
             btnSearch.Click  += (s, e) => RefreshGrid();
             btnRefresh.Click += (s, e) => RefreshGrid();
             pnlBtns.Controls.Add(btnSearch);
