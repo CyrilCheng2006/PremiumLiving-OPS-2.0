@@ -1,5 +1,6 @@
 using PremiumLivingOPS.Models.DAL;
 using PremiumLivingOPS.Models.Entities;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -18,9 +19,13 @@ namespace PremiumLivingOPS.Controllers
 
         /// <summary>
         /// Returns ViewModel for the View Order page.
-        /// Supports optional status filter and keyword search.
+        /// Supports optional status filter, keyword search, and date range filter.
         /// </summary>
-        public ViewOrderViewModel GetViewOrderVM(string status = null, string keyword = null)
+        public ViewOrderViewModel GetViewOrderVM(
+            string    status   = null,
+            string    keyword  = null,
+            DateTime? dateFrom = null,
+            DateTime? dateTo   = null)
         {
             var user = SessionManager.CurrentUser;
             return new ViewOrderViewModel
@@ -30,9 +35,8 @@ namespace PremiumLivingOPS.Controllers
                     DisplayName = user?.StaffName ?? "Unknown",
                     Department  = user?.Department ?? ""
                 },
-                // NavAccessPolicy returns string[] — ViewModel now stores string[]
                 AllowedMenus = NavAccessPolicy.GetAllowedMenus(user?.Role ?? ""),
-                Orders       = _repo.SearchOrders(status, keyword)
+                Orders       = _repo.SearchOrders(status, keyword, dateFrom, dateTo)
             };
         }
 
@@ -87,7 +91,6 @@ namespace PremiumLivingOPS.Controllers
                 Customers         = _repo.GetAllCustomers(),
                 Products          = _repo.GetAllProducts(),
                 Quotations        = allQ,
-                // Pre-filtered list for the Create Order combo
                 PendingQuotations = allQ
                     .FindAll(q => q.QuotationStatus == "Pending")
             };

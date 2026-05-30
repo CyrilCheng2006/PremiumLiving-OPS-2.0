@@ -16,10 +16,17 @@ namespace PremiumLivingOPS.Models.DAL
         // ════════════════════════════════════════════════════════════════
 
         /// <summary>
-        /// Returns orders optionally filtered by status and/or keyword.
-        /// Keyword matches OrderID, CustomerName, SalesName, OrderContactName.
+        /// Returns orders filtered by any combination of:
+        ///   status   – exact match on OrderStatus
+        ///   keyword  – partial match on OrderID, CustomerName, SalesName, OrderContactName
+        ///   dateFrom – only orders whose IssuedTime >= dateFrom (date part only)
+        ///   dateTo   – only orders whose IssuedTime <= dateTo  (date part only, inclusive)
         /// </summary>
-        public List<OrderEntity> SearchOrders(string status = null, string keyword = null)
+        public List<OrderEntity> SearchOrders(
+            string   status   = null,
+            string   keyword  = null,
+            DateTime? dateFrom = null,
+            DateTime? dateTo   = null)
         {
             var list = new List<OrderEntity>();
             using (var conn = DatabaseHelper.GetConnection())
@@ -45,6 +52,12 @@ namespace PremiumLivingOPS.Models.DAL
                                 OR s.StaffName          LIKE @kw
                                 OR o.OrderContactName   LIKE @kw)";
 
+                if (dateFrom.HasValue)
+                    sql += " AND DATE(o.IssuedTime) >= @dateFrom";
+
+                if (dateTo.HasValue)
+                    sql += " AND DATE(o.IssuedTime) <= @dateTo";
+
                 sql += " ORDER BY o.IssuedTime DESC";
 
                 using (var cmd = new MySqlCommand(sql, conn))
@@ -53,6 +66,10 @@ namespace PremiumLivingOPS.Models.DAL
                         cmd.Parameters.AddWithValue("@status", status);
                     if (!string.IsNullOrEmpty(keyword))
                         cmd.Parameters.AddWithValue("@kw", "%" + keyword + "%");
+                    if (dateFrom.HasValue)
+                        cmd.Parameters.AddWithValue("@dateFrom", dateFrom.Value.ToString("yyyy-MM-dd"));
+                    if (dateTo.HasValue)
+                        cmd.Parameters.AddWithValue("@dateTo", dateTo.Value.ToString("yyyy-MM-dd"));
 
                     using (var rdr = cmd.ExecuteReader())
                         while (rdr.Read()) list.Add(MapOrder(rdr));
