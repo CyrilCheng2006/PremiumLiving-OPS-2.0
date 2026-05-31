@@ -23,20 +23,20 @@ namespace PremiumLivingOPS.Views.Shared
     ///   NavAccessPolicy, or any department/role data directly.
     ///
     /// IMPORTANT — string contract
-    /// ────────────────────────────
+    /// ────────────────────────
     /// AllMenus Label strings MUST exactly match the constants defined in
     /// NavAccessPolicy.cs.  Do NOT rename a label here without updating the
     /// corresponding constant in NavAccessPolicy (and vice-versa).
     /// </summary>
     public class TopNavBar : Panel
     {
-        // ── Colours ─────────────────────────────────────────────────
+        // ── Colours ─────────────────────────────────────────────
         private static readonly Color NavBg    = Color.FromArgb(29,  29,  31);
         private static readonly Color NavText  = Color.FromArgb(245, 245, 247);
         private static readonly Color DropBg   = Color.FromArgb(38,  38,  40);
         private static readonly Color DropText = Color.FromArgb(210, 210, 215);
 
-        // ── Fonts ───────────────────────────────────────────────────
+        // ── Fonts ───────────────────────────────────────────────
         private static readonly Font FontNav      = new Font("Segoe UI", 11f,   FontStyle.Regular);
         private static readonly Font FontDropItem = new Font("Segoe UI", 10.5f, FontStyle.Regular);
 
@@ -44,7 +44,7 @@ namespace PremiumLivingOPS.Views.Shared
         private const int RowH     = 42;
         private const int PadV     = 10;
 
-        // ── Full menu catalogue (canonical order) ────────────────────
+        // ── Full menu catalogue (canonical order) ─────────────────────────
         // Label strings must match NavAccessPolicy constants exactly.
         private static readonly (string Label, string[] Items)[] AllMenus =
         {
@@ -52,15 +52,15 @@ namespace PremiumLivingOPS.Views.Shared
             ("Order Processing",        new[] { "View Order", "Quotation", "Create Order", "Modify Order" }),
             ("Production Processing",   new[] { "Search Raw Material Request", "Create Raw Material Request" }),
             ("Logistics Processing",    new[] { "View Shipment", "Handling Goods Received" }),
-            ("Inventory Control",       new[] { "View Product / Raw Material" }),
+            ("Inventory Control",       new[] { "View Product", "View Raw Material" }),
             ("Raw Material",            new[] { "Create Procurement", "Search Procurement" }),
             ("After-Service",           new[] { "Create Invoice", "Complaint List", "Return Order List", "Account Receivable", "Account Payable" }),
             ("Master Data Maintenance", new[] { "Supplier List", "Customer List" }),
-            ("System Control",          new[] { "Staff List", "Log List" }),   // must match NavAccessPolicy.SystemControl
+            ("System Control",          new[] { "Staff List", "Log List" }),
             ("Statistical Reports",     new[] { "View Report" })
         };
 
-        // ── Active (filtered) menu ──────────────────────────────────
+        // ── Active (filtered) menu ────────────────────────────────────
         private (string Label, string[] Items)[] _menus;
 
         // ── State ───────────────────────────────────────────────────
@@ -94,7 +94,7 @@ namespace PremiumLivingOPS.Views.Shared
             HandleCreated += (s, e) => { BuildMegaPopup(); BuildNavItems(); };
         }
 
-        // ── Public API ───────────────────────────────────────────────
+        // ── Public API ──────────────────────────────────────────────
 
         /// <summary>
         /// Restricts the visible menus to those permitted for the current user.
@@ -146,7 +146,7 @@ namespace PremiumLivingOPS.Views.Shared
             }
         }
 
-        // ── Build nav items ──────────────────────────────────────────
+        // ── Build nav items ────────────────────────────────────────────
         private void BuildNavItems()
         {
             Controls.Clear();
@@ -240,7 +240,7 @@ namespace PremiumLivingOPS.Views.Shared
             return ClientRectangle.Contains(PointToClient(Cursor.Position));
         }
 
-        // ── Recentre ─────────────────────────────────────────────────
+        // ── Recentre ──────────────────────────────────────────────────
         private void RecentreItems()
         {
             if (_navItems.Count == 0) return;
@@ -251,7 +251,7 @@ namespace PremiumLivingOPS.Views.Shared
             foreach (Panel p in _navItems) { p.Location = new Point(x, 0); x += p.Width; }
         }
 
-        // ── Highlight ────────────────────────────────────────────────
+        // ── Highlight ─────────────────────────────────────────────────
         private void HighlightItem(int idx)
         {
             for (int i = 0; i < _navItems.Count; i++)
@@ -275,7 +275,7 @@ namespace PremiumLivingOPS.Views.Shared
             _activeIdx = -1;
         }
 
-        // ── Mega Menu ────────────────────────────────────────────────
+        // ── Mega Menu ─────────────────────────────────────────────────
         private void ShowMegaMenu(int idx, Panel navItem)
         {
             string[] items     = _menus[idx].Items;
