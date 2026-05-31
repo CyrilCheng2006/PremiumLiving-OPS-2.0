@@ -24,11 +24,11 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         private static readonly Dictionary<string, (Color bg, Color fg)> StatusColors =
             new Dictionary<string, (Color, Color)>
             {
-                { "Pending",             (Color.FromArgb(254, 243, 199), Color.FromArgb(146,  64,  14)) },
-                { "Processing",          (Color.FromArgb(219, 234, 254), Color.FromArgb( 29,  78, 216)) },
-                { "Shipped",             (Color.FromArgb(224, 242, 254), Color.FromArgb(  3,  96, 170)) },
-                { "Delivered",           (Color.FromArgb(209, 250, 229), Color.FromArgb(  6,  95,  70)) },
-                { "Partially Delivered", (Color.FromArgb(237, 233, 254), Color.FromArgb( 91,  33, 182)) },
+                { "Pending",    (Color.FromArgb(254, 243, 199), Color.FromArgb(146,  64,  14)) },
+                { "Processing", (Color.FromArgb(219, 234, 254), Color.FromArgb( 29,  78, 216)) },
+                { "Shipped",    (Color.FromArgb(224, 242, 254), Color.FromArgb(  3,  96, 170)) },
+                { "Delivered",  (Color.FromArgb(209, 250, 229), Color.FromArgb(  6,  95,  70)) },
+                { "Partially",  (Color.FromArgb(237, 233, 254), Color.FromArgb( 91,  33, 182)) },
             };
 
         public ViewOrderForm()
@@ -100,42 +100,42 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         {
             pnlKpi.Controls.Clear();
 
-            int total            = _currentOrders.Count;
-            int pending          = _currentOrders.FindAll(o => o.OrderStatus == "Pending").Count;
-            int processing       = _currentOrders.FindAll(o => o.OrderStatus == "Processing").Count;
-            int delivered        = _currentOrders.FindAll(o => o.OrderStatus == "Delivered").Count;
-            int shipped          = _currentOrders.FindAll(o => o.OrderStatus == "Shipped").Count;
-            int partialDelivered = _currentOrders.FindAll(o => o.OrderStatus == "Partially Delivered").Count;
+            int total     = _currentOrders.Count;
+            int pending   = _currentOrders.FindAll(o => o.OrderStatus == "Pending").Count;
+            int processing= _currentOrders.FindAll(o => o.OrderStatus == "Processing").Count;
+            int delivered = _currentOrders.FindAll(o => o.OrderStatus == "Delivered").Count;
+            int shipped   = _currentOrders.FindAll(o => o.OrderStatus == "Shipped").Count;
+            int partially = _currentOrders.FindAll(o => o.OrderStatus == "Partially").Count;
 
             var pills = new[]
             {
-                ("Total",               total.ToString(),            Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254)),
-                ("Pending",             pending.ToString(),          Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199)),
-                ("Processing",          processing.ToString(),       Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254)),
-                ("Delivered",           delivered.ToString(),        Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229)),
-                ("Shipped",             shipped.ToString(),          Color.FromArgb(  3,  96, 170), Color.FromArgb(224, 242, 254)),
-                ("Partially Delivered", partialDelivered.ToString(), Color.FromArgb( 91,  33, 182), Color.FromArgb(237, 233, 254)),
+                ("Total",      total.ToString(),      Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254)),
+                ("Pending",    pending.ToString(),    Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199)),
+                ("Processing", processing.ToString(), Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254)),
+                ("Delivered",  delivered.ToString(),  Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229)),
+                ("Shipped",    shipped.ToString(),    Color.FromArgb(  3,  96, 170), Color.FromArgb(224, 242, 254)),
+                ("Partially",  partially.ToString(),  Color.FromArgb( 91,  33, 182), Color.FromArgb(237, 233, 254)),
             };
 
-            // ── FlowLayoutPanel: pills left-to-right, vertically centred, no wrap
+            // ── FlowLayoutPanel: pills left-to-right, vertically centred inside pnlKpi, no wrap
             var flow = new FlowLayoutPanel
             {
-                Dock          = DockStyle.Fill,
                 FlowDirection = FlowDirection.LeftToRight,
                 WrapContents  = false,
                 BackColor     = Color.Transparent,
                 Padding       = new Padding(0),
-                AutoScroll    = false
+                AutoScroll    = false,
+                // Anchor top-left so it doesn't stretch vertically; size will be auto by content
+                Dock          = DockStyle.Fill
             };
 
-            const int PillW  = 200;
-            const int PillH  = 50;
-            const int CountW = 46;   // left column: bold number
-            const int Gap    = 8;    // FlowLayoutPanel item margin
+            const int PillW  = 280;
+            const int PillH  = 60;
+            const int CountW = 52;    // left column: bold count
+            const int Gap    = 8;     // gap between pills
 
             foreach (var (label, count, fg, bg) in pills)
             {
-                // ── Pill panel
                 var pill = new Panel
                 {
                     BackColor = bg,
@@ -151,7 +151,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     e.Graphics.FillPath(brush, path);
                 };
 
-                // ── Left: count, 12pt Bold, vertically centred
+                // Left: count — 12pt Bold, vertically centred
                 var lblCount = new Label
                 {
                     Text      = count,
@@ -159,23 +159,22 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     ForeColor = fg,
                     BackColor = Color.Transparent,
                     Size      = new Size(CountW, PillH),
-                    Location  = new Point(8, 0),
+                    Location  = new Point(10, 0),
                     TextAlign = ContentAlignment.MiddleCenter
                 };
 
-                // ── Right: label, 10pt, vertically centred
+                // Right: label — 10pt, vertically centred
                 var lblName = new Label
                 {
                     Text      = label,
                     Font      = new Font("Segoe UI", 10f),
                     ForeColor = fg,
                     BackColor = Color.Transparent,
-                    Size      = new Size(PillW - CountW - 10, PillH),
-                    Location  = new Point(CountW + 8, 0),
+                    Size      = new Size(PillW - CountW - 14, PillH),
+                    Location  = new Point(CountW + 10, 0),
                     TextAlign = ContentAlignment.MiddleLeft
                 };
 
-                // Forward clicks from child labels to pill handler
                 string filterLabel = label == "Total" ? "All" : label;
                 EventHandler clickHandler = (s, e) =>
                 {

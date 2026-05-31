@@ -79,7 +79,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 "Processing",
                 "Delivered",
                 "Shipped",
-                "Partially Delivered"
+                "Partially"
             });
             cboStatus.SelectedIndex = 0;
 
@@ -233,7 +233,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             {
                 Dock      = DockStyle.Fill,
                 BackColor = Color.Transparent,
-                Padding   = new Padding(12, 10, 12, 10)   // inner breathing room
+                Padding   = new Padding(12, 10, 12, 10)
             };
 
             var pnlKpiInner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
@@ -243,7 +243,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             var pnlKpiOuter = new Panel
             {
                 Dock      = DockStyle.Top,
-                Height    = 80,                           // tightened to fit 50px pills + padding
+                Height    = 90,     // 60px pill + 10px padding top + 10px padding bottom + 10px card border breathing room
                 BackColor = Color.FromArgb(240, 244, 249),
                 Padding   = new Padding(20, 8, 20, 8)
             };
