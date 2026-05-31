@@ -152,10 +152,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 AutoScroll    = false
             };
 
-            const int PillW   = 260;
-            const int PillH   = 60;
+            const int PillW   = 270;   // pill width
+            const int PillH   = 60;    // pill height
             const int Gap     = 8;
-            const int NumColW = 75;   // fixed number-column width
+            const int NumColW = 75;    // fixed number-column width
 
             foreach (var (label, count, fg, bg, filterItem) in pills)
             {
