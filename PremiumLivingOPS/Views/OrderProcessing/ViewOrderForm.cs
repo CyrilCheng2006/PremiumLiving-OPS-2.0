@@ -116,7 +116,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Padding = new Padding(0), AutoScroll = false
             };
 
-            const int PillW = 270, PillH = 60, Gap = 8, NumColW = 65;
+            // NumColW = 70  → number column fixed 70 px, label column gets all remaining space
+            // PillW   = 280 → pill width updated to 280 px
+            const int PillW = 280, PillH = 60, Gap = 8, NumColW = 70;
 
             foreach (var (label, count, fg, bg, filterItem) in pills)
             {
@@ -135,6 +137,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
                     Padding = new Padding(10, 0, 8, 0)
                 };
+                // Col 0: fixed 70 px for the number
+                // Col 1: Percent 100% — takes all remaining space for the label
                 tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, NumColW));
                 tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
                 tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
@@ -244,8 +248,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
                 Padding         = new Padding(24, 0, 24, 0)
             };
-            // Title col: Percent 100% — takes all remaining width
-            // Badge col: Absolute 180px — reduced from 220 to give title 1.2× more room
             tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
             tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 180f));
             tblHeader.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
@@ -253,7 +255,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             var lblDialogTitle = new Label
             {
                 Text      = $"Order Details  —  {o.OrderID}",
-                // Font size: 15 × 1.2 = 18
                 Font      = new Font("Segoe UI", 18f, FontStyle.Bold),
                 ForeColor = Color.White,
                 Dock      = DockStyle.Fill,
