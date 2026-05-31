@@ -66,6 +66,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             txtSearchCustomer.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) RefreshGrid(); };
 
             // ── Status dropdown
+            // Display text uses full names; DB/LINQ uses "Partially" for the last entry.
+            // RefreshGrid maps "Partially Delivered" → "Partially" before querying.
             cboStatus = new ComboBox
             {
                 DropDownStyle = ComboBoxStyle.DropDownList,
@@ -79,7 +81,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 "Processing",
                 "Delivered",
                 "Shipped",
-                "Partially"
+                "Partially Delivered"   // displayed as full label; mapped to "Partially" in RefreshGrid
             });
             cboStatus.SelectedIndex = 0;
 
@@ -228,7 +230,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlSearchOuter.Controls.Add(pnlCard);
 
             // ── KPI bar
-            // pnlKpi: left-aligned row of pills, vertically centred inside the white card
             pnlKpi = new Panel
             {
                 Dock      = DockStyle.Fill,
@@ -243,7 +244,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             var pnlKpiOuter = new Panel
             {
                 Dock      = DockStyle.Top,
-                Height    = 90,     // 60px pill + 10px padding top + 10px padding bottom + 10px card border breathing room
+                Height    = 90,
                 BackColor = Color.FromArgb(240, 244, 249),
                 Padding   = new Padding(20, 8, 20, 8)
             };

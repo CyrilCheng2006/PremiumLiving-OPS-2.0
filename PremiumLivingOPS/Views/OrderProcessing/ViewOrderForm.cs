@@ -20,7 +20,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         private readonly OrderProcessingController _ctrl = new OrderProcessingController();
         private List<OrderEntity> _currentOrders        = new List<OrderEntity>();
 
-        // ── Status colour map (bg, fg) ────────────────────────────────────────────
+        // ── Status colour map (bg, fg) [鍵值為 DB 存儲的原始字串]
         private static readonly Dictionary<string, (Color bg, Color fg)> StatusColors =
             new Dictionary<string, (Color, Color)>
             {
@@ -50,7 +50,11 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         {
             string orderNo  = txtSearchOrderNo.Text.Trim();
             string customer = txtSearchCustomer.Text.Trim();
-            string status   = cboStatus.SelectedItem?.ToString();
+            string statusDisplay = cboStatus.SelectedItem?.ToString();
+
+            // Map display label → DB value
+            string status = statusDisplay == "Partially Delivered" ? "Partially" : statusDisplay;
+
             DateTime? dateFrom = chkDateFrom.Checked ? (DateTime?)dtpDateFrom.Value.Date : null;
 
             string keyword = !string.IsNullOrEmpty(orderNo)  ? orderNo
@@ -109,15 +113,16 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             var pills = new[]
             {
-                ("Total",      total.ToString(),      Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254)),
-                ("Pending",    pending.ToString(),    Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199)),
-                ("Processing", processing.ToString(), Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254)),
-                ("Delivered",  delivered.ToString(),  Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229)),
-                ("Shipped",    shipped.ToString(),    Color.FromArgb(  3,  96, 170), Color.FromArgb(224, 242, 254)),
-                ("Partially",  partially.ToString(),  Color.FromArgb( 91,  33, 182), Color.FromArgb(237, 233, 254)),
+                // (pill label, count, fg, bg, cboStatus item to select on click)
+                ("Total",     total.ToString(),      Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254), "All"),
+                ("Pending",   pending.ToString(),    Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), "Pending"),
+                ("Processing",processing.ToString(), Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254), "Processing"),
+                ("Delivered", delivered.ToString(),  Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229), "Delivered"),
+                ("Shipped",   shipped.ToString(),    Color.FromArgb(  3,  96, 170), Color.FromArgb(224, 242, 254), "Shipped"),
+                // KPI pill 顯示 "Partially"，點擊後選中 cboStatus 的 "Partially Delivered"
+                ("Partially", partially.ToString(),  Color.FromArgb( 91,  33, 182), Color.FromArgb(237, 233, 254), "Partially Delivered"),
             };
 
-            // FlowLayoutPanel — pills left-to-right, no wrap, fills the white card
             var flow = new FlowLayoutPanel
             {
                 Dock          = DockStyle.Fill,
@@ -132,9 +137,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             const int PillH = 60;
             const int Gap   = 8;
 
-            foreach (var (label, count, fg, bg) in pills)
+            foreach (var (label, count, fg, bg, filterItem) in pills)
             {
-                // ── Outer pill panel (rounded background)
                 var pill = new Panel
                 {
                     BackColor = bg,
@@ -150,7 +154,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     e.Graphics.FillPath(brush, path);
                 };
 
-                // ── Inner 2-column TLP: AutoSize left col for count, Percent right col for label
                 var tlp = new TableLayoutPanel
                 {
                     Dock            = DockStyle.Fill,
@@ -160,8 +163,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
                     Padding         = new Padding(10, 0, 8, 0)
                 };
-                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));       // left: auto-fit count
-                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));  // right: remaining
+                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
                 tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
                 var lblCount = new Label
@@ -190,10 +193,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 tlp.Controls.Add(lblCount, 0, 0);
                 tlp.Controls.Add(lblName,  1, 0);
 
-                string filterLabel = label == "Total" ? "All" : label;
                 EventHandler clickHandler = (s, e) =>
                 {
-                    cboStatus.SelectedItem = filterLabel;
+                    cboStatus.SelectedItem = filterItem;
                     RefreshGrid();
                 };
                 pill.Click     += clickHandler;
