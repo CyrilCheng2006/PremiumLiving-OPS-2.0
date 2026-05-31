@@ -2,7 +2,7 @@ using System.Collections.Generic;
 
 namespace PremiumLivingOPS.Models.Entities
 {
-    // ── Shared sub-models ────────────────────────────────────────────────────
+    // ── Shared sub-models ──────────────────────────────────────────────────────
 
     public class UserBarViewModel
     {
@@ -10,7 +10,7 @@ namespace PremiumLivingOPS.Models.Entities
         public string Department  { get; set; }
     }
 
-    // ── Domain entities (map directly to DB tables) ────────────────────────────
+    // ── Domain entities (map directly to DB tables) ─────────────────────────────
 
     public class OrderEntity
     {
@@ -78,8 +78,15 @@ namespace PremiumLivingOPS.Models.Entities
 
     /// <summary>
     /// Represents one saved address record from the Address table.
-    /// Displayed in the AddressID ComboBox; selecting one auto-fills
-    /// the Shipping Address TextBox and stores AddressID on the order.
+    /// Schema: Address (AddressID, CustomerID, AddressName, AddressType, isDefault)
+    ///
+    /// Mapping:
+    ///   AddressName  → FullAddress  (the actual address text)
+    ///   AddressType  → Label        (Residential / Office / Mailing)
+    ///   isDefault    → IsDefault    (marks the default shipping address)
+    ///
+    /// Selecting one in the AddressID ComboBox auto-fills the Shipping Address
+    /// TextBox and stores AddressID on the Order.
     /// </summary>
     public class AddressLookup
     {
@@ -89,20 +96,26 @@ namespace PremiumLivingOPS.Models.Entities
         /// <summary>FK — which customer owns this address.</summary>
         public string CustomerId  { get; set; }
 
-        /// <summary>Full address text as stored in the DB.</summary>
+        /// <summary>Address text as stored in Address.AddressName.</summary>
         public string FullAddress { get; set; }
 
-        /// <summary>Optional short label / tag (e.g. "Home", "Office").</summary>
+        /// <summary>Address type from Address.AddressType (Residential / Office / Mailing).</summary>
         public string Label       { get; set; }
 
-        /// <summary>ComboBox display text.</summary>
+        /// <summary>Whether this is the customer’s default address (Address.isDefault).</summary>
+        public bool   IsDefault   { get; set; }
+
+        /// <summary>
+        /// ComboBox display text.
+        /// Format: "ADDR-0001  –  Residential  –  123 Main St  [★ Default]"
+        /// The ★ marker only appears when IsDefault is true.
+        /// </summary>
         public string DisplayText =>
-            string.IsNullOrEmpty(Label)
-                ? $"{AddressId}  –  {FullAddress}"
-                : $"{AddressId}  –  {Label}";
+            $"{AddressId}  –  {Label}  –  {FullAddress}"
+            + (IsDefault ? "  [★ Default]" : "");
     }
 
-    // ── ViewModels (passed from Controller → View) ───────────────────────────
+    // ── ViewModels (passed from Controller → View) ───────────────────────────────
 
     public class ViewOrderViewModel
     {
