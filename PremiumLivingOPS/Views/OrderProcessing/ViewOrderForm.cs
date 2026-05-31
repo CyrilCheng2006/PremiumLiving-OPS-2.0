@@ -101,75 +101,90 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         {
             pnlKpi.Controls.Clear();
 
-            int total             = _currentOrders.Count;
-            int pending           = _currentOrders.FindAll(o => o.OrderStatus == "Pending").Count;
-            int processing        = _currentOrders.FindAll(o => o.OrderStatus == "Processing").Count;
-            int delivered         = _currentOrders.FindAll(o => o.OrderStatus == "Delivered").Count;
-            int shipped           = _currentOrders.FindAll(o => o.OrderStatus == "Shipped").Count;
-            int partialDelivered  = _currentOrders.FindAll(o => o.OrderStatus == "Partially Delivered").Count;
+            int total            = _currentOrders.Count;
+            int pending          = _currentOrders.FindAll(o => o.OrderStatus == "Pending").Count;
+            int processing       = _currentOrders.FindAll(o => o.OrderStatus == "Processing").Count;
+            int delivered        = _currentOrders.FindAll(o => o.OrderStatus == "Delivered").Count;
+            int shipped          = _currentOrders.FindAll(o => o.OrderStatus == "Shipped").Count;
+            int partialDelivered = _currentOrders.FindAll(o => o.OrderStatus == "Partially Delivered").Count;
 
-            // (label, count, fg, bg)
             var pills = new[]
             {
-                ("Total",              total.ToString(),            Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254)),
-                ("Pending",           pending.ToString(),          Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199)),
-                ("Processing",        processing.ToString(),       Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254)),
-                ("Delivered",         delivered.ToString(),        Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229)),
-                ("Shipped",           shipped.ToString(),          Color.FromArgb(  3,  96, 170), Color.FromArgb(224, 242, 254)),
+                ("Total",               total.ToString(),            Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254)),
+                ("Pending",             pending.ToString(),          Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199)),
+                ("Processing",          processing.ToString(),       Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254)),
+                ("Delivered",           delivered.ToString(),        Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229)),
+                ("Shipped",             shipped.ToString(),          Color.FromArgb(  3,  96, 170), Color.FromArgb(224, 242, 254)),
                 ("Partially Delivered", partialDelivered.ToString(), Color.FromArgb( 91,  33, 182), Color.FromArgb(237, 233, 254)),
             };
+
+            const int PillW = 280;
+            const int PillH = 50;
+            const int Gap   = 14;
+            const int CountW = 52;   // left column: number
 
             int x = 0;
             foreach (var (label, count, fg, bg) in pills)
             {
+                // ── Pill container
                 var pill = new Panel
                 {
                     BackColor = bg,
                     Location  = new Point(x, 0),
-                    Size      = new Size(280, 40),
+                    Size      = new Size(PillW, PillH),
                     Cursor    = Cursors.Hand
                 };
                 pill.Paint += (s, e) =>
                 {
                     e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-                    using var path = RoundedRect(((Panel)s).ClientRectangle, 8);
+                    using var path  = RoundedRect(((Panel)s).ClientRectangle, 8);
                     using var brush = new SolidBrush(((Panel)s).BackColor);
                     e.Graphics.FillPath(brush, path);
                 };
 
+                // ── Left: large number, vertically centred
                 var lblCount = new Label
                 {
                     Text      = count,
                     Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
                     ForeColor = fg,
-                    AutoSize  = true,
-                    Location  = new Point(12, 8)
+                    BackColor = Color.Transparent,
+                    Size      = new Size(CountW, PillH),
+                    Location  = new Point(8, 0),
+                    TextAlign = ContentAlignment.MiddleCenter
                 };
+
+                // ── Right: status name, vertically centred
                 var lblName = new Label
                 {
                     Text      = label,
                     Font      = new Font("Segoe UI", 12f),
                     ForeColor = fg,
-                    AutoSize  = true,
-                    Location  = new Point(52, 12)
+                    BackColor = Color.Transparent,
+                    Size      = new Size(PillW - CountW - 8, PillH),
+                    Location  = new Point(CountW + 8, 0),
+                    TextAlign = ContentAlignment.MiddleLeft
                 };
-                pill.Controls.Add(lblCount);
-                pill.Controls.Add(lblName);
 
-                // "Total" pill filters to All; others filter by their label
+                // Forward clicks from child labels to the pill handler
                 string filterLabel = label == "Total" ? "All" : label;
-                pill.Click += (s, e) =>
+                EventHandler clickHandler = (s, e) =>
                 {
                     cboStatus.SelectedItem = filterLabel;
                     RefreshGrid();
                 };
+                pill.Click    += clickHandler;
+                lblCount.Click += clickHandler;
+                lblName.Click  += clickHandler;
 
+                pill.Controls.Add(lblCount);
+                pill.Controls.Add(lblName);
                 pnlKpi.Controls.Add(pill);
-                x += 294;   // 280 + 14 gap
+                x += PillW + Gap;
             }
         }
 
-        // ── Button state ────────────────────────────────────────────────────────────────────
+        // ── Button state ─────────────────────────────────────────────────────────────────
         private void UpdateActionButtons()
         {
             bool sel = dgvOrders.SelectedRows.Count > 0;
@@ -177,7 +192,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             btnModifyOrder.Enabled = sel;
         }
 
-        // ── DGV events ─────────────────────────────────────────────────────────────────────
+        // ── DGV events ───────────────────────────────────────────────────────────────────
         private void dgvOrders_SelectionChanged(object sender, EventArgs e)
             => UpdateActionButtons();
 
@@ -209,7 +224,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             return dgvOrders.SelectedRows[0].Cells["colOrderID"].Value?.ToString();
         }
 
-        // ── View Details ──────────────────────────────────────────────────────────────────
+        // ── View Details ─────────────────────────────────────────────────────────────────
         private void btnViewDetail_Click(object sender, EventArgs e) => OpenDetailDialog();
 
         private void OpenDetailDialog()
@@ -236,7 +251,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             FormNavigator.NavigateTo(this, "Order Processing", "Modify Order");
         }
 
-        // ── Detail dialog ────────────────────────────────────────────────────────────────
+        // ── Detail dialog ─────────────────────────────────────────────────────────────────
         private void ShowDetailDialog(OrderDetailViewModel detail)
         {
             var o = detail.Order;
@@ -344,13 +359,13 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             dlg.ShowDialog(this);
         }
 
-        // ── Static border painters ────────────────────────────────────────────────────────────────
+        // ── Static border painters ────────────────────────────────────────────────────────
         private static void PaintBottomBorderStatic(object s, PaintEventArgs e)
         { var p = (Panel)s; using var pen = new Pen(Color.FromArgb(221, 227, 236), 1); e.Graphics.DrawLine(pen, 0, p.Height-1, p.Width, p.Height-1); }
         private static void PaintTopBorderStatic(object s, PaintEventArgs e)
         { var p = (Panel)s; using var pen = new Pen(Color.FromArgb(221, 227, 236), 1); e.Graphics.DrawLine(pen, 0, 0, p.Width, 0); }
 
-        // ── Geometry helper ─────────────────────────────────────────────────────────────────────
+        // ── Geometry helper ───────────────────────────────────────────────────────────────
         private static GraphicsPath RoundedRect(Rectangle r, int radius)
         {
             var path = new GraphicsPath();
@@ -363,7 +378,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             return path;
         }
 
-        // ── Nav / Logout ────────────────────────────────────────────────────────────────────
+        // ── Nav / Logout ──────────────────────────────────────────────────────────────────
         private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
             => FormNavigator.NavigateTo(this, menuLabel, subItem);
 
