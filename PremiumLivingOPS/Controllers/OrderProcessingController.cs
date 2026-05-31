@@ -56,9 +56,31 @@ namespace PremiumLivingOPS.Controllers
 
         // ── Quotation ─────────────────────────────────────────────────────────
 
-        public QuotationViewModel GetQuotationVM()
+        /// <summary>
+        /// Returns ViewModel for the Quotation page.
+        /// Supports optional status filter and keyword search (QuotationID or CustomerName).
+        /// Passing no arguments returns all quotations (used by RefreshKpi to get unfiltered counts).
+        /// </summary>
+        public QuotationViewModel GetQuotationVM(
+            string status  = null,
+            string keyword = null)
         {
             var user = SessionManager.CurrentUser;
+            var all  = _repo.GetAllQuotations();
+
+            // Apply status filter
+            if (!string.IsNullOrEmpty(status))
+                all = all.FindAll(q => q.QuotationStatus == status);
+
+            // Apply keyword filter (QuotationID or CustomerName, case-insensitive)
+            if (!string.IsNullOrEmpty(keyword))
+            {
+                string kw = keyword.ToLowerInvariant();
+                all = all.FindAll(q =>
+                    (q.QuotationID   ?? "").ToLowerInvariant().Contains(kw) ||
+                    (q.CustomerName  ?? "").ToLowerInvariant().Contains(kw));
+            }
+
             return new QuotationViewModel
             {
                 UserBar = new UserBarViewModel
@@ -67,7 +89,7 @@ namespace PremiumLivingOPS.Controllers
                     Department  = user?.Department ?? ""
                 },
                 AllowedMenus = NavAccessPolicy.GetAllowedMenus(user?.Department ?? ""),
-                Quotations   = _repo.GetAllQuotations()
+                Quotations   = all
             };
         }
 

@@ -1,22 +1,36 @@
 using PremiumLivingOPS.Controllers;
+using PremiumLivingOPS.Models.Entities;
 using PremiumLivingOPS.Views.Shared;
 using System;
+using System.Collections.Generic;
+using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 
 namespace PremiumLivingOPS.Views.OrderProcessing
 {
     /// <summary>
     /// Quotation — Tab 2 of Order Processing Management.
-    /// Lists all quotations from the database and allows status updates.
+    /// Lists all quotations and allows status updates via KPI-pill filtering.
     ///
     /// MVC contract (View layer):
     ///   • Calls OrderProcessingController to obtain QuotationViewModel.
     ///   • Uses AppShell (TopNavBar + UserBar) for navigation chrome.
     ///   • Contains NO business logic and NO direct DB calls.
+    ///   • Layout uses CardPanel三層巢狀卡片結構 (參考 ViewOrderForm).
     /// </summary>
     public partial class QuotationForm : Form
     {
         private readonly OrderProcessingController _ctrl = new OrderProcessingController();
+        private List<QuotationEntity> _currentQuotations = new List<QuotationEntity>();
+
+        private static readonly Dictionary<string, (Color bg, Color fg)> StatusColors =
+            new Dictionary<string, (Color, Color)>
+            {
+                { "Pending",   (Color.FromArgb(254, 243, 199), Color.FromArgb(146,  64,  14)) },
+                { "Converted", (Color.FromArgb(209, 250, 229), Color.FromArgb(  6,  95,  70)) },
+                { "Rejected",  (Color.FromArgb(254, 226, 226), Color.FromArgb(153,  27,  27)) },
+            };
 
         public QuotationForm()
         {
@@ -27,29 +41,29 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         // ── Load ───────────────────────────────────────────────────────────
         private void QuotationForm_Load(object sender, EventArgs e)
         {
-            // Wire AppShell events — must be done once, before first RefreshData
             _shell.MenuItemClicked += OnTopNavMenuItemClicked;
             _shell.LogoutClicked   += btnLogout_Click;
-
-            RefreshData();
+            RefreshGrid();
         }
 
-        private void RefreshData(string statusFilter = null)
+        // ── Core refresh (mirrors ViewOrderForm.RefreshGrid) ───────────────
+        private void RefreshGrid()
         {
-            var vm = _ctrl.GetQuotationVM();
+            string keyword      = txtSearchKeyword.Text.Trim();
+            string statusSelect = cboStatus.SelectedItem?.ToString();
+            string statusFilter = (statusSelect == "All" || string.IsNullOrEmpty(statusSelect))
+                                  ? null : statusSelect;
+
+            var vm = _ctrl.GetQuotationVM(statusFilter, keyword);
 
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
-            _shell.SetBreadcrumb("Order Processing  ›  Quotation");
+            _shell.SetBreadcrumb("Order Processing  \u203A  Quotation");
+
+            _currentQuotations = vm.Quotations;
 
             dgvQuotations.Rows.Clear();
-            foreach (var q in vm.Quotations)
-            {
-                // Apply optional status filter
-                if (!string.IsNullOrEmpty(statusFilter) && statusFilter != "All"
-                    && q.QuotationStatus != statusFilter)
-                    continue;
-
+            foreach (var q in _currentQuotations)
                 dgvQuotations.Rows.Add(
                     q.QuotationID,
                     q.CustomerName,
@@ -57,27 +71,151 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     $"HK$ {q.TotalAmount:N2}",
                     $"HK$ {q.DepositRequired:N2}",
                     q.LeadTimeEstimated,
-                    q.QuotationStatus
-                );
+                    q.QuotationStatus);
+
+            RefreshKpi();
+            UpdateActionButtons();
+        }
+
+        private void ResetFilters()
+        {
+            txtSearchKeyword.Text   = string.Empty;
+            cboStatus.SelectedIndex = 0;
+            RefreshGrid();
+        }
+
+        // ── KPI bar (mirrors ViewOrderForm.RefreshKpi) ────────────────────
+        private void RefreshKpi()
+        {
+            pnlKpi.Controls.Clear();
+
+            var allQuotations = _ctrl.GetQuotationVM().Quotations;
+
+            int total     = allQuotations.Count;
+            int pending   = allQuotations.FindAll(q => q.QuotationStatus == "Pending").Count;
+            int converted = allQuotations.FindAll(q => q.QuotationStatus == "Converted").Count;
+            int rejected  = allQuotations.FindAll(q => q.QuotationStatus == "Rejected").Count;
+
+            var pills = new[]
+            {
+                ("Total",     total.ToString(),     Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254), "All"),
+                ("Pending",   pending.ToString(),   Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), "Pending"),
+                ("Converted", converted.ToString(), Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229), "Converted"),
+                ("Rejected",  rejected.ToString(),  Color.FromArgb(153,  27,  27), Color.FromArgb(254, 226, 226), "Rejected"),
+            };
+
+            var flow = new FlowLayoutPanel
+            {
+                Dock          = DockStyle.Fill,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents  = false,
+                BackColor     = Color.Transparent,
+                Padding       = new Padding(0),
+                AutoScroll    = false
+            };
+
+            const int PillW = 280, PillH = 60, Gap = 8, NumColW = 70;
+
+            foreach (var (label, count, fg, bg, filterItem) in pills)
+            {
+                var pill = new Panel
+                {
+                    BackColor = bg,
+                    Size      = new Size(PillW, PillH),
+                    Margin    = new Padding(0, 0, Gap, 0),
+                    Cursor    = Cursors.Hand
+                };
+                pill.Paint += (s, e) =>
+                {
+                    e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                    using var path  = RoundedRect(((Panel)s).ClientRectangle, 8);
+                    using var brush = new SolidBrush(((Panel)s).BackColor);
+                    e.Graphics.FillPath(brush, path);
+                };
+
+                var tlp = new TableLayoutPanel
+                {
+                    Dock            = DockStyle.Fill,
+                    ColumnCount     = 2,
+                    RowCount        = 1,
+                    BackColor       = Color.Transparent,
+                    CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                    Padding         = new Padding(10, 0, 8, 0)
+                };
+                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, NumColW));
+                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+                tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+
+                tlp.Controls.Add(new Label
+                {
+                    Text      = count,
+                    Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
+                    ForeColor = fg, BackColor = Color.Transparent,
+                    Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, AutoSize = false
+                }, 0, 0);
+                tlp.Controls.Add(new Label
+                {
+                    Text      = label,
+                    Font      = new Font("Segoe UI", 12f),
+                    ForeColor = fg, BackColor = Color.Transparent,
+                    Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
+                }, 1, 0);
+
+                string localFilter = filterItem;
+                EventHandler click = (s, e) =>
+                {
+                    int idx = cboStatus.FindStringExact(localFilter);
+                    if (idx >= 0) cboStatus.SelectedIndex = idx;
+                    RefreshGrid();
+                };
+                pill.Click += click;
+                tlp.Click  += click;
+                foreach (Control c in tlp.Controls) c.Click += click;
+
+                pill.Controls.Add(tlp);
+                flow.Controls.Add(pill);
             }
+            pnlKpi.Controls.Add(flow);
+        }
+
+        private void UpdateActionButtons()
+        {
+            bool sel = dgvQuotations.SelectedRows.Count > 0;
+            btnUpdateStatus.Enabled = sel;
+            cboNewStatus.Enabled    = sel;
         }
 
         // ── Event handlers ─────────────────────────────────────────────────
-        private void cboStatusFilter_SelectedIndexChanged(object sender, EventArgs e)
+        private void dgvQuotations_SelectionChanged(object sender, EventArgs e)
         {
-            string sel = cboStatusFilter.SelectedItem?.ToString();
-            RefreshData(sel);
+            UpdateActionButtons();
+            if (dgvQuotations.SelectedRows.Count > 0)
+            {
+                string current = dgvQuotations.SelectedRows[0]
+                    .Cells["colStatus"].Value?.ToString();
+                int idx = cboNewStatus.FindStringExact(current);
+                if (idx >= 0) cboNewStatus.SelectedIndex = idx;
+            }
         }
 
-        private void btnRefresh_Click(object sender, EventArgs e)
+        private void dgvQuotations_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
-            string sel = cboStatusFilter.SelectedItem?.ToString();
-            RefreshData(sel);
+            if (dgvQuotations.Columns[e.ColumnIndex].Name != "colStatus" || e.Value == null) return;
+            string dbValue = e.Value.ToString();
+            e.FormattingApplied = true;
+            if (StatusColors.TryGetValue(dbValue, out var colors))
+            {
+                e.CellStyle.ForeColor            = colors.fg;
+                e.CellStyle.BackColor            = colors.bg;
+                e.CellStyle.SelectionForeColor   = colors.fg;
+                e.CellStyle.SelectionBackColor   = colors.bg;
+                e.CellStyle.Font                 = new Font("Segoe UI", 11f, FontStyle.Bold);
+                e.CellStyle.Alignment            = DataGridViewContentAlignment.MiddleCenter;
+            }
         }
 
         /// <summary>
-        /// Updates the selected quotation's status to the value chosen in cboNewStatus.
-        /// Delegates business validation to the controller.
+        /// Updates the selected quotation's status. Delegates to controller — no DB logic here.
         /// </summary>
         private void btnUpdateStatus_Click(object sender, EventArgs e)
         {
@@ -104,7 +242,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             {
                 MessageBox.Show($"Quotation {quotationId} updated to '{newStatus}'.",
                     "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                RefreshData(cboStatusFilter.SelectedItem?.ToString());
+                RefreshGrid();
             }
             else
             {
@@ -113,23 +251,20 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             }
         }
 
-        private void dgvQuotations_SelectionChanged(object sender, EventArgs e)
+        // ── Helpers ────────────────────────────────────────────────────────
+        private static GraphicsPath RoundedRect(Rectangle r, int radius)
         {
-            bool hasSelection = dgvQuotations.SelectedRows.Count > 0;
-            btnUpdateStatus.Enabled = hasSelection;
-            cboNewStatus.Enabled    = hasSelection;
-
-            if (hasSelection)
-            {
-                string currentStatus = dgvQuotations.SelectedRows[0]
-                    .Cells["colStatus"].Value?.ToString();
-                // Pre-select current status in the combo
-                int idx = cboNewStatus.FindStringExact(currentStatus);
-                if (idx >= 0) cboNewStatus.SelectedIndex = idx;
-            }
+            var path = new GraphicsPath();
+            int d = radius * 2;
+            path.AddArc(r.X, r.Y, d, d, 180, 90);
+            path.AddArc(r.Right - d, r.Y, d, d, 270, 90);
+            path.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90);
+            path.AddArc(r.X, r.Bottom - d, d, d, 90, 90);
+            path.CloseFigure();
+            return path;
         }
 
-        // ── TopNavBar navigation ──────────────────────────────────────────────
+        // ── TopNavBar navigation ──────────────────────────────────────────
         private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
             => FormNavigator.NavigateTo(this, menuLabel, subItem);
 
