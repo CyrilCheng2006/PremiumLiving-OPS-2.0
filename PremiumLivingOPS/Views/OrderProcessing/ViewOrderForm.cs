@@ -36,7 +36,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             this.Load += ViewOrderForm_Load;
         }
 
-        // ── Load ─────────────────────────────────────────────────────────────────────
+        // ── Load ───────────────────────────────────────────────────────────────────────
         private void ViewOrderForm_Load(object sender, EventArgs e)
         {
             _shell.MenuItemClicked += OnTopNavMenuItemClicked;
@@ -44,7 +44,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             RefreshGrid();   // initial load with no filters
         }
 
-        // ── Search (triggered by btnSearch or Enter key) ─────────────────────
+        // ── Search (triggered by btnSearch or Enter key) ──────────────────
         private void RefreshGrid()
         {
             string orderNo  = txtSearchOrderNo.Text.Trim();
@@ -82,7 +82,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             UpdateActionButtons();
         }
 
-        // ── Reset: clear all search fields then reload ────────────────────────
+        // ── Reset: clear all search fields then reload ────────────────────
         private void ResetFilters()
         {
             txtSearchOrderNo.Text  = string.Empty;
@@ -94,7 +94,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             RefreshGrid();
         }
 
-        // ── KPI bar ───────────────────────────────────────────────────────────────────
+        // ── KPI bar ───────────────────────────────────────────────────────────────────────
         private void RefreshKpi()
         {
             pnlKpi.Controls.Clear();
@@ -114,14 +114,14 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 ("Cancelled",    cancelled.ToString(),  Color.FromArgb(153,  27,  27), Color.FromArgb(254, 226, 226)),
             };
 
-            int x = 20;
+            int x = 0;
             foreach (var (label, count, fg, bg) in pills)
             {
                 var pill = new Panel
                 {
                     BackColor = bg,
-                    Location  = new Point(x, 10),
-                    Size      = new Size(210, 60),
+                    Location  = new Point(x, 0),
+                    Size      = new Size(280, 40),
                     Cursor    = Cursors.Hand
                 };
                 pill.Paint += (s, e) =>
@@ -135,18 +135,18 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 var lblCount = new Label
                 {
                     Text      = count,
-                    Font      = new Font("Segoe UI", 18f, FontStyle.Bold),
+                    Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
                     ForeColor = fg,
                     AutoSize  = true,
-                    Location  = new Point(12, 10)
+                    Location  = new Point(12, 8)
                 };
                 var lblName = new Label
                 {
                     Text      = label,
-                    Font      = new Font("Segoe UI", 14f),
+                    Font      = new Font("Segoe UI", 12f),
                     ForeColor = fg,
                     AutoSize  = true,
-                    Location  = new Point(56, 18)
+                    Location  = new Point(52, 12)
                 };
                 pill.Controls.Add(lblCount);
                 pill.Controls.Add(lblName);
@@ -159,11 +159,11 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 };
 
                 pnlKpi.Controls.Add(pill);
-                x += 224;
+                x += 294;   // 280 width + 14 gap
             }
         }
 
-        // ── Button state ──────────────────────────────────────────────────────────────────
+        // ── Button state ────────────────────────────────────────────────────────────────────────
         private void UpdateActionButtons()
         {
             bool sel = dgvOrders.SelectedRows.Count > 0;
@@ -171,7 +171,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             btnModifyOrder.Enabled = sel;
         }
 
-        // ── DGV events ────────────────────────────────────────────────────────────────────
+        // ── DGV events ─────────────────────────────────────────────────────────────────────────
         private void dgvOrders_SelectionChanged(object sender, EventArgs e)
             => UpdateActionButtons();
 
@@ -196,14 +196,14 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             OpenDetailDialog();
         }
 
-        // ── Helper ────────────────────────────────────────────────────────────────────────
+        // ── Helper ──────────────────────────────────────────────────────────────────────────
         private string SelectedOrderId()
         {
             if (dgvOrders.SelectedRows.Count == 0) return null;
             return dgvOrders.SelectedRows[0].Cells["colOrderID"].Value?.ToString();
         }
 
-        // ── View Details ──────────────────────────────────────────────────────────────────
+        // ── View Details ───────────────────────────────────────────────────────────────────────
         private void btnViewDetail_Click(object sender, EventArgs e) => OpenDetailDialog();
 
         private void OpenDetailDialog()
@@ -221,7 +221,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             ShowDetailDialog(detail);
         }
 
-        // ── Modify Order ──────────────────────────────────────────────────────────────────
+        // ── Modify Order ───────────────────────────────────────────────────────────────────────
         private void btnModifyOrder_Click(object sender, EventArgs e)
         {
             string id = SelectedOrderId();
@@ -230,7 +230,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             FormNavigator.NavigateTo(this, "Order Processing", "Modify Order");
         }
 
-        // ── Detail dialog ──────────────────────────────────────────────────────────────────
+        // ── Detail dialog ───────────────────────────────────────────────────────────────────────
         private void ShowDetailDialog(OrderDetailViewModel detail)
         {
             var o = detail.Order;
@@ -285,9 +285,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             for (int i = 0; i < fields.Length; i++)
             {
                 int col = i % 2; int row = i / 2;
-                int x = col == 0 ? 0 : 390;
-                int y = row * 38;
-                var pRow = new Panel { Location = new Point(x, y), Width = 360, Height = 38 };
+                int fx = col == 0 ? 0 : 390;
+                int fy = row * 38;
+                var pRow = new Panel { Location = new Point(fx, fy), Width = 360, Height = 38 };
                 pRow.Controls.Add(new Label { Text = fields[i].Item1, Font = new Font("Segoe UI", 10f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), Width = 120, Location = new Point(0, 10), TextAlign = ContentAlignment.MiddleLeft });
                 pRow.Controls.Add(new Label { Text = fields[i].Item2 ?? "—",   Font = new Font("Segoe UI", 12f), ForeColor = Color.FromArgb(15, 31, 53), AutoSize = true, Location = new Point(124, 10) });
                 pnlInfo.Controls.Add(pRow);
@@ -338,13 +338,13 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             dlg.ShowDialog(this);
         }
 
-        // ── Static border painters ───────────────────────────────────────────────────────
+        // ── Static border painters ─────────────────────────────────────────────────────────────────────
         private static void PaintBottomBorderStatic(object s, PaintEventArgs e)
         { var p = (Panel)s; using var pen = new Pen(Color.FromArgb(221, 227, 236), 1); e.Graphics.DrawLine(pen, 0, p.Height-1, p.Width, p.Height-1); }
         private static void PaintTopBorderStatic(object s, PaintEventArgs e)
         { var p = (Panel)s; using var pen = new Pen(Color.FromArgb(221, 227, 236), 1); e.Graphics.DrawLine(pen, 0, 0, p.Width, 0); }
 
-        // ── Geometry helper ───────────────────────────────────────────────────────────────────
+        // ── Geometry helper ───────────────────────────────────────────────────────────────────────────
         private static GraphicsPath RoundedRect(Rectangle r, int radius)
         {
             var path = new GraphicsPath();
@@ -357,7 +357,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             return path;
         }
 
-        // ── Nav / Logout ──────────────────────────────────────────────────────────────────────
+        // ── Nav / Logout ────────────────────────────────────────────────────────────────────────────
         private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
             => FormNavigator.NavigateTo(this, menuLabel, subItem);
 
