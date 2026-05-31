@@ -155,31 +155,54 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         }
 
         // ── Line-item helpers ─────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Refreshes the DataGridView rows from _lines, then calls UpdateSummary().
+        /// Single source of truth for all row rendering and totals display.
+        /// </summary>
         private void RefreshLineGrid()
         {
             dgvLines.Rows.Clear();
-            double subtotal = 0;
             foreach (var l in _lines)
             {
                 dgvLines.Rows.Add(l.ItemID, l.ItemName, l.Quantity,
                                   $"HK$ {l.Price:N2}", $"HK$ {l.LineTotal:N2}");
-                subtotal += l.LineTotal;
             }
-            lblSubtotal.Text = $"Subtotal:  HK$ {subtotal:N2}";
-            RecalcGrandTotal(subtotal);
+            UpdateSummary();
         }
 
-        private void RecalcGrandTotal(double subtotal)
+        /// <summary>
+        /// Unified summary recalculation — always reads _lines directly so that
+        /// Subtotal and Grand Total are guaranteed to be in sync regardless of
+        /// which control triggered the update.
+        /// </summary>
+        private void UpdateSummary()
         {
+            // 1. Subtotal — sum of all line totals
+            double subtotal = 0;
+            foreach (var l in _lines)
+                subtotal += l.LineTotal;
+
+            lblSubtotal.Text = $"Subtotal:  HK$ {subtotal:N2}";
+
+            // 2. Discount
             string dtype    = cboDiscountType.SelectedItem?.ToString() ?? "None";
             double discount = 0;
             if (dtype == "Amount")
+            {
                 double.TryParse(txtDiscountValue.Text, out discount);
+            }
             else if (dtype == "Rate")
             {
                 if (double.TryParse(txtDiscountValue.Text, out double rate))
                     discount = subtotal * rate / 100.0;
             }
+
+            // Clamp discount so Grand Total never goes negative
+            if (discount < 0)               discount = 0;
+            if (discount > subtotal)        discount = subtotal;
+
+            // 3. Grand Total
             lblGrandTotal.Text = $"Grand Total:  HK$ {subtotal - discount:N2}";
         }
 
@@ -238,16 +261,12 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             {
                 lblDiscountUnit.Text = dtype == "Rate" ? "%" : "HK$";
             }
-            double sub = 0;
-            foreach (var l in _lines) sub += l.LineTotal;
-            RecalcGrandTotal(sub);
+            UpdateSummary();
         }
 
         private void txtDiscountValue_TextChanged(object sender, EventArgs e)
         {
-            double sub = 0;
-            foreach (var l in _lines) sub += l.LineTotal;
-            RecalcGrandTotal(sub);
+            UpdateSummary();
         }
 
         // ── Submit ────────────────────────────────────────────────────────────────────────
