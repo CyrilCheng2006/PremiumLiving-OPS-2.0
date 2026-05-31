@@ -128,7 +128,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 AutoScroll    = false
             };
 
-            const int PillW = 280;
+            const int PillW = 260;
             const int PillH = 60;
             const int Gap   = 8;
 
@@ -151,7 +151,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 };
 
                 // ── Inner 2-column TLP: AutoSize left col for count, Percent right col for label
-                //    This prevents the count from ever being clipped regardless of digit width.
                 var tlp = new TableLayoutPanel
                 {
                     Dock            = DockStyle.Fill,
@@ -161,26 +160,26 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
                     Padding         = new Padding(10, 0, 8, 0)
                 };
-                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));        // left: fits number
-                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));   // right: remaining
+                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));       // left: auto-fit count
+                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));  // right: remaining
                 tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
                 var lblCount = new Label
                 {
-                    Text      = count,
-                    Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
-                    ForeColor = fg,
-                    BackColor = Color.Transparent,
-                    Dock      = DockStyle.Fill,
-                    TextAlign = ContentAlignment.MiddleCenter,
-                    AutoSize  = false,
-                    MinimumSize = new Size(44, 0)   // at least 44px so single digit isn't squashed
+                    Text        = count,
+                    Font        = new Font("Segoe UI", 14f, FontStyle.Bold),
+                    ForeColor   = fg,
+                    BackColor   = Color.Transparent,
+                    Dock        = DockStyle.Fill,
+                    TextAlign   = ContentAlignment.MiddleCenter,
+                    AutoSize    = false,
+                    MinimumSize = new Size(30, 0)
                 };
 
                 var lblName = new Label
                 {
                     Text      = label,
-                    Font      = new Font("Segoe UI", 10f),
+                    Font      = new Font("Segoe UI", 12f),
                     ForeColor = fg,
                     BackColor = Color.Transparent,
                     Dock      = DockStyle.Fill,
@@ -191,7 +190,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 tlp.Controls.Add(lblCount, 0, 0);
                 tlp.Controls.Add(lblName,  1, 0);
 
-                // Forward clicks to pill filter handler
                 string filterLabel = label == "Total" ? "All" : label;
                 EventHandler clickHandler = (s, e) =>
                 {
