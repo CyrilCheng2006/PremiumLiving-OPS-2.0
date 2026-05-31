@@ -223,7 +223,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             using var dlg = new Form
             {
                 Text            = $"Order Detail — {o.OrderID}",
-                Size            = new Size(2200, 900),        // fixed at requested size
+                Size            = new Size(2200, 900),
                 StartPosition   = FormStartPosition.CenterParent,
                 BackColor       = Color.White,
                 Font            = new Font("Segoe UI", 13f),
@@ -233,27 +233,28 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             };
 
             // ── Header bar
-            // Use a TLP so title takes all remaining space and badge sits on the right
-            // without ever overlapping the title text.
             var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 80, BackColor = Color.FromArgb(19, 35, 61) };
 
             var tblHeader = new TableLayoutPanel
             {
-                Dock        = DockStyle.Fill,
-                ColumnCount = 2,
-                RowCount    = 1,
-                BackColor   = Color.Transparent,
+                Dock            = DockStyle.Fill,
+                ColumnCount     = 2,
+                RowCount        = 1,
+                BackColor       = Color.Transparent,
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                Padding     = new Padding(24, 0, 24, 0)
+                Padding         = new Padding(24, 0, 24, 0)
             };
-            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));  // title — expands
-            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 220f)); // badge — fixed
+            // Title col: Percent 100% — takes all remaining width
+            // Badge col: Absolute 180px — reduced from 220 to give title 1.2× more room
+            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
+            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 180f));
             tblHeader.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
             var lblDialogTitle = new Label
             {
                 Text      = $"Order Details  —  {o.OrderID}",
-                Font      = new Font("Segoe UI", 15f, FontStyle.Bold),
+                // Font size: 15 × 1.2 = 18
+                Font      = new Font("Segoe UI", 18f, FontStyle.Bold),
                 ForeColor = Color.White,
                 Dock      = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft,
@@ -277,7 +278,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             tblHeader.Controls.Add(lblStatusBadge, 1, 0);
             pnlHeader.Controls.Add(tblHeader);
 
-            // ── Info panel  (5 rows x 2 col pairs)
+            // ── Info panel
             var pnlInfo = new Panel
             {
                 Dock      = DockStyle.Top,
@@ -357,26 +358,14 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             var pnlTotalRow = new Panel { Dock = DockStyle.Bottom, Height = 50, BackColor = Color.FromArgb(246, 249, 255), Padding = new Padding(0, 0, 28, 0) };
             pnlTotalRow.Controls.Add(new Label { Text = $"Grand Total:   HK$ {o.GrandTotal:N2}", Font = new Font("Segoe UI", 13f, FontStyle.Bold), ForeColor = Color.FromArgb(15, 31, 53), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleRight });
 
-            // ── Footer with Close button
-            // Height 80 px; Padding top+bottom 10 px each → button gets 60 px usable height
-            var pnlFooter = new Panel
-            {
-                Dock      = DockStyle.Bottom,
-                Height    = 80,
-                BackColor = Color.White,
-                Padding   = new Padding(0, 10, 28, 10)   // top=10, bottom=10 → 60 px for button
-            };
+            // ── Footer
+            var pnlFooter = new Panel { Dock = DockStyle.Bottom, Height = 80, BackColor = Color.White, Padding = new Padding(0, 10, 28, 10) };
             pnlFooter.Paint += PaintTopBorderStatic;
             var btnClose = new Button
             {
-                Text      = "Close",
-                Font      = new Font("Segoe UI", 12f),
-                ForeColor = Color.FromArgb(15, 31, 53),
-                BackColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Dock      = DockStyle.Right,
-                Width     = 140,
-                Cursor    = Cursors.Hand
+                Text = "Close", Font = new Font("Segoe UI", 12f),
+                ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White,
+                FlatStyle = FlatStyle.Flat, Dock = DockStyle.Right, Width = 140, Cursor = Cursors.Hand
             };
             btnClose.FlatAppearance.BorderColor = Color.FromArgb(221, 227, 236);
             btnClose.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
@@ -384,12 +373,12 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlFooter.Controls.Add(btnClose);
 
             // ── Assemble
-            dlg.Controls.Add(dgv);           // Fill
-            dlg.Controls.Add(pnlTotalRow);   // Bottom
-            dlg.Controls.Add(pnlLineLabel);  // Top (last Top = renders below pnlInfo)
-            dlg.Controls.Add(pnlInfo);       // Top
-            dlg.Controls.Add(pnlHeader);     // Top (first)
-            dlg.Controls.Add(pnlFooter);     // Bottom (first bottom)
+            dlg.Controls.Add(dgv);
+            dlg.Controls.Add(pnlTotalRow);
+            dlg.Controls.Add(pnlLineLabel);
+            dlg.Controls.Add(pnlInfo);
+            dlg.Controls.Add(pnlHeader);
+            dlg.Controls.Add(pnlFooter);
             dlg.ShowDialog(this);
         }
 
