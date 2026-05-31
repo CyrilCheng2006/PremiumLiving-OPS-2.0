@@ -217,15 +217,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             // ==================================================================
             // CARD 3 — FOOTER  (Subtotal / Grand Total / Submit / Clear)
-            //
-            // Pattern mirrors ViewOrderForm KPI bar:
-            //   - Labels: DockStyle.Left  inside pnlFooterContent
-            //   - Buttons: ABSOLUTE position inside pnlActionBtns (DockStyle.Right)
-            //   - Resize event centres buttons vertically
-            //
-            // This avoids the Dock conflict where Right-docked buttons occupy
-            // layout space before Left-docked labels are processed, causing
-            // labels to render at zero width.
             // ==================================================================
 
             const int BtnW   = 210;
@@ -255,17 +246,15 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 TextAlign = ContentAlignment.MiddleLeft
             };
 
-            // Buttons: absolute position, same factory as ViewOrderForm
             btnSubmit = MakePrimaryBtn("✓  Submit Order", Point.Empty, BtnW, BtnH);
             btnClear  = MakeOutlineBtn("↺  Clear",        Point.Empty, BtnW, BtnH);
             btnSubmit.Click += btnSubmit_Click;
             btnClear.Click  += btnClear_Click;
 
-            // Right-docked panel holding the two buttons with absolute layout
             var pnlActionBtns = new Panel
             {
                 Dock      = DockStyle.Right,
-                Width     = BtnPad + BtnW + BtnGap + BtnW + BtnPad,  // 452
+                Width     = BtnPad + BtnW + BtnGap + BtnW + BtnPad,
                 BackColor = Color.Transparent
             };
 
@@ -280,18 +269,16 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlActionBtns.Controls.Add(btnClear);
             pnlActionBtns.Resize += (s, e) => CentreFooterBtns();
 
-            // Content: Right panel first (so it claims space), then Left labels
             var pnlFooterContent = new Panel
             {
                 Dock      = DockStyle.Fill,
                 BackColor = Color.Transparent,
                 Padding   = new Padding(16, 0, 0, 0)
             };
-            pnlFooterContent.Controls.Add(pnlActionBtns);  // DockStyle.Right — added first
-            pnlFooterContent.Controls.Add(lblGrandTotal);   // DockStyle.Left  — fills after Right is claimed
-            pnlFooterContent.Controls.Add(lblSubtotal);     // DockStyle.Left
+            pnlFooterContent.Controls.Add(pnlActionBtns);
+            pnlFooterContent.Controls.Add(lblGrandTotal);
+            pnlFooterContent.Controls.Add(lblSubtotal);
 
-            // Three-layer card (manual, DockStyle.Bottom)
             var footerInner = new Panel
             {
                 Dock      = DockStyle.Fill,
@@ -322,13 +309,19 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             txtQty      = MakeTextBox();
             txtQty.Text = "1";
 
-            btnAddLine    = MakePrimaryBtn("+ Add Item", Point.Empty, 180, 52);
-            btnRemoveLine = MakeOutlineBtn("− Remove",   Point.Empty, 150, 52);
-            btnAddLine.Dock    = DockStyle.Fill;
-            btnRemoveLine.Dock = DockStyle.Fill;
+            // Buttons: 210 × 60, no DockStyle so the fixed size is respected
+            const int ItemBtnW = 210;
+            const int ItemBtnH = 60;
+
+            btnAddLine    = MakePrimaryBtn("+ Add Item", Point.Empty, ItemBtnW, ItemBtnH);
+            btnRemoveLine = MakeOutlineBtn("− Remove",   Point.Empty, ItemBtnW, ItemBtnH);
+            btnAddLine.Anchor    = AnchorStyles.None;
+            btnRemoveLine.Anchor = AnchorStyles.None;
             btnAddLine.Click    += btnAddLine_Click;
             btnRemoveLine.Click += btnRemoveLine_Click;
 
+            // Toolbar columns: [product combo | Qty label | qty box | Add btn | Remove btn]
+            // Col 3 and 4 are now both 210px to match the button width
             var tblToolbar = new TableLayoutPanel
             {
                 Dock            = DockStyle.Fill,
@@ -340,8 +333,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             tblToolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
             tblToolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,  70f));
             tblToolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,  90f));
-            tblToolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 196f));
-            tblToolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 158f));
+            tblToolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 218f));  // Add btn col (210 + 8 gap)
+            tblToolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 210f));  // Remove btn col
             tblToolbar.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
             cboProduct.Dock = DockStyle.Fill;
@@ -356,18 +349,36 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             };
             txtQty.Dock = DockStyle.Fill;
 
-            tblToolbar.Controls.Add(cboProduct,    0, 0);
-            tblToolbar.Controls.Add(lblQty,        1, 0);
-            tblToolbar.Controls.Add(txtQty,        2, 0);
-            tblToolbar.Controls.Add(btnAddLine,    3, 0);
-            tblToolbar.Controls.Add(btnRemoveLine, 4, 0);
+            // Wrap each button in a panel so it centres vertically inside the row
+            var pnlAddBtn = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
+            var pnlRemBtn = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
 
+            void CentreItemBtn(Panel pnl, Button btn)
+            {
+                int top  = (pnl.Height - ItemBtnH) / 2;
+                int left = (pnl.Width  - ItemBtnW) / 2;
+                if (top  < 0) top  = 0;
+                if (left < 0) left = 0;
+                btn.Location = new Point(left, top);
+            }
+            pnlAddBtn.Controls.Add(btnAddLine);
+            pnlRemBtn.Controls.Add(btnRemoveLine);
+            pnlAddBtn.Resize += (s, e) => CentreItemBtn(pnlAddBtn, btnAddLine);
+            pnlRemBtn.Resize += (s, e) => CentreItemBtn(pnlRemBtn, btnRemoveLine);
+
+            tblToolbar.Controls.Add(cboProduct,  0, 0);
+            tblToolbar.Controls.Add(lblQty,      1, 0);
+            tblToolbar.Controls.Add(txtQty,      2, 0);
+            tblToolbar.Controls.Add(pnlAddBtn,   3, 0);
+            tblToolbar.Controls.Add(pnlRemBtn,   4, 0);
+
+            // Toolbar height: 60 (btn) + 8 top padding + 8 bottom padding = 76
             var pnlToolbar = new Panel
             {
                 Dock      = DockStyle.Top,
-                Height    = 68,
+                Height    = 76,
                 BackColor = Color.Transparent,
-                Padding   = new Padding(18, 8, 18, 0)
+                Padding   = new Padding(18, 8, 18, 8)
             };
             pnlToolbar.Controls.Add(tblToolbar);
 
@@ -424,11 +435,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlItemsInner.Controls.Add(pnlItemsContent);
 
             // ==================================================================
-            // Assemble — dock order:
-            //   _shell        Top  (nav)
-            //   pnlInfoOuter  Top  (Order Information)
-            //   footerOuter   Bottom  (← MUST be added BEFORE Fill card)
-            //   pnlItemsOuter Fill (Order Items)
+            // Assemble
             // ==================================================================
             pnlMain.Controls.Add(pnlItemsOuter);
             pnlMain.Controls.Add(footerOuter);
@@ -496,7 +503,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             return pnl;
         }
 
-        // Matches ViewOrderForm exactly
         private static Button MakePrimaryBtn(string text, Point loc, int w, int h)
         {
             var b = new Button
