@@ -21,7 +21,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
 
             // ── Form ───────────────────────────────────────────────────────────
             Name          = "ViewProductForm";
-            Text          = "Premium Living OPS — View Product";
+            Text          = "Premium Living OPS — Inventory Control";
             Size          = new Size(1440, 900);
             MinimumSize   = new Size(1200, 720);
             StartPosition = FormStartPosition.CenterScreen;
@@ -40,60 +40,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
             _shell = new AppShell();
             _shell.SetPopupContainer(pnlRoot);
 
-            // ── Tab Nav Bar (Top, height=52) ───────────────────────────────────
-            //  White bar with a bottom border; active tab gets a 3 px blue underline.
-            pnlTabStrip = new Panel
-            {
-                Dock      = DockStyle.Top,
-                Height    = 52,
-                BackColor = Color.White
-            };
-            pnlTabStrip.Paint += (s, e) =>
-            {
-                var p = (Panel)s;
-                using var pen = new System.Drawing.Pen(Color.FromArgb(221, 227, 236), 1);
-                e.Graphics.DrawLine(pen, 0, p.Height - 1, p.Width, p.Height - 1);
-            };
-
-            btnTabProduct = new Button
-            {
-                Text      = "Products",
-                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(47, 111, 237),
-                BackColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Width     = 160,
-                Height    = 52,
-                Dock      = DockStyle.Left,
-                Cursor    = Cursors.Hand
-            };
-            btnTabProduct.FlatAppearance.BorderSize = 0;
-            // Active indicator — 3 px blue bottom line
-            btnTabProduct.Paint += (s, e) =>
-            {
-                using var brush = new SolidBrush(Color.FromArgb(47, 111, 237));
-                e.Graphics.FillRectangle(brush, 0, ((Button)s).Height - 3,
-                                         ((Button)s).Width, 3);
-            };
-
-            btnTabRawMaterial = new Button
-            {
-                Text      = "Raw Materials",
-                Font      = new Font("Segoe UI", 12f),
-                ForeColor = Color.FromArgb(98, 112, 135),
-                BackColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Width     = 160,
-                Height    = 52,
-                Dock      = DockStyle.Left,
-                Cursor    = Cursors.Hand
-            };
-            btnTabRawMaterial.FlatAppearance.BorderSize = 0;
-
-            // Add Raw Materials FIRST so Products sits to the left
-            pnlTabStrip.Controls.Add(btnTabRawMaterial);
-            pnlTabStrip.Controls.Add(btnTabProduct);
-
             // ── Scrollable content area (Fill) ──────────────────────────────────
             pnlScroll = new Panel
             {
@@ -103,14 +49,12 @@ namespace PremiumLivingOPS.Views.InventoryControl
             };
 
             // ── KPI card (Top, height=116) ──────────────────────────────────────
-            //  Three-layer: grey outer → white card → transparent inner
             var (kpiOuter, kpiInner) = CardPanel.Create(outerHeight: 116,
                 outerPadding: new Padding(20, 12, 20, 0));
             pnlKpi = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             kpiInner.Controls.Add(pnlKpi);
 
             // ── Search / filter card (Top, height=260) ──────────────────────────
-            //  Mirrors ViewOrderForm's search card: title row + fields TLP + buttons
             var (searchOuter, searchInner) = CardPanel.Create(outerHeight: 260,
                 outerPadding: new Padding(20, 12, 20, 0));
 
@@ -147,12 +91,12 @@ namespace PremiumLivingOPS.Views.InventoryControl
             {
                 var tlp = new TableLayoutPanel
                 {
-                    Dock        = DockStyle.Fill,
-                    RowCount    = 2,
-                    ColumnCount = 1,
-                    BackColor   = Color.Transparent,
+                    Dock            = DockStyle.Fill,
+                    RowCount        = 2,
+                    ColumnCount     = 1,
+                    BackColor       = Color.Transparent,
                     CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                    Padding     = rightPad ? new Padding(0, 0, 12, 0) : Padding.Empty
+                    Padding         = rightPad ? new Padding(0, 0, 12, 0) : Padding.Empty
                 };
                 tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
                 tlp.RowStyles.Add(new RowStyle(SizeType.Absolute, 36f));
@@ -206,8 +150,8 @@ namespace PremiumLivingOPS.Views.InventoryControl
             tblFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30f));
             tblFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30f));
             tblFields.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-            tblFields.Controls.Add(MakeCell("Keyword",  txtSearch),   0, 0);
-            tblFields.Controls.Add(MakeCell("Category", cboCategory), 1, 0);
+            tblFields.Controls.Add(MakeCell("Keyword",  txtSearch),        0, 0);
+            tblFields.Controls.Add(MakeCell("Category", cboCategory),      1, 0);
             tblFields.Controls.Add(MakeCell("Status",   cboStatus, false), 2, 0);
 
             // Buttons row
@@ -298,15 +242,14 @@ namespace PremiumLivingOPS.Views.InventoryControl
             pnlScroll.Controls.Add(kpiOuter);     // Top
 
             // ── Assemble root (Fill first, then Top bottom-up) ──────────────────
-            pnlRoot.Controls.Add(pnlScroll);     // Fill
-            pnlRoot.Controls.Add(pnlTabStrip);   // Top — sits below AppShell
-            pnlRoot.Controls.Add(_shell);        // Top — topmost
+            pnlRoot.Controls.Add(pnlScroll);  // Fill
+            pnlRoot.Controls.Add(_shell);     // Top — topmost
 
             Controls.Add(pnlRoot);
             ResumeLayout(false);
         }
 
-        // ── Button factories (mirrors ViewOrderForm) ───────────────────────────
+        // ── Button factories ───────────────────────────────────────────────────────
         private static Button MakePrimaryBtn(string text, Point loc, int w, int h)
         {
             var b = new Button
@@ -343,19 +286,16 @@ namespace PremiumLivingOPS.Views.InventoryControl
         }
 
         // ── Field declarations ─────────────────────────────────────────────────
-        private Panel            pnlRoot;
-        private AppShell         _shell;
-        private Panel            pnlTabStrip;
-        private Button           btnTabProduct;
-        private Button           btnTabRawMaterial;
-        private Panel            pnlScroll;
-        internal Panel           pnlKpi;
-        private TextBox          txtSearch;
-        private ComboBox         cboCategory;
-        private ComboBox         cboStatus;
-        private Button           btnSearch;
-        private Button           btnReset;
-        private DataGridView     dgvProducts;
-        private Button           btnViewDetail;
+        private Panel        pnlRoot;
+        private AppShell     _shell;
+        private Panel        pnlScroll;
+        internal Panel       pnlKpi;
+        private TextBox      txtSearch;
+        private ComboBox     cboCategory;
+        private ComboBox     cboStatus;
+        private Button       btnSearch;
+        private Button       btnReset;
+        private DataGridView dgvProducts;
+        private Button       btnViewDetail;
     }
 }
