@@ -65,13 +65,22 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             };
             txtSearchCustomer.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) RefreshGrid(); };
 
+            // ── Status dropdown — matches all 6 order statuses
             cboStatus = new ComboBox
             {
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 Font = new Font("Segoe UI", 12f),
                 Dock = DockStyle.Fill
             };
-            cboStatus.Items.AddRange(new object[] { "All", "Pending", "Processing", "Shipped", "Delivered", "Cancelled" });
+            cboStatus.Items.AddRange(new object[]
+            {
+                "All",
+                "Pending",
+                "Processing",
+                "Delivered",
+                "Shipped",
+                "Partially Delivered"
+            });
             cboStatus.SelectedIndex = 0;
 
             chkDateFrom = new CheckBox { Text = "", Width = 24, Checked = false, Cursor = Cursors.Hand };
@@ -223,8 +232,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlSearchOuter.Controls.Add(pnlCard);
 
             // ── KPI bar: CardPanel 3-layer wrap
-            //   Outer height = 96 px  (pill height 60 + Padding top 14 + bottom 8 + inner pad 14)
-            //   pnlKpi (Padding 20,10,20,10) docks Fill inside the white inner card
             pnlKpi = new Panel
             {
                 Dock      = DockStyle.Fill,
