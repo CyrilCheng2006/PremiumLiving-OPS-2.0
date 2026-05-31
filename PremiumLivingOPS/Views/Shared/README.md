@@ -49,11 +49,11 @@ _shell.SetBreadcrumb("Module  ›  Page Title");
 All content sections (search bar, KPI bar, DataGridView, etc.) must use the **3-layer nested card structure** to achieve the "white card floating on a grey page" appearance.
 
 ```
-┌─ pnlOuter  BackColor=#F0F4F9  Padding=(20,14,20,8) ──────────────────┐
+┌─────── pnlOuter  BackColor=#F0F4F9  Padding=(20,14,20,8) ──────────────┐
 │                                                                        │
-│  ┌─ pnlInner  BackColor=White  PaintCardBorder (1px #DDE3EC) ───────┐ │
+│  ┌──── pnlInner  BackColor=White  PaintCardBorder (1px #DDE3EC) ─────┐ │
 │  │                                                                   │ │
-│  │   < Your content: TableLayoutPanel / DataGridView / etc. >       │ │
+│  │   < Your content: TableLayoutPanel / DataGridView / etc. >        │ │
 │  │                                                                   │ │
 │  └───────────────────────────────────────────────────────────────────┘ │
 │                                                                        │
