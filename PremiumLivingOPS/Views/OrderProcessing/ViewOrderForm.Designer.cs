@@ -224,8 +224,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlSearchOuter.Controls.Add(pnlCard);
 
             // ── KPI bar ──────────────────────────────────────────────────────────
-            //  Left  : pnlKpi  (FlowLayout of pills)   ─ Fill
-            //  Right : two action buttons stacked 210x60 each, vertically centred
+            //  Left  : pnlKpi (FlowLayout of pills)  ─ DockStyle.Fill
+            //  Right : btnViewDetail + btnModifyOrder SIDE-BY-SIDE, vertically centred
             pnlKpi = new Panel
             {
                 Dock      = DockStyle.Fill,
@@ -233,42 +233,42 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Padding   = new Padding(12, 10, 12, 10)
             };
 
-            // Right-side action buttons panel (fixed width)
-            const int BtnW   = 210;
-            const int BtnH   = 60;
-            const int BtnGap = 8;   // gap between the two buttons
+            const int BtnW   = 210;   // each button width
+            const int BtnH   = 60;    // each button height
+            const int BtnGap = 8;     // horizontal gap between the two buttons
+            const int BtnPad = 12;    // left/right outer padding inside pnlActionBtns
 
-            btnViewDetail  = MakePrimaryBtn("🔍  View Details",  Point.Empty, BtnW, BtnH);
-            btnModifyOrder = MakeWarningBtn("✏️  Modify Order",  Point.Empty, BtnW, BtnH);
-            btnViewDetail.Enabled = btnModifyOrder.Enabled = false;
+            btnViewDetail  = MakePrimaryBtn("🔍  View Details", Point.Empty, BtnW, BtnH);
+            btnModifyOrder = MakeWarningBtn("✏️  Modify Order", Point.Empty, BtnW, BtnH);
+            btnViewDetail.Enabled  = false;
+            btnModifyOrder.Enabled = false;
             btnViewDetail.Click  += btnViewDetail_Click;
             btnModifyOrder.Click += btnModifyOrder_Click;
 
-            // Stack the two buttons inside a fixed-width panel; anchor centres them vertically
+            // Panel wide enough for two buttons side-by-side + outer padding
             var pnlActionBtns = new Panel
             {
                 Dock      = DockStyle.Right,
-                Width     = BtnW + 24,          // button width + horizontal padding
+                Width     = BtnPad + BtnW + BtnGap + BtnW + BtnPad,  // 12+210+8+210+12 = 452
                 BackColor = Color.Transparent
             };
 
-            // Use Resize to keep the stack vertically centred at runtime
+            // Vertically centre both buttons inside pnlActionBtns at runtime
             void CentreActionBtns()
             {
-                int totalH = BtnH * 2 + BtnGap;
-                int top    = (pnlActionBtns.Height - totalH) / 2;
+                int top = (pnlActionBtns.Height - BtnH) / 2;
                 if (top < 0) top = 0;
-                btnViewDetail.Location  = new Point(12, top);
-                btnModifyOrder.Location = new Point(12, top + BtnH + BtnGap);
+                btnViewDetail.Location  = new Point(BtnPad, top);
+                btnModifyOrder.Location = new Point(BtnPad + BtnW + BtnGap, top);
             }
             pnlActionBtns.Controls.Add(btnViewDetail);
             pnlActionBtns.Controls.Add(btnModifyOrder);
             pnlActionBtns.Resize += (s, e) => CentreActionBtns();
 
-            // Container that holds pills (left) + action buttons (right)
+            // Container: pills fill left, action buttons docked right
             var pnlKpiRow = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            pnlKpiRow.Controls.Add(pnlKpi);          // Fill  — pills
-            pnlKpiRow.Controls.Add(pnlActionBtns);   // Right — buttons (added after Fill so Dock works)
+            pnlKpiRow.Controls.Add(pnlKpi);         // DockStyle.Fill  — pills
+            pnlKpiRow.Controls.Add(pnlActionBtns);  // DockStyle.Right — buttons (must be added AFTER Fill)
 
             var pnlKpiInner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
             pnlKpiInner.Paint += PaintCardBorder;
@@ -324,10 +324,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlGridInner.Controls.Add(dgvOrders);
             pnlGridCard.Controls.Add(pnlGridInner);
 
-            // ── Assemble (no more pnlActions at bottom)
+            // ── Assemble
             pnlMain.Controls.Add(pnlGridCard);    // Fill  — grid
-            pnlMain.Controls.Add(pnlKpiOuter);    // Top   — KPI + action buttons
-            pnlMain.Controls.Add(pnlSearchOuter); // Top   — Search
+            pnlMain.Controls.Add(pnlKpiOuter);    // Top   — KPI bar + side-by-side action buttons
+            pnlMain.Controls.Add(pnlSearchOuter); // Top   — Search card
             pnlMain.Controls.Add(_shell);         // Top   — nav chrome
 
             this.Controls.Add(pnlMain);
