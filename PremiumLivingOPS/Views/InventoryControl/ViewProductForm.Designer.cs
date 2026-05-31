@@ -20,15 +20,14 @@ namespace PremiumLivingOPS.Views.InventoryControl
             SuspendLayout();
 
             // ── Form ───────────────────────────────────────────────────────────
-            Name                = "ViewProductForm";
-            Text                = "Premium Living OPS — Inventory Control";
-            WindowState         = FormWindowState.Maximized;
-            MinimumSize         = new Size(1200, 720);
-            StartPosition       = FormStartPosition.CenterScreen;
-            BackColor           = Color.FromArgb(240, 244, 249);
-            Font                = new Font("Segoe UI", 13f);
-            AutoScaleMode       = AutoScaleMode.Font;
-            AutoScaleDimensions = new SizeF(7f, 15f);
+            Name          = "ViewProductForm";
+            Text          = "Premium Living OPS — Inventory Control";
+            Size          = new Size(1440, 900);
+            MinimumSize   = new Size(1200, 720);
+            StartPosition = FormStartPosition.CenterScreen;
+            BackColor     = Color.FromArgb(240, 244, 249);
+            WindowState   = FormWindowState.Maximized;
+            Font          = new Font("Segoe UI", 13f);
 
             // ── Root panel ─────────────────────────────────────────────────────
             pnlRoot = new Panel
