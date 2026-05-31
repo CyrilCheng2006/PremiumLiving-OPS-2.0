@@ -15,7 +15,7 @@ namespace PremiumLivingOPS.Controllers
     {
         private readonly OrderProcessingRepo _repo = new OrderProcessingRepo();
 
-        // ── View Order ────────────────────────────────────────────────────────────────────
+        // ── View Order ─────────────────────────────────────────────────────────────────────────
 
         /// <summary>
         /// Returns ViewModel for the View Order page.
@@ -54,7 +54,7 @@ namespace PremiumLivingOPS.Controllers
         public List<OrderLineEntity> GetOrderLines(string orderId)
             => _repo.GetOrderLines(orderId);
 
-        // ── Quotation ───────────────────────────────────────────────────────────────────
+        // ── Quotation ───────────────────────────────────────────────────────────────────────
 
         /// <summary>
         /// Returns ViewModel for the Quotation page.
@@ -94,7 +94,7 @@ namespace PremiumLivingOPS.Controllers
         public bool UpdateQuotationStatus(string quotationId, string newStatus)
             => _repo.UpdateQuotationStatus(quotationId, newStatus);
 
-        // ── Create Order ────────────────────────────────────────────────────────────────
+        // ── Create Order ────────────────────────────────────────────────────────────────────
 
         public CreateOrderViewModel GetCreateOrderVM()
         {
@@ -165,7 +165,7 @@ namespace PremiumLivingOPS.Controllers
             return true;
         }
 
-        // ── Modify Order ───────────────────────────────────────────────────────────────────
+        // ── Modify Order ───────────────────────────────────────────────────────────────────────────
 
         public ModifyOrderViewModel GetModifyOrderVM(string orderId = null)
         {
@@ -180,7 +180,9 @@ namespace PremiumLivingOPS.Controllers
                 AllowedMenus  = NavAccessPolicy.GetAllowedMenus(user?.Department ?? ""),
                 SelectedOrder = orderId != null ? _repo.GetOrderById(orderId)  : null,
                 Lines         = orderId != null ? _repo.GetOrderLines(orderId) : new List<OrderLineEntity>(),
-                Products      = _repo.GetAllProducts()
+                Products      = _repo.GetAllProducts(),
+                Customers     = _repo.GetAllCustomers(),
+                Addresses     = _repo.GetAllAddresses()
             };
         }
 

@@ -1,3 +1,4 @@
+using System;
 using System.Drawing;
 using System.Windows.Forms;
 using PremiumLivingOPS.Views.Shared;
@@ -8,32 +9,40 @@ namespace PremiumLivingOPS.Views.OrderProcessing
     {
         private System.ComponentModel.IContainer components = null;
 
+        // AppShell
         private AppShell _shell;
 
+        // ── Search bar
         private ComboBox cboSearchOrder;
         private Button   btnLoadOrder;
 
-        private Panel        pnlEditCard;
-        private TextBox      txtOrderID;
-        private TextBox      txtCustomer;
-        private ComboBox     cboStatus;
-        private DateTimePicker dtpDelivery;
-        private TextBox      txtContactName;
-        private TextBox      txtShippingAddr;
-        private TextBox      txtBillingAddr;
-        private ComboBox     cboDiscountType;
-        private TextBox      txtDiscountValue;
+        // ── Order Details — read-only chip
+        private Label lblOrderIdValue;
 
-        private Panel        pnlLinesCard;
-        private ComboBox     cboAddProduct;
-        private TextBox      txtAddQty;
+        // ── Order Details — editable fields (mirrors CreateOrderForm)
+        private ComboBox       cboAddressId;
+        private ComboBox       cboCustomer;
+        private ComboBox       cboStatus;
+        private ComboBox       cboQuotation;
+        private TextBox        txtContactName;
+        private DateTimePicker dtpDelivery;
+        private TextBox        txtShippingAddr;
+        private TextBox        txtBillingAddr;
+        private CheckBox       chkSameAddress;
+        private ComboBox       cboDiscountType;
+        private TextBox        txtDiscountValue;
+        private Label          lblDiscountUnit;
+
+        // ── Order Items
+        private ComboBox     cboProduct;
+        private TextBox      txtQty;
         private Button       btnAddLine;
         private Button       btnRemoveLine;
         private DataGridView dgvLines;
-        private Label        lblSubtotal;
-        private Label        lblGrandTotal;
 
-        private Panel  pnlActionsBar;
+        // ── Footer
+        private Label  lblSubtotal;
+        private Label  lblGrandTotal;
         private Button btnSaveChanges;
         private Button btnCancelOrder;
 
@@ -53,226 +62,568 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             this.StartPosition = FormStartPosition.CenterScreen;
             this.BackColor     = Palette.BgPage;
             this.WindowState   = FormWindowState.Maximized;
-            this.Font          = new Font("Segoe UI", 11f);
+            this.Font          = new Font("Segoe UI", 13f);
 
-            Panel pnlMain = new Panel { Dock = DockStyle.Fill, BackColor = Palette.BgPage };
-
-            // AppShell — events are bound in ModifyOrderForm.cs
+            var pnlMain = new Panel { Dock = DockStyle.Fill, BackColor = Palette.BgPage };
             _shell = new AppShell();
             _shell.SetPopupContainer(pnlMain);
 
-            Panel pnlContent = new Panel
+            // ==================================================================
+            // SEARCH BAR  (CardPanel.Create, height 90)
+            // ==================================================================
+            var (pnlSearchOuter, pnlSearchInner) = CardPanel.Create(outerHeight: 90);
+
+            Label lblSearchLbl = new Label
             {
-                Dock = DockStyle.Fill, Padding = new Padding(28, 20, 28, 24),
-                BackColor = Palette.BgPage, AutoScroll = true
+                Text      = "Select Order to Modify:",
+                Font      = new Font("Segoe UI", 10.5f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(98, 112, 135),
+                Dock      = DockStyle.Left,
+                AutoSize  = false,
+                Width     = 200,
+                TextAlign = ContentAlignment.MiddleRight,
+                Padding   = new Padding(0, 0, 12, 0)
             };
 
-            Label lblTitle = new Label
+            cboSearchOrder = new ComboBox
             {
-                Text = "Modify Order", Font = new Font("Segoe UI", 22f, FontStyle.Bold),
-                ForeColor = Palette.TextMain, AutoSize = true, Location = new Point(0, 0)
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Font          = new Font("Segoe UI", 12f),
+                Dock          = DockStyle.Fill
             };
 
-            // Search bar
-            Panel pnlSearch = new Panel { Location = new Point(0, lblTitle.PreferredHeight + 16), Height = 56, BackColor = Palette.BgCard, Padding = new Padding(12, 10, 12, 10) };
-            pnlSearch.Paint += (s, e) => e.Graphics.DrawRectangle(new System.Drawing.Pen(Palette.BorderColor, 1), 0, 0, ((Panel)s).Width-1, ((Panel)s).Height-1);
-
-            Label lblSearch = new Label { Text = "Select Order:", Font = new Font("Segoe UI", 11f), ForeColor = Palette.TextMuted, AutoSize = true, Location = new Point(12, 16) };
-            cboSearchOrder = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 520, Location = new Point(120, 12), Font = new Font("Segoe UI", 11f) };
-            btnLoadOrder = new Button
-            {
-                Text = "Load Order", Font = new Font("Segoe UI", 11f, FontStyle.Bold),
-                ForeColor = Color.White, BackColor = Palette.Primary, FlatStyle = FlatStyle.Flat,
-                Size = new Size(130, 34), Location = new Point(654, 11)
-            };
-            btnLoadOrder.FlatAppearance.BorderSize = 0;
+            btnLoadOrder = MakePrimaryBtn("Load Order", Point.Empty, 150, 44);
+            btnLoadOrder.Dock = DockStyle.Right;
             btnLoadOrder.Click += btnLoadOrder_Click;
-            pnlSearch.Controls.Add(lblSearch);
-            pnlSearch.Controls.Add(cboSearchOrder);
-            pnlSearch.Controls.Add(btnLoadOrder);
 
-            // Edit card
-            pnlEditCard = MakeCard();
-            pnlEditCard.Location = new Point(0, pnlSearch.Bottom + 16);
-            pnlEditCard.Visible  = false;
+            var pnlSearchRow = new Panel
+            {
+                Dock      = DockStyle.Fill,
+                BackColor = Color.Transparent,
+                Padding   = new Padding(16, 10, 16, 10)
+            };
+            pnlSearchRow.Controls.Add(cboSearchOrder);
+            pnlSearchRow.Controls.Add(btnLoadOrder);
+            pnlSearchRow.Controls.Add(lblSearchLbl);
+            pnlSearchInner.Controls.Add(pnlSearchRow);
 
-            Label lblEditTitle = MakeSectionLabel("Order Details");
-            lblEditTitle.Location = new Point(16, 14);
+            // ==================================================================
+            // CARD 1 — ORDER DETAILS  (mirrors CreateOrderForm Card 1)
+            // ==================================================================
 
-            Label lblOID  = MakeFieldLabel("Order ID",      new Point(16,  52));
-            txtOrderID    = MakeTextBox(new Point(16,  72), 200);
-            txtOrderID.ReadOnly = true; txtOrderID.BackColor = Color.FromArgb(248, 248, 248);
+            lblOrderIdValue = new Label
+            {
+                Text      = "",
+                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Palette.Primary,
+                BackColor = Color.FromArgb(219, 234, 254),
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Padding   = new Padding(10, 0, 0, 0)
+            };
+            var pnlOrderIdChip = new Panel
+            {
+                Dock      = DockStyle.Fill,
+                BackColor = Color.Transparent,
+                Padding   = new Padding(0, 8, 12, 8)
+            };
+            pnlOrderIdChip.Controls.Add(lblOrderIdValue);
 
-            Label lblCust = MakeFieldLabel("Customer",      new Point(236, 52));
-            txtCustomer   = MakeTextBox(new Point(236, 72), 280);
-            txtCustomer.ReadOnly = true; txtCustomer.BackColor = Color.FromArgb(248, 248, 248);
+            cboQuotation = MakeCombo();
+            cboAddressId = MakeCombo();
+            cboAddressId.SelectedIndexChanged += cboAddressId_SelectedIndexChanged;
+            cboCustomer  = MakeCombo();
+            cboCustomer.SelectedIndexChanged  += cboCustomer_SelectedIndexChanged;
 
-            Label lblStat = MakeFieldLabel("Status",        new Point(536, 52));
-            cboStatus     = MakeCombo(new Point(536,  72), 180);
+            cboStatus = MakeCombo();
+            cboStatus.Items.AddRange(new object[] { "Pending", "Processing", "Delivered", "Cancelled" });
 
-            Label lblDel  = MakeFieldLabel("Delivery Date", new Point(16,  118));
-            dtpDelivery   = new DateTimePicker { Location = new Point(16, 138), Width = 200, Format = DateTimePickerFormat.Short };
+            txtShippingAddr = MakeTextBox();
+            txtShippingAddr.TextChanged += txtShippingAddr_TextChanged;
 
-            Label lblCon  = MakeFieldLabel("Contact Name",  new Point(236, 118));
-            txtContactName = MakeTextBox(new Point(236, 138), 260);
+            txtBillingAddr           = MakeTextBox();
+            txtBillingAddr.Enabled   = false;
+            txtBillingAddr.BackColor = Color.FromArgb(235, 240, 250);
 
-            Label lblShip = MakeFieldLabel("Shipping Address", new Point(16,  182));
-            txtShippingAddr = MakeTextBox(new Point(16,  202), 420);
+            chkSameAddress = new CheckBox
+            {
+                Text      = "Same as Shipping",
+                Font      = new Font("Segoe UI", 10.5f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(98, 112, 135),
+                Checked   = false,
+                AutoSize  = false,
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+            chkSameAddress.CheckedChanged += chkSameAddress_CheckedChanged;
+            var pnlChk = new Panel
+            {
+                Dock      = DockStyle.Fill,
+                BackColor = Color.Transparent,
+                Padding   = new Padding(12, 0, 0, 0)
+            };
+            chkSameAddress.Dock = DockStyle.Fill;
+            pnlChk.Controls.Add(chkSameAddress);
 
-            Label lblBill = MakeFieldLabel("Billing Address",  new Point(456, 182));
-            txtBillingAddr  = MakeTextBox(new Point(456, 202), 420);
+            dtpDelivery = new DateTimePicker
+            {
+                Font   = new Font("Segoe UI", 12f),
+                Format = DateTimePickerFormat.Short,
+                Dock   = DockStyle.Fill
+            };
+            txtContactName = MakeTextBox();
 
-            Label lblDType = MakeFieldLabel("Discount Type",  new Point(16,  248));
-            cboDiscountType = MakeCombo(new Point(16,  268), 160);
+            cboDiscountType = MakeCombo();
+            cboDiscountType.Items.AddRange(new object[] { "None", "Amount", "Rate (%)" });
+            cboDiscountType.SelectedIndex        = 0;
             cboDiscountType.SelectedIndexChanged += cboDiscountType_SelectedIndexChanged;
 
-            Label lblDVal  = MakeFieldLabel("Discount Value", new Point(196, 248));
-            txtDiscountValue = MakeTextBox(new Point(196, 268), 130);
+            txtDiscountValue         = MakeTextBox();
+            txtDiscountValue.Text    = "0";
+            txtDiscountValue.Enabled = false;
             txtDiscountValue.TextChanged += txtDiscountValue_TextChanged;
 
-            pnlEditCard.Controls.AddRange(new System.Windows.Forms.Control[]
+            lblDiscountUnit = new Label
             {
-                lblEditTitle,
-                lblOID, txtOrderID, lblCust, txtCustomer, lblStat, cboStatus,
-                lblDel, dtpDelivery, lblCon, txtContactName,
-                lblShip, txtShippingAddr, lblBill, txtBillingAddr,
-                lblDType, cboDiscountType, lblDVal, txtDiscountValue
-            });
-            pnlEditCard.Height = 316;
-
-            // Lines card
-            pnlLinesCard = MakeCard();
-            pnlLinesCard.Location = new Point(0, pnlEditCard.Bottom + 16);
-            pnlLinesCard.Visible  = false;
-
-            Label lblLinesTitle = MakeSectionLabel("Order Lines");
-            lblLinesTitle.Location = new Point(16, 14);
-
-            Label lblProd = MakeFieldLabel("Add Product",  new Point(16,  52));
-            cboAddProduct = MakeCombo(new Point(16,  72), 340);
-
-            Label lblQtyLbl = MakeFieldLabel("Qty", new Point(370, 52));
-            txtAddQty = MakeTextBox(new Point(370, 72), 80);
-            txtAddQty.Text = "1";
-
-            btnAddLine = new Button
-            {
-                Text = "+ Add", Font = new Font("Segoe UI", 11f, FontStyle.Bold),
-                ForeColor = Color.White, BackColor = Palette.Primary, FlatStyle = FlatStyle.Flat,
-                Size = new Size(90, 34), Location = new Point(464, 71)
+                Text      = "",
+                Font      = new Font("Segoe UI", 11f),
+                ForeColor = Color.FromArgb(98, 112, 135),
+                Dock      = DockStyle.Right,
+                AutoSize  = false,
+                Width     = 48,
+                TextAlign = ContentAlignment.MiddleLeft
             };
-            btnAddLine.FlatAppearance.BorderSize = 0;
-            btnAddLine.Click += btnAddLine_Click;
-
-            btnRemoveLine = new Button
+            var pnlDiscountInput = new Panel
             {
-                Text = "− Remove", Font = new Font("Segoe UI", 11f),
-                ForeColor = Palette.Danger, FlatStyle = FlatStyle.Flat,
-                Size = new Size(110, 34), Location = new Point(566, 71)
+                Dock      = DockStyle.Fill,
+                BackColor = Color.Transparent,
+                Padding   = new Padding(0, 8, 12, 8)
             };
-            btnRemoveLine.FlatAppearance.BorderColor = Palette.Danger;
-            btnRemoveLine.FlatAppearance.BorderSize  = 1;
+            txtDiscountValue.Dock = DockStyle.Fill;
+            pnlDiscountInput.Controls.Add(txtDiscountValue);
+            pnlDiscountInput.Controls.Add(lblDiscountUnit);
+
+            // Row layout: 2 cols × 12 rows (label + input per field, label 40 px, input 72 px)
+            var tblInfo = new TableLayoutPanel
+            {
+                Dock            = DockStyle.Fill,
+                ColumnCount     = 2,
+                RowCount        = 14,   // 7 field pairs
+                BackColor       = Color.Transparent,
+                CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                Padding         = new Padding(18, 8, 18, 8)
+            };
+            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
+            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
+            for (int i = 0; i < 7; i++)
+            {
+                tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, 40f));
+                tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, 72f));
+            }
+
+            // Row 0–1 : Order ID  |  Linked Quotation
+            tblInfo.Controls.Add(FieldLabel("Order ID",         false), 0, 0);
+            tblInfo.Controls.Add(FieldLabel("Linked Quotation", false), 1, 0);
+            tblInfo.Controls.Add(pnlOrderIdChip,                        0, 1);
+            tblInfo.Controls.Add(Pad(cboQuotation),                     1, 1);
+
+            // Row 2–3 : Address ID  |  Customer
+            tblInfo.Controls.Add(FieldLabel("Address ID", true), 0, 2);
+            tblInfo.Controls.Add(FieldLabel("Customer",   true), 1, 2);
+            tblInfo.Controls.Add(Pad(cboAddressId),               0, 3);
+            tblInfo.Controls.Add(Pad(cboCustomer),                1, 3);
+
+            // Row 4–5 : Shipping Address (full width)
+            var lblShipping = FieldLabel("Shipping Address", true);
+            tblInfo.Controls.Add(lblShipping, 0, 4);
+            tblInfo.SetColumnSpan(lblShipping, 2);
+            var pnlShipping = Pad(txtShippingAddr);
+            tblInfo.Controls.Add(pnlShipping, 0, 5);
+            tblInfo.SetColumnSpan(pnlShipping, 2);
+
+            // Row 6–7 : Billing Address  |  Same-as-Shipping checkbox
+            tblInfo.Controls.Add(FieldLabel("Billing Address", true), 0, 6);
+            tblInfo.Controls.Add(pnlChk,                              1, 6);
+            var pnlBilling = Pad(txtBillingAddr);
+            tblInfo.Controls.Add(pnlBilling, 0, 7);
+            tblInfo.SetColumnSpan(pnlBilling, 2);
+
+            // Row 8–9 : Delivery Date  |  Contact Name
+            tblInfo.Controls.Add(FieldLabel("Delivery Date",      true), 0, 8);
+            tblInfo.Controls.Add(FieldLabel("Order Contact Name", true), 1, 8);
+            tblInfo.Controls.Add(Pad(dtpDelivery),                        0, 9);
+            tblInfo.Controls.Add(Pad(txtContactName),                     1, 9);
+
+            // Row 10–11 : Order Status  |  (empty)
+            tblInfo.Controls.Add(FieldLabel("Order Status", true), 0, 10);
+            tblInfo.Controls.Add(Pad(cboStatus),                   0, 11);
+
+            // Row 12–13 : Discount Type  |  Discount Value
+            tblInfo.Controls.Add(FieldLabel("Discount Type",  false), 0, 12);
+            tblInfo.Controls.Add(FieldLabel("Discount Value", false), 1, 12);
+            tblInfo.Controls.Add(Pad(cboDiscountType),                 0, 13);
+            tblInfo.Controls.Add(pnlDiscountInput,                     1, 13);
+
+            var pnlInfoTitle   = CardTitlePanel("Order Details");
+            var pnlInfoContent = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
+            pnlInfoContent.Controls.Add(tblInfo);
+            pnlInfoContent.Controls.Add(pnlInfoTitle);
+
+            // 7 field pairs × (40 label + 72 input) = 784; + 54 title + 16 top
+            var (pnlInfoOuter, pnlInfoInner) = CardPanel.Create(outerHeight: 900);
+            pnlInfoInner.Controls.Add(pnlInfoContent);
+
+            // ==================================================================
+            // FOOTER  (Save Changes / Cancel Order)
+            // ==================================================================
+
+            const int BtnW   = 210;
+            const int BtnH   = 60;
+            const int BtnGap = 8;
+            const int BtnPad = 12;
+
+            lblSubtotal = new Label
+            {
+                Text      = "Subtotal:  HK$ 0.00",
+                Font      = new Font("Segoe UI", 12f),
+                ForeColor = Color.FromArgb(98, 112, 135),
+                Dock      = DockStyle.Left,
+                AutoSize  = false,
+                Width     = 340,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Padding   = new Padding(8, 0, 0, 0)
+            };
+            lblGrandTotal = new Label
+            {
+                Text      = "Grand Total:  HK$ 0.00",
+                Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
+                ForeColor = Palette.TextMain,
+                Dock      = DockStyle.Left,
+                AutoSize  = false,
+                Width     = 380,
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+
+            btnSaveChanges = MakeGreenBtn("✓  Save Changes", Point.Empty, BtnW, BtnH);
+            btnCancelOrder = MakeRedBtn(  "✕  Cancel Order", Point.Empty, BtnW, BtnH);
+            btnSaveChanges.Click += btnSaveChanges_Click;
+            btnCancelOrder.Click += btnCancelOrder_Click;
+
+            var pnlActionBtns = new Panel
+            {
+                Dock      = DockStyle.Right,
+                Width     = BtnPad + BtnW + BtnGap + BtnW + BtnPad,
+                BackColor = Color.Transparent
+            };
+            void CentreFooterBtns()
+            {
+                int top = (pnlActionBtns.Height - BtnH) / 2;
+                if (top < 0) top = 0;
+                btnSaveChanges.Location = new Point(BtnPad, top);
+                btnCancelOrder.Location = new Point(BtnPad + BtnW + BtnGap, top);
+            }
+            pnlActionBtns.Controls.Add(btnSaveChanges);
+            pnlActionBtns.Controls.Add(btnCancelOrder);
+            pnlActionBtns.Resize += (s, e) => CentreFooterBtns();
+
+            var pnlFooterContent = new Panel
+            {
+                Dock      = DockStyle.Fill,
+                BackColor = Color.Transparent,
+                Padding   = new Padding(16, 0, 0, 0)
+            };
+            pnlFooterContent.Controls.Add(pnlActionBtns);
+            pnlFooterContent.Controls.Add(lblGrandTotal);
+            pnlFooterContent.Controls.Add(lblSubtotal);
+
+            var footerInner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
+            footerInner.Paint += (s, e) =>
+            {
+                var p = (Panel)s;
+                using var pen = new System.Drawing.Pen(Color.FromArgb(221, 227, 236), 1);
+                e.Graphics.DrawRectangle(pen, 0, 0, p.Width - 1, p.Height - 1);
+            };
+            footerInner.Controls.Add(pnlFooterContent);
+
+            var footerOuter = new Panel
+            {
+                Dock      = DockStyle.Bottom,
+                Height    = 108,
+                BackColor = Palette.BgPage,
+                Padding   = new Padding(20, 14, 20, 14)
+            };
+            footerOuter.Controls.Add(footerInner);
+
+            // ==================================================================
+            // CARD 2 — ORDER ITEMS  (mirrors CreateOrderForm Card 2)
+            // ==================================================================
+
+            cboProduct  = MakeCombo();
+            txtQty      = MakeTextBox();
+            txtQty.Text = "1";
+
+            const int ItemBtnW = 210;
+            const int ItemBtnH = 60;
+
+            btnAddLine    = MakePrimaryBtn("+ Add Item", Point.Empty, ItemBtnW, ItemBtnH);
+            btnRemoveLine = MakeOutlineBtn("− Remove",   Point.Empty, ItemBtnW, ItemBtnH);
+            btnAddLine.Anchor    = AnchorStyles.None;
+            btnRemoveLine.Anchor = AnchorStyles.None;
+            btnAddLine.Click    += btnAddLine_Click;
             btnRemoveLine.Click += btnRemoveLine_Click;
+
+            var tblToolbar = new TableLayoutPanel
+            {
+                Dock            = DockStyle.Fill,
+                ColumnCount     = 5,
+                RowCount        = 1,
+                BackColor       = Color.Transparent,
+                CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+            };
+            tblToolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
+            tblToolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,  70f));
+            tblToolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,  90f));
+            tblToolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 218f));
+            tblToolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 210f));
+            tblToolbar.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+
+            cboProduct.Dock = DockStyle.Fill;
+            var lblQty = new Label
+            {
+                Text      = "Qty:",
+                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(98, 112, 135),
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleRight,
+                Padding   = new Padding(0, 0, 6, 0)
+            };
+            txtQty.Dock = DockStyle.Fill;
+
+            var pnlAddBtn = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
+            var pnlRemBtn = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
+            void CentreItemBtn(Panel pnl, Button btn)
+            {
+                int top  = (pnl.Height - ItemBtnH) / 2;
+                int left = (pnl.Width  - ItemBtnW) / 2;
+                if (top  < 0) top  = 0;
+                if (left < 0) left = 0;
+                btn.Location = new Point(left, top);
+            }
+            pnlAddBtn.Controls.Add(btnAddLine);
+            pnlRemBtn.Controls.Add(btnRemoveLine);
+            pnlAddBtn.Resize += (s, e) => CentreItemBtn(pnlAddBtn, btnAddLine);
+            pnlRemBtn.Resize += (s, e) => CentreItemBtn(pnlRemBtn, btnRemoveLine);
+
+            tblToolbar.Controls.Add(cboProduct,  0, 0);
+            tblToolbar.Controls.Add(lblQty,      1, 0);
+            tblToolbar.Controls.Add(txtQty,      2, 0);
+            tblToolbar.Controls.Add(pnlAddBtn,   3, 0);
+            tblToolbar.Controls.Add(pnlRemBtn,   4, 0);
+
+            var pnlToolbar = new Panel
+            {
+                Dock      = DockStyle.Top,
+                Height    = 76,
+                BackColor = Color.Transparent,
+                Padding   = new Padding(18, 8, 18, 8)
+            };
+            pnlToolbar.Controls.Add(tblToolbar);
 
             dgvLines = new DataGridView
             {
-                Location = new Point(16, 116), ReadOnly = true,
-                AllowUserToAddRows = false, AllowUserToDeleteRows = false,
-                RowHeadersVisible = false, SelectionMode = DataGridViewSelectionMode.FullRowSelect,
-                BackgroundColor = Palette.BgCard, BorderStyle = BorderStyle.FixedSingle,
-                GridColor = Palette.BorderColor, Font = new Font("Segoe UI", 11f),
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-                CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal,
-                RowTemplate = { Height = 36 }, MultiSelect = false, Height = 220,
+                ReadOnly                  = true,
+                AllowUserToAddRows        = false,
+                AllowUserToDeleteRows     = false,
+                RowHeadersVisible         = false,
+                SelectionMode             = DataGridViewSelectionMode.FullRowSelect,
+                MultiSelect               = false,
+                BackgroundColor           = Color.White,
+                BorderStyle               = BorderStyle.None,
+                GridColor                 = Palette.BorderColor,
+                Font                      = new Font("Segoe UI", 13f),
+                AutoSizeColumnsMode       = DataGridViewAutoSizeColumnsMode.Fill,
+                CellBorderStyle           = DataGridViewCellBorderStyle.SingleHorizontal,
+                RowTemplate               = { Height = 48 },
+                Dock                      = DockStyle.Fill,
+                ColumnHeadersHeight       = 46,
+                EnableHeadersVisualStyles = false,
                 ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
                 {
-                    BackColor = Color.FromArgb(246, 249, 255), ForeColor = Palette.TextMuted,
-                    Font = new Font("Segoe UI", 10.5f, FontStyle.Bold), Padding = new Padding(6)
+                    BackColor = Color.FromArgb(246, 249, 255),
+                    ForeColor = Color.FromArgb(98, 112, 135),
+                    Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
+                    Padding   = new Padding(12, 0, 0, 0),
+                    Alignment = DataGridViewContentAlignment.MiddleLeft
                 },
-                ColumnHeadersHeight = 40,
                 DefaultCellStyle = new DataGridViewCellStyle
                 {
-                    BackColor = Palette.BgCard, ForeColor = Palette.TextMain,
-                    SelectionBackColor = Color.FromArgb(240, 246, 255), SelectionForeColor = Palette.TextMain,
-                    Padding = new Padding(8, 5, 8, 5)
+                    BackColor          = Color.White,
+                    ForeColor          = Palette.TextMain,
+                    SelectionBackColor = Color.FromArgb(219, 234, 254),
+                    SelectionForeColor = Palette.TextMain,
+                    Padding            = new Padding(12, 6, 12, 6)
                 }
             };
-            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colModLineItemID",   HeaderText = "Item ID",    FillWeight = 14, SortMode = DataGridViewColumnSortMode.NotSortable });
-            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colModLineItemName", HeaderText = "Item Name",  FillWeight = 38, SortMode = DataGridViewColumnSortMode.NotSortable });
-            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colModLineQty",      HeaderText = "Qty",        FillWeight = 10, SortMode = DataGridViewColumnSortMode.NotSortable });
-            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colModLinePrice",    HeaderText = "Unit Price", FillWeight = 19, SortMode = DataGridViewColumnSortMode.NotSortable });
-            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colModLineTotal",    HeaderText = "Line Total", FillWeight = 19, SortMode = DataGridViewColumnSortMode.NotSortable });
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLineItemID", HeaderText = "ITEM ID",    FillWeight = 14 });
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLineName",   HeaderText = "ITEM NAME",  FillWeight = 44 });
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLineQty",    HeaderText = "QTY",        FillWeight = 10 });
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLinePrice",  HeaderText = "UNIT PRICE", FillWeight = 16 });
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLineTotal",  HeaderText = "LINE TOTAL", FillWeight = 16 });
 
-            lblSubtotal = new Label { Text = "Subtotal:  HK$ 0.00", Font = new Font("Segoe UI", 12f), ForeColor = Palette.TextMuted, AutoSize = true, Location = new Point(16, 348) };
-            lblGrandTotal = new Label { Text = "Grand Total:  HK$ 0.00", Font = new Font("Segoe UI", 13f, FontStyle.Bold), ForeColor = Palette.Primary, AutoSize = true, Location = new Point(16, 374) };
+            var pnlItemsTitle   = CardTitlePanel("Order Items");
+            var pnlDivider      = new Panel { Dock = DockStyle.Top, Height = 1, BackColor = Palette.BorderColor };
+            var pnlItemsContent = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
+            pnlItemsContent.Controls.Add(dgvLines);
+            pnlItemsContent.Controls.Add(pnlDivider);
+            pnlItemsContent.Controls.Add(pnlToolbar);
+            pnlItemsContent.Controls.Add(pnlItemsTitle);
 
-            pnlLinesCard.Controls.AddRange(new System.Windows.Forms.Control[]
-            {
-                lblLinesTitle, lblProd, cboAddProduct, lblQtyLbl, txtAddQty,
-                btnAddLine, btnRemoveLine, dgvLines, lblSubtotal, lblGrandTotal
-            });
-            pnlLinesCard.Height = 416;
+            var (pnlItemsOuter, pnlItemsInner) = CardPanel.CreateFill();
+            pnlItemsInner.Controls.Add(pnlItemsContent);
 
-            // Actions bar
-            pnlActionsBar = new Panel { Location = new Point(0, pnlLinesCard.Bottom + 16), Height = 50, BackColor = Palette.BgPage, Visible = false };
-
-            btnSaveChanges = new Button
-            {
-                Text = "Save Changes", Font = new Font("Segoe UI", 12f, FontStyle.Bold),
-                ForeColor = Color.White, BackColor = Palette.Success, FlatStyle = FlatStyle.Flat,
-                Size = new Size(160, 44), Location = new Point(0, 0)
-            };
-            btnSaveChanges.FlatAppearance.BorderSize = 0;
-            btnSaveChanges.Click += btnSaveChanges_Click;
-
-            btnCancelOrder = new Button
-            {
-                Text = "Cancel Order", Font = new Font("Segoe UI", 12f, FontStyle.Bold),
-                ForeColor = Color.White, BackColor = Palette.Danger, FlatStyle = FlatStyle.Flat,
-                Size = new Size(160, 44), Location = new Point(172, 0)
-            };
-            btnCancelOrder.FlatAppearance.BorderSize = 0;
-            btnCancelOrder.Click += btnCancelOrder_Click;
-
-            pnlActionsBar.Controls.Add(btnSaveChanges);
-            pnlActionsBar.Controls.Add(btnCancelOrder);
-
-            pnlContent.Resize += (s, e) =>
-            {
-                int w = pnlContent.ClientSize.Width - pnlContent.Padding.Horizontal;
-                pnlSearch.Width    = w;
-                pnlEditCard.Width  = w;
-                pnlLinesCard.Width = w;
-                pnlActionsBar.Width = w;
-                dgvLines.Width     = w - 32;
-            };
-
-            pnlContent.Controls.Add(lblTitle);
-            pnlContent.Controls.Add(pnlSearch);
-            pnlContent.Controls.Add(pnlEditCard);
-            pnlContent.Controls.Add(pnlLinesCard);
-            pnlContent.Controls.Add(pnlActionsBar);
-
-            pnlMain.Controls.Add(pnlContent);
-            pnlMain.Controls.Add(_shell);
+            // ==================================================================
+            // Assemble  (DockStyle.Fill stack: last added = bottom-most in Z)
+            // Fill must be added first, then Bottom, then Top cards
+            // ==================================================================
+            pnlMain.Controls.Add(pnlItemsOuter);   // Fill — Order Items
+            pnlMain.Controls.Add(footerOuter);      // Bottom — Footer
+            pnlMain.Controls.Add(pnlInfoOuter);     // Top (DockStyle.Top via CardPanel.Create)
+            pnlMain.Controls.Add(pnlSearchOuter);   // Top (DockStyle.Top) — sits above Info
+            pnlMain.Controls.Add(_shell);           // Top — AppShell (nav bar)
 
             this.Controls.Add(pnlMain);
             this.ResumeLayout(false);
         }
 
-        private static Panel MakeCard()
+        // ── Factory helpers (identical to CreateOrderForm)
+
+        private static TextBox MakeTextBox() => new TextBox
         {
-            var p = new Panel { BackColor = Palette.BgCard, Padding = new Padding(16) };
-            p.Paint += (s, e) => e.Graphics.DrawRectangle(new System.Drawing.Pen(Palette.BorderColor, 1), 0, 0, ((Panel)s).Width-1, ((Panel)s).Height-1);
+            Font        = new Font("Segoe UI", 12f),
+            BorderStyle = BorderStyle.FixedSingle,
+            Dock        = DockStyle.Fill
+        };
+
+        private static ComboBox MakeCombo() => new ComboBox
+        {
+            DropDownStyle = ComboBoxStyle.DropDownList,
+            Font          = new Font("Segoe UI", 12f),
+            Dock          = DockStyle.Fill
+        };
+
+        private static Panel Pad(Control ctrl)
+        {
+            ctrl.Dock = DockStyle.Fill;
+            var p = new Panel
+            {
+                Dock      = DockStyle.Fill,
+                BackColor = Color.Transparent,
+                Padding   = new Padding(0, 8, 12, 8)
+            };
+            p.Controls.Add(ctrl);
             return p;
         }
-        private static Label MakeSectionLabel(string text)
-            => new Label { Text = text, Font = new Font("Segoe UI", 13f, FontStyle.Bold), ForeColor = Palette.TextMain, AutoSize = true };
-        private static Label MakeFieldLabel(string text, System.Drawing.Point loc)
-            => new Label { Text = text, Font = new Font("Segoe UI", 10f), ForeColor = Palette.TextMuted, AutoSize = true, Location = loc };
-        private static TextBox MakeTextBox(System.Drawing.Point loc, int width)
-            => new TextBox { Location = loc, Width = width, Font = new Font("Segoe UI", 11f), BorderStyle = BorderStyle.FixedSingle };
-        private static ComboBox MakeCombo(System.Drawing.Point loc, int width)
-            => new ComboBox { Location = loc, Width = width, Font = new Font("Segoe UI", 11f), DropDownStyle = ComboBoxStyle.DropDownList };
+
+        private static Label FieldLabel(string text, bool required) => new Label
+        {
+            Text      = required ? text + " *" : text,
+            Font      = new Font("Segoe UI", 10.5f, FontStyle.Bold),
+            ForeColor = Color.FromArgb(98, 112, 135),
+            Dock      = DockStyle.Fill,
+            TextAlign = ContentAlignment.BottomLeft,
+            Padding   = new Padding(18, 0, 0, 2)
+        };
+
+        private static Panel CardTitlePanel(string title)
+        {
+            var pnl = new Panel { Dock = DockStyle.Top, Height = 54, BackColor = Color.Transparent };
+            var lbl = new Label
+            {
+                Text      = title,
+                Font      = new Font("Segoe UI", 13f, FontStyle.Bold),
+                ForeColor = Palette.TextMain,
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Padding   = new Padding(18, 0, 0, 0)
+            };
+            var div = new Panel { Dock = DockStyle.Bottom, Height = 1, BackColor = Palette.BorderColor };
+            pnl.Controls.Add(lbl);
+            pnl.Controls.Add(div);
+            return pnl;
+        }
+
+        /// <summary>Green — Save Changes.</summary>
+        private static Button MakeGreenBtn(string text, Point loc, int w, int h)
+        {
+            var b = new Button
+            {
+                Text      = text,
+                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.White,
+                BackColor = Color.FromArgb(34, 139, 34),
+                FlatStyle = FlatStyle.Flat,
+                Location  = loc, Width = w, Height = h,
+                Cursor    = Cursors.Hand
+            };
+            b.FlatAppearance.BorderSize         = 0;
+            b.FlatAppearance.MouseOverBackColor = Color.FromArgb(22, 111, 22);
+            b.FlatAppearance.MouseDownBackColor = Color.FromArgb(14, 85, 14);
+            return b;
+        }
+
+        /// <summary>Red — Cancel Order.</summary>
+        private static Button MakeRedBtn(string text, Point loc, int w, int h)
+        {
+            var b = new Button
+            {
+                Text      = text,
+                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.White,
+                BackColor = Color.FromArgb(192, 57, 43),
+                FlatStyle = FlatStyle.Flat,
+                Location  = loc, Width = w, Height = h,
+                Cursor    = Cursors.Hand
+            };
+            b.FlatAppearance.BorderSize         = 0;
+            b.FlatAppearance.MouseOverBackColor = Color.FromArgb(160, 40, 30);
+            b.FlatAppearance.MouseDownBackColor = Color.FromArgb(125, 28, 20);
+            return b;
+        }
+
+        private static Button MakePrimaryBtn(string text, Point loc, int w, int h)
+        {
+            var b = new Button
+            {
+                Text      = text,
+                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.White,
+                BackColor = Color.FromArgb(47, 111, 237),
+                FlatStyle = FlatStyle.Flat,
+                Location  = loc, Width = w, Height = h,
+                Cursor    = Cursors.Hand
+            };
+            b.FlatAppearance.BorderSize         = 0;
+            b.FlatAppearance.MouseOverBackColor = Color.FromArgb(26, 77, 192);
+            b.FlatAppearance.MouseDownBackColor = Color.FromArgb(21, 60, 155);
+            return b;
+        }
+
+        private static Button MakeOutlineBtn(string text, Point loc, int w, int h)
+        {
+            var b = new Button
+            {
+                Text      = text,
+                Font      = new Font("Segoe UI", 12f),
+                ForeColor = Color.FromArgb(15, 31, 53),
+                BackColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Location  = loc, Width = w, Height = h,
+                Cursor    = Cursors.Hand
+            };
+            b.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
+            b.FlatAppearance.BorderSize         = 1;
+            b.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
+            return b;
+        }
     }
 }

@@ -2,7 +2,7 @@ using System.Collections.Generic;
 
 namespace PremiumLivingOPS.Models.Entities
 {
-    // ── Shared sub-models ──────────────────────────────────────────────────────
+    // ── Shared sub-models ─────────────────────────────────────────────────
 
     public class UserBarViewModel
     {
@@ -10,7 +10,7 @@ namespace PremiumLivingOPS.Models.Entities
         public string Department  { get; set; }
     }
 
-    // ── Domain entities (map directly to DB tables) ─────────────────────────────
+    // ── Domain entities (map directly to DB tables) ─────────────────────────
 
     public class OrderEntity
     {
@@ -102,7 +102,7 @@ namespace PremiumLivingOPS.Models.Entities
         /// <summary>Address type from Address.AddressType (Residential / Office / Mailing).</summary>
         public string Label       { get; set; }
 
-        /// <summary>Whether this is the customer’s default address (Address.isDefault).</summary>
+        /// <summary>Whether this is the customer's default address (Address.isDefault).</summary>
         public bool   IsDefault   { get; set; }
 
         /// <summary>
@@ -115,7 +115,7 @@ namespace PremiumLivingOPS.Models.Entities
             + (IsDefault ? "  [★ Default]" : "");
     }
 
-    // ── ViewModels (passed from Controller → View) ───────────────────────────────
+    // ── ViewModels (passed from Controller → View) ───────────────────────────
 
     public class ViewOrderViewModel
     {
@@ -162,5 +162,11 @@ namespace PremiumLivingOPS.Models.Entities
         public OrderEntity           SelectedOrder { get; set; }
         public List<OrderLineEntity> Lines         { get; set; }
         public List<ProductLookup>   Products      { get; set; }
+
+        /// <summary>All customers — for the Customer ComboBox in Order Details.</summary>
+        public List<CustomerEntity>  Customers     { get; set; }
+
+        /// <summary>All addresses — filtered by CustomerID when Customer changes.</summary>
+        public List<AddressLookup>   Addresses     { get; set; }
     }
 }
