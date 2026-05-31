@@ -31,12 +31,12 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 { "Partially",  (Color.FromArgb(237, 233, 254), Color.FromArgb( 91,  33, 182)) },
             };
 
-        // ── DB value → friendly display label (used in grid CellFormatting & detail popup)
+        // ── DB value → friendly display label
         private static string DisplayStatus(string dbStatus)
             => dbStatus == "Partially" ? "Partially Delivered" : dbStatus;
 
-        // ── Any display label → DB value sent to SQL WHERE OrderStatus = @status
-        //    Handles: "Partially Delivered", "Partially", all others pass through.
+        // ── Any display label → DB value for SQL WHERE OrderStatus = @status
+        //    "Partially Delivered" and "Partially" both map to "Partially".
         private static string ToDbStatus(string display)
         {
             if (string.IsNullOrEmpty(display)) return null;
@@ -65,8 +65,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             string customer      = txtSearchCustomer.Text.Trim();
             string statusDisplay = cboStatus.SelectedItem?.ToString();
 
-            // "Partially Delivered" (cboStatus display) or "Partially" (KPI pill raw)
-            // both map to DB value "Partially" for the SQL exact-match filter.
+            // Map "Partially Delivered" (cboStatus display text) → "Partially" (DB value)
             string dbStatus = ToDbStatus(statusDisplay);
 
             DateTime? dateFrom = chkDateFrom.Checked ? (DateTime?)dtpDateFrom.Value.Date : null;
@@ -75,7 +74,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                            : !string.IsNullOrEmpty(customer) ? customer
                            : null;
 
-            // Pass null when "All" or nothing selected so SQL skips the WHERE clause
+            // Pass null when "All" or nothing selected so SQL omits the WHERE clause
             string statusFilter = (dbStatus == "All" || string.IsNullOrEmpty(dbStatus))
                                   ? null : dbStatus;
 
@@ -119,23 +118,27 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         {
             pnlKpi.Controls.Clear();
 
-            int total      = _currentOrders.Count;
-            int pending    = _currentOrders.FindAll(o => o.OrderStatus == "Pending").Count;
-            int processing = _currentOrders.FindAll(o => o.OrderStatus == "Processing").Count;
-            int delivered  = _currentOrders.FindAll(o => o.OrderStatus == "Delivered").Count;
-            int shipped    = _currentOrders.FindAll(o => o.OrderStatus == "Shipped").Count;
-            int partially  = _currentOrders.FindAll(o => o.OrderStatus == "Partially").Count;
+            // Always count from ALL orders (no filter) so KPI totals are
+            // independent of whatever filter is currently applied to the grid.
+            var allOrders = _ctrl.GetViewOrderVM().Orders;
+
+            int total      = allOrders.Count;
+            int pending    = allOrders.FindAll(o => o.OrderStatus == "Pending").Count;
+            int processing = allOrders.FindAll(o => o.OrderStatus == "Processing").Count;
+            int delivered  = allOrders.FindAll(o => o.OrderStatus == "Delivered").Count;
+            int shipped    = allOrders.FindAll(o => o.OrderStatus == "Shipped").Count;
+            int partially  = allOrders.FindAll(o => o.OrderStatus == "Partially").Count;
 
             var pills = new[]
             {
-                // (pill label, count, fg, bg, cboStatus item to select when clicked)
+                // (pill label, count, fg, bg, cboStatus display text to select on click)
                 ("Total",      total.ToString(),      Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254), "All"),
                 ("Pending",    pending.ToString(),    Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), "Pending"),
                 ("Processing", processing.ToString(), Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254), "Processing"),
                 ("Delivered",  delivered.ToString(),  Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229), "Delivered"),
                 ("Shipped",    shipped.ToString(),    Color.FromArgb(  3,  96, 170), Color.FromArgb(224, 242, 254), "Shipped"),
-                // Pill shows "Partially"; click sets cboStatus to "Partially Delivered"
-                // RefreshGrid() maps that back to DB value "Partially" via ToDbStatus()
+                // Pill label is "Partially"; clicking filters to "Partially Delivered" in cboStatus
+                // which RefreshGrid maps to DB value "Partially" via ToDbStatus()
                 ("Partially",  partially.ToString(),  Color.FromArgb( 91,  33, 182), Color.FromArgb(237, 233, 254), "Partially Delivered"),
             };
 
@@ -209,10 +212,17 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 tlp.Controls.Add(lblCount, 0, 0);
                 tlp.Controls.Add(lblName,  1, 0);
 
-                // Click any part of the pill → set cboStatus → RefreshGrid() applies ToDbStatus()
+                // Capture filterItem in local variable to avoid closure-over-loop-variable issue
+                string localFilterItem = filterItem;
+
+                // Click any part of the pill:
+                // 1. Use FindStringExact to reliably locate the item index in cboStatus
+                // 2. Set SelectedIndex (never SelectedItem with a string — unreliable in WinForms)
+                // 3. Call RefreshGrid() which maps the display text to DB value via ToDbStatus()
                 EventHandler clickHandler = (s, e) =>
                 {
-                    cboStatus.SelectedItem = filterItem;
+                    int idx = cboStatus.FindStringExact(localFilterItem);
+                    if (idx >= 0) cboStatus.SelectedIndex = idx;
                     RefreshGrid();
                 };
                 pill.Click     += clickHandler;
@@ -243,9 +253,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         {
             if (dgvOrders.Columns[e.ColumnIndex].Name != "colStatus" || e.Value == null) return;
 
-            string dbValue = e.Value.ToString(); // raw DB value, e.g. "Partially"
+            string dbValue = e.Value.ToString();
 
-            // Show friendly label ("Partially" → "Partially Delivered")
+            // Show friendly label: "Partially" → "Partially Delivered"
             e.Value             = DisplayStatus(dbValue);
             e.FormattingApplied = true;
 
@@ -353,7 +363,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 ("Grand Total",   $"HK$ {o.GrandTotal:N2}"),
                 ("Shipping Addr", o.ShippingAddress),
                 ("Billing Addr",  o.BillingAddress),
-                ("Status",        DisplayStatus(o.OrderStatus)),  // friendly label
+                ("Status",        DisplayStatus(o.OrderStatus)),
             };
             for (int i = 0; i < fields.Length; i++)
             {
