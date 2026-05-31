@@ -8,19 +8,19 @@ using System.Windows.Forms;
 namespace PremiumLivingOPS.Views.OrderProcessing
 {
     /// <summary>
-    /// Create Order — Tab 3 of Order Processing Management.
-    /// Allows staff to enter a new sales order header + line items and save to DB.
+    /// Create Order — View layer.
     ///
-    /// MVC contract (View layer):
-    ///   • Calls OrderProcessingController for drop-down data and order submission.
-    ///   • Uses AppShell (TopNavBar + UserBar) for navigation chrome.
-    ///   • Contains NO business logic and NO direct DB calls.
-    ///   • Layout uses CardPanel 三層巢狀卡片結構 (參考 ViewOrderForm).
+    /// MVC contract:
+    ///   • Controller produces CreateOrderViewModel (incl. auto-generated NextOrderId).
+    ///   • View displays the ID read-only; SalesID and IssuedTime are stamped at Submit time.
+    ///   • NO business logic or DB calls in this class.
+    ///   • CardPanel three-layer card structure throughout.
     /// </summary>
     public partial class CreateOrderForm : Form
     {
         private readonly OrderProcessingController _ctrl = new OrderProcessingController();
 
+        private string                    _orderId;               // auto-generated, set on Load
         private readonly List<OrderLineEntity> _lines    = new List<OrderLineEntity>();
         private List<ProductLookup>            _products = new List<ProductLookup>();
 
@@ -36,20 +36,25 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             _shell.MenuItemClicked += OnTopNavMenuItemClicked;
             _shell.LogoutClicked   += btnLogout_Click;
 
-            var vm = _ctrl.GetCreateOrderVM();
+            var vm = _ctrl.GetCreateOrderVM();  // Controller generates NextOrderId
 
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
             _shell.SetBreadcrumb("Order Processing  ›  Create Order");
 
-            // Customer
+            // ─ Auto-generated Order ID (read-only display)
+            _orderId              = vm.NextOrderId;
+            lblOrderIdValue.Text  = _orderId;
+
+            // ─ Customer dropdown  (ID — Name)
             cboCustomer.Items.Clear();
             cboCustomer.Items.Add(new ComboItem("-- Select Customer --", ""));
             foreach (var c in vm.Customers)
-                cboCustomer.Items.Add(new ComboItem(c.CustomerName, c.CustomerID));
+                cboCustomer.Items.Add(new ComboItem(
+                    $"{c.CustomerID}  —  {c.CustomerName}", c.CustomerID));
             cboCustomer.SelectedIndex = 0;
 
-            // Linked Quotation (Pending only)
+            // ─ Linked Quotation dropdown (Pending only)
             cboQuotation.Items.Clear();
             cboQuotation.Items.Add(new ComboItem("-- None --", ""));
             foreach (var q in vm.PendingQuotations)
@@ -58,7 +63,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     q.QuotationID));
             cboQuotation.SelectedIndex = 0;
 
-            // Products
+            // ─ Product dropdown
             _products = vm.Products;
             cboProduct.Items.Clear();
             cboProduct.Items.Add(new ComboItem("-- Select Product --", ""));
@@ -69,6 +74,30 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             dtpDelivery.Value             = DateTime.Today.AddDays(14);
             cboDiscountType.SelectedIndex = 0;
             RefreshLineGrid();
+        }
+
+        // ── Same-address checkbox ──────────────────────────────────────────
+        private void chkSameAddress_CheckedChanged(object sender, EventArgs e)
+        {
+            if (chkSameAddress.Checked)
+            {
+                txtBillingAddr.Text    = txtShippingAddr.Text;
+                txtBillingAddr.Enabled = false;
+                txtBillingAddr.BackColor = System.Drawing.Color.FromArgb(235, 240, 250);
+            }
+            else
+            {
+                txtBillingAddr.Enabled   = true;
+                txtBillingAddr.BackColor = System.Drawing.Color.FromArgb(245, 248, 255);
+            }
+        }
+
+        // Keep Billing Address in sync while checkbox is active
+        // (wire this to txtShippingAddr.TextChanged in constructor if needed)
+        private void SyncBillingIfSame()
+        {
+            if (chkSameAddress.Checked)
+                txtBillingAddr.Text = txtShippingAddr.Text;
         }
 
         // ── Line-item helpers ─────────────────────────────────────────────
@@ -105,17 +134,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         {
             var selProduct = cboProduct.SelectedItem as ComboItem;
             if (selProduct == null || string.IsNullOrEmpty(selProduct.Value))
-            {
-                MessageBox.Show("Please select a product.",
-                    "No Product", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
+            { ShowWarning("Please select a product."); return; }
+
             if (!int.TryParse(txtQty.Text, out int qty) || qty <= 0)
-            {
-                MessageBox.Show("Please enter a valid quantity (minimum 1).",
-                    "Invalid Quantity", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
+            { ShowWarning("Please enter a valid quantity (minimum 1)."); return; }
 
             var product = _products.Find(p => p.ItemID == selProduct.Value);
             if (product == null) return;
@@ -140,11 +162,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         private void btnRemoveLine_Click(object sender, EventArgs e)
         {
             if (dgvLines.SelectedRows.Count == 0)
-            {
-                MessageBox.Show("Please select a line item to remove.",
-                    "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
+            { ShowWarning("Please select a line item to remove."); return; }
+
             string itemId = dgvLines.SelectedRows[0].Cells["colLineItemID"].Value?.ToString();
             _lines.RemoveAll(l => l.ItemID == itemId);
             RefreshLineGrid();
@@ -171,10 +190,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         // ── Submit ─────────────────────────────────────────────────────
         private void btnSubmit_Click(object sender, EventArgs e)
         {
-            // ─ Basic validation
-            if (string.IsNullOrWhiteSpace(txtOrderID.Text))
-            { ShowWarning("Order ID is required."); return; }
-
+            // ─ Validate
             var selCustomer = cboCustomer.SelectedItem as ComboItem;
             if (selCustomer == null || string.IsNullOrEmpty(selCustomer.Value))
             { ShowWarning("Please select a customer."); return; }
@@ -188,12 +204,13 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             if (_lines.Count == 0)
             { ShowWarning("Please add at least one order item before submitting."); return; }
 
-            // ─ Build entity
+            // Sync billing address one last time in case user typed in Shipping after checking the box
+            SyncBillingIfSame();
+
+            // ─ Build entity — SalesID and IssuedTime stamped here at submission time
             var selQuotation = cboQuotation.SelectedItem as ComboItem;
             string dtype = cboDiscountType.SelectedItem?.ToString() ?? "None";
-
-            double discountValue  = 0;
-            double.TryParse(txtDiscountValue.Text, out discountValue);
+            double.TryParse(txtDiscountValue.Text, out double discountValue);
 
             double sub = 0;
             foreach (var l in _lines) sub += l.LineTotal;
@@ -204,35 +221,37 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             var header = new OrderEntity
             {
-                OrderID          = txtOrderID.Text.Trim(),
+                OrderID          = _orderId,                              // auto-generated
                 CustomerID       = selCustomer.Value,
                 QuotationID      = selQuotation?.Value ?? "",
                 DeliveryDate     = dtpDelivery.Value,
                 ShippingAddress  = txtShippingAddr.Text.Trim(),
                 BillingAddress   = txtBillingAddr.Text.Trim(),
+                OrderContactName = txtContactName.Text.Trim(),
                 DiscountType     = dtype == "None" ? null : dtype,
                 DiscountValue    = discountValue,
                 DiscountAmount   = discountAmount,
+                SubTotal         = sub,
                 GrandTotal       = sub - discountAmount,
-                OrderContactName = txtContactName.Text.Trim(),
                 OrderStatus      = "Pending",
-                IssuedTime       = DateTime.Now,
-                SalesID          = SessionManager.CurrentUser?.StaffId ?? ""
+                // ─ Stamped automatically at submit ─────────────────
+                SalesID          = SessionManager.CurrentUser?.StaffId ?? "",
+                IssuedTime       = DateTime.Now
             };
 
             bool ok = _ctrl.SaveNewOrder(header, new List<OrderLineEntity>(_lines));
             if (ok)
             {
                 MessageBox.Show(
-                    $"Order {header.OrderID} created successfully.",
-                    "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    $"Order {header.OrderID} has been created successfully.",
+                    "Order Created", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 ClearForm();
             }
             else
             {
                 MessageBox.Show(
-                    "Failed to create order. Please check the details and try again.",
-                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    "Failed to save order. Please verify the details and try again.",
+                    "Save Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -245,17 +264,21 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
         private void ClearForm()
         {
-            txtOrderID.Text       = string.Empty;
-            txtShippingAddr.Text  = string.Empty;
-            txtBillingAddr.Text   = string.Empty;
-            txtContactName.Text   = string.Empty;
-            txtDiscountValue.Text = "0";
+            // Re-generate a fresh Order ID for the next entry
+            _orderId             = _ctrl.GenerateOrderId();
+            lblOrderIdValue.Text = _orderId;
+
             cboCustomer.SelectedIndex     = 0;
             cboQuotation.SelectedIndex    = 0;
             cboProduct.SelectedIndex      = 0;
             cboDiscountType.SelectedIndex = 0;
-            txtQty.Text       = "1";
-            dtpDelivery.Value = DateTime.Today.AddDays(14);
+            txtShippingAddr.Text  = string.Empty;
+            txtBillingAddr.Text   = string.Empty;
+            txtContactName.Text   = string.Empty;
+            txtDiscountValue.Text = "0";
+            txtQty.Text           = "1";
+            chkSameAddress.Checked = false;
+            dtpDelivery.Value     = DateTime.Today.AddDays(14);
             _lines.Clear();
             RefreshLineGrid();
         }

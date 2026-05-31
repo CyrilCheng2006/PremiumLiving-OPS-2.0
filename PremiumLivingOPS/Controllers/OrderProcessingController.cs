@@ -15,7 +15,7 @@ namespace PremiumLivingOPS.Controllers
     {
         private readonly OrderProcessingRepo _repo = new OrderProcessingRepo();
 
-        // ── View Order ────────────────────────────────────────────────────────
+        // ── View Order ────────────────────────────────────────────────────────────
 
         /// <summary>
         /// Returns ViewModel for the View Order page.
@@ -54,7 +54,7 @@ namespace PremiumLivingOPS.Controllers
         public List<OrderLineEntity> GetOrderLines(string orderId)
             => _repo.GetOrderLines(orderId);
 
-        // ── Quotation ─────────────────────────────────────────────────────────
+        // ── Quotation ───────────────────────────────────────────────────────────
 
         /// <summary>
         /// Returns ViewModel for the Quotation page.
@@ -68,11 +68,9 @@ namespace PremiumLivingOPS.Controllers
             var user = SessionManager.CurrentUser;
             var all  = _repo.GetAllQuotations();
 
-            // Apply status filter
             if (!string.IsNullOrEmpty(status))
                 all = all.FindAll(q => q.QuotationStatus == status);
 
-            // Apply keyword filter (QuotationID or CustomerName, case-insensitive)
             if (!string.IsNullOrEmpty(keyword))
             {
                 string kw = keyword.ToLowerInvariant();
@@ -96,7 +94,7 @@ namespace PremiumLivingOPS.Controllers
         public bool UpdateQuotationStatus(string quotationId, string newStatus)
             => _repo.UpdateQuotationStatus(quotationId, newStatus);
 
-        // ── Create Order ──────────────────────────────────────────────────────
+        // ── Create Order ───────────────────────────────────────────────────────
 
         public CreateOrderViewModel GetCreateOrderVM()
         {
@@ -113,25 +111,51 @@ namespace PremiumLivingOPS.Controllers
                 Customers         = _repo.GetAllCustomers(),
                 Products          = _repo.GetAllProducts(),
                 Quotations        = allQ,
-                PendingQuotations = allQ
-                    .FindAll(q => q.QuotationStatus == "Pending")
+                PendingQuotations = allQ.FindAll(q => q.QuotationStatus == "Pending"),
+                NextOrderId       = GenerateOrderId()
             };
+        }
+
+        /// <summary>
+        /// Generates the next Order ID in the format ORD-YYYYMMDD-NNNN.
+        /// Queries the DB for the highest sequence number used today and increments it.
+        /// Pure business logic — lives in Controller, not in View.
+        /// </summary>
+        public string GenerateOrderId()
+        {
+            string prefix = "ORD-" + DateTime.Today.ToString("yyyyMMdd") + "-";
+            // Fetch all existing OrderIDs that start with today’s prefix
+            var existing = _repo.GetOrderIdsByPrefix(prefix);
+            int next = 1;
+            if (existing.Count > 0)
+            {
+                // Parse the 4-digit sequence from each matching ID and take the max
+                foreach (var id in existing)
+                {
+                    if (id.Length >= prefix.Length + 4 &&
+                        int.TryParse(id.Substring(prefix.Length, 4), out int seq))
+                    {
+                        if (seq >= next) next = seq + 1;
+                    }
+                }
+            }
+            return $"{prefix}{next:D4}";
         }
 
         /// <summary>Saves a new order header + all line items. Returns true on success.</summary>
         public bool SaveNewOrder(OrderEntity order, List<OrderLineEntity> lines)
         {
             if (!_repo.CreateOrder(order)) return false;
-            foreach (var l in lines) _repo.CreateOrderLine(l);
+            foreach (var l in lines)
+            {
+                l.OrderID = order.OrderID;
+                _repo.CreateOrderLine(l);
+            }
             return true;
         }
 
-        // ── Modify Order ──────────────────────────────────────────────────────
+        // ── Modify Order ──────────────────────────────────────────────────────────
 
-        /// <summary>
-        /// Returns ViewModel for the Modify Order page.
-        /// Pass orderId to pre-load an existing order (e.g. launched from View Order).
-        /// </summary>
         public ModifyOrderViewModel GetModifyOrderVM(string orderId = null)
         {
             var user = SessionManager.CurrentUser;

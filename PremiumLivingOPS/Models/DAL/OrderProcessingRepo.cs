@@ -16,11 +16,7 @@ namespace PremiumLivingOPS.Models.DAL
         // ════════════════════════════════════════════════════════════════
 
         /// <summary>
-        /// Returns orders filtered by any combination of:
-        ///   status   – exact match on OrderStatus
-        ///   keyword  – partial match on OrderID, CustomerName, SalesName, OrderContactName
-        ///   dateFrom – only orders whose IssuedTime >= dateFrom (date part only)
-        ///   dateTo   – only orders whose IssuedTime <= dateTo  (date part only, inclusive)
+        /// Returns orders filtered by any combination of status, keyword, dateFrom, dateTo.
         /// </summary>
         public List<OrderEntity> SearchOrders(
             string   status   = null,
@@ -45,16 +41,13 @@ namespace PremiumLivingOPS.Models.DAL
 
                 if (!string.IsNullOrEmpty(status))
                     sql += " AND o.OrderStatus = @status";
-
                 if (!string.IsNullOrEmpty(keyword))
-                    sql += @" AND (o.OrderID            LIKE @kw
-                                OR c.CustomerName       LIKE @kw
-                                OR s.StaffName          LIKE @kw
-                                OR o.OrderContactName   LIKE @kw)";
-
+                    sql += @" AND (o.OrderID          LIKE @kw
+                                OR c.CustomerName     LIKE @kw
+                                OR s.StaffName        LIKE @kw
+                                OR o.OrderContactName LIKE @kw)";
                 if (dateFrom.HasValue)
                     sql += " AND DATE(o.IssuedTime) >= @dateFrom";
-
                 if (dateTo.HasValue)
                     sql += " AND DATE(o.IssuedTime) <= @dateTo";
 
@@ -63,13 +56,13 @@ namespace PremiumLivingOPS.Models.DAL
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
                     if (!string.IsNullOrEmpty(status))
-                        cmd.Parameters.AddWithValue("@status", status);
+                        cmd.Parameters.AddWithValue("@status",   status);
                     if (!string.IsNullOrEmpty(keyword))
-                        cmd.Parameters.AddWithValue("@kw", "%" + keyword + "%");
+                        cmd.Parameters.AddWithValue("@kw",       "%" + keyword + "%");
                     if (dateFrom.HasValue)
                         cmd.Parameters.AddWithValue("@dateFrom", dateFrom.Value.ToString("yyyy-MM-dd"));
                     if (dateTo.HasValue)
-                        cmd.Parameters.AddWithValue("@dateTo", dateTo.Value.ToString("yyyy-MM-dd"));
+                        cmd.Parameters.AddWithValue("@dateTo",   dateTo.Value.ToString("yyyy-MM-dd"));
 
                     using (var rdr = cmd.ExecuteReader())
                         while (rdr.Read()) list.Add(MapOrder(rdr));
@@ -108,6 +101,27 @@ namespace PremiumLivingOPS.Models.DAL
                 }
             }
             return null;
+        }
+
+        /// <summary>
+        /// Returns all OrderIDs that begin with the given prefix (used by Controller.GenerateOrderId).
+        /// Example prefix: "ORD-20260531-"
+        /// </summary>
+        public List<string> GetOrderIdsByPrefix(string prefix)
+        {
+            var list = new List<string>();
+            using (var conn = DatabaseHelper.GetConnection())
+            {
+                conn.Open();
+                const string sql = "SELECT OrderID FROM `Order` WHERE OrderID LIKE @prefix";
+                using (var cmd = new MySqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@prefix", prefix + "%");
+                    using (var rdr = cmd.ExecuteReader())
+                        while (rdr.Read()) list.Add(rdr.GetString(0));
+                }
+            }
+            return list;
         }
 
         /// <summary>Returns all OrderLine rows for a given Order.</summary>
@@ -160,9 +174,9 @@ namespace PremiumLivingOPS.Models.DAL
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
                     cmd.Parameters.AddWithValue("@OrderID",          order.OrderID);
-                    cmd.Parameters.AddWithValue("@QuotationID",      string.IsNullOrEmpty(order.QuotationID) ? (object)DBNull.Value : order.QuotationID);
+                    cmd.Parameters.AddWithValue("@QuotationID",      string.IsNullOrEmpty(order.QuotationID)  ? (object)DBNull.Value : order.QuotationID);
                     cmd.Parameters.AddWithValue("@CustomerID",       order.CustomerID);
-                    cmd.Parameters.AddWithValue("@AddressID",        string.IsNullOrEmpty(order.AddressID)   ? (object)DBNull.Value : order.AddressID);
+                    cmd.Parameters.AddWithValue("@AddressID",        string.IsNullOrEmpty(order.AddressID)    ? (object)DBNull.Value : order.AddressID);
                     cmd.Parameters.AddWithValue("@SalesID",          order.SalesID);
                     cmd.Parameters.AddWithValue("@IssuedTime",       order.IssuedTime);
                     cmd.Parameters.AddWithValue("@DeliveryDate",     order.DeliveryDate);
@@ -173,7 +187,7 @@ namespace PremiumLivingOPS.Models.DAL
                     cmd.Parameters.AddWithValue("@DiscountValue",    order.DiscountValue);
                     cmd.Parameters.AddWithValue("@DiscountAmount",   order.DiscountAmount);
                     cmd.Parameters.AddWithValue("@GrandTotal",       order.GrandTotal);
-                    cmd.Parameters.AddWithValue("@OrderContactName", order.OrderContactName);
+                    cmd.Parameters.AddWithValue("@OrderContactName", string.IsNullOrEmpty(order.OrderContactName) ? (object)DBNull.Value : order.OrderContactName);
                     cmd.Parameters.AddWithValue("@OrderStatus",      order.OrderStatus);
                     return cmd.ExecuteNonQuery() > 0;
                 }
