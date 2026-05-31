@@ -19,7 +19,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         private Button          btnRefresh;
         private Panel           pnlKpi;
         private DataGridView    dgvOrders;
-        private Panel           pnlActions;
         private Button          btnViewDetail;
         private Button          btnModifyOrder;
 
@@ -65,9 +64,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             };
             txtSearchCustomer.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) RefreshGrid(); };
 
-            // ── Status dropdown
-            // Display text uses full names; DB/LINQ uses "Partially" for the last entry.
-            // RefreshGrid maps "Partially Delivered" → "Partially" before querying.
             cboStatus = new ComboBox
             {
                 DropDownStyle = ComboBoxStyle.DropDownList,
@@ -81,7 +77,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 "Processing",
                 "Delivered",
                 "Shipped",
-                "Partially Delivered"   // displayed as full label; mapped to "Partially" in RefreshGrid
+                "Partially Delivered"
             });
             cboStatus.SelectedIndex = 0;
 
@@ -96,7 +92,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             };
             chkDateFrom.CheckedChanged += (s, e) => { dtpDateFrom.Enabled = chkDateFrom.Checked; };
 
-            // ── MakeCell: 2-row TLP
+            // ── MakeCell helper
             TableLayoutPanel MakeCell(string caption, Control ctrl, bool rightPad = true)
             {
                 var tlp = new TableLayoutPanel
@@ -111,7 +107,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
                 tlp.RowStyles.Add(new RowStyle(SizeType.Absolute, 40f));
                 tlp.RowStyles.Add(new RowStyle(SizeType.Percent,  70f));
-
                 var lbl = new Label
                 {
                     Text      = caption,
@@ -140,7 +135,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             cellDate.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
             cellDate.RowStyles.Add(new RowStyle(SizeType.Absolute, 40f));
             cellDate.RowStyles.Add(new RowStyle(SizeType.Percent,  70f));
-
             var lblDate = new Label
             {
                 Text      = "Date From",
@@ -176,7 +170,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             tblFields.Controls.Add(MakeCell("Status",    cboStatus),         2, 0);
             tblFields.Controls.Add(cellDate,                                 3, 0);
 
-            // ── Buttons panel
+            // ── Search / Reset buttons panel
             var pnlBtns = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             btnSearch  = MakePrimaryBtn("🔍  Search", new Point(0,   0), 210, 60);
             btnRefresh = MakeOutlineBtn("↺  Reset",  new Point(218, 0), 210, 60);
@@ -229,7 +223,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             };
             pnlSearchOuter.Controls.Add(pnlCard);
 
-            // ── KPI bar
+            // ── KPI bar ──────────────────────────────────────────────────────────
+            //  Left  : pnlKpi  (FlowLayout of pills)   ─ Fill
+            //  Right : two action buttons stacked 210x60 each, vertically centred
             pnlKpi = new Panel
             {
                 Dock      = DockStyle.Fill,
@@ -237,9 +233,46 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Padding   = new Padding(12, 10, 12, 10)
             };
 
+            // Right-side action buttons panel (fixed width)
+            const int BtnW   = 210;
+            const int BtnH   = 60;
+            const int BtnGap = 8;   // gap between the two buttons
+
+            btnViewDetail  = MakePrimaryBtn("🔍  View Details",  Point.Empty, BtnW, BtnH);
+            btnModifyOrder = MakeWarningBtn("✏️  Modify Order",  Point.Empty, BtnW, BtnH);
+            btnViewDetail.Enabled = btnModifyOrder.Enabled = false;
+            btnViewDetail.Click  += btnViewDetail_Click;
+            btnModifyOrder.Click += btnModifyOrder_Click;
+
+            // Stack the two buttons inside a fixed-width panel; anchor centres them vertically
+            var pnlActionBtns = new Panel
+            {
+                Dock      = DockStyle.Right,
+                Width     = BtnW + 24,          // button width + horizontal padding
+                BackColor = Color.Transparent
+            };
+
+            // Use Resize to keep the stack vertically centred at runtime
+            void CentreActionBtns()
+            {
+                int totalH = BtnH * 2 + BtnGap;
+                int top    = (pnlActionBtns.Height - totalH) / 2;
+                if (top < 0) top = 0;
+                btnViewDetail.Location  = new Point(12, top);
+                btnModifyOrder.Location = new Point(12, top + BtnH + BtnGap);
+            }
+            pnlActionBtns.Controls.Add(btnViewDetail);
+            pnlActionBtns.Controls.Add(btnModifyOrder);
+            pnlActionBtns.Resize += (s, e) => CentreActionBtns();
+
+            // Container that holds pills (left) + action buttons (right)
+            var pnlKpiRow = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
+            pnlKpiRow.Controls.Add(pnlKpi);          // Fill  — pills
+            pnlKpiRow.Controls.Add(pnlActionBtns);   // Right — buttons (added after Fill so Dock works)
+
             var pnlKpiInner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
             pnlKpiInner.Paint += PaintCardBorder;
-            pnlKpiInner.Controls.Add(pnlKpi);
+            pnlKpiInner.Controls.Add(pnlKpiRow);
 
             var pnlKpiOuter = new Panel
             {
@@ -249,17 +282,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Padding   = new Padding(20, 8, 20, 8)
             };
             pnlKpiOuter.Controls.Add(pnlKpiInner);
-
-            // ── Action bar
-            pnlActions = new Panel { Dock = DockStyle.Bottom, Height = 64, BackColor = Color.White, Padding = new Padding(20, 12, 20, 12) };
-            pnlActions.Paint += PaintTopBorder;
-            btnViewDetail  = MakePrimaryBtn("\uD83D\uDD0D  View Details", new Point(20,  12), 180, 40);
-            btnModifyOrder = MakeWarningBtn("✏️  Modify Order",  new Point(210, 12), 180, 40);
-            btnViewDetail.Enabled = btnModifyOrder.Enabled = false;
-            btnViewDetail.Click  += btnViewDetail_Click;
-            btnModifyOrder.Click += btnModifyOrder_Click;
-            pnlActions.Controls.Add(btnViewDetail);
-            pnlActions.Controls.Add(btnModifyOrder);
 
             // ── Grid
             dgvOrders = new DataGridView
@@ -302,10 +324,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlGridInner.Controls.Add(dgvOrders);
             pnlGridCard.Controls.Add(pnlGridInner);
 
-            // ── Assemble
+            // ── Assemble (no more pnlActions at bottom)
             pnlMain.Controls.Add(pnlGridCard);    // Fill  — grid
-            pnlMain.Controls.Add(pnlActions);     // Bottom
-            pnlMain.Controls.Add(pnlKpiOuter);    // Top   — KPI
+            pnlMain.Controls.Add(pnlKpiOuter);    // Top   — KPI + action buttons
             pnlMain.Controls.Add(pnlSearchOuter); // Top   — Search
             pnlMain.Controls.Add(_shell);         // Top   — nav chrome
 
