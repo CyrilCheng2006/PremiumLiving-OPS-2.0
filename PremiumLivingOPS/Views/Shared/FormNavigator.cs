@@ -1,3 +1,4 @@
+using PremiumLivingOPS.Views.InventoryControl;
 using PremiumLivingOPS.Views.OrderProcessing;
 using System;
 using System.Windows.Forms;
@@ -24,6 +25,7 @@ namespace PremiumLivingOPS.Views.Shared
 
             if (target == null)
             {
+                // Unimplemented routes — graceful fallback with Coming Soon message.
                 string display = string.IsNullOrEmpty(subItem)
                     ? menuLabel
                     : $"{menuLabel}  ›  {subItem}";
@@ -58,7 +60,7 @@ namespace PremiumLivingOPS.Views.Shared
             };
         }
 
-        // ── Routing table ─────────────────────────────────────────────────────
+        // ── Routing table ───────────────────────────────────────────────────────────────
         private static Form Resolve(string menu, string sub)
         {
             menu = menu?.Trim() ?? "";
@@ -69,6 +71,7 @@ namespace PremiumLivingOPS.Views.Shared
                 case "Dashboard":
                     return new Dashboard.DashboardForm();
 
+                // ── Order Processing ───────────────────────────────────────────────
                 case "Order Processing":
                     switch (sub)
                     {
@@ -79,8 +82,22 @@ namespace PremiumLivingOPS.Views.Shared
                         default:             return new ViewOrderForm();
                     }
 
+                // ── Inventory Control ───────────────────────────────────────────────
+                case "Inventory Control":
+                    switch (sub)
+                    {
+                        case "View Product / Raw Material":
+                        case "View Product":
+                        case "View Raw Material":       // direct tab route
+                            return sub == "View Raw Material"
+                                ? (Form) new ViewRawMaterialForm()
+                                : (Form) new ViewProductForm();
+                        default:
+                            return new ViewProductForm();
+                    }
+
                 default:
-                    return null;  // Coming Soon
+                    return null;  // Coming Soon for any unimplemented menu
             }
         }
     }
