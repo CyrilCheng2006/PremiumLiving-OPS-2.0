@@ -393,9 +393,9 @@ namespace PremiumLivingOPS.Models.DAL
 
         /// <summary>
         /// Returns all address records from the Address table.
-        /// The View filters this list by CustomerID after selection.
-        /// Assumes schema: Address (AddressID, CustomerID, FullAddress, Label)
-        /// where Label is optional (may be NULL).
+        /// Schema: Address (AddressID, CustomerID, AddressName, AddressType, isDefault)
+        /// AddressName is mapped to AddressLookup.FullAddress.
+        /// AddressType is mapped to AddressLookup.Label for ComboBox display.
         /// </summary>
         public List<AddressLookup> GetAllAddresses()
         {
@@ -404,10 +404,9 @@ namespace PremiumLivingOPS.Models.DAL
             {
                 conn.Open();
                 const string sql =
-                    @"SELECT AddressID, CustomerID, FullAddress,
-                             COALESCE(Label, '') AS Label
+                    @"SELECT AddressID, CustomerID, AddressName, AddressType, isDefault
                       FROM Address
-                      ORDER BY CustomerID, AddressID";
+                      ORDER BY CustomerID, isDefault DESC, AddressID";
                 using (var cmd = new MySqlCommand(sql, conn))
                 using (var rdr = cmd.ExecuteReader())
                     while (rdr.Read())
@@ -415,8 +414,9 @@ namespace PremiumLivingOPS.Models.DAL
                         {
                             AddressId   = rdr.GetString("AddressID"),
                             CustomerId  = rdr.GetString("CustomerID"),
-                            FullAddress = rdr.GetString("FullAddress"),
-                            Label       = rdr.GetString("Label")
+                            FullAddress = rdr.GetString("AddressName"),
+                            Label       = rdr.GetString("AddressType"),
+                            IsDefault   = rdr.GetBoolean("isDefault")
                         });
             }
             return list;
