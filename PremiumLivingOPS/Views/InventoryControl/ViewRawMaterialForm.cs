@@ -9,21 +9,15 @@ using System.Windows.Forms;
 
 namespace PremiumLivingOPS.Views.InventoryControl
 {
-    /// <summary>
-    /// View — Inventory Control / View Raw Material tab.
-    /// Design spec: mirrors ViewOrderForm (OrderProcessing).
-    ///   • AppShell wired in Load (events only); SetUser/SetVisibleMenus/SetBreadcrumb
-    ///     called inside RefreshGrid() — same pattern as ViewOrderForm.
-    ///   • SetPopupContainer already called in Designer; NOT repeated here.
-    ///   • All control events that were wired in Designer are NOT re-wired here.
-    /// </summary>
     public partial class ViewRawMaterialForm : Form
     {
+        // ── Controller & state ───────────────────────────────────────────────
         private readonly InventoryControlController _ctrl =
             new InventoryControlController();
 
         private List<RawMaterialEntity> _currentMaterials = new List<RawMaterialEntity>();
 
+        // ── Status badge colours ─────────────────────────────────────────────
         private static readonly Dictionary<string, (Color bg, Color fg)> StatusColors =
             new Dictionary<string, (Color, Color)>
             {
@@ -32,36 +26,34 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 { "Out of Stock", (Color.FromArgb(254, 226, 226), Color.FromArgb(153,  27,  27)) }
             };
 
+        // ── Constructor ──────────────────────────────────────────────────────
         public ViewRawMaterialForm()
         {
             InitializeComponent();
-            Load += ViewRawMaterialForm_Load;
+            this.Load += ViewRawMaterialForm_Load;
         }
 
-        // ─────────────────────────────────────────────────────────────────
-        //  Load — wire AppShell events only, then refresh (same as ViewOrderForm)
-        // ─────────────────────────────────────────────────────────────────
+        // ── Load — wire AppShell events only, then RefreshGrid ───────────────
+        //    Mirrors ViewOrderForm_Load exactly.
+        //    SetPopupContainer is already called in Designer — NOT repeated here.
+        //    btnSearch / btnReset / txtSearch.KeyDown are wired in Designer — NOT repeated.
+        // ─────────────────────────────────────────────────────────────────────
         private void ViewRawMaterialForm_Load(object sender, EventArgs e)
         {
-            // AppShell event wiring (SetPopupContainer already called in Designer)
             _shell.MenuItemClicked += OnTopNavMenuItemClicked;
             _shell.LogoutClicked   += BtnLogout_Click;
 
-            // Grid events
             dgvMaterials.SelectionChanged += (s, _) => UpdateActionButtons();
             dgvMaterials.CellDoubleClick  += (s, ce) => { if (ce.RowIndex >= 0) OpenDetailDialog(); };
             dgvMaterials.CellFormatting   += DgvMaterials_CellFormatting;
 
-            // Action button
             btnViewDetail.Click += (s, _) => OpenDetailDialog();
 
             LoadCategories();
-            RefreshGrid();   // <─ sets SetUser / SetVisibleMenus / SetBreadcrumb
+            RefreshGrid();
         }
 
-        // ─────────────────────────────────────────────────────────────────
-        //  Data helpers
-        // ─────────────────────────────────────────────────────────────────
+        // ── Data helpers ─────────────────────────────────────────────────────
         private void LoadCategories()
         {
             cboCategory.Items.Clear();
@@ -71,6 +63,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 cboCategory.SelectedIndex = 0;
         }
 
+        // RefreshGrid — matches ViewOrderForm.RefreshGrid structure exactly.
         internal void RefreshGrid()
         {
             string keyword  = txtSearch.Text.Trim();
@@ -81,7 +74,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 string.IsNullOrEmpty(keyword) ? null : keyword,
                 category == "All"             ? null : category);
 
-            // ── UserBar + nav (matches ViewOrderForm.RefreshGrid pattern) ──
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
             _shell.SetBreadcrumb("Inventory Control  ›  View Raw Material");
@@ -113,6 +105,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
             RefreshGrid();
         }
 
+        // ── KPI pills ────────────────────────────────────────────────────────
         private void RefreshKpi()
         {
             pnlKpi.Controls.Clear();
@@ -142,7 +135,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
             };
 
             const int PillW   = 290;
-            const int PillH   = 76;
+            const int PillH   = 60;
             const int Gap     = 8;
             const int NumColW = 80;
 
@@ -181,15 +174,17 @@ namespace PremiumLivingOPS.Views.InventoryControl
                     Text      = count,
                     Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
                     ForeColor = fg, BackColor = Color.Transparent,
-                    Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter,
+                    Dock      = DockStyle.Fill,
+                    TextAlign = ContentAlignment.MiddleCenter,
                     AutoSize  = false
                 }, 0, 0);
                 tlp.Controls.Add(new Label
                 {
                     Text      = label,
-                    Font      = new Font("Segoe UI", 12f),   // 12f — matches ViewOrderForm
+                    Font      = new Font("Segoe UI", 12f),
                     ForeColor = fg, BackColor = Color.Transparent,
-                    Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft,
+                    Dock      = DockStyle.Fill,
+                    TextAlign = ContentAlignment.MiddleLeft,
                     AutoSize  = false
                 }, 1, 0);
 
@@ -214,9 +209,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
         private void UpdateActionButtons()
             => btnViewDetail.Enabled = dgvMaterials.SelectedRows.Count > 0;
 
-        // ─────────────────────────────────────────────────────────────────
-        //  Cell formatting (status badge)
-        // ─────────────────────────────────────────────────────────────────
+        // ── Cell formatting ───────────────────────────────────────────────────
         private void DgvMaterials_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
             if (dgvMaterials.Columns[e.ColumnIndex].Name != "colStatus" || e.Value == null) return;
@@ -233,9 +226,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
             }
         }
 
-        // ─────────────────────────────────────────────────────────────────
-        //  Detail dialog
-        // ─────────────────────────────────────────────────────────────────
+        // ── Detail dialog ─────────────────────────────────────────────────────
         private void OpenDetailDialog()
         {
             if (dgvMaterials.SelectedRows.Count == 0) return;
@@ -271,24 +262,15 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 Padding   = new Padding(20, 0, 0, 0)
             });
 
-            var pnlBody = new Panel
-            {
-                Dock      = DockStyle.Fill,
-                Padding   = new Padding(24, 16, 24, 16),
-                BackColor = Color.White
-            };
+            var pnlBody = new Panel { Dock = DockStyle.Fill, Padding = new Padding(24, 16, 24, 16), BackColor = Color.White };
             var tbl = new TableLayoutPanel
             {
-                Dock            = DockStyle.Fill,
-                ColumnCount     = 2,
-                RowCount        = 7,
-                BackColor       = Color.Transparent,
-                CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+                Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 7,
+                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
             tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 160f));
             tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-            for (int i = 0; i < 7; i++)
-                tbl.RowStyles.Add(new RowStyle(SizeType.Percent, 100f / 7f));
+            for (int i = 0; i < 7; i++) tbl.RowStyles.Add(new RowStyle(SizeType.Percent, 100f / 7f));
 
             var fields = new[]
             {
@@ -302,36 +284,17 @@ namespace PremiumLivingOPS.Views.InventoryControl
             };
             for (int i = 0; i < fields.Length; i++)
             {
-                tbl.Controls.Add(new Label
-                {
-                    Text      = fields[i].Item1,
-                    Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
-                    ForeColor = Color.FromArgb(98, 112, 135),
-                    Dock      = DockStyle.Fill,
-                    TextAlign = ContentAlignment.MiddleLeft
-                }, 0, i);
-                tbl.Controls.Add(new Label
-                {
-                    Text      = fields[i].Item2 ?? "—",
-                    Font      = new Font("Segoe UI", 11f),
-                    ForeColor = Color.FromArgb(15, 31, 53),
-                    Dock      = DockStyle.Fill,
-                    TextAlign = ContentAlignment.MiddleLeft
-                }, 1, i);
+                tbl.Controls.Add(new Label { Text = fields[i].Item1, Font = new Font("Segoe UI", 10f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft }, 0, i);
+                tbl.Controls.Add(new Label { Text = fields[i].Item2 ?? "—", Font = new Font("Segoe UI", 11f), ForeColor = Color.FromArgb(15, 31, 53), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft }, 1, i);
             }
             pnlBody.Controls.Add(tbl);
 
             var pnlFoot = new Panel { Dock = DockStyle.Bottom, Height = 60, Padding = new Padding(0, 10, 20, 10) };
             var btnClose = new Button
             {
-                Text      = "Close",
-                Font      = new Font("Segoe UI", 11f),
-                ForeColor = Color.FromArgb(15, 31, 53),
-                BackColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Dock      = DockStyle.Right,
-                Width     = 120,
-                Cursor    = Cursors.Hand
+                Text = "Close", Font = new Font("Segoe UI", 11f),
+                ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White,
+                FlatStyle = FlatStyle.Flat, Dock = DockStyle.Right, Width = 120, Cursor = Cursors.Hand
             };
             btnClose.FlatAppearance.BorderColor = Color.FromArgb(221, 227, 236);
             btnClose.Click += (s, ev) => dlg.Close();
@@ -343,9 +306,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
             dlg.ShowDialog(this);
         }
 
-        // ─────────────────────────────────────────────────────────────────
-        //  Navigation
-        // ─────────────────────────────────────────────────────────────────
+        // ── Navigation ────────────────────────────────────────────────────────
         private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
             => FormNavigator.NavigateTo(this, menuLabel, subItem);
 
@@ -355,19 +316,15 @@ namespace PremiumLivingOPS.Views.InventoryControl
             Application.Restart();
         }
 
-        // ─────────────────────────────────────────────────────────────────
-        //  Utilities
-        // ─────────────────────────────────────────────────────────────────
+        // ── Utility ───────────────────────────────────────────────────────────
         private static GraphicsPath RoundedRect(Rectangle r, int radius)
         {
-            var path = new GraphicsPath();
-            int d = radius * 2;
+            var path = new GraphicsPath(); int d = radius * 2;
             path.AddArc(r.X,         r.Y,          d, d, 180, 90);
             path.AddArc(r.Right - d, r.Y,          d, d, 270, 90);
             path.AddArc(r.Right - d, r.Bottom - d, d, d,   0, 90);
             path.AddArc(r.X,         r.Bottom - d, d, d,  90, 90);
-            path.CloseFigure();
-            return path;
+            path.CloseFigure(); return path;
         }
     }
 }
