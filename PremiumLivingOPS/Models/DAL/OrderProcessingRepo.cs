@@ -146,7 +146,9 @@ namespace PremiumLivingOPS.Models.DAL
                                 ItemID   = rdr.GetString("ItemID"),
                                 ItemName = rdr.GetString("ItemName"),
                                 Quantity = rdr.GetInt32("Quantity"),
-                                Price    = rdr.GetDouble("Price")
+                                // Use Convert.ToDouble to correctly read MySQL DECIMAL columns.
+                                // rdr.GetDouble() silently returns 0 for DECIMAL types in MySql.Data.
+                                Price    = Convert.ToDouble(rdr["Price"])
                             });
                 }
             }
@@ -444,7 +446,9 @@ namespace PremiumLivingOPS.Models.DAL
                         {
                             ItemID     = rdr.GetString("ItemID"),
                             ItemName   = rdr.GetString("ItemName"),
-                            SalesPrice = rdr.GetDouble("SalesPrice"),
+                            // Use Convert.ToDouble to correctly read MySQL DECIMAL columns.
+                            // rdr.GetDouble() silently returns 0 for DECIMAL types in MySql.Data.
+                            SalesPrice = Convert.ToDouble(rdr["SalesPrice"]),
                             Category   = rdr.GetString("Category")
                         });
             }
@@ -470,11 +474,11 @@ namespace PremiumLivingOPS.Models.DAL
                 DeliveryDate     = rdr.GetDateTime("DeliveryDate"),
                 ShippingAddress  = rdr.GetString("ShippingAddress"),
                 BillingAddress   = rdr.GetString("BillingAddress"),
-                SubTotal         = rdr.IsDBNull(rdr.GetOrdinal("SubTotal"))       ? 0   : rdr.GetDouble("SubTotal"),
+                SubTotal         = rdr.IsDBNull(rdr.GetOrdinal("SubTotal"))       ? 0 : Convert.ToDouble(rdr["SubTotal"]),
                 DiscountType     = rdr.IsDBNull(rdr.GetOrdinal("DiscountType"))   ? null : rdr.GetString("DiscountType"),
-                DiscountValue    = rdr.IsDBNull(rdr.GetOrdinal("DiscountValue"))  ? 0   : rdr.GetDouble("DiscountValue"),
-                DiscountAmount   = rdr.IsDBNull(rdr.GetOrdinal("DiscountAmount")) ? 0   : rdr.GetDouble("DiscountAmount"),
-                GrandTotal       = rdr.GetDouble("GrandTotal"),
+                DiscountValue    = rdr.IsDBNull(rdr.GetOrdinal("DiscountValue"))  ? 0 : Convert.ToDouble(rdr["DiscountValue"]),
+                DiscountAmount   = rdr.IsDBNull(rdr.GetOrdinal("DiscountAmount")) ? 0 : Convert.ToDouble(rdr["DiscountAmount"]),
+                GrandTotal       = Convert.ToDouble(rdr["GrandTotal"]),
                 OrderContactName = rdr.GetString("OrderContactName"),
                 OrderStatus      = rdr.GetString("OrderStatus")
             };
@@ -488,8 +492,8 @@ namespace PremiumLivingOPS.Models.DAL
                 CustomerID        = rdr.GetString("CustomerID"),
                 CustomerName      = rdr.GetString("CustomerName"),
                 ExpiryDate        = rdr.GetDateTime("ExpiryDate"),
-                TotalAmount       = rdr.GetDouble("TotalAmount"),
-                DepositRequired   = rdr.IsDBNull(rdr.GetOrdinal("DepositRequired"))   ? 0    : rdr.GetDouble("DepositRequired"),
+                TotalAmount       = Convert.ToDouble(rdr["TotalAmount"]),
+                DepositRequired   = rdr.IsDBNull(rdr.GetOrdinal("DepositRequired"))   ? 0    : Convert.ToDouble(rdr["DepositRequired"]),
                 LeadTimeEstimated = rdr.IsDBNull(rdr.GetOrdinal("LeadTimeEstimated")) ? null : rdr.GetString("LeadTimeEstimated"),
                 TermsandCondition = rdr.IsDBNull(rdr.GetOrdinal("TermsandCondition")) ? null : rdr.GetString("TermsandCondition"),
                 QuotationStatus   = rdr.GetString("QuotationStatus")
