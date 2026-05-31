@@ -46,7 +46,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             // SEARCH BAR CARD  (三層: pnlSearchOuter > pnlSearchInner > tblCard)
             // ──────────────────────────────────────────────────────────────────
 
-            // Input controls
             txtSearchKeyword = new TextBox
             {
                 Font            = new Font("Segoe UI", 12f),
@@ -65,7 +64,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             cboStatus.Items.AddRange(new object[] { "All", "Pending", "Converted", "Rejected" });
             cboStatus.SelectedIndex = 0;
 
-            // MakeCell helper (same pattern as ViewOrderForm)
             TableLayoutPanel MakeCell(string caption, Control ctrl, bool rightPad = true)
             {
                 var tlp = new TableLayoutPanel
@@ -95,7 +93,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 return tlp;
             }
 
-            // 2-column fields TLP
             var tblFields = new TableLayoutPanel
             {
                 Dock            = DockStyle.Fill,
@@ -107,11 +104,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             tblFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
             tblFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
             tblFields.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-            tblFields.Controls.Add(MakeCell("Search",  txtSearchKeyword), 0, 0);
-            tblFields.Controls.Add(MakeCell("Status",  cboStatus, false), 1, 0);
+            tblFields.Controls.Add(MakeCell("Search", txtSearchKeyword), 0, 0);
+            tblFields.Controls.Add(MakeCell("Status", cboStatus, false), 1, 0);
 
-            // Search / Reset buttons
-            var pnlBtns  = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
+            var pnlBtns = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             btnSearch = MakePrimaryBtn("\uD83D\uDD0D  Search", new Point(0,   0), 210, 60);
             btnReset  = MakeOutlineBtn("\u21BA  Reset",  new Point(218, 0), 210, 60);
             btnSearch.Click += (s, e) => RefreshGrid();
@@ -119,7 +115,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlBtns.Controls.Add(btnSearch);
             pnlBtns.Controls.Add(btnReset);
 
-            // Inner card content TLP (3 rows: title / fields / buttons)
             var tblCard = new TableLayoutPanel
             {
                 Dock            = DockStyle.Fill,
@@ -150,7 +145,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             tblCard.Controls.Add(tblFields,   0, 1);
             tblCard.Controls.Add(pnlBtns,     0, 2);
 
-            // Three-layer wrapper using CardPanel.Create
             var (pnlSearchOuter, pnlSearchInner) = CardPanel.Create(outerHeight: 300);
             pnlSearchInner.Controls.Add(tblCard);
 
@@ -165,16 +159,26 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Padding   = new Padding(12, 10, 12, 10)
             };
 
+            // Action area dimensions
+            // cboNewStatus : 210 x 60
+            // btnUpdateStatus : 210 x 60
+            // gap between them : 8
+            // left/right pad : 12 each
+            // total pnlActionArea width = 12 + 210 + 8 + 210 + 12 = 452
+            const int CboW   = 210;
+            const int CboH   = 60;
             const int BtnW   = 210;
             const int BtnH   = 60;
             const int BtnGap = 8;
             const int BtnPad = 12;
+            const int ActionAreaW = BtnPad + CboW + BtnGap + BtnW + BtnPad;  // 452
 
             cboNewStatus = new ComboBox
             {
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 Font          = new Font("Segoe UI", 12f),
-                Width         = 140,
+                Width         = CboW,
+                Height        = CboH,
                 Enabled       = false
             };
             cboNewStatus.Items.AddRange(new object[] { "Pending", "Converted", "Rejected" });
@@ -184,11 +188,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             btnUpdateStatus.Enabled = false;
             btnUpdateStatus.Click  += btnUpdateStatus_Click;
 
-            // Panel for action controls (combo + button) docked to the right
             var pnlActionArea = new Panel
             {
                 Dock      = DockStyle.Right,
-                Width     = BtnPad + 140 + BtnGap + BtnW + BtnPad,  // 12+140+8+210+12 = 382
+                Width     = ActionAreaW,
                 BackColor = Color.Transparent
             };
 
@@ -197,7 +200,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 int top = (pnlActionArea.Height - BtnH) / 2;
                 if (top < 0) top = 0;
                 cboNewStatus.Location    = new Point(BtnPad, top + (BtnH - cboNewStatus.Height) / 2);
-                btnUpdateStatus.Location = new Point(BtnPad + 140 + BtnGap, top);
+                btnUpdateStatus.Location = new Point(BtnPad + CboW + BtnGap, top);
                 btnUpdateStatus.Size     = new Size(BtnW, BtnH);
             }
             pnlActionArea.Controls.Add(cboNewStatus);
@@ -219,21 +222,21 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             dgvQuotations = new DataGridView
             {
-                ReadOnly            = true,
-                AllowUserToAddRows  = false,
+                ReadOnly              = true,
+                AllowUserToAddRows    = false,
                 AllowUserToDeleteRows = false,
-                RowHeadersVisible   = false,
-                SelectionMode       = DataGridViewSelectionMode.FullRowSelect,
-                MultiSelect         = false,
-                BackgroundColor     = Color.White,
-                BorderStyle         = BorderStyle.None,
-                GridColor           = Palette.BorderColor,
-                Font                = new Font("Segoe UI", 13f),
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-                CellBorderStyle     = DataGridViewCellBorderStyle.SingleHorizontal,
-                RowTemplate         = { Height = 48 },
-                Dock                = DockStyle.Fill,
-                ColumnHeadersHeight = 46,
+                RowHeadersVisible     = false,
+                SelectionMode         = DataGridViewSelectionMode.FullRowSelect,
+                MultiSelect           = false,
+                BackgroundColor       = Color.White,
+                BorderStyle           = BorderStyle.None,
+                GridColor             = Palette.BorderColor,
+                Font                  = new Font("Segoe UI", 13f),
+                AutoSizeColumnsMode   = DataGridViewAutoSizeColumnsMode.Fill,
+                CellBorderStyle       = DataGridViewCellBorderStyle.SingleHorizontal,
+                RowTemplate           = { Height = 48 },
+                Dock                  = DockStyle.Fill,
+                ColumnHeadersHeight   = 46,
                 EnableHeadersVisualStyles = false,
                 ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
                 {
@@ -245,37 +248,37 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 },
                 DefaultCellStyle = new DataGridViewCellStyle
                 {
-                    BackColor            = Color.White,
-                    ForeColor            = Palette.TextMain,
-                    SelectionBackColor   = Color.FromArgb(219, 234, 254),
-                    SelectionForeColor   = Palette.TextMain,
-                    Padding              = new Padding(12, 6, 12, 6)
+                    BackColor          = Color.White,
+                    ForeColor          = Palette.TextMain,
+                    SelectionBackColor = Color.FromArgb(219, 234, 254),
+                    SelectionForeColor = Palette.TextMain,
+                    Padding            = new Padding(12, 6, 12, 6)
                 }
             };
-            dgvQuotations.Columns.Add(new DataGridViewTextBoxColumn { Name = "colQuotationID", HeaderText = "QUOTATION ID",  FillWeight = 14 });
-            dgvQuotations.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCustomer",    HeaderText = "CUSTOMER",       FillWeight = 24 });
-            dgvQuotations.Columns.Add(new DataGridViewTextBoxColumn { Name = "colExpiry",      HeaderText = "EXPIRY DATE",    FillWeight = 13 });
-            dgvQuotations.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTotal",       HeaderText = "TOTAL AMOUNT",   FillWeight = 14 });
-            dgvQuotations.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDeposit",     HeaderText = "DEPOSIT REQ.",   FillWeight = 12 });
-            dgvQuotations.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLeadTime",    HeaderText = "LEAD TIME",      FillWeight = 11 });
-            dgvQuotations.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",      HeaderText = "STATUS",         FillWeight = 12 });
+            dgvQuotations.Columns.Add(new DataGridViewTextBoxColumn { Name = "colQuotationID", HeaderText = "QUOTATION ID", FillWeight = 14 });
+            dgvQuotations.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCustomer",    HeaderText = "CUSTOMER",      FillWeight = 24 });
+            dgvQuotations.Columns.Add(new DataGridViewTextBoxColumn { Name = "colExpiry",      HeaderText = "EXPIRY DATE",   FillWeight = 13 });
+            dgvQuotations.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTotal",       HeaderText = "TOTAL AMOUNT",  FillWeight = 14 });
+            dgvQuotations.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDeposit",     HeaderText = "DEPOSIT REQ.",  FillWeight = 12 });
+            dgvQuotations.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLeadTime",    HeaderText = "LEAD TIME",     FillWeight = 11 });
+            dgvQuotations.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",      HeaderText = "STATUS",        FillWeight = 12 });
             dgvQuotations.SelectionChanged += dgvQuotations_SelectionChanged;
             dgvQuotations.CellFormatting   += dgvQuotations_CellFormatting;
 
             var (pnlGridOuter, pnlGridInner) = CardPanel.CreateFill();
             pnlGridInner.Controls.Add(dgvQuotations);
 
-            // ── Assemble (DockStyle.Top stacks in reverse-add order)
-            pnlMain.Controls.Add(pnlGridOuter);    // Fill  — grid
-            pnlMain.Controls.Add(pnlKpiOuter);     // Top   — KPI bar + action controls
-            pnlMain.Controls.Add(pnlSearchOuter);  // Top   — Search card
-            pnlMain.Controls.Add(_shell);          // Top   — nav chrome
+            // ── Assemble
+            pnlMain.Controls.Add(pnlGridOuter);   // Fill  — grid
+            pnlMain.Controls.Add(pnlKpiOuter);    // Top   — KPI bar + action controls
+            pnlMain.Controls.Add(pnlSearchOuter); // Top   — Search card
+            pnlMain.Controls.Add(_shell);         // Top   — nav chrome
 
             this.Controls.Add(pnlMain);
             this.ResumeLayout(false);
         }
 
-        // ── Button factories (mirrors ViewOrderForm pattern)
+        // ── Button factories
         private Button MakePrimaryBtn(string text, Point loc, int w, int h)
         {
             var b = new Button
