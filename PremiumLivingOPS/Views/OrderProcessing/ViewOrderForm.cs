@@ -116,7 +116,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Padding = new Padding(0), AutoScroll = false
             };
 
-            const int PillW = 280, PillH = 60, Gap = 8, NumColW = 70;
+            const int PillW    = 290;
+            const int PillH    = 60;
+            const int Gap      = 8;
+            const int NumColW  = 80;
 
             foreach (var (label, count, fg, bg, filterItem) in pills)
             {
@@ -213,9 +216,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             FormNavigator.NavigateTo(this, "Order Processing", "Modify Order");
         }
 
-        // ───────────────────────────────────────────────────────────────────
+        // ──────────────────────────────────────────────────────────────────
         //  Order Details dialog
-        // ───────────────────────────────────────────────────────────────────
+        // ──────────────────────────────────────────────────────────────────
         private void ShowDetailDialog(OrderDetailViewModel detail)
         {
             var o = detail.Order;
@@ -233,7 +236,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 MinimizeBox     = false
             };
 
-            // ── Header bar (標題占 Percent 100%, badge 固定 160px)
             var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 80, BackColor = Color.FromArgb(19, 35, 61) };
             var tblHeader = new TableLayoutPanel
             {
@@ -265,10 +267,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             }, 1, 0);
             pnlHeader.Controls.Add(tblHeader);
 
-            // ── Info panel
-            // Left  (4 rows): OrderID | SalesName | DeliveryDate | BillingAddress
-            // Right (5 rows): QuotationID | CustomerName | OrderContactName | IssuedTime | ShippingAddress
-            // Panel height: max(4,5) rows × 50px row + 18px top pad + 8px bottom pad = 276px
             var pnlInfo = new Panel
             {
                 Dock = DockStyle.Top, Height = 310,
@@ -280,20 +278,18 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 e.Graphics.DrawLine(pen, 28, ((Panel)s).Height - 1, ((Panel)s).Width - 28, ((Panel)s).Height - 1);
             };
 
-            // 4 columns: LabelL | ValueL | LabelR | ValueR
             var tblInfo = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 5,
                 BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
-            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 155f));  // left label
-            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  50f));   // left value
-            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 175f));  // right label
-            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  50f));   // right value
+            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 155f));
+            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  50f));
+            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 175f));
+            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  50f));
             for (int r = 0; r < 5; r++)
                 tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 20f));
 
-            // Left column data (4 items — row 4 stays empty on left)
             var leftFields = new[]
             {
                 ("Order ID",       o.OrderID),
@@ -303,11 +299,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             };
             for (int i = 0; i < leftFields.Length; i++)
             {
-                tblInfo.Controls.Add(MakeLabelKey(leftFields[i].Item1),              0, i);
-                tblInfo.Controls.Add(MakeLabelVal(leftFields[i].Item2 ?? "—"),       1, i);
+                tblInfo.Controls.Add(MakeLabelKey(leftFields[i].Item1),        0, i);
+                tblInfo.Controls.Add(MakeLabelVal(leftFields[i].Item2 ?? "—"), 1, i);
             }
 
-            // Right column data (5 items)
             var rightFields = new[]
             {
                 ("Quotation ID",    o.QuotationID),
@@ -318,12 +313,11 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             };
             for (int i = 0; i < rightFields.Length; i++)
             {
-                tblInfo.Controls.Add(MakeLabelKey(rightFields[i].Item1),             2, i);
-                tblInfo.Controls.Add(MakeLabelVal(rightFields[i].Item2 ?? "—"),      3, i);
+                tblInfo.Controls.Add(MakeLabelKey(rightFields[i].Item1),        2, i);
+                tblInfo.Controls.Add(MakeLabelVal(rightFields[i].Item2 ?? "—"), 3, i);
             }
             pnlInfo.Controls.Add(tblInfo);
 
-            // ── Discount section (only when DiscountType is present)
             Panel pnlDiscount = null;
             if (hasDiscount)
             {
@@ -347,21 +341,19 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 tblDisc.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  33.4f));
                 tblDisc.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
-                tblDisc.Controls.Add(MakeLabelKey("Discount Type"),                          0, 0);
-                tblDisc.Controls.Add(MakeLabelVal(o.DiscountType),                           1, 0);
-                tblDisc.Controls.Add(MakeLabelKey("Discount Value"),                         2, 0);
-                tblDisc.Controls.Add(MakeLabelVal(o.DiscountValue.ToString("N2")),            3, 0);
-                tblDisc.Controls.Add(MakeLabelKey("Discount Amount"),                        4, 0);
-                tblDisc.Controls.Add(MakeLabelVal($"HK$ {o.DiscountAmount:N2}"),              5, 0);
+                tblDisc.Controls.Add(MakeLabelKey("Discount Type"),               0, 0);
+                tblDisc.Controls.Add(MakeLabelVal(o.DiscountType),                1, 0);
+                tblDisc.Controls.Add(MakeLabelKey("Discount Value"),              2, 0);
+                tblDisc.Controls.Add(MakeLabelVal(o.DiscountValue.ToString("N2")),3, 0);
+                tblDisc.Controls.Add(MakeLabelKey("Discount Amount"),             4, 0);
+                tblDisc.Controls.Add(MakeLabelVal($"HK$ {o.DiscountAmount:N2}"),  5, 0);
                 pnlDiscount.Controls.Add(tblDisc);
             }
 
-            // ── Section label
             var pnlLineLabel = new Panel { Dock = DockStyle.Top, Height = 40, BackColor = Color.FromArgb(246, 249, 255), Padding = new Padding(28, 0, 0, 0) };
             pnlLineLabel.Controls.Add(new Label { Text = "ORDER ITEMS", Font = new Font("Segoe UI", 10f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft });
             pnlLineLabel.Paint += PaintBottomBorderStatic;
 
-            // ── Items grid
             var dgv = new DataGridView
             {
                 ReadOnly = true, AllowUserToAddRows = false, RowHeadersVisible = false,
@@ -383,11 +375,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             foreach (var l in detail.Lines)
                 dgv.Rows.Add(l.ItemID, l.ItemName, l.Quantity, $"HK$ {l.Price:N2}", $"HK$ {l.LineTotal:N2}");
 
-            // ── Grand total row
             var pnlTotalRow = new Panel { Dock = DockStyle.Bottom, Height = 50, BackColor = Color.FromArgb(246, 249, 255), Padding = new Padding(0, 0, 28, 0) };
             pnlTotalRow.Controls.Add(new Label { Text = $"Grand Total:   HK$ {o.GrandTotal:N2}", Font = new Font("Segoe UI", 13f, FontStyle.Bold), ForeColor = Color.FromArgb(15, 31, 53), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleRight });
 
-            // ── Footer
             var pnlFooter = new Panel { Dock = DockStyle.Bottom, Height = 80, BackColor = Color.White, Padding = new Padding(0, 10, 28, 10) };
             pnlFooter.Paint += PaintTopBorderStatic;
             var btnClose = new Button
@@ -401,19 +391,17 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             btnClose.Click += (s, ev) => dlg.Close();
             pnlFooter.Controls.Add(btnClose);
 
-            // ── Assemble (DockStyle.Top stacks top-down in add order; Bottom stacks bottom-up)
-            dlg.Controls.Add(dgv);           // Fill — takes remaining space
-            dlg.Controls.Add(pnlTotalRow);   // Bottom
-            dlg.Controls.Add(pnlLineLabel);  // Top (added last among Tops → lowest)
+            dlg.Controls.Add(dgv);
+            dlg.Controls.Add(pnlTotalRow);
+            dlg.Controls.Add(pnlLineLabel);
             if (hasDiscount)
-                dlg.Controls.Add(pnlDiscount);  // Top — sits just above ORDER ITEMS
-            dlg.Controls.Add(pnlInfo);       // Top
-            dlg.Controls.Add(pnlHeader);     // Top (first added → topmost)
-            dlg.Controls.Add(pnlFooter);     // Bottom
+                dlg.Controls.Add(pnlDiscount);
+            dlg.Controls.Add(pnlInfo);
+            dlg.Controls.Add(pnlHeader);
+            dlg.Controls.Add(pnlFooter);
             dlg.ShowDialog(this);
         }
 
-        // ── Label factory helpers
         private static Label MakeLabelKey(string text) => new Label
         {
             Text = text, Font = new Font("Segoe UI", 10f, FontStyle.Bold),

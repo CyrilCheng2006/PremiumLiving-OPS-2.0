@@ -17,7 +17,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
     ///   • Calls OrderProcessingController to obtain QuotationViewModel.
     ///   • Uses AppShell (TopNavBar + UserBar) for navigation chrome.
     ///   • Contains NO business logic and NO direct DB calls.
-    ///   • Layout uses CardPanel三層巢狀卡片結構 (參考 ViewOrderForm).
+    ///   • Layout uses CardPanel 三層巢狀卡片結構 (參考 ViewOrderForm).
     /// </summary>
     public partial class QuotationForm : Form
     {
@@ -38,7 +38,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             this.Load += QuotationForm_Load;
         }
 
-        // ── Load ───────────────────────────────────────────────────────────
+        // ── Load
         private void QuotationForm_Load(object sender, EventArgs e)
         {
             _shell.MenuItemClicked += OnTopNavMenuItemClicked;
@@ -46,7 +46,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             RefreshGrid();
         }
 
-        // ── Core refresh (mirrors ViewOrderForm.RefreshGrid) ───────────────
+        // ── Core refresh (mirrors ViewOrderForm.RefreshGrid)
         private void RefreshGrid()
         {
             string keyword      = txtSearchKeyword.Text.Trim();
@@ -58,7 +58,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
-            _shell.SetBreadcrumb("Order Processing  \u203A  Quotation");
+            _shell.SetBreadcrumb("Order Processing  ›  Quotation");
 
             _currentQuotations = vm.Quotations;
 
@@ -84,7 +84,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             RefreshGrid();
         }
 
-        // ── KPI bar (mirrors ViewOrderForm.RefreshKpi) ────────────────────
+        // ── KPI bar (mirrors ViewOrderForm.RefreshKpi)
         private void RefreshKpi()
         {
             pnlKpi.Controls.Clear();
@@ -114,7 +114,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 AutoScroll    = false
             };
 
-            const int PillW = 280, PillH = 60, Gap = 8, NumColW = 70;
+            const int PillW   = 290;
+            const int PillH   = 60;
+            const int Gap     = 8;
+            const int NumColW = 80;
 
             foreach (var (label, count, fg, bg, filterItem) in pills)
             {
@@ -185,7 +188,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             cboNewStatus.Enabled    = sel;
         }
 
-        // ── Event handlers ─────────────────────────────────────────────────
+        // ── Event handlers
         private void dgvQuotations_SelectionChanged(object sender, EventArgs e)
         {
             UpdateActionButtons();
@@ -214,9 +217,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             }
         }
 
-        /// <summary>
-        /// Updates the selected quotation's status. Delegates to controller — no DB logic here.
-        /// </summary>
         private void btnUpdateStatus_Click(object sender, EventArgs e)
         {
             if (dgvQuotations.SelectedRows.Count == 0)
@@ -251,7 +251,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             }
         }
 
-        // ── Helpers ────────────────────────────────────────────────────────
+        // ── Helpers
         private static GraphicsPath RoundedRect(Rectangle r, int radius)
         {
             var path = new GraphicsPath();
@@ -264,7 +264,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             return path;
         }
 
-        // ── TopNavBar navigation ──────────────────────────────────────────
         private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
             => FormNavigator.NavigateTo(this, menuLabel, subItem);
 
