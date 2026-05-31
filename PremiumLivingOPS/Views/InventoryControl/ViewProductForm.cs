@@ -11,9 +11,11 @@ namespace PremiumLivingOPS.Views.InventoryControl
 {
     /// <summary>
     /// View — Inventory Control / View Product tab.
-    /// Displays all Products from the DB with KPI pills, search/filter bar,
-    /// and a DataGridView list.
-    /// Navigates to ViewRawMaterialForm when the Raw Materials tab is clicked.
+    /// Design spec: mirrors ViewOrderForm (OrderProcessing).
+    ///   • AppShell wired in Load (events only); SetUser/SetVisibleMenus/SetBreadcrumb
+    ///     called inside RefreshGrid() — same pattern as ViewOrderForm.
+    ///   • SetPopupContainer already called in Designer; NOT repeated here.
+    ///   • All control events that were wired in Designer are NOT re-wired here.
     /// </summary>
     public partial class ViewProductForm : Form
     {
@@ -22,13 +24,12 @@ namespace PremiumLivingOPS.Views.InventoryControl
 
         private List<ProductEntity> _currentProducts = new List<ProductEntity>();
 
-        // Stock-status colour map (bg, fg)
-        private static readonly System.Collections.Generic.Dictionary<string, (Color bg, Color fg)> StatusColors =
-            new System.Collections.Generic.Dictionary<string, (Color, Color)>
+        private static readonly Dictionary<string, (Color bg, Color fg)> StatusColors =
+            new Dictionary<string, (Color, Color)>
             {
-                { "In Stock",    (Color.FromArgb(209, 250, 229), Color.FromArgb(  6,  95,  70)) },
-                { "Low Stock",   (Color.FromArgb(254, 243, 199), Color.FromArgb(146,  64,  14)) },
-                { "Out of Stock",(Color.FromArgb(254, 226, 226), Color.FromArgb(153,  27,  27)) }
+                { "In Stock",     (Color.FromArgb(209, 250, 229), Color.FromArgb(  6,  95,  70)) },
+                { "Low Stock",    (Color.FromArgb(254, 243, 199), Color.FromArgb(146,  64,  14)) },
+                { "Out of Stock", (Color.FromArgb(254, 226, 226), Color.FromArgb(153,  27,  27)) }
             };
 
         public ViewProductForm()
@@ -37,46 +38,40 @@ namespace PremiumLivingOPS.Views.InventoryControl
             Load += ViewProductForm_Load;
         }
 
-        // ───────────────────────────────────────────────────────────────
-        //  Load
-        // ───────────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
+        //  Load — wire AppShell events only, then refresh (same as ViewOrderForm)
+        // ─────────────────────────────────────────────────────────────────
         private void ViewProductForm_Load(object sender, EventArgs e)
         {
+            // AppShell event wiring (SetPopupContainer already called in Designer)
             _shell.MenuItemClicked += OnTopNavMenuItemClicked;
             _shell.LogoutClicked   += BtnLogout_Click;
-            _shell.SetPopupContainer(pnlRoot);
 
-            // Wire tab buttons
-            btnTabProduct.Click     += (s, _) => { /* already here */ };
-            btnTabRawMaterial.Click += (s, _) =>
-                FormNavigator.NavigateTo(this, "Inventory Control", "View Raw Material");
-
-            // Wire search controls
-            btnSearch.Click += (s, _) => RefreshGrid();
-            btnReset.Click  += (s, _) => ResetFilters();
-            txtSearch.KeyDown += (s, ke) => { if (ke.KeyCode == Keys.Enter) RefreshGrid(); };
+            // Grid events
             dgvProducts.SelectionChanged += (s, _) => UpdateActionButtons();
             dgvProducts.CellDoubleClick  += (s, ce) => { if (ce.RowIndex >= 0) OpenDetailDialog(); };
-            btnViewDetail.Click += (s, _) => OpenDetailDialog();
             dgvProducts.CellFormatting   += DgvProducts_CellFormatting;
 
-            // Load categories
+            // Action button
+            btnViewDetail.Click += (s, _) => OpenDetailDialog();
+
             LoadCategories();
-            RefreshGrid();
+            RefreshGrid();   // <─ sets SetUser / SetVisibleMenus / SetBreadcrumb
         }
 
-        // ───────────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
         //  Data helpers
-        // ───────────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
         private void LoadCategories()
         {
             cboCategory.Items.Clear();
             foreach (var c in _ctrl.GetProductCategories())
                 cboCategory.Items.Add(c);
-            cboCategory.SelectedIndex = 0;
+            if (cboCategory.Items.Count > 0)
+                cboCategory.SelectedIndex = 0;
         }
 
-        private void RefreshGrid()
+        internal void RefreshGrid()
         {
             string keyword  = txtSearch.Text.Trim();
             string category = cboCategory.SelectedItem?.ToString();
@@ -86,11 +81,12 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 string.IsNullOrEmpty(keyword)  ? null : keyword,
                 category == "All"              ? null : category);
 
+            // ── UserBar + nav (matches ViewOrderForm.RefreshGrid pattern) ──
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
-            _shell.SetBreadcrumb("Inventory Control  \u203a  View Product");
+            _shell.SetBreadcrumb("Inventory Control  ›  View Product");
 
-            // Apply status filter client-side (derived property, not stored in DB)
+            // Apply status filter client-side
             _currentProducts = vm.Products;
             if (!string.IsNullOrEmpty(status) && status != "All")
                 _currentProducts = _currentProducts.FindAll(p => p.StockStatus == status);
@@ -109,9 +105,9 @@ namespace PremiumLivingOPS.Views.InventoryControl
             UpdateActionButtons();
         }
 
-        private void ResetFilters()
+        internal void ResetFilters()
         {
-            txtSearch.Text  = string.Empty;
+            txtSearch.Text = string.Empty;
             if (cboCategory.Items.Count > 0) cboCategory.SelectedIndex = 0;
             cboStatus.SelectedIndex = 0;
             RefreshGrid();
@@ -121,12 +117,13 @@ namespace PremiumLivingOPS.Views.InventoryControl
         {
             pnlKpi.Controls.Clear();
 
-            var all = _ctrl.GetViewProductVM().Products;
+            var all      = _ctrl.GetViewProductVM().Products;
             int total    = all.Count;
             int inStock  = all.FindAll(p => p.StockStatus == "In Stock").Count;
             int lowStock = all.FindAll(p => p.StockStatus == "Low Stock").Count;
             int outStock = all.FindAll(p => p.StockStatus == "Out of Stock").Count;
 
+            // Pill spec matches ViewOrderForm: PillW=290, PillH=60, Gap=8, NumColW=80
             var pills = new[]
             {
                 ("Total Products", total.ToString(),    Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254), "All"),
@@ -137,15 +134,28 @@ namespace PremiumLivingOPS.Views.InventoryControl
 
             var flow = new FlowLayoutPanel
             {
-                Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight,
-                WrapContents = false, BackColor = Color.Transparent, Padding = new Padding(0)
+                Dock          = DockStyle.Fill,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents  = false,
+                BackColor     = Color.Transparent,
+                Padding       = new Padding(0),
+                AutoScroll    = false
             };
 
-            const int PillW = 260; const int PillH = 60; const int Gap = 10; const int NumW = 72;
+            const int PillW   = 290;
+            const int PillH   = 76;
+            const int Gap     = 8;
+            const int NumColW = 80;
 
             foreach (var (label, count, fg, bg, filterStatus) in pills)
             {
-                var pill = new Panel { BackColor = bg, Size = new Size(PillW, PillH), Margin = new Padding(0, 0, Gap, 0), Cursor = Cursors.Hand };
+                var pill = new Panel
+                {
+                    BackColor = bg,
+                    Size      = new Size(PillW, PillH),
+                    Margin    = new Padding(0, 0, Gap, 0),
+                    Cursor    = Cursors.Hand
+                };
                 pill.Paint += (s, e) =>
                 {
                     e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
@@ -153,16 +163,36 @@ namespace PremiumLivingOPS.Views.InventoryControl
                     using var brush = new SolidBrush(((Panel)s).BackColor);
                     e.Graphics.FillPath(brush, path);
                 };
+
                 var tlp = new TableLayoutPanel
                 {
-                    Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
-                    BackColor = Color.Transparent, Padding = new Padding(10, 0, 8, 0)
+                    Dock            = DockStyle.Fill,
+                    ColumnCount     = 2,
+                    RowCount        = 1,
+                    BackColor       = Color.Transparent,
+                    CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                    Padding         = new Padding(10, 0, 8, 0)
                 };
-                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, NumW));
+                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, NumColW));
                 tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
                 tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-                tlp.Controls.Add(new Label { Text = count, Font = new Font("Segoe UI", 14f, FontStyle.Bold), ForeColor = fg, BackColor = Color.Transparent, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter }, 0, 0);
-                tlp.Controls.Add(new Label { Text = label, Font = new Font("Segoe UI", 11f), ForeColor = fg, BackColor = Color.Transparent, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft }, 1, 0);
+
+                tlp.Controls.Add(new Label
+                {
+                    Text      = count,
+                    Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
+                    ForeColor = fg, BackColor = Color.Transparent,
+                    Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter,
+                    AutoSize  = false
+                }, 0, 0);
+                tlp.Controls.Add(new Label
+                {
+                    Text      = label,
+                    Font      = new Font("Segoe UI", 12f),   // 12f — matches ViewOrderForm
+                    ForeColor = fg, BackColor = Color.Transparent,
+                    Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft,
+                    AutoSize  = false
+                }, 1, 0);
 
                 string localStatus = filterStatus;
                 EventHandler clickHandler = (s, e) =>
@@ -171,22 +201,23 @@ namespace PremiumLivingOPS.Views.InventoryControl
                     if (idx >= 0) cboStatus.SelectedIndex = idx;
                     RefreshGrid();
                 };
-                pill.Click += clickHandler; tlp.Click += clickHandler;
+                pill.Click += clickHandler;
+                tlp.Click  += clickHandler;
                 foreach (Control c in tlp.Controls) c.Click += clickHandler;
+
                 pill.Controls.Add(tlp);
                 flow.Controls.Add(pill);
             }
+
             pnlKpi.Controls.Add(flow);
         }
 
         private void UpdateActionButtons()
-        {
-            btnViewDetail.Enabled = dgvProducts.SelectedRows.Count > 0;
-        }
+            => btnViewDetail.Enabled = dgvProducts.SelectedRows.Count > 0;
 
-        // ───────────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
         //  Cell formatting (status badge)
-        // ───────────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
         private void DgvProducts_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
             if (dgvProducts.Columns[e.ColumnIndex].Name != "colStatus" || e.Value == null) return;
@@ -198,28 +229,29 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 e.CellStyle.BackColor            = colors.bg;
                 e.CellStyle.SelectionForeColor   = colors.fg;
                 e.CellStyle.SelectionBackColor   = colors.bg;
-                e.CellStyle.Font                 = new Font("Segoe UI", 10f, FontStyle.Bold);
+                e.CellStyle.Font                 = new Font("Segoe UI", 11f, FontStyle.Bold);
                 e.CellStyle.Alignment            = DataGridViewContentAlignment.MiddleCenter;
             }
         }
 
-        // ───────────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
         //  Detail dialog
-        // ───────────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
         private void OpenDetailDialog()
         {
             if (dgvProducts.SelectedRows.Count == 0) return;
-            string itemId   = dgvProducts.SelectedRows[0].Cells["colItemID"].Value?.ToString();
-            string itemName = dgvProducts.SelectedRows[0].Cells["colItemName"].Value?.ToString();
-            string category = dgvProducts.SelectedRows[0].Cells["colCategory"].Value?.ToString();
-            string price    = dgvProducts.SelectedRows[0].Cells["colPrice"].Value?.ToString();
-            string stockQty = dgvProducts.SelectedRows[0].Cells["colStockQty"].Value?.ToString();
-            string status   = dgvProducts.SelectedRows[0].Cells["colStatus"].Value?.ToString();
+            var row = dgvProducts.SelectedRows[0];
+            string itemId   = row.Cells["colItemID"].Value?.ToString();
+            string itemName = row.Cells["colItemName"].Value?.ToString();
+            string category = row.Cells["colCategory"].Value?.ToString();
+            string price    = row.Cells["colPrice"].Value?.ToString();
+            string stockQty = row.Cells["colStockQty"].Value?.ToString();
+            string status   = row.Cells["colStatus"].Value?.ToString();
 
             using var dlg = new Form
             {
                 Text            = $"Product Detail — {itemId}",
-                Size            = new Size(520, 360),
+                Size            = new Size(520, 380),
                 StartPosition   = FormStartPosition.CenterParent,
                 BackColor       = Color.White,
                 Font            = new Font("Segoe UI", 11f),
@@ -239,15 +271,24 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 Padding   = new Padding(20, 0, 0, 0)
             });
 
-            var pnlBody = new Panel { Dock = DockStyle.Fill, Padding = new Padding(24, 16, 24, 16), BackColor = Color.White };
+            var pnlBody = new Panel
+            {
+                Dock      = DockStyle.Fill,
+                Padding   = new Padding(24, 16, 24, 16),
+                BackColor = Color.White
+            };
             var tbl = new TableLayoutPanel
             {
-                Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 6,
-                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+                Dock            = DockStyle.Fill,
+                ColumnCount     = 2,
+                RowCount        = 6,
+                BackColor       = Color.Transparent,
+                CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
             tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140f));
             tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-            for (int i = 0; i < 6; i++) tbl.RowStyles.Add(new RowStyle(SizeType.Percent, 100f / 6f));
+            for (int i = 0; i < 6; i++)
+                tbl.RowStyles.Add(new RowStyle(SizeType.Percent, 100f / 6f));
 
             var fields = new[]
             {
@@ -260,17 +301,36 @@ namespace PremiumLivingOPS.Views.InventoryControl
             };
             for (int i = 0; i < fields.Length; i++)
             {
-                tbl.Controls.Add(new Label { Text = fields[i].Item1, Font = new Font("Segoe UI", 10f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft }, 0, i);
-                tbl.Controls.Add(new Label { Text = fields[i].Item2 ?? "—", Font = new Font("Segoe UI", 11f), ForeColor = Color.FromArgb(15, 31, 53), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft }, 1, i);
+                tbl.Controls.Add(new Label
+                {
+                    Text      = fields[i].Item1,
+                    Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
+                    ForeColor = Color.FromArgb(98, 112, 135),
+                    Dock      = DockStyle.Fill,
+                    TextAlign = ContentAlignment.MiddleLeft
+                }, 0, i);
+                tbl.Controls.Add(new Label
+                {
+                    Text      = fields[i].Item2 ?? "—",
+                    Font      = new Font("Segoe UI", 11f),
+                    ForeColor = Color.FromArgb(15, 31, 53),
+                    Dock      = DockStyle.Fill,
+                    TextAlign = ContentAlignment.MiddleLeft
+                }, 1, i);
             }
             pnlBody.Controls.Add(tbl);
 
             var pnlFoot = new Panel { Dock = DockStyle.Bottom, Height = 60, Padding = new Padding(0, 10, 20, 10) };
             var btnClose = new Button
             {
-                Text = "Close", Font = new Font("Segoe UI", 11f),
-                ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White,
-                FlatStyle = FlatStyle.Flat, Dock = DockStyle.Right, Width = 120, Cursor = Cursors.Hand
+                Text      = "Close",
+                Font      = new Font("Segoe UI", 11f),
+                ForeColor = Color.FromArgb(15, 31, 53),
+                BackColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Dock      = DockStyle.Right,
+                Width     = 120,
+                Cursor    = Cursors.Hand
             };
             btnClose.FlatAppearance.BorderColor = Color.FromArgb(221, 227, 236);
             btnClose.Click += (s, ev) => dlg.Close();
@@ -282,9 +342,9 @@ namespace PremiumLivingOPS.Views.InventoryControl
             dlg.ShowDialog(this);
         }
 
-        // ───────────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
         //  Navigation
-        // ───────────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
         private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
             => FormNavigator.NavigateTo(this, menuLabel, subItem);
 
@@ -294,17 +354,19 @@ namespace PremiumLivingOPS.Views.InventoryControl
             Application.Restart();
         }
 
-        // ───────────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
         //  Utilities
-        // ───────────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────────
         private static GraphicsPath RoundedRect(Rectangle r, int radius)
         {
-            var path = new GraphicsPath(); int d = radius * 2;
-            path.AddArc(r.X, r.Y, d, d, 180, 90);
-            path.AddArc(r.Right - d, r.Y, d, d, 270, 90);
-            path.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90);
-            path.AddArc(r.X, r.Bottom - d, d, d, 90, 90);
-            path.CloseFigure(); return path;
+            var path = new GraphicsPath();
+            int d = radius * 2;
+            path.AddArc(r.X,         r.Y,          d, d, 180, 90);
+            path.AddArc(r.Right - d, r.Y,          d, d, 270, 90);
+            path.AddArc(r.Right - d, r.Bottom - d, d, d,   0, 90);
+            path.AddArc(r.X,         r.Bottom - d, d, d,  90, 90);
+            path.CloseFigure();
+            return path;
         }
     }
 }
