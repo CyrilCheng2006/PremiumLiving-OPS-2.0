@@ -172,9 +172,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         }
 
         /// <summary>
-        /// Unified summary recalculation — always reads _lines directly so that
-        /// Subtotal and Grand Total are guaranteed to be in sync regardless of
-        /// which control triggered the update.
+        /// Unified summary recalculation — reads _lines directly so that
+        /// Subtotal and Grand Total are always in sync regardless of trigger.
+        /// Subtotal  = sum of all line totals (Qty × Price).
+        /// GrandTotal = Subtotal − discount (clamped to ≥ 0).
         /// </summary>
         private void UpdateSummary()
         {
@@ -192,15 +193,15 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             {
                 double.TryParse(txtDiscountValue.Text, out discount);
             }
-            else if (dtype == "Rate")
+            else if (dtype == "Rate (%)")
             {
                 if (double.TryParse(txtDiscountValue.Text, out double rate))
                     discount = subtotal * rate / 100.0;
             }
 
-            // Clamp discount so Grand Total never goes negative
-            if (discount < 0)               discount = 0;
-            if (discount > subtotal)        discount = subtotal;
+            // Clamp so Grand Total never goes negative
+            if (discount < 0)        discount = 0;
+            if (discount > subtotal) discount = subtotal;
 
             // 3. Grand Total
             lblGrandTotal.Text = $"Grand Total:  HK$ {subtotal - discount:N2}";
@@ -259,7 +260,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             }
             else
             {
-                lblDiscountUnit.Text = dtype == "Rate" ? "%" : "HK$";
+                lblDiscountUnit.Text = dtype == "Rate (%)" ? "%" : "HK$";
             }
             UpdateSummary();
         }
@@ -293,12 +294,18 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             string dtype = cboDiscountType.SelectedItem?.ToString() ?? "None";
             double.TryParse(txtDiscountValue.Text, out double discountValue);
 
+            // 1. Subtotal — sum of all line totals
             double sub = 0;
             foreach (var l in _lines) sub += l.LineTotal;
 
+            // 2. Discount amount
             double discountAmount = 0;
-            if (dtype == "Amount")  discountAmount = discountValue;
-            else if (dtype == "Rate") discountAmount = sub * discountValue / 100.0;
+            if (dtype == "Amount")        discountAmount = discountValue;
+            else if (dtype == "Rate (%)") discountAmount = sub * discountValue / 100.0;
+
+            // Clamp so Grand Total never goes negative
+            if (discountAmount < 0)    discountAmount = 0;
+            if (discountAmount > sub)  discountAmount = sub;
 
             var header = new OrderEntity
             {
