@@ -32,7 +32,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             this.Load += ModifyOrderForm_Load;
         }
 
-        // ── Load ───────────────────────────────────────────────────────────────────
+        // ── Load ──────────────────────────────────────────────────────────────────────
         private void ModifyOrderForm_Load(object sender, EventArgs e)
         {
             // Wire AppShell events — must be done once, before first data load
@@ -78,7 +78,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             }
         }
 
-        // ── Search / Load Order ────────────────────────────────────────────────────
+        // ── Search / Load Order ─────────────────────────────────────────────────────
         private void btnLoadOrder_Click(object sender, EventArgs e)
         {
             var sel = cboSearchOrder.SelectedItem as ComboItem;
@@ -153,32 +153,55 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         }
 
         // ── Line-item helpers ──────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Refreshes the DataGridView rows from _lines, then calls UpdateSummary().
+        /// </summary>
         private void RefreshLineGrid()
         {
             dgvLines.Rows.Clear();
-            double sub = 0;
             foreach (var l in _lines)
             {
                 dgvLines.Rows.Add(l.ItemID, l.ItemName, l.Quantity,
                                   $"HK$ {l.Price:N2}", $"HK$ {l.LineTotal:N2}");
-                sub += l.LineTotal;
             }
-            lblSubtotal.Text = $"Subtotal:  HK$ {sub:N2}";
-            RecalcGrandTotal(sub);
+            UpdateSummary();
         }
 
-        private void RecalcGrandTotal(double sub)
+        /// <summary>
+        /// Unified summary recalculation — reads _lines directly so that
+        /// Subtotal and Grand Total are always in sync regardless of trigger.
+        /// Subtotal  = sum of all line totals (Qty × Price).
+        /// GrandTotal = Subtotal − discount (clamped to ≥ 0).
+        /// </summary>
+        private void UpdateSummary()
         {
+            // 1. Subtotal — sum of all line totals
+            double subtotal = 0;
+            foreach (var l in _lines)
+                subtotal += l.LineTotal;
+
+            lblSubtotal.Text = $"Subtotal:  HK$ {subtotal:N2}";
+
+            // 2. Discount
+            string dtype    = cboDiscountType.SelectedItem?.ToString() ?? "None";
             double discount = 0;
-            string dtype = cboDiscountType.SelectedItem?.ToString() ?? "None";
             if (dtype == "Amount")
+            {
                 double.TryParse(txtDiscountValue.Text, out discount);
+            }
             else if (dtype == "Rate (%)")
             {
                 if (double.TryParse(txtDiscountValue.Text, out double rate))
-                    discount = sub * rate / 100.0;
+                    discount = subtotal * rate / 100.0;
             }
-            lblGrandTotal.Text = $"Grand Total:  HK$ {sub - discount:N2}";
+
+            // Clamp so Grand Total never goes negative
+            if (discount < 0)          discount = 0;
+            if (discount > subtotal)   discount = subtotal;
+
+            // 3. Grand Total
+            lblGrandTotal.Text = $"Grand Total:  HK$ {subtotal - discount:N2}";
         }
 
         private void btnAddLine_Click(object sender, EventArgs e)
@@ -237,19 +260,15 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             bool hasDiscount = cboDiscountType.SelectedItem?.ToString() != "None";
             txtDiscountValue.Enabled = hasDiscount;
             if (!hasDiscount) txtDiscountValue.Text = "0";
-            double sub = 0;
-            foreach (var l in _lines) sub += l.LineTotal;
-            RecalcGrandTotal(sub);
+            UpdateSummary();
         }
 
         private void txtDiscountValue_TextChanged(object sender, EventArgs e)
         {
-            double sub = 0;
-            foreach (var l in _lines) sub += l.LineTotal;
-            RecalcGrandTotal(sub);
+            UpdateSummary();
         }
 
-        // ── Save Changes ──────────────────────────────────────────────────────────
+        // ── Save Changes ──────────────────────────────────────────────────────────────
         private void btnSaveChanges_Click(object sender, EventArgs e)
         {
             if (_currentOrder == null)
@@ -264,9 +283,14 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             double sub = 0;
             foreach (var l in _lines) sub += l.LineTotal;
+
             double discountAmount = 0;
-            if (dtype == "Amount")       discountAmount = discountValue;
+            if (dtype == "Amount")        discountAmount = discountValue;
             else if (dtype == "Rate (%)") discountAmount = sub * discountValue / 100.0;
+
+            // Clamp so Grand Total never goes negative
+            if (discountAmount < 0)    discountAmount = 0;
+            if (discountAmount > sub)  discountAmount = sub;
 
             var header = new OrderEntity
             {
@@ -283,6 +307,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 DiscountType     = dtype == "None" ? null : dtype,
                 DiscountValue    = discountValue,
                 DiscountAmount   = discountAmount,
+                SubTotal         = sub,
                 GrandTotal       = sub - discountAmount
             };
 
@@ -300,7 +325,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             }
         }
 
-        // ── Cancel Order ──────────────────────────────────────────────────────────
+        // ── Cancel Order ─────────────────────────────────────────────────────────────
         private void btnCancelOrder_Click(object sender, EventArgs e)
         {
             if (_currentOrder == null)
@@ -345,7 +370,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             }
         }
 
-        // ── Helpers ───────────────────────────────────────────────────────────────
+        // ── Helpers ───────────────────────────────────────────────────────────────────
         private void SetEditPanelEnabled(bool enabled)
         {
             pnlEditCard.Visible   = enabled;
@@ -396,7 +421,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             Application.Restart();
         }
 
-        // ── ComboItem helper ──────────────────────────────────────────────────────
+        // ── ComboItem helper ──────────────────────────────────────────────────────────────
         private class ComboItem
         {
             public string Text  { get; }
