@@ -116,8 +116,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Padding = new Padding(0), AutoScroll = false
             };
 
-            // NumColW = 70  → number column fixed 70 px, label column gets all remaining space
-            // PillW   = 280 → pill width updated to 280 px
             const int PillW = 280, PillH = 60, Gap = 8, NumColW = 70;
 
             foreach (var (label, count, fg, bg, filterItem) in pills)
@@ -137,8 +135,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
                     Padding = new Padding(10, 0, 8, 0)
                 };
-                // Col 0: fixed 70 px for the number
-                // Col 1: Percent 100% — takes all remaining space for the label
                 tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, NumColW));
                 tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
                 tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
@@ -217,17 +213,18 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             FormNavigator.NavigateTo(this, "Order Processing", "Modify Order");
         }
 
-        // ─────────────────────────────────────────────────────────────────────
+        // ───────────────────────────────────────────────────────────────────
         //  Order Details dialog
-        // ─────────────────────────────────────────────────────────────────────
+        // ───────────────────────────────────────────────────────────────────
         private void ShowDetailDialog(OrderDetailViewModel detail)
         {
             var o = detail.Order;
+            bool hasDiscount = !string.IsNullOrWhiteSpace(o.DiscountType);
 
             using var dlg = new Form
             {
                 Text            = $"Order Detail — {o.OrderID}",
-                Size            = new Size(2200, 900),
+                Size            = new Size(2500, 1100),
                 StartPosition   = FormStartPosition.CenterParent,
                 BackColor       = Color.White,
                 Font            = new Font("Segoe UI", 13f),
@@ -236,56 +233,46 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 MinimizeBox     = false
             };
 
-            // ── Header bar
+            // ── Header bar (標題占 Percent 100%, badge 固定 160px)
             var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 80, BackColor = Color.FromArgb(19, 35, 61) };
-
             var tblHeader = new TableLayoutPanel
             {
-                Dock            = DockStyle.Fill,
-                ColumnCount     = 2,
-                RowCount        = 1,
-                BackColor       = Color.Transparent,
-                CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                Padding         = new Padding(24, 0, 24, 0)
+                Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
+                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                Padding = new Padding(24, 0, 24, 0)
             };
             tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
-            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 180f));
+            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 160f));
             tblHeader.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
-            var lblDialogTitle = new Label
+            tblHeader.Controls.Add(new Label
             {
-                Text      = $"Order Details  —  {o.OrderID}",
-                Font      = new Font("Segoe UI", 18f, FontStyle.Bold),
-                ForeColor = Color.White,
-                Dock      = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleLeft,
-                AutoSize  = false
-            };
+                Text = $"Order Details  —  {o.OrderID}",
+                Font = new Font("Segoe UI", 18f, FontStyle.Bold),
+                ForeColor = Color.White, Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
+            }, 0, 0);
 
             StatusColors.TryGetValue(o.OrderStatus ?? "", out var sc);
-            var lblStatusBadge = new Label
+            tblHeader.Controls.Add(new Label
             {
-                Text      = o.OrderStatus ?? "Unknown",
-                Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
+                Text = o.OrderStatus ?? "Unknown",
+                Font = new Font("Segoe UI", 11f, FontStyle.Bold),
                 ForeColor = sc.fg != default ? sc.fg : Color.White,
                 BackColor = sc.bg != default ? sc.bg : Color.FromArgb(80, 80, 80),
-                Dock      = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleCenter,
-                AutoSize  = false,
-                Padding   = new Padding(8, 4, 8, 4)
-            };
-
-            tblHeader.Controls.Add(lblDialogTitle, 0, 0);
-            tblHeader.Controls.Add(lblStatusBadge, 1, 0);
+                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter,
+                AutoSize = false, Padding = new Padding(8, 4, 8, 4)
+            }, 1, 0);
             pnlHeader.Controls.Add(tblHeader);
 
             // ── Info panel
+            // Left  (4 rows): OrderID | SalesName | DeliveryDate | BillingAddress
+            // Right (5 rows): QuotationID | CustomerName | OrderContactName | IssuedTime | ShippingAddress
+            // Panel height: max(4,5) rows × 50px row + 18px top pad + 8px bottom pad = 276px
             var pnlInfo = new Panel
             {
-                Dock      = DockStyle.Top,
-                Height    = 260,
-                Padding   = new Padding(28, 18, 28, 0),
-                BackColor = Color.White
+                Dock = DockStyle.Top, Height = 310,
+                Padding = new Padding(28, 18, 28, 8), BackColor = Color.White
             };
             pnlInfo.Paint += (s, e) =>
             {
@@ -293,40 +280,81 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 e.Graphics.DrawLine(pen, 28, ((Panel)s).Height - 1, ((Panel)s).Width - 28, ((Panel)s).Height - 1);
             };
 
-            var fields = new[]
-            {
-                ("Order No.",     o.OrderID),
-                ("Customer",      o.CustomerName),
-                ("Sales Staff",   o.SalesName),
-                ("Contact",       o.OrderContactName),
-                ("Issued Date",   o.IssuedTime.ToString("yyyy-MM-dd")),
-                ("Delivery Date", o.DeliveryDate.ToString("yyyy-MM-dd")),
-                ("Grand Total",   $"HK$ {o.GrandTotal:N2}"),
-                ("Shipping Addr", o.ShippingAddress),
-                ("Billing Addr",  o.BillingAddress),
-                ("Status",        o.OrderStatus),
-            };
-
+            // 4 columns: LabelL | ValueL | LabelR | ValueR
             var tblInfo = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 5,
                 BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
-            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140f));
-            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  50f));
-            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140f));
-            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  50f));
+            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 155f));  // left label
+            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  50f));   // left value
+            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 175f));  // right label
+            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  50f));   // right value
             for (int r = 0; r < 5; r++)
                 tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 20f));
 
-            for (int i = 0; i < fields.Length; i++)
+            // Left column data (4 items — row 4 stays empty on left)
+            var leftFields = new[]
             {
-                int col = (i % 2) * 2;
-                int row = i / 2;
-                tblInfo.Controls.Add(new Label { Text = fields[i].Item1, Font = new Font("Segoe UI", 10f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(0, 0, 8, 0) }, col, row);
-                tblInfo.Controls.Add(new Label { Text = fields[i].Item2 ?? "—", Font = new Font("Segoe UI", 12f), ForeColor = Color.FromArgb(15, 31, 53), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoEllipsis = true }, col + 1, row);
+                ("Order ID",       o.OrderID),
+                ("Sales Name",     o.SalesName),
+                ("Delivery Date",  o.DeliveryDate.ToString("yyyy-MM-dd")),
+                ("Billing Address",o.BillingAddress),
+            };
+            for (int i = 0; i < leftFields.Length; i++)
+            {
+                tblInfo.Controls.Add(MakeLabelKey(leftFields[i].Item1),              0, i);
+                tblInfo.Controls.Add(MakeLabelVal(leftFields[i].Item2 ?? "—"),       1, i);
+            }
+
+            // Right column data (5 items)
+            var rightFields = new[]
+            {
+                ("Quotation ID",    o.QuotationID),
+                ("Customer Name",   o.CustomerName),
+                ("Contact Name",    o.OrderContactName),
+                ("Issued Date",     o.IssuedTime.ToString("yyyy-MM-dd")),
+                ("Shipping Address",o.ShippingAddress),
+            };
+            for (int i = 0; i < rightFields.Length; i++)
+            {
+                tblInfo.Controls.Add(MakeLabelKey(rightFields[i].Item1),             2, i);
+                tblInfo.Controls.Add(MakeLabelVal(rightFields[i].Item2 ?? "—"),      3, i);
             }
             pnlInfo.Controls.Add(tblInfo);
+
+            // ── Discount section (only when DiscountType is present)
+            Panel pnlDiscount = null;
+            if (hasDiscount)
+            {
+                pnlDiscount = new Panel
+                {
+                    Dock = DockStyle.Top, Height = 60,
+                    Padding = new Padding(28, 0, 28, 0), BackColor = Color.FromArgb(255, 251, 235)
+                };
+                pnlDiscount.Paint += PaintBottomBorderStatic;
+
+                var tblDisc = new TableLayoutPanel
+                {
+                    Dock = DockStyle.Fill, ColumnCount = 6, RowCount = 1,
+                    BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+                };
+                tblDisc.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 130f));
+                tblDisc.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  33.3f));
+                tblDisc.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 130f));
+                tblDisc.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  33.3f));
+                tblDisc.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 150f));
+                tblDisc.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  33.4f));
+                tblDisc.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+
+                tblDisc.Controls.Add(MakeLabelKey("Discount Type"),                          0, 0);
+                tblDisc.Controls.Add(MakeLabelVal(o.DiscountType),                           1, 0);
+                tblDisc.Controls.Add(MakeLabelKey("Discount Value"),                         2, 0);
+                tblDisc.Controls.Add(MakeLabelVal(o.DiscountValue.ToString("N2")),            3, 0);
+                tblDisc.Controls.Add(MakeLabelKey("Discount Amount"),                        4, 0);
+                tblDisc.Controls.Add(MakeLabelVal($"HK$ {o.DiscountAmount:N2}"),              5, 0);
+                pnlDiscount.Controls.Add(tblDisc);
+            }
 
             // ── Section label
             var pnlLineLabel = new Panel { Dock = DockStyle.Top, Height = 40, BackColor = Color.FromArgb(246, 249, 255), Padding = new Padding(28, 0, 0, 0) };
@@ -373,15 +401,31 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             btnClose.Click += (s, ev) => dlg.Close();
             pnlFooter.Controls.Add(btnClose);
 
-            // ── Assemble
-            dlg.Controls.Add(dgv);
-            dlg.Controls.Add(pnlTotalRow);
-            dlg.Controls.Add(pnlLineLabel);
-            dlg.Controls.Add(pnlInfo);
-            dlg.Controls.Add(pnlHeader);
-            dlg.Controls.Add(pnlFooter);
+            // ── Assemble (DockStyle.Top stacks top-down in add order; Bottom stacks bottom-up)
+            dlg.Controls.Add(dgv);           // Fill — takes remaining space
+            dlg.Controls.Add(pnlTotalRow);   // Bottom
+            dlg.Controls.Add(pnlLineLabel);  // Top (added last among Tops → lowest)
+            if (hasDiscount)
+                dlg.Controls.Add(pnlDiscount);  // Top — sits just above ORDER ITEMS
+            dlg.Controls.Add(pnlInfo);       // Top
+            dlg.Controls.Add(pnlHeader);     // Top (first added → topmost)
+            dlg.Controls.Add(pnlFooter);     // Bottom
             dlg.ShowDialog(this);
         }
+
+        // ── Label factory helpers
+        private static Label MakeLabelKey(string text) => new Label
+        {
+            Text = text, Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+            ForeColor = Color.FromArgb(98, 112, 135), Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(0, 0, 8, 0)
+        };
+        private static Label MakeLabelVal(string text) => new Label
+        {
+            Text = text, Font = new Font("Segoe UI", 12f),
+            ForeColor = Color.FromArgb(15, 31, 53), Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleLeft, AutoEllipsis = true
+        };
 
         private static void PaintBottomBorderStatic(object s, PaintEventArgs e)
         { var p = (Panel)s; using var pen = new Pen(Color.FromArgb(221, 227, 236), 1); e.Graphics.DrawLine(pen, 0, p.Height - 1, p.Width, p.Height - 1); }
