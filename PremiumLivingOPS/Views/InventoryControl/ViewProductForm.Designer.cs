@@ -21,7 +21,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
 
             // ── Form ───────────────────────────────────────────────────────────
             Name          = "ViewProductForm";
-            Text          = "Premium Living OPS — Inventory Control";
+            Text          = "Premium Living OPS — View Product";
             Size          = new Size(1440, 900);
             MinimumSize   = new Size(1200, 720);
             StartPosition = FormStartPosition.CenterScreen;
