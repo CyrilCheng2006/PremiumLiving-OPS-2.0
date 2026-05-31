@@ -1,0 +1,285 @@
+using PremiumLivingOPS.Controllers;
+using PremiumLivingOPS.Models.Entities;
+using PremiumLivingOPS.Views.Shared;
+using System;
+using System.Collections.Generic;
+using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Windows.Forms;
+
+namespace PremiumLivingOPS.Views.InventoryControl
+{
+    /// <summary>
+    /// View — Inventory Control / View Raw Material tab.
+    /// Mirrors ViewProductForm for Raw Materials.
+    /// </summary>
+    public partial class ViewRawMaterialForm : Form
+    {
+        private readonly InventoryControlController _ctrl =
+            new InventoryControlController();
+
+        private List<RawMaterialEntity> _currentMaterials = new List<RawMaterialEntity>();
+
+        private static readonly System.Collections.Generic.Dictionary<string, (Color bg, Color fg)> StatusColors =
+            new System.Collections.Generic.Dictionary<string, (Color, Color)>
+            {
+                { "In Stock",    (Color.FromArgb(209, 250, 229), Color.FromArgb(  6,  95,  70)) },
+                { "Low Stock",   (Color.FromArgb(254, 243, 199), Color.FromArgb(146,  64,  14)) },
+                { "Out of Stock",(Color.FromArgb(254, 226, 226), Color.FromArgb(153,  27,  27)) }
+            };
+
+        public ViewRawMaterialForm()
+        {
+            InitializeComponent();
+            Load += ViewRawMaterialForm_Load;
+        }
+
+        private void ViewRawMaterialForm_Load(object sender, EventArgs e)
+        {
+            _shell.MenuItemClicked += OnTopNavMenuItemClicked;
+            _shell.LogoutClicked   += BtnLogout_Click;
+            _shell.SetPopupContainer(pnlRoot);
+
+            btnTabProduct.Click     += (s, _) =>
+                FormNavigator.NavigateTo(this, "Inventory Control", "View Product / Raw Material");
+            btnTabRawMaterial.Click += (s, _) => { /* already here */ };
+
+            btnSearch.Click += (s, _) => RefreshGrid();
+            btnReset.Click  += (s, _) => ResetFilters();
+            txtSearch.KeyDown += (s, ke) => { if (ke.KeyCode == Keys.Enter) RefreshGrid(); };
+            dgvMaterials.SelectionChanged += (s, _) => UpdateActionButtons();
+            dgvMaterials.CellDoubleClick  += (s, ce) => { if (ce.RowIndex >= 0) OpenDetailDialog(); };
+            btnViewDetail.Click += (s, _) => OpenDetailDialog();
+            dgvMaterials.CellFormatting   += DgvMaterials_CellFormatting;
+
+            LoadCategories();
+            RefreshGrid();
+        }
+
+        private void LoadCategories()
+        {
+            cboCategory.Items.Clear();
+            foreach (var c in _ctrl.GetRawMaterialCategories())
+                cboCategory.Items.Add(c);
+            cboCategory.SelectedIndex = 0;
+        }
+
+        private void RefreshGrid()
+        {
+            string keyword  = txtSearch.Text.Trim();
+            string category = cboCategory.SelectedItem?.ToString();
+            string status   = cboStatus.SelectedItem?.ToString();
+
+            var vm = _ctrl.GetViewRawMaterialVM(
+                string.IsNullOrEmpty(keyword) ? null : keyword,
+                category == "All"             ? null : category);
+
+            _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
+            _shell.SetVisibleMenus(vm.AllowedMenus);
+            _shell.SetBreadcrumb("Inventory Control  ›  View Raw Material");
+
+            _currentMaterials = vm.Materials;
+            if (!string.IsNullOrEmpty(status) && status != "All")
+                _currentMaterials = _currentMaterials.FindAll(m => m.StockStatus == status);
+
+            dgvMaterials.Rows.Clear();
+            foreach (var m in _currentMaterials)
+                dgvMaterials.Rows.Add(
+                    m.MaterialID,
+                    m.MaterialName,
+                    m.Category,
+                    m.Unit,
+                    $"HK$ {m.UnitCost:N2}",
+                    m.StockQty,
+                    m.StockStatus);
+
+            RefreshKpi();
+            UpdateActionButtons();
+        }
+
+        private void ResetFilters()
+        {
+            txtSearch.Text = string.Empty;
+            if (cboCategory.Items.Count > 0) cboCategory.SelectedIndex = 0;
+            cboStatus.SelectedIndex = 0;
+            RefreshGrid();
+        }
+
+        private void RefreshKpi()
+        {
+            pnlKpi.Controls.Clear();
+
+            var all = _ctrl.GetViewRawMaterialVM().Materials;
+            int total    = all.Count;
+            int inStock  = all.FindAll(m => m.StockStatus == "In Stock").Count;
+            int lowStock = all.FindAll(m => m.StockStatus == "Low Stock").Count;
+            int outStock = all.FindAll(m => m.StockStatus == "Out of Stock").Count;
+
+            var pills = new[]
+            {
+                ("Total Materials", total.ToString(),    Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254), "All"),
+                ("In Stock",        inStock.ToString(),  Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229), "In Stock"),
+                ("Low Stock",       lowStock.ToString(), Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), "Low Stock"),
+                ("Out of Stock",    outStock.ToString(), Color.FromArgb(153,  27,  27), Color.FromArgb(254, 226, 226), "Out of Stock")
+            };
+
+            var flow = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight,
+                WrapContents = false, BackColor = Color.Transparent, Padding = new Padding(0)
+            };
+
+            const int PillW = 260; const int PillH = 60; const int Gap = 10; const int NumW = 72;
+
+            foreach (var (label, count, fg, bg, filterStatus) in pills)
+            {
+                var pill = new Panel { BackColor = bg, Size = new Size(PillW, PillH), Margin = new Padding(0, 0, Gap, 0), Cursor = Cursors.Hand };
+                pill.Paint += (s, e) =>
+                {
+                    e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                    using var path  = RoundedRect(((Panel)s).ClientRectangle, 8);
+                    using var brush = new SolidBrush(((Panel)s).BackColor);
+                    e.Graphics.FillPath(brush, path);
+                };
+                var tlp = new TableLayoutPanel
+                {
+                    Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
+                    BackColor = Color.Transparent, Padding = new Padding(10, 0, 8, 0)
+                };
+                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, NumW));
+                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+                tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+                tlp.Controls.Add(new Label { Text = count, Font = new Font("Segoe UI", 14f, FontStyle.Bold), ForeColor = fg, BackColor = Color.Transparent, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter }, 0, 0);
+                tlp.Controls.Add(new Label { Text = label, Font = new Font("Segoe UI", 11f), ForeColor = fg, BackColor = Color.Transparent, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft }, 1, 0);
+
+                string localStatus = filterStatus;
+                EventHandler clickHandler = (s, e) =>
+                {
+                    int idx = cboStatus.FindStringExact(localStatus);
+                    if (idx >= 0) cboStatus.SelectedIndex = idx;
+                    RefreshGrid();
+                };
+                pill.Click += clickHandler; tlp.Click += clickHandler;
+                foreach (Control c in tlp.Controls) c.Click += clickHandler;
+                pill.Controls.Add(tlp);
+                flow.Controls.Add(pill);
+            }
+            pnlKpi.Controls.Add(flow);
+        }
+
+        private void UpdateActionButtons()
+            => btnViewDetail.Enabled = dgvMaterials.SelectedRows.Count > 0;
+
+        private void DgvMaterials_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
+        {
+            if (dgvMaterials.Columns[e.ColumnIndex].Name != "colStatus" || e.Value == null) return;
+            string val = e.Value.ToString();
+            e.FormattingApplied = true;
+            if (StatusColors.TryGetValue(val, out var colors))
+            {
+                e.CellStyle.ForeColor          = colors.fg;
+                e.CellStyle.BackColor          = colors.bg;
+                e.CellStyle.SelectionForeColor = colors.fg;
+                e.CellStyle.SelectionBackColor = colors.bg;
+                e.CellStyle.Font               = new Font("Segoe UI", 10f, FontStyle.Bold);
+                e.CellStyle.Alignment          = DataGridViewContentAlignment.MiddleCenter;
+            }
+        }
+
+        private void OpenDetailDialog()
+        {
+            if (dgvMaterials.SelectedRows.Count == 0) return;
+            var row = dgvMaterials.SelectedRows[0];
+            string materialId   = row.Cells["colMaterialID"].Value?.ToString();
+            string materialName = row.Cells["colMaterialName"].Value?.ToString();
+            string category     = row.Cells["colCategory"].Value?.ToString();
+            string unit         = row.Cells["colUnit"].Value?.ToString();
+            string unitCost     = row.Cells["colUnitCost"].Value?.ToString();
+            string stockQty     = row.Cells["colStockQty"].Value?.ToString();
+            string status       = row.Cells["colStatus"].Value?.ToString();
+
+            using var dlg = new Form
+            {
+                Text            = $"Raw Material Detail — {materialId}",
+                Size            = new Size(520, 400),
+                StartPosition   = FormStartPosition.CenterParent,
+                BackColor       = Color.White,
+                Font            = new Font("Segoe UI", 11f),
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox     = false,
+                MinimizeBox     = false
+            };
+
+            var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 64, BackColor = Color.FromArgb(19, 35, 61) };
+            pnlHeader.Controls.Add(new Label
+            {
+                Text = $"Raw Material Detail  —  {materialId}",
+                Font = new Font("Segoe UI", 15f, FontStyle.Bold), ForeColor = Color.White,
+                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft,
+                Padding = new Padding(20, 0, 0, 0)
+            });
+
+            var pnlBody = new Panel { Dock = DockStyle.Fill, Padding = new Padding(24, 16, 24, 16), BackColor = Color.White };
+            var tbl = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 7,
+                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+            };
+            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 160f));
+            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+            for (int i = 0; i < 7; i++) tbl.RowStyles.Add(new RowStyle(SizeType.Percent, 100f / 7f));
+
+            var fields = new[]
+            {
+                ("Material ID",   materialId),
+                ("Material Name", materialName),
+                ("Category",      category),
+                ("Unit",          unit),
+                ("Unit Cost",     unitCost),
+                ("Stock Qty",     stockQty),
+                ("Status",        status)
+            };
+            for (int i = 0; i < fields.Length; i++)
+            {
+                tbl.Controls.Add(new Label { Text = fields[i].Item1, Font = new Font("Segoe UI", 10f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft }, 0, i);
+                tbl.Controls.Add(new Label { Text = fields[i].Item2 ?? "—", Font = new Font("Segoe UI", 11f), ForeColor = Color.FromArgb(15, 31, 53), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft }, 1, i);
+            }
+            pnlBody.Controls.Add(tbl);
+
+            var pnlFoot = new Panel { Dock = DockStyle.Bottom, Height = 60, Padding = new Padding(0, 10, 20, 10) };
+            var btnClose = new Button
+            {
+                Text = "Close", Font = new Font("Segoe UI", 11f),
+                ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White,
+                FlatStyle = FlatStyle.Flat, Dock = DockStyle.Right, Width = 120, Cursor = Cursors.Hand
+            };
+            btnClose.FlatAppearance.BorderColor = Color.FromArgb(221, 227, 236);
+            btnClose.Click += (s, ev) => dlg.Close();
+            pnlFoot.Controls.Add(btnClose);
+
+            dlg.Controls.Add(pnlBody);
+            dlg.Controls.Add(pnlHeader);
+            dlg.Controls.Add(pnlFoot);
+            dlg.ShowDialog(this);
+        }
+
+        private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
+            => FormNavigator.NavigateTo(this, menuLabel, subItem);
+
+        private void BtnLogout_Click(object sender, EventArgs e)
+        {
+            SessionManager.Clear();
+            Application.Restart();
+        }
+
+        private static GraphicsPath RoundedRect(Rectangle r, int radius)
+        {
+            var path = new GraphicsPath(); int d = radius * 2;
+            path.AddArc(r.X, r.Y, d, d, 180, 90);
+            path.AddArc(r.Right - d, r.Y, d, d, 270, 90);
+            path.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90);
+            path.AddArc(r.X, r.Bottom - d, d, d, 90, 90);
+            path.CloseFigure(); return path;
+        }
+    }
+}
