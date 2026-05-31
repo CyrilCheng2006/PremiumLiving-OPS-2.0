@@ -63,20 +63,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             _shell = new AppShell();
             _shell.SetPopupContainer(pnlMain);
 
-            // ==================================================================
-            // CARD 1 — ORDER INFORMATION
-            //
-            // 3-col × 12-row TableLayoutPanel.
-            //
-            // r6 layout (Billing Address label row):
-            //   col-0 : "Billing Address *" label   (colspan 1, same as other field labels)
-            //   col-1 : chkSameAddress panel         (tight left-padding gap of 12px)
-            //   col-2 : empty spacer
-            //
-            // chkSameAddress font = 10.5f Bold to match FieldLabel, so the label
-            // and checkbox sit on the same visual baseline.
-            // ==================================================================
-
             // ── Order ID chip (read-only)
             lblOrderIdValue = new Label
             {
@@ -118,8 +104,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             txtBillingAddr.BackColor = System.Drawing.Color.FromArgb(235, 240, 250);
 
             // ── "Same as Shipping" checkbox
-            //   • Font 10.5f Bold  — matches FieldLabel so they align on the same row baseline.
-            //   • TextAlign MiddleLeft + vertical centering via panel padding.
+            //   Font     : 10.5f Bold  — matches FieldLabel
+            //   TextAlign: MiddleLeft  — vertically centred inside the 40px label row
             chkSameAddress = new CheckBox
             {
                 Text      = "Same as Shipping",
@@ -128,18 +114,17 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Checked   = true,
                 AutoSize  = false,
                 Dock      = DockStyle.Fill,
-                TextAlign = System.Drawing.ContentAlignment.BottomLeft
+                TextAlign = System.Drawing.ContentAlignment.MiddleLeft
             };
             chkSameAddress.CheckedChanged += chkSameAddress_CheckedChanged;
 
-            // Panel that wraps chkSameAddress.
-            // Left padding = 12px  → small gap between the Billing Address label cell and the checkbox.
-            // Bottom padding = 2px → matches FieldLabel.Padding to keep baselines aligned.
+            // Wrapper panel: left padding 12px for the small gap after the Billing Address label.
+            // No vertical padding — TextAlign=MiddleLeft handles centering within the row height.
             var pnlChk = new Panel
             {
                 Dock      = DockStyle.Fill,
                 BackColor = System.Drawing.Color.Transparent,
-                Padding   = new Padding(12, 0, 0, 2)   // 12px left gap; 0 top so it uses natural row height
+                Padding   = new Padding(12, 0, 0, 0)
             };
             chkSameAddress.Dock = DockStyle.Fill;
             pnlChk.Controls.Add(chkSameAddress);
@@ -213,58 +198,56 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, 40f));  // r10 label
             tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, 72f));  // r11 input
 
-            // r0 labels
+            // r0
             tblInfo.Controls.Add(FieldLabel("Order ID",         false), 0, 0);
             tblInfo.Controls.Add(FieldLabel("Linked Quotation", false), 1, 0);
             tblInfo.Controls.Add(FieldLabel("",                 false), 2, 0);
-            // r1 inputs
+            // r1
             tblInfo.Controls.Add(pnlOrderIdChip,                        0, 1);
             tblInfo.Controls.Add(Pad(cboQuotation),                     1, 1);
             tblInfo.Controls.Add(new Panel { Dock = DockStyle.Fill, BackColor = System.Drawing.Color.Transparent }, 2, 1);
 
-            // r2 labels
+            // r2
             tblInfo.Controls.Add(FieldLabel("Address ID", true),  0, 2);
             tblInfo.Controls.Add(FieldLabel("Customer",   true),  1, 2);
             tblInfo.Controls.Add(FieldLabel("",           false), 2, 2);
-            // r3 inputs
+            // r3
             tblInfo.Controls.Add(Pad(cboAddressId), 0, 3);
             tblInfo.Controls.Add(Pad(cboCustomer),  1, 3);
             tblInfo.Controls.Add(new Panel { Dock = DockStyle.Fill, BackColor = System.Drawing.Color.Transparent }, 2, 3);
 
-            // r4  Shipping Address label (spans 3 cols)
+            // r4  Shipping Address label (spans 3)
             var lblShipping = FieldLabel("Shipping Address", true);
             tblInfo.Controls.Add(lblShipping, 0, 4);
             tblInfo.SetColumnSpan(lblShipping, 3);
-            // r5  Shipping Address input (spans 3 cols)
+            // r5  Shipping Address input (spans 3)
             var pnlShipping = Pad(txtShippingAddr);
             tblInfo.Controls.Add(pnlShipping, 0, 5);
             tblInfo.SetColumnSpan(pnlShipping, 3);
 
-            // r6  Billing Address label  — col-0 only (NO colspan)
-            //     chkSameAddress panel   — col-1  (tight left gap = 12px)
-            //     spacer                 — col-2
-            tblInfo.Controls.Add(FieldLabel("Billing Address", true), 0, 6);  // colspan = 1
+            // r6  col-0: Billing Address label | col-1: chkSameAddress | col-2: spacer
+            tblInfo.Controls.Add(FieldLabel("Billing Address", true), 0, 6);
             tblInfo.Controls.Add(pnlChk, 1, 6);
             tblInfo.Controls.Add(new Panel { Dock = DockStyle.Fill, BackColor = System.Drawing.Color.Transparent }, 2, 6);
-            // r7  Billing Address input (spans 3 cols)
+            // r7  Billing Address input (spans 3)
             var pnlBilling = Pad(txtBillingAddr);
             tblInfo.Controls.Add(pnlBilling, 0, 7);
             tblInfo.SetColumnSpan(pnlBilling, 3);
 
-            // r8 labels
+            // r8
             tblInfo.Controls.Add(FieldLabel("Delivery Date",      true),  0, 8);
             tblInfo.Controls.Add(FieldLabel("Order Contact Name", true),  1, 8);
             tblInfo.Controls.Add(FieldLabel("Discount Type",      false), 2, 8);
-            // r9 inputs
+            // r9
             tblInfo.Controls.Add(Pad(dtpDelivery),     0, 9);
             tblInfo.Controls.Add(Pad(txtContactName),  1, 9);
             tblInfo.Controls.Add(Pad(cboDiscountType), 2, 9);
 
-            // r10 labels
+            // r10
             tblInfo.Controls.Add(FieldLabel("",               false), 0, 10);
             tblInfo.Controls.Add(FieldLabel("",               false), 1, 10);
             tblInfo.Controls.Add(FieldLabel("Discount Value", false), 2, 10);
-            // r11 inputs
+            // r11
             tblInfo.Controls.Add(new Panel { Dock = DockStyle.Fill, BackColor = System.Drawing.Color.Transparent }, 0, 11);
             tblInfo.Controls.Add(new Panel { Dock = DockStyle.Fill, BackColor = System.Drawing.Color.Transparent }, 1, 11);
             tblInfo.Controls.Add(pnlDiscountInput, 2, 11);
@@ -278,7 +261,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlInfoInner.Controls.Add(pnlInfoContent);
 
             // ==================================================================
-            // CARD 2 — ORDER ITEMS  (CardPanel.CreateFill)
+            // CARD 2 — ORDER ITEMS
             // ==================================================================
 
             cboProduct  = MakeCombo();
