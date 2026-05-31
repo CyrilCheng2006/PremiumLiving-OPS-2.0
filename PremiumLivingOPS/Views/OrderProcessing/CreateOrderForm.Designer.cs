@@ -64,7 +64,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             // ==================================================================
             // CARD 1 — ORDER INFORMATION
-            // Layout: 2-column × (label row 28px + input row 52px) × 5 field pairs
+            // Layout: 2-column × (label row 40px + input row 72px) × 5 field pairs
             //
             //   Left column              Right column
             //   ─────────────────────   ─────────────────────
@@ -95,7 +95,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             {
                 Dock      = DockStyle.Fill,
                 BackColor = System.Drawing.Color.Transparent,
-                Padding   = new Padding(0, 6, 12, 6)
+                Padding   = new Padding(0, 8, 12, 8)
             };
             lblOrderIdValue.Dock = DockStyle.Fill;
             pnlOrderIdChip.Controls.Add(lblOrderIdValue);
@@ -127,7 +127,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             {
                 Dock      = DockStyle.Fill,
                 BackColor = System.Drawing.Color.Transparent,
-                Padding   = new Padding(0, 6, 12, 6)
+                Padding   = new Padding(0, 8, 12, 8)
             };
             txtBillingAddr.Dock = DockStyle.Fill;
             pnlBilling.Controls.Add(txtBillingAddr);
@@ -166,16 +166,16 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             {
                 Dock      = DockStyle.Fill,
                 BackColor = System.Drawing.Color.Transparent,
-                Padding   = new Padding(0, 6, 12, 6)
+                Padding   = new Padding(0, 8, 12, 8)
             };
             txtDiscountValue.Dock = DockStyle.Fill;
             pnlDiscountInput.Controls.Add(txtDiscountValue);
             pnlDiscountInput.Controls.Add(lblDiscountUnit);   // Right-docked
 
             // ==================================================================
-            //  TableLayoutPanel — 2 columns × 10 rows
-            //  Odd  rows (0,2,4,6,8) = label rows  (28 px)
-            //  Even rows (1,3,5,7,9) = input rows  (52 px)
+            //  TableLayoutPanel — 2 columns × 10 rows  (×1.4 height)
+            //  Odd  rows (0,2,4,6,8) = label rows  (40 px)   ← was 28
+            //  Even rows (1,3,5,7,9) = input rows  (72 px)   ← was 52
             //
             //  Col 0 (Left 50%)              Col 1 (Right 50%)
             //  r0  Order ID                  Customer *
@@ -200,16 +200,16 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             };
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
-            tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, 28f));  // r0 label
-            tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, 52f));  // r1 input
-            tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, 28f));  // r2 label
-            tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, 52f));  // r3 input
-            tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, 28f));  // r4 label
-            tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, 52f));  // r5 input
-            tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, 28f));  // r6 label
-            tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, 52f));  // r7 input
-            tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, 28f));  // r8 label
-            tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, 52f));  // r9 input
+            tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, 40f));  // r0 label  (28×1.4)
+            tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, 72f));  // r1 input  (52×1.4)
+            tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, 40f));  // r2 label
+            tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, 72f));  // r3 input
+            tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, 40f));  // r4 label
+            tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, 72f));  // r5 input
+            tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, 40f));  // r6 label
+            tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, 72f));  // r7 input
+            tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, 40f));  // r8 label
+            tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, 72f));  // r9 input
 
             // Row 0 — labels
             tblInfo.Controls.Add(FieldLabel("Order ID",            false), 0, 0);
@@ -250,8 +250,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlInfoContent.Controls.Add(tblInfo);       // Fill
             pnlInfoContent.Controls.Add(pnlInfoTitle);  // Top
 
-            // 5 label rows × 28 + 5 input rows × 52 + title 54 + padding 26 = 480
-            var (pnlInfoOuter, pnlInfoInner) = CardPanel.Create(outerHeight: 480);
+            // 5 label rows × 40 + 5 input rows × 72 + title 54 + padding 26 = 640
+            // CardPanel.Create adds outer margin/border (~32px) → outerHeight 672
+            var (pnlInfoOuter, pnlInfoInner) = CardPanel.Create(outerHeight: 672);
             pnlInfoInner.Controls.Add(pnlInfoContent);
 
             // ==================================================================
@@ -263,7 +264,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             txtQty.Text = "1";
 
             btnAddLine    = MakePrimaryBtn("+ Add Item", Point.Empty, 180, 52);
-            btnRemoveLine = MakeOutlineBtn("− Remove",   Point.Empty, 150, 52);
+            btnRemoveLine = MakeOutlineBtn("\u2212 Remove",   Point.Empty, 150, 52);
             btnAddLine.Dock    = DockStyle.Fill;
             btnRemoveLine.Dock = DockStyle.Fill;
             btnAddLine.Click    += btnAddLine_Click;
@@ -444,7 +445,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             {
                 Dock      = DockStyle.Fill,
                 BackColor = System.Drawing.Color.Transparent,
-                Padding   = new Padding(0, 6, 12, 6)
+                Padding   = new Padding(0, 8, 12, 8)
             };
             p.Controls.Add(ctrl);
             return p;
