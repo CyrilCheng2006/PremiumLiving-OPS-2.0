@@ -53,10 +53,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             string customer     = txtSearchCustomer.Text.Trim();
             string statusSelect = cboStatus.SelectedItem?.ToString();
 
-            // Pass the status string directly to SQL.
-            // cboStatus items must match exact DB values: "Pending", "Processing",
-            // "Shipped", "Delivered", "Partially Delivered".
-            // "All" (index 0) is treated as no filter.
             string statusFilter = (statusSelect == "All" || string.IsNullOrEmpty(statusSelect))
                                   ? null : statusSelect;
 
@@ -83,7 +79,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     o.IssuedTime.ToString("yyyy-MM-dd"),
                     o.DeliveryDate.ToString("yyyy-MM-dd"),
                     $"HK$ {o.GrandTotal:N2}",
-                    o.OrderStatus);   // raw DB value; CellFormatting colours it
+                    o.OrderStatus);
 
             RefreshKpi();
             UpdateActionButtons();
@@ -106,8 +102,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         {
             pnlKpi.Controls.Clear();
 
-            // Count from ALL orders (no filter) so KPI totals are
-            // independent of whatever filter is currently applied to the grid.
             var allOrders = _ctrl.GetViewOrderVM().Orders;
 
             int total     = allOrders.Count;
@@ -119,15 +113,11 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             var pills = new[]
             {
-                // (pill label, count, fg, bg, cboStatus item to select on click)
-                // pill label  = display text shown on KPI pill (UI only)
-                // filterItem  = exact DB value passed to SQL WHERE clause
                 ("Total",     total.ToString(),      Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254), "All"),
                 ("Pending",   pending.ToString(),    Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), "Pending"),
                 ("Processing",processing.ToString(), Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254), "Processing"),
                 ("Delivered", delivered.ToString(),  Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229), "Delivered"),
                 ("Shipped",   shipped.ToString(),    Color.FromArgb(  3,  96, 170), Color.FromArgb(224, 242, 254), "Shipped"),
-                // label = "Partially" (display only); filterItem = "Partially Delivered" (DB value)
                 ("Partially", partially.ToString(),  Color.FromArgb( 91,  33, 182), Color.FromArgb(237, 233, 254), "Partially Delivered"),
             };
 
@@ -141,10 +131,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 AutoScroll    = false
             };
 
-            const int PillW   = 270;   // pill width
-            const int PillH   = 60;    // pill height
+            const int PillW   = 270;
+            const int PillH   = 60;
             const int Gap     = 8;
-            const int NumColW = 65;    // fixed number-column width; label column gets remaining space
+            const int NumColW = 65;
 
             foreach (var (label, count, fg, bg, filterItem) in pills)
             {
@@ -172,8 +162,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
                     Padding         = new Padding(10, 0, 8, 0)
                 };
-                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, NumColW));  // number col: 65px fixed
-                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));       // label col: remaining
+                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, NumColW));
+                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
                 tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
                 var lblCount = new Label
@@ -203,10 +193,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
                 string localFilterItem = filterItem;
 
-                // Click any part of the pill:
-                // 1. FindStringExact locates the exact item in cboStatus
-                // 2. Set SelectedIndex (reliable in WinForms; SelectedItem with string is not)
-                // 3. RefreshGrid() passes the selected text directly to SQL
                 EventHandler clickHandler = (s, e) =>
                 {
                     int idx = cboStatus.FindStringExact(localFilterItem);
@@ -303,15 +289,17 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             using var dlg = new Form
             {
                 Text            = $"Order Detail — {o.OrderID}",
-                Size            = new Size(860, 680),
+                Size            = new Size(1100, 860),       // enlarged: was 860×680
+                MinimumSize     = new Size(900, 760),
                 StartPosition   = FormStartPosition.CenterParent,
                 BackColor       = Color.White,
                 Font            = new Font("Segoe UI", 13f),
-                FormBorderStyle = FormBorderStyle.FixedDialog,
-                MaximizeBox     = false,
+                FormBorderStyle = FormBorderStyle.Sizable,   // allow user resize
+                MaximizeBox     = true,
                 MinimizeBox     = false
             };
 
+            // ── Header bar
             var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 72, BackColor = Color.FromArgb(19, 35, 61) };
             var lblDialogTitle = new Label
             {
@@ -326,17 +314,25 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
                 ForeColor = sc.fg != default ? sc.fg : Color.White,
                 BackColor = sc.bg != default ? sc.bg : Color.FromArgb(80, 80, 80),
-                AutoSize  = true, Location = new Point(440, 22), Padding = new Padding(8, 4, 8, 4)
+                AutoSize  = true, Location = new Point(480, 22), Padding = new Padding(8, 4, 8, 4)
             };
             pnlHeader.Controls.Add(lblDialogTitle);
             pnlHeader.Controls.Add(lblStatusBadge);
 
-            var pnlInfo = new Panel { Dock = DockStyle.Top, Height = 210, Padding = new Padding(24, 16, 24, 0), BackColor = Color.White };
+            // ── Info grid  (2-column, 5 rows → each row 44 px → 220 px + 24 top pad)
+            var pnlInfo = new Panel
+            {
+                Dock       = DockStyle.Top,
+                Height     = 260,                            // increased from 210
+                Padding    = new Padding(28, 18, 28, 0),
+                BackColor  = Color.White
+            };
             pnlInfo.Paint += (s, e) =>
             {
                 using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
-                e.Graphics.DrawLine(pen, 24, ((Panel)s).Height - 1, ((Panel)s).Width - 24, ((Panel)s).Height - 1);
+                e.Graphics.DrawLine(pen, 28, ((Panel)s).Height - 1, ((Panel)s).Width - 28, ((Panel)s).Height - 1);
             };
+
             var fields = new[]
             {
                 ("Order No.",     o.OrderID),
@@ -350,21 +346,69 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 ("Billing Addr",  o.BillingAddress),
                 ("Status",        o.OrderStatus),
             };
+
+            // Use a TableLayoutPanel for the info fields so they stay tidy on resize
+            var tblInfo = new TableLayoutPanel
+            {
+                Dock            = DockStyle.Fill,
+                ColumnCount     = 4,   // label | value | label | value
+                RowCount        = 5,
+                BackColor       = Color.Transparent,
+                CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+            };
+            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 130f));  // left label
+            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  50f));   // left value
+            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 130f));  // right label
+            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  50f));   // right value
+            for (int r = 0; r < 5; r++)
+                tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 20f));
+
             for (int i = 0; i < fields.Length; i++)
             {
-                int col = i % 2; int row = i / 2;
-                int fx = col == 0 ? 0 : 390;
-                int fy = row * 38;
-                var pRow = new Panel { Location = new Point(fx, fy), Width = 360, Height = 38 };
-                pRow.Controls.Add(new Label { Text = fields[i].Item1, Font = new Font("Segoe UI", 10f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), Width = 120, Location = new Point(0, 10), TextAlign = ContentAlignment.MiddleLeft });
-                pRow.Controls.Add(new Label { Text = fields[i].Item2 ?? "—", Font = new Font("Segoe UI", 12f), ForeColor = Color.FromArgb(15, 31, 53), AutoSize = true, Location = new Point(124, 10) });
-                pnlInfo.Controls.Add(pRow);
+                int col = (i % 2) * 2;   // 0 or 2
+                int row = i / 2;
+                var lblCaption = new Label
+                {
+                    Text      = fields[i].Item1,
+                    Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
+                    ForeColor = Color.FromArgb(98, 112, 135),
+                    Dock      = DockStyle.Fill,
+                    TextAlign = ContentAlignment.MiddleLeft,
+                    Padding   = new Padding(0, 0, 8, 0)
+                };
+                var lblValue = new Label
+                {
+                    Text      = fields[i].Item2 ?? "—",
+                    Font      = new Font("Segoe UI", 12f),
+                    ForeColor = Color.FromArgb(15, 31, 53),
+                    Dock      = DockStyle.Fill,
+                    TextAlign = ContentAlignment.MiddleLeft,
+                    AutoEllipsis = true
+                };
+                tblInfo.Controls.Add(lblCaption, col,     row);
+                tblInfo.Controls.Add(lblValue,   col + 1, row);
             }
+            pnlInfo.Controls.Add(tblInfo);
 
-            var pnlLineLabel = new Panel { Dock = DockStyle.Top, Height = 38, BackColor = Color.FromArgb(246, 249, 255), Padding = new Padding(24, 0, 0, 0) };
-            pnlLineLabel.Controls.Add(new Label { Text = "ORDER ITEMS", Font = new Font("Segoe UI", 10f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft });
+            // ── "ORDER ITEMS" section label
+            var pnlLineLabel = new Panel
+            {
+                Dock      = DockStyle.Top,
+                Height    = 40,
+                BackColor = Color.FromArgb(246, 249, 255),
+                Padding   = new Padding(28, 0, 0, 0)
+            };
+            pnlLineLabel.Controls.Add(new Label
+            {
+                Text      = "ORDER ITEMS",
+                Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(98, 112, 135),
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft
+            });
             pnlLineLabel.Paint += PaintBottomBorderStatic;
 
+            // ── Items DataGridView
             var dgv = new DataGridView
             {
                 ReadOnly = true, AllowUserToAddRows = false, RowHeadersVisible = false,
@@ -373,10 +417,23 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 GridColor = Color.FromArgb(221, 227, 236), Font = new Font("Segoe UI", 12f),
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
                 CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal,
-                RowTemplate = { Height = 40 }, Dock = DockStyle.Fill,
-                ColumnHeadersHeight = 38, EnableHeadersVisualStyles = false,
-                ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle { BackColor = Color.FromArgb(246, 249, 255), ForeColor = Color.FromArgb(98, 112, 135), Font = new Font("Segoe UI", 10f, FontStyle.Bold), Padding = new Padding(10, 0, 0, 0) },
-                DefaultCellStyle = new DataGridViewCellStyle { BackColor = Color.White, ForeColor = Color.FromArgb(15, 31, 53), SelectionBackColor = Color.FromArgb(219, 234, 254), SelectionForeColor = Color.FromArgb(15, 31, 53), Padding = new Padding(10, 4, 10, 4) }
+                RowTemplate = { Height = 44 }, Dock = DockStyle.Fill,
+                ColumnHeadersHeight = 40, EnableHeadersVisualStyles = false,
+                ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
+                {
+                    BackColor = Color.FromArgb(246, 249, 255),
+                    ForeColor = Color.FromArgb(98, 112, 135),
+                    Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
+                    Padding   = new Padding(12, 0, 0, 0)
+                },
+                DefaultCellStyle = new DataGridViewCellStyle
+                {
+                    BackColor           = Color.White,
+                    ForeColor           = Color.FromArgb(15, 31, 53),
+                    SelectionBackColor  = Color.FromArgb(219, 234, 254),
+                    SelectionForeColor  = Color.FromArgb(15, 31, 53),
+                    Padding             = new Padding(12, 6, 12, 6)
+                }
             };
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cItem",  HeaderText = "ITEM ID",    FillWeight = 18 });
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cName",  HeaderText = "ITEM NAME",  FillWeight = 42 });
@@ -386,23 +443,55 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             foreach (var l in detail.Lines)
                 dgv.Rows.Add(l.ItemID, l.ItemName, l.Quantity, $"HK$ {l.Price:N2}", $"HK$ {l.LineTotal:N2}");
 
-            var pnlTotalRow = new Panel { Dock = DockStyle.Bottom, Height = 46, BackColor = Color.FromArgb(246, 249, 255), Padding = new Padding(0, 0, 24, 0) };
-            pnlTotalRow.Controls.Add(new Label { Text = $"Grand Total:   HK$ {o.GrandTotal:N2}", Font = new Font("Segoe UI", 13f, FontStyle.Bold), ForeColor = Color.FromArgb(15, 31, 53), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleRight });
+            // ── Grand total footer row
+            var pnlTotalRow = new Panel
+            {
+                Dock      = DockStyle.Bottom,
+                Height    = 50,
+                BackColor = Color.FromArgb(246, 249, 255),
+                Padding   = new Padding(0, 0, 28, 0)
+            };
+            pnlTotalRow.Controls.Add(new Label
+            {
+                Text      = $"Grand Total:   HK$ {o.GrandTotal:N2}",
+                Font      = new Font("Segoe UI", 13f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(15, 31, 53),
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleRight
+            });
 
-            var pnlFooter = new Panel { Dock = DockStyle.Bottom, Height = 60, BackColor = Color.White, Padding = new Padding(0, 10, 24, 10) };
+            // ── Close button footer
+            var pnlFooter = new Panel
+            {
+                Dock      = DockStyle.Bottom,
+                Height    = 64,
+                BackColor = Color.White,
+                Padding   = new Padding(0, 12, 28, 12)
+            };
             pnlFooter.Paint += PaintTopBorderStatic;
-            var btnClose = new Button { Text = "Close", Font = new Font("Segoe UI", 12f), ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White, FlatStyle = FlatStyle.Flat, Dock = DockStyle.Right, Width = 110, Cursor = Cursors.Hand };
+            var btnClose = new Button
+            {
+                Text      = "Close",
+                Font      = new Font("Segoe UI", 12f),
+                ForeColor = Color.FromArgb(15, 31, 53),
+                BackColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Dock      = DockStyle.Right,
+                Width     = 120,
+                Cursor    = Cursors.Hand
+            };
             btnClose.FlatAppearance.BorderColor = Color.FromArgb(221, 227, 236);
             btnClose.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
             btnClose.Click += (s, ev) => dlg.Close();
             pnlFooter.Controls.Add(btnClose);
 
-            dlg.Controls.Add(dgv);
-            dlg.Controls.Add(pnlTotalRow);
-            dlg.Controls.Add(pnlLineLabel);
-            dlg.Controls.Add(pnlInfo);
-            dlg.Controls.Add(pnlHeader);
-            dlg.Controls.Add(pnlFooter);
+            // ── Assemble (DockStyle.Top stacks top-down; Fill must come first in Controls)
+            dlg.Controls.Add(dgv);           // Fill  — items grid
+            dlg.Controls.Add(pnlTotalRow);   // Bottom
+            dlg.Controls.Add(pnlLineLabel);  // Top   — added last among Top controls
+            dlg.Controls.Add(pnlInfo);       // Top
+            dlg.Controls.Add(pnlHeader);     // Top
+            dlg.Controls.Add(pnlFooter);     // Bottom
             dlg.ShowDialog(this);
         }
 
