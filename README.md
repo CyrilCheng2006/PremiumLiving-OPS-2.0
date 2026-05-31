@@ -28,8 +28,6 @@ The system replaces manual paper-based workflows with a centralised, role-based 
 
 ## 🏗️ Project Structure
 
-> **圖例：** `✅ 已完成` · `🔲 計劃中`
-
 ```
 PremiumLiving-OPS-2.0/                          ← Repository Root
 │
