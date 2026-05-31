@@ -136,6 +136,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             const int PillW = 260;
             const int PillH = 60;
             const int Gap   = 8;
+            // Fixed width for the number column — keeps the label column from being squeezed
+            const int NumColW = 44;
 
             foreach (var (label, count, fg, bg, filterItem) in pills)
             {
@@ -163,20 +165,20 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
                     Padding         = new Padding(10, 0, 8, 0)
                 };
-                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+                // Absolute width for number column → remaining space goes to label column
+                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, NumColW));
                 tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
                 tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
                 var lblCount = new Label
                 {
-                    Text        = count,
-                    Font        = new Font("Segoe UI", 14f, FontStyle.Bold),
-                    ForeColor   = fg,
-                    BackColor   = Color.Transparent,
-                    Dock        = DockStyle.Fill,
-                    TextAlign   = ContentAlignment.MiddleCenter,
-                    AutoSize    = false,
-                    MinimumSize = new Size(30, 0)
+                    Text      = count,
+                    Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
+                    ForeColor = fg,
+                    BackColor = Color.Transparent,
+                    Dock      = DockStyle.Fill,
+                    TextAlign = ContentAlignment.MiddleCenter,
+                    AutoSize  = false
                 };
 
                 var lblName = new Label
