@@ -20,9 +20,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
     {
         private readonly OrderProcessingController _ctrl = new OrderProcessingController();
 
-        private string                    _orderId;               // auto-generated, set on Load
+        private string                         _orderId;    // auto-generated, set on Load
         private readonly List<OrderLineEntity> _lines    = new List<OrderLineEntity>();
         private List<ProductLookup>            _products = new List<ProductLookup>();
+        private List<AddressLookup>            _addresses = new List<AddressLookup>(); // per-customer addresses
 
         public CreateOrderForm()
         {
@@ -30,7 +31,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             this.Load += CreateOrderForm_Load;
         }
 
-        // ── Load ────────────────────────────────────────────────────────────
+        // ── Load ──────────────────────────────────────────────────────────────────
         private void CreateOrderForm_Load(object sender, EventArgs e)
         {
             _shell.MenuItemClicked += OnTopNavMenuItemClicked;
@@ -43,8 +44,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             _shell.SetBreadcrumb("Order Processing  ›  Create Order");
 
             // ─ Auto-generated Order ID (read-only display)
-            _orderId              = vm.NextOrderId;
-            lblOrderIdValue.Text  = _orderId;
+            _orderId             = vm.NextOrderId;
+            lblOrderIdValue.Text = _orderId;
 
             // ─ Customer dropdown  (ID — Name)
             cboCustomer.Items.Clear();
@@ -76,31 +77,63 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             RefreshLineGrid();
         }
 
-        // ── Same-address checkbox ──────────────────────────────────────────
+        // ── Customer selection → populate address dropdowns ───────────────────────
+        private void cboCustomer_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            var sel = cboCustomer.SelectedItem as ComboItem;
+            string customerId = sel?.Value ?? string.Empty;
+
+            // Ask controller for this customer's saved addresses
+            _addresses = string.IsNullOrEmpty(customerId)
+                ? new List<AddressLookup>()
+                : _ctrl.GetAddressesForCustomer(customerId);
+
+            // Re-populate both address combos
+            PopulateAddressCombo(cboShippingAddr, _addresses);
+            PopulateAddressCombo(cboBillingAddr,  _addresses);
+        }
+
+        private static void PopulateAddressCombo(ComboBox cbo, List<AddressLookup> list)
+        {
+            cbo.Items.Clear();
+            cbo.Items.Add(new ComboItem("-- Select Address --", ""));
+            foreach (var a in list)
+                cbo.Items.Add(new ComboItem(a.DisplayText, a.AddressId));
+            cbo.SelectedIndex = 0;
+        }
+
+        // ── Shipping address selection → sync billing if checkbox is on ────────────
+        private void cboShippingAddr_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            SyncBillingIfSame();
+        }
+
+        // ── Same-address checkbox ─────────────────────────────────────────────
         private void chkSameAddress_CheckedChanged(object sender, EventArgs e)
         {
             if (chkSameAddress.Checked)
             {
-                txtBillingAddr.Text    = txtShippingAddr.Text;
-                txtBillingAddr.Enabled = false;
-                txtBillingAddr.BackColor = System.Drawing.Color.FromArgb(235, 240, 250);
+                SyncBillingIfSame();
+                cboBillingAddr.Enabled = false;
             }
             else
             {
-                txtBillingAddr.Enabled   = true;
-                txtBillingAddr.BackColor = System.Drawing.Color.FromArgb(245, 248, 255);
+                cboBillingAddr.Enabled = true;
             }
         }
 
-        // Keep Billing Address in sync while checkbox is active
-        // (wire this to txtShippingAddr.TextChanged in constructor if needed)
+        /// Copies the currently selected Shipping address item into the Billing combo.
         private void SyncBillingIfSame()
         {
-            if (chkSameAddress.Checked)
-                txtBillingAddr.Text = txtShippingAddr.Text;
+            if (!chkSameAddress.Checked) return;
+            // Mirror shipping selection into billing (same index)
+            cboBillingAddr.SelectedIndex =
+                (cboShippingAddr.SelectedIndex >= 0 && cboShippingAddr.SelectedIndex < cboBillingAddr.Items.Count)
+                ? cboShippingAddr.SelectedIndex
+                : 0;
         }
 
-        // ── Line-item helpers ─────────────────────────────────────────────
+        // ── Line-item helpers ────────────────────────────────────────────────
         private void RefreshLineGrid()
         {
             dgvLines.Rows.Clear();
@@ -117,11 +150,11 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
         private void RecalcGrandTotal(double subtotal)
         {
-            double discount = 0;
             string dtype = cboDiscountType.SelectedItem?.ToString() ?? "None";
+            double discount = 0;
             if (dtype == "Amount")
                 double.TryParse(txtDiscountValue.Text, out discount);
-            else if (dtype == "Rate (%)")
+            else if (dtype == "Rate")
             {
                 if (double.TryParse(txtDiscountValue.Text, out double rate))
                     discount = subtotal * rate / 100.0;
@@ -129,7 +162,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             lblGrandTotal.Text = $"Grand Total:  HK$ {subtotal - discount:N2}";
         }
 
-        // ── Add / Remove line ──────────────────────────────────────────
+        // ── Add / Remove line ───────────────────────────────────────────────
         private void btnAddLine_Click(object sender, EventArgs e)
         {
             var selProduct = cboProduct.SelectedItem as ComboItem;
@@ -169,12 +202,21 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             RefreshLineGrid();
         }
 
-        // ── Discount ───────────────────────────────────────────────────
+        // ── Discount ──────────────────────────────────────────────────────────────
         private void cboDiscountType_SelectedIndexChanged(object sender, EventArgs e)
         {
-            bool hasDiscount = cboDiscountType.SelectedItem?.ToString() != "None";
+            string dtype = cboDiscountType.SelectedItem?.ToString() ?? "None";
+            bool hasDiscount = dtype != "None";
             txtDiscountValue.Enabled = hasDiscount;
-            if (!hasDiscount) txtDiscountValue.Text = "0";
+            if (!hasDiscount)
+            {
+                txtDiscountValue.Text = "0";
+                lblDiscountUnit.Text  = "";
+            }
+            else
+            {
+                lblDiscountUnit.Text = dtype == "Rate" ? "%" : "HK$";
+            }
             double sub = 0;
             foreach (var l in _lines) sub += l.LineTotal;
             RecalcGrandTotal(sub);
@@ -187,7 +229,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             RecalcGrandTotal(sub);
         }
 
-        // ── Submit ─────────────────────────────────────────────────────
+        // ── Submit ──────────────────────────────────────────────────────────────────
         private void btnSubmit_Click(object sender, EventArgs e)
         {
             // ─ Validate
@@ -195,19 +237,21 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             if (selCustomer == null || string.IsNullOrEmpty(selCustomer.Value))
             { ShowWarning("Please select a customer."); return; }
 
-            if (string.IsNullOrWhiteSpace(txtShippingAddr.Text))
-            { ShowWarning("Shipping address is required."); return; }
+            var selShipping = cboShippingAddr.SelectedItem as ComboItem;
+            if (selShipping == null || string.IsNullOrEmpty(selShipping.Value))
+            { ShowWarning("Please select a shipping address."); return; }
 
-            if (string.IsNullOrWhiteSpace(txtBillingAddr.Text))
-            { ShowWarning("Billing address is required."); return; }
+            var selBilling = cboBillingAddr.SelectedItem as ComboItem;
+            if (selBilling == null || string.IsNullOrEmpty(selBilling.Value))
+            { ShowWarning("Please select a billing address."); return; }
+
+            if (string.IsNullOrWhiteSpace(txtContactName.Text))
+            { ShowWarning("Order contact name is required."); return; }
 
             if (_lines.Count == 0)
             { ShowWarning("Please add at least one order item before submitting."); return; }
 
-            // Sync billing address one last time in case user typed in Shipping after checking the box
-            SyncBillingIfSame();
-
-            // ─ Build entity — SalesID and IssuedTime stamped here at submission time
+            // ─ Build entity
             var selQuotation = cboQuotation.SelectedItem as ComboItem;
             string dtype = cboDiscountType.SelectedItem?.ToString() ?? "None";
             double.TryParse(txtDiscountValue.Text, out double discountValue);
@@ -216,17 +260,21 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             foreach (var l in _lines) sub += l.LineTotal;
 
             double discountAmount = 0;
-            if (dtype == "Amount")        discountAmount = discountValue;
-            else if (dtype == "Rate (%)") discountAmount = sub * discountValue / 100.0;
+            if (dtype == "Amount")  discountAmount = discountValue;
+            else if (dtype == "Rate") discountAmount = sub * discountValue / 100.0;
+
+            // Resolve address text from the selected AddressLookup
+            string shippingText = ResolveAddressText(selShipping.Value);
+            string billingText  = ResolveAddressText(selBilling.Value);
 
             var header = new OrderEntity
             {
-                OrderID          = _orderId,                              // auto-generated
+                OrderID          = _orderId,
                 CustomerID       = selCustomer.Value,
                 QuotationID      = selQuotation?.Value ?? "",
                 DeliveryDate     = dtpDelivery.Value,
-                ShippingAddress  = txtShippingAddr.Text.Trim(),
-                BillingAddress   = txtBillingAddr.Text.Trim(),
+                ShippingAddress  = shippingText,
+                BillingAddress   = billingText,
                 OrderContactName = txtContactName.Text.Trim(),
                 DiscountType     = dtype == "None" ? null : dtype,
                 DiscountValue    = discountValue,
@@ -234,7 +282,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 SubTotal         = sub,
                 GrandTotal       = sub - discountAmount,
                 OrderStatus      = "Pending",
-                // ─ Stamped automatically at submit ─────────────────
                 SalesID          = SessionManager.CurrentUser?.StaffId ?? "",
                 IssuedTime       = DateTime.Now
             };
@@ -255,6 +302,13 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             }
         }
 
+        private string ResolveAddressText(string addressId)
+        {
+            var match = _addresses.Find(a => a.AddressId == addressId);
+            return match?.FullAddress ?? addressId;
+        }
+
+        // ── Clear ────────────────────────────────────────────────────────────────────
         private void btnClear_Click(object sender, EventArgs e)
         {
             if (MessageBox.Show("Clear all entered data?", "Confirm Clear",
@@ -264,29 +318,30 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
         private void ClearForm()
         {
-            // Re-generate a fresh Order ID for the next entry
             _orderId             = _ctrl.GenerateOrderId();
             lblOrderIdValue.Text = _orderId;
 
             cboCustomer.SelectedIndex     = 0;
+            cboShippingAddr.Items.Clear();
+            cboBillingAddr.Items.Clear();
             cboQuotation.SelectedIndex    = 0;
             cboProduct.SelectedIndex      = 0;
             cboDiscountType.SelectedIndex = 0;
-            txtShippingAddr.Text  = string.Empty;
-            txtBillingAddr.Text   = string.Empty;
             txtContactName.Text   = string.Empty;
             txtDiscountValue.Text = "0";
+            lblDiscountUnit.Text  = "";
             txtQty.Text           = "1";
             chkSameAddress.Checked = false;
             dtpDelivery.Value     = DateTime.Today.AddDays(14);
             _lines.Clear();
+            _addresses.Clear();
             RefreshLineGrid();
         }
 
         private static void ShowWarning(string msg)
             => MessageBox.Show(msg, "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
 
-        // ── Nav / Logout ───────────────────────────────────────────────
+        // ── Nav / Logout ──────────────────────────────────────────────────────────
         private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
             => FormNavigator.NavigateTo(this, menuLabel, subItem);
 
@@ -296,7 +351,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             Application.Restart();
         }
 
-        // ── ComboItem helper ─────────────────────────────────────────
+        // ── ComboItem helper ───────────────────────────────────────────────────
         private class ComboItem
         {
             public string Text  { get; }
