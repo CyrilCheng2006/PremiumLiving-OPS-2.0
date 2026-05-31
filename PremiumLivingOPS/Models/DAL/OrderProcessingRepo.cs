@@ -105,7 +105,6 @@ namespace PremiumLivingOPS.Models.DAL
 
         /// <summary>
         /// Returns all OrderIDs that begin with the given prefix (used by Controller.GenerateOrderId).
-        /// Example prefix: "ORD-20260531-"
         /// </summary>
         public List<string> GetOrderIdsByPrefix(string prefix)
         {
@@ -383,6 +382,41 @@ namespace PremiumLivingOPS.Models.DAL
                             CustomerName = rdr.GetString("CustomerName"),
                             Email        = rdr.GetString("EmailAddress"),
                             Phone        = rdr.GetString("PhoneNumber")
+                        });
+            }
+            return list;
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  ADDRESS queries   (reads from the Address table)
+        // ════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Returns all address records from the Address table.
+        /// The View filters this list by CustomerID after selection.
+        /// Assumes schema: Address (AddressID, CustomerID, FullAddress, Label)
+        /// where Label is optional (may be NULL).
+        /// </summary>
+        public List<AddressLookup> GetAllAddresses()
+        {
+            var list = new List<AddressLookup>();
+            using (var conn = DatabaseHelper.GetConnection())
+            {
+                conn.Open();
+                const string sql =
+                    @"SELECT AddressID, CustomerID, FullAddress,
+                             COALESCE(Label, '') AS Label
+                      FROM Address
+                      ORDER BY CustomerID, AddressID";
+                using (var cmd = new MySqlCommand(sql, conn))
+                using (var rdr = cmd.ExecuteReader())
+                    while (rdr.Read())
+                        list.Add(new AddressLookup
+                        {
+                            AddressId   = rdr.GetString("AddressID"),
+                            CustomerId  = rdr.GetString("CustomerID"),
+                            FullAddress = rdr.GetString("FullAddress"),
+                            Label       = rdr.GetString("Label")
                         });
             }
             return list;

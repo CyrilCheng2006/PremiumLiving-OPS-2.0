@@ -15,7 +15,7 @@ namespace PremiumLivingOPS.Controllers
     {
         private readonly OrderProcessingRepo _repo = new OrderProcessingRepo();
 
-        // ── View Order ────────────────────────────────────────────────────────────
+        // ── View Order ────────────────────────────────────────────────────────────────────
 
         /// <summary>
         /// Returns ViewModel for the View Order page.
@@ -54,7 +54,7 @@ namespace PremiumLivingOPS.Controllers
         public List<OrderLineEntity> GetOrderLines(string orderId)
             => _repo.GetOrderLines(orderId);
 
-        // ── Quotation ───────────────────────────────────────────────────────────
+        // ── Quotation ───────────────────────────────────────────────────────────────────
 
         /// <summary>
         /// Returns ViewModel for the Quotation page.
@@ -94,7 +94,7 @@ namespace PremiumLivingOPS.Controllers
         public bool UpdateQuotationStatus(string quotationId, string newStatus)
             => _repo.UpdateQuotationStatus(quotationId, newStatus);
 
-        // ── Create Order ───────────────────────────────────────────────────────
+        // ── Create Order ────────────────────────────────────────────────────────────────
 
         public CreateOrderViewModel GetCreateOrderVM()
         {
@@ -109,11 +109,24 @@ namespace PremiumLivingOPS.Controllers
                 },
                 AllowedMenus      = NavAccessPolicy.GetAllowedMenus(user?.Department ?? ""),
                 Customers         = _repo.GetAllCustomers(),
+                Addresses         = _repo.GetAllAddresses(),   // all addresses; View filters by CustomerID
                 Products          = _repo.GetAllProducts(),
                 Quotations        = allQ,
                 PendingQuotations = allQ.FindAll(q => q.QuotationStatus == "Pending"),
                 NextOrderId       = GenerateOrderId()
             };
+        }
+
+        /// <summary>
+        /// Returns all addresses that belong to the given customer.
+        /// Called by the View when the Customer ComboBox selection changes.
+        /// </summary>
+        public List<AddressLookup> GetAddressesByCustomer(string customerId,
+            List<AddressLookup> allAddresses)
+        {
+            if (string.IsNullOrEmpty(customerId) || allAddresses == null)
+                return new List<AddressLookup>();
+            return allAddresses.FindAll(a => a.CustomerId == customerId);
         }
 
         /// <summary>
@@ -124,12 +137,10 @@ namespace PremiumLivingOPS.Controllers
         public string GenerateOrderId()
         {
             string prefix = "ORD-" + DateTime.Today.ToString("yyyyMMdd") + "-";
-            // Fetch all existing OrderIDs that start with today’s prefix
             var existing = _repo.GetOrderIdsByPrefix(prefix);
             int next = 1;
             if (existing.Count > 0)
             {
-                // Parse the 4-digit sequence from each matching ID and take the max
                 foreach (var id in existing)
                 {
                     if (id.Length >= prefix.Length + 4 &&
@@ -154,7 +165,7 @@ namespace PremiumLivingOPS.Controllers
             return true;
         }
 
-        // ── Modify Order ──────────────────────────────────────────────────────────
+        // ── Modify Order ───────────────────────────────────────────────────────────────────
 
         public ModifyOrderViewModel GetModifyOrderVM(string orderId = null)
         {

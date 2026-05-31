@@ -77,26 +77,29 @@ namespace PremiumLivingOPS.Models.Entities
     }
 
     /// <summary>
-    /// Represents one saved address record for a customer.
-    /// Used to populate the Shipping / Billing address ComboBoxes
-    /// in CreateOrderForm without exposing raw address strings in the View.
-    /// AddressId is stored back into OrderEntity.ShippingAddress /
-    /// BillingAddress as the resolved full-text address.
+    /// Represents one saved address record from the Address table.
+    /// Displayed in the AddressID ComboBox; selecting one auto-fills
+    /// the Shipping Address TextBox and stores AddressID on the order.
     /// </summary>
     public class AddressLookup
     {
-        /// <summary>Surrogate key (e.g. ADDR-0001 or a DB auto-ID string).</summary>
+        /// <summary>PK from Address table (e.g. ADDR-0001).</summary>
         public string AddressId   { get; set; }
+
+        /// <summary>FK — which customer owns this address.</summary>
+        public string CustomerId  { get; set; }
 
         /// <summary>Full address text as stored in the DB.</summary>
         public string FullAddress { get; set; }
 
-        /// <summary>Short label shown in the ComboBox drop-down.</summary>
+        /// <summary>Optional short label / tag (e.g. "Home", "Office").</summary>
         public string Label       { get; set; }
 
-        /// <summary>ComboBox display text: ID + label snippet.</summary>
+        /// <summary>ComboBox display text.</summary>
         public string DisplayText =>
-            string.IsNullOrEmpty(Label) ? FullAddress : $"{AddressId}  –  {Label}";
+            string.IsNullOrEmpty(Label)
+                ? $"{AddressId}  –  {FullAddress}"
+                : $"{AddressId}  –  {Label}";
     }
 
     // ── ViewModels (passed from Controller → View) ───────────────────────────
@@ -127,6 +130,7 @@ namespace PremiumLivingOPS.Models.Entities
         public UserBarViewModel      UserBar           { get; set; }
         public string[]              AllowedMenus      { get; set; }
         public List<CustomerEntity>  Customers         { get; set; }
+        public List<AddressLookup>   Addresses         { get; set; }  // all addresses; filtered in View by CustomerID
         public List<ProductLookup>   Products          { get; set; }
         public List<QuotationEntity> Quotations        { get; set; }
         public List<QuotationEntity> PendingQuotations { get; set; }
