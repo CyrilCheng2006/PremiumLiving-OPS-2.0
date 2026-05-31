@@ -12,28 +12,29 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         // AppShell
         private AppShell _shell;
 
-        // ── Order Information — read-only / auto fields
-        private Label    lblOrderIdValue;
+        // ── Order Information — read-only / auto fields ──────────────────────
+        private Label        lblOrderIdValue;
 
-        // ── Order Information — editable fields
-        private ComboBox     cboCustomer;
-        private TextBox      txtContactName;
+        // ── Order Information — editable fields ─────────────────────────────
+        private ComboBox      cboCustomer;
+        private TextBox       txtContactName;
         private DateTimePicker dtpDelivery;
-        private ComboBox     cboQuotation;
-        private TextBox      txtShippingAddr;
-        private TextBox      txtBillingAddr;
-        private CheckBox     chkSameAddress;
-        private ComboBox     cboDiscountType;
-        private TextBox      txtDiscountValue;
+        private ComboBox      cboQuotation;
+        private ComboBox      cboShippingAddr;   // ComboBox from saved Address records
+        private ComboBox      cboBillingAddr;    // ComboBox from saved Address records
+        private CheckBox      chkSameAddress;
+        private ComboBox      cboDiscountType;
+        private TextBox       txtDiscountValue;
+        private Label         lblDiscountUnit;   // dynamic '%' or 'HK$' hint
 
-        // ── Order Items controls
+        // ── Order Items controls ─────────────────────────────────────────────
         private ComboBox     cboProduct;
         private TextBox      txtQty;
         private Button       btnAddLine;
         private Button       btnRemoveLine;
         private DataGridView dgvLines;
 
-        // ── Totals / actions
+        // ── Totals / actions ─────────────────────────────────────────────────
         private Label  lblSubtotal;
         private Label  lblGrandTotal;
         private Button btnSubmit;
@@ -62,11 +63,24 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             _shell.SetPopupContainer(pnlMain);
 
             // ==================================================================
-            // CARD 1 — ORDER INFORMATION  (CardPanel.Create, fixed height)
-            // Three layers: pnlInfoOuter > pnlInfoInner > title + tblInfo
+            // CARD 1 — ORDER INFORMATION
+            // Layout: 2-column × (label row 28px + input row 52px) × 5 field pairs
+            //
+            //   Left column              Right column
+            //   ─────────────────────   ─────────────────────
+            //   Order ID (label)        Customer (label)
+            //   [auto-generated chip]   [ComboBox            ]
+            //   Shipping Address        Billing Address
+            //   [ComboBox            ]  [ComboBox  ] ☐ Same…
+            //   Delivery Date           Linked Quotation
+            //   [DateTimePicker      ]  [ComboBox            ]
+            //   Contact Name            Discount Type
+            //   [TextBox             ]  [ComboBox            ]
+            //   — (spacer)              Discount Value
+            //                           [TextBox  ]  [unit   ]
             // ==================================================================
 
-            // ── Read-only Order ID label (auto-generated, shown in a styled chip)
+            // ── Order ID chip (read-only) ────────────────────────────────────
             lblOrderIdValue = new Label
             {
                 Text      = "",
@@ -81,114 +95,172 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             {
                 Dock      = DockStyle.Fill,
                 BackColor = Color.Transparent,
-                Padding   = new Padding(0, 10, 12, 10)
+                Padding   = new Padding(0, 6, 12, 6)
             };
             lblOrderIdValue.Dock = DockStyle.Fill;
             pnlOrderIdChip.Controls.Add(lblOrderIdValue);
 
-            // ── All other input controls
-            cboCustomer    = MakeCombo();
-            txtContactName = MakeTextBox();
-            dtpDelivery    = new DateTimePicker
+            // ── Customer ComboBox ────────────────────────────────────────────
+            cboCustomer = MakeCombo();
+            cboCustomer.SelectedIndexChanged += cboCustomer_SelectedIndexChanged;
+
+            // ── Address ComboBoxes ───────────────────────────────────────────
+            cboShippingAddr = MakeCombo();
+            cboShippingAddr.SelectedIndexChanged += cboShippingAddr_SelectedIndexChanged;
+
+            cboBillingAddr           = MakeCombo();
+            cboBillingAddr.Enabled   = false;   // disabled until chkSameAddress is unchecked
+
+            chkSameAddress = new CheckBox
+            {
+                Text      = "Same as Shipping",
+                Font      = new Font("Segoe UI", 11f),
+                ForeColor = Color.FromArgb(98, 112, 135),
+                Checked   = true,
+                AutoSize  = false,
+                Dock      = DockStyle.Right,
+                Width     = 180
+            };
+            chkSameAddress.CheckedChanged += chkSameAddress_CheckedChanged;
+
+            // Billing row: ComboBox + checkbox side-by-side
+            var pnlBilling = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(0, 6, 12, 6) };
+            cboBillingAddr.Dock = DockStyle.Fill;
+            pnlBilling.Controls.Add(cboBillingAddr);
+            pnlBilling.Controls.Add(chkSameAddress);  // Right-docked
+
+            // ── Delivery Date ────────────────────────────────────────────────
+            dtpDelivery = new DateTimePicker
             {
                 Font   = new Font("Segoe UI", 12f),
                 Format = DateTimePickerFormat.Short,
                 Dock   = DockStyle.Fill
             };
+
+            // ── Linked Quotation ─────────────────────────────────────────────
             cboQuotation = MakeCombo();
 
-            txtShippingAddr          = MakeTextBox();
-            txtBillingAddr           = MakeTextBox();
-            txtBillingAddr.BackColor = Color.FromArgb(245, 248, 255);
+            // ── Contact Name ─────────────────────────────────────────────────
+            txtContactName = MakeTextBox();
 
-            chkSameAddress = new CheckBox
-            {
-                Text      = "Same as Shipping Address",
-                Font      = new Font("Segoe UI", 11f),
-                ForeColor = Color.FromArgb(98, 112, 135),
-                Dock      = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleLeft
-            };
-            chkSameAddress.CheckedChanged += chkSameAddress_CheckedChanged;
-
+            // ── Discount Type ─────────────────────────────────────────────────
             cboDiscountType = MakeCombo();
-            cboDiscountType.Items.AddRange(new object[] { "None", "Amount", "Rate (%)" });
+            cboDiscountType.Items.AddRange(new object[] { "None", "Amount", "Rate" });
             cboDiscountType.SelectedIndex        = 0;
             cboDiscountType.SelectedIndexChanged += cboDiscountType_SelectedIndexChanged;
 
+            // ── Discount Value + unit label ───────────────────────────────────
             txtDiscountValue         = MakeTextBox();
             txtDiscountValue.Text    = "0";
             txtDiscountValue.Enabled = false;
+            txtDiscountValue.Dock    = DockStyle.Fill;
             txtDiscountValue.TextChanged += txtDiscountValue_TextChanged;
 
-            // ── 4-column TableLayoutPanel (label / value / label / value) × 5 rows
+            lblDiscountUnit = new Label
+            {
+                Text      = "",
+                Font      = new Font("Segoe UI", 11f),
+                ForeColor = Color.FromArgb(98, 112, 135),
+                Dock      = DockStyle.Right,
+                AutoSize  = false,
+                Width     = 44,
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+            var pnlDiscountInput = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(0, 6, 12, 6) };
+            pnlDiscountInput.Controls.Add(txtDiscountValue);
+            pnlDiscountInput.Controls.Add(lblDiscountUnit);  // Right-docked
+
+            // ==================================================================
+            //  TableLayoutPanel — 2 columns × 10 rows
+            //  Odd rows  (0,2,4,6,8) = label rows   (height 28)
+            //  Even rows (1,3,5,7,9) = input rows   (height 52)
+            //
+            //  Col 0 (Left 50%)   Col 1 (Right 50%)
+            //  row 0  Order ID *        Customer *
+            //  row 1  [chip]            [cboCustomer]
+            //  row 2  Shipping Address  Billing Address
+            //  row 3  [cboShipping]     [cboBilling + checkbox]
+            //  row 4  Delivery Date *   Linked Quotation
+            //  row 5  [dtpDelivery]     [cboQuotation]
+            //  row 6  Contact Name *    Discount Type
+            //  row 7  [txtContact]      [cboDiscountType]
+            //  row 8  —                 Discount Value
+            //  row 9  —                 [txtDiscountValue + unit]
+            // ==================================================================
             var tblInfo = new TableLayoutPanel
             {
                 Dock            = DockStyle.Fill,
-                ColumnCount     = 4,
-                RowCount        = 5,
+                ColumnCount     = 2,
+                RowCount        = 10,
                 BackColor       = Color.Transparent,
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                Padding         = new Padding(18, 10, 18, 10)
+                Padding         = new Padding(18, 8, 18, 8)
             };
-            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 180f));  // L label
-            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  50f));   // L value
-            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 220f));  // R label
-            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  50f));   // R value
-            for (int r = 0; r < 5; r++)
-                tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, 64f));
+            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
+            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
+            // Label rows (28 px each)
+            foreach (int r in new[] { 0, 2, 4, 6, 8 })
+                tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, 28f));
+            // Input rows (52 px each)
+            foreach (int r in new[] { 1, 3, 5, 7, 9 })
+                tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, 52f));
 
-            // Row 0 — Order ID (read-only chip) | Customer
-            tblInfo.Controls.Add(FieldLabel("Order ID"),           0, 0);
-            tblInfo.Controls.Add(pnlOrderIdChip,                   1, 0);
-            tblInfo.Controls.Add(FieldLabel("Customer *"),         2, 0);
-            tblInfo.Controls.Add(Pad(cboCustomer),                 3, 0);
+            // Row 0 — labels
+            tblInfo.Controls.Add(FieldLabel("Order ID",    required: false), 0, 0);
+            tblInfo.Controls.Add(FieldLabel("Customer",    required: true),  1, 0);
+            // Row 1 — inputs
+            tblInfo.Controls.Add(pnlOrderIdChip,                              0, 1);
+            tblInfo.Controls.Add(Pad(cboCustomer),                            1, 1);
 
-            // Row 1 — Shipping Address | Contact Name
-            tblInfo.Controls.Add(FieldLabel("Shipping Address *"), 0, 1);
-            tblInfo.Controls.Add(Pad(txtShippingAddr),             1, 1);
-            tblInfo.Controls.Add(FieldLabel("Contact Name"),       2, 1);
-            tblInfo.Controls.Add(Pad(txtContactName),              3, 1);
+            // Row 2 — labels
+            tblInfo.Controls.Add(FieldLabel("Shipping Address", required: true),  0, 2);
+            tblInfo.Controls.Add(FieldLabel("Billing Address",  required: true),  1, 2);
+            // Row 3 — inputs
+            tblInfo.Controls.Add(Pad(cboShippingAddr),                             0, 3);
+            tblInfo.Controls.Add(pnlBilling,                                       1, 3);
 
-            // Row 2 — Billing Address | Same-address checkbox
-            tblInfo.Controls.Add(FieldLabel("Billing Address *"),  0, 2);
-            tblInfo.Controls.Add(Pad(txtBillingAddr),              1, 2);
-            tblInfo.Controls.Add(FieldLabel(""),                   2, 2);  // spacer label
-            tblInfo.Controls.Add(Pad(chkSameAddress),              3, 2);
+            // Row 4 — labels
+            tblInfo.Controls.Add(FieldLabel("Delivery Date",      required: true),  0, 4);
+            tblInfo.Controls.Add(FieldLabel("Linked Quotation",   required: false), 1, 4);
+            // Row 5 — inputs
+            tblInfo.Controls.Add(Pad(dtpDelivery),                                  0, 5);
+            tblInfo.Controls.Add(Pad(cboQuotation),                                 1, 5);
 
-            // Row 3 — Delivery Date | Linked Quotation
-            tblInfo.Controls.Add(FieldLabel("Delivery Date *"),    0, 3);
-            tblInfo.Controls.Add(Pad(dtpDelivery),                 1, 3);
-            tblInfo.Controls.Add(FieldLabel("Linked Quotation"),   2, 3);
-            tblInfo.Controls.Add(Pad(cboQuotation),                3, 3);
+            // Row 6 — labels
+            tblInfo.Controls.Add(FieldLabel("Order Contact Name", required: true),  0, 6);
+            tblInfo.Controls.Add(FieldLabel("Discount Type",      required: false), 1, 6);
+            // Row 7 — inputs
+            tblInfo.Controls.Add(Pad(txtContactName),                               0, 7);
+            tblInfo.Controls.Add(Pad(cboDiscountType),                              1, 7);
 
-            // Row 4 — Discount Type | Discount Value
-            tblInfo.Controls.Add(FieldLabel("Discount Type"),      0, 4);
-            tblInfo.Controls.Add(Pad(cboDiscountType),             1, 4);
-            tblInfo.Controls.Add(FieldLabel("Discount Value"),     2, 4);
-            tblInfo.Controls.Add(Pad(txtDiscountValue),            3, 4);
+            // Row 8 — labels
+            tblInfo.Controls.Add(FieldLabel("", required: false),                   0, 8);  // spacer
+            tblInfo.Controls.Add(FieldLabel("Discount Value", required: false),     1, 8);
+            // Row 9 — inputs
+            // col 0 intentionally empty
+            tblInfo.Controls.Add(pnlDiscountInput,                                  1, 9);
 
             // Card title bar
             var pnlInfoTitle = CardTitlePanel("Order Information");
 
-            // Inner content: title (Top) + fields (Fill)
             var pnlInfoContent = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             pnlInfoContent.Controls.Add(tblInfo);       // Fill
             pnlInfoContent.Controls.Add(pnlInfoTitle);  // Top
 
-            var (pnlInfoOuter, pnlInfoInner) = CardPanel.Create(outerHeight: 420);
+            // outerHeight: 10 rows × (28+52)/2 avg = 400 rows + title 54 + outer padding 40 ≈ 520
+            var (pnlInfoOuter, pnlInfoInner) = CardPanel.Create(outerHeight: 520);
             pnlInfoInner.Controls.Add(pnlInfoContent);
 
             // ==================================================================
             // CARD 2 — ORDER ITEMS  (CardPanel.CreateFill)
             // ==================================================================
 
-            cboProduct = MakeCombo();
-            txtQty     = MakeTextBox();
+            cboProduct  = MakeCombo();
+            txtQty      = MakeTextBox();
             txtQty.Text = "1";
 
-            btnAddLine    = MakePrimaryBtn("+ Add Item",  Point.Empty, 180, 52);
-            btnRemoveLine = MakeOutlineBtn("− Remove",    Point.Empty, 150, 52);
+            btnAddLine    = MakePrimaryBtn("+ Add Item", Point.Empty, 180, 52);
+            btnRemoveLine = MakeOutlineBtn("− Remove",   Point.Empty, 150, 52);
             btnAddLine.Dock    = DockStyle.Fill;
             btnRemoveLine.Dock = DockStyle.Fill;
             btnAddLine.Click    += btnAddLine_Click;
@@ -202,11 +274,11 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 BackColor       = Color.Transparent,
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
-            tblToolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));  // product combo
-            tblToolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,  70f));  // "Qty:"
-            tblToolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,  90f));  // qty box
-            tblToolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 196f));  // Add btn
-            tblToolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 158f));  // Remove btn
+            tblToolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
+            tblToolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,  70f));
+            tblToolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,  90f));
+            tblToolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 196f));
+            tblToolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 158f));
             tblToolbar.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
             cboProduct.Dock = DockStyle.Fill;
@@ -236,7 +308,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             };
             pnlToolbar.Controls.Add(tblToolbar);
 
-            // DataGridView
             dgvLines = new DataGridView
             {
                 ReadOnly                  = true,
@@ -278,7 +349,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLinePrice",  HeaderText = "UNIT PRICE", FillWeight = 16 });
             dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLineTotal",  HeaderText = "LINE TOTAL", FillWeight = 16 });
 
-            // Footer bar
             var pnlFooter = new Panel
             {
                 Dock      = DockStyle.Bottom,
@@ -325,8 +395,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlFooter.Controls.Add(lblGrandTotal);
             pnlFooter.Controls.Add(lblSubtotal);
 
-            var pnlItemsTitle  = CardTitlePanel("Order Items");
-            var pnlDivider     = new Panel { Dock = DockStyle.Top, Height = 1, BackColor = Palette.BorderColor };
+            var pnlItemsTitle   = CardTitlePanel("Order Items");
+            var pnlDivider      = new Panel { Dock = DockStyle.Top, Height = 1, BackColor = Palette.BorderColor };
 
             var pnlItemsContent = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             pnlItemsContent.Controls.Add(dgvLines);       // Fill
@@ -341,15 +411,15 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             // ==================================================================
             // Assemble page
             // ==================================================================
-            pnlMain.Controls.Add(pnlItemsOuter); // Fill
-            pnlMain.Controls.Add(pnlInfoOuter);  // Top
-            pnlMain.Controls.Add(_shell);        // Top
+            pnlMain.Controls.Add(pnlItemsOuter);  // Fill (added first = bottom layer)
+            pnlMain.Controls.Add(pnlInfoOuter);   // Top
+            pnlMain.Controls.Add(_shell);         // Top
 
             this.Controls.Add(pnlMain);
             this.ResumeLayout(false);
         }
 
-        // ── Factory helpers ─────────────────────────────────────────────
+        // ── Factory helpers ──────────────────────────────────────────────────
 
         private static TextBox MakeTextBox() => new TextBox
         {
@@ -365,22 +435,36 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             Dock          = DockStyle.Fill
         };
 
+        /// <summary>
+        /// Wraps a control in a transparent Panel with 6px top/bottom padding
+        /// and 12px right padding to create breathing room inside each table cell.
+        /// </summary>
         private static Panel Pad(Control ctrl)
         {
             ctrl.Dock = DockStyle.Fill;
-            var p = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(0, 8, 12, 8) };
+            var p = new Panel
+            {
+                Dock      = DockStyle.Fill,
+                BackColor = Color.Transparent,
+                Padding   = new Padding(0, 6, 12, 6)
+            };
             p.Controls.Add(ctrl);
             return p;
         }
 
-        private static Label FieldLabel(string text) => new Label
+        /// <summary>
+        /// Creates a field label.  When <paramref name="required"/> is true, a red
+        /// asterisk is appended so users know the field is mandatory.
+        /// Labels are aligned MiddleLeft with 18px left indent matching card padding.
+        /// </summary>
+        private static Label FieldLabel(string text, bool required = false) => new Label
         {
-            Text      = text,
-            Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
+            Text      = required ? text + " *" : text,
+            Font      = new Font("Segoe UI", 10.5f, FontStyle.Bold),
             ForeColor = Color.FromArgb(98, 112, 135),
             Dock      = DockStyle.Fill,
-            TextAlign = ContentAlignment.MiddleLeft,
-            Padding   = new Padding(18, 0, 0, 0)
+            TextAlign = ContentAlignment.BottomLeft,   // sit at bottom of 28px row → visually flush above input
+            Padding   = new Padding(18, 0, 0, 2)
         };
 
         private static Panel CardTitlePanel(string title)
