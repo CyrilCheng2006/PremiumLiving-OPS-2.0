@@ -120,13 +120,15 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             var pills = new[]
             {
                 // (pill label, count, fg, bg, cboStatus item to select on click)
-                // cboStatus items must match exact DB values (or "All").
-                ("Total",              total.ToString(),      Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254), "All"),
-                ("Pending",            pending.ToString(),    Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), "Pending"),
-                ("Processing",         processing.ToString(), Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254), "Processing"),
-                ("Delivered",          delivered.ToString(),  Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229), "Delivered"),
-                ("Shipped",            shipped.ToString(),    Color.FromArgb(  3,  96, 170), Color.FromArgb(224, 242, 254), "Shipped"),
-                ("Partially Delivered",partially.ToString(),  Color.FromArgb( 91,  33, 182), Color.FromArgb(237, 233, 254), "Partially Delivered"),
+                // pill label  = display text shown on KPI pill (UI only)
+                // filterItem  = exact DB value passed to SQL WHERE clause
+                ("Total",     total.ToString(),      Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254), "All"),
+                ("Pending",   pending.ToString(),    Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), "Pending"),
+                ("Processing",processing.ToString(), Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254), "Processing"),
+                ("Delivered", delivered.ToString(),  Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229), "Delivered"),
+                ("Shipped",   shipped.ToString(),    Color.FromArgb(  3,  96, 170), Color.FromArgb(224, 242, 254), "Shipped"),
+                // label = "Partially" (display only); filterItem = "Partially Delivered" (DB value)
+                ("Partially", partially.ToString(),  Color.FromArgb( 91,  33, 182), Color.FromArgb(237, 233, 254), "Partially Delivered"),
             };
 
             var flow = new FlowLayoutPanel
