@@ -65,7 +65,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             };
             txtSearchCustomer.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) RefreshGrid(); };
 
-            // ── Status dropdown — matches all 6 order statuses
+            // ── Status dropdown
             cboStatus = new ComboBox
             {
                 DropDownStyle = ComboBoxStyle.DropDownList,
@@ -119,7 +119,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     TextAlign = ContentAlignment.BottomLeft,
                     Padding   = new Padding(0, 0, 0, 2)
                 };
-
                 ctrl.Dock = DockStyle.Fill;
                 tlp.Controls.Add(lbl,  0, 0);
                 tlp.Controls.Add(ctrl, 0, 1);
@@ -151,7 +150,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             };
             chkDateFrom.Dock = DockStyle.Fill;
             dtpDateFrom.Dock = DockStyle.Fill;
-
             cellDate.SetColumnSpan(lblDate, 2);
             cellDate.Controls.Add(lblDate,     0, 0);
             cellDate.Controls.Add(chkDateFrom, 0, 1);
@@ -185,7 +183,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlBtns.Controls.Add(btnSearch);
             pnlBtns.Controls.Add(btnRefresh);
 
-            // ── Search card TLP (3 rows: title / fields / buttons)
+            // ── Search card TLP
             var tblCard = new TableLayoutPanel
             {
                 Dock            = DockStyle.Fill,
@@ -212,12 +210,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             var divider = new Panel { Dock = DockStyle.Bottom, Height = 1, BackColor = Color.FromArgb(221, 227, 236) };
             pnlTitle.Controls.Add(lblTitle);
             pnlTitle.Controls.Add(divider);
-
             tblCard.Controls.Add(pnlTitle,  0, 0);
             tblCard.Controls.Add(tblFields, 0, 1);
             tblCard.Controls.Add(pnlBtns,   0, 2);
 
-            // ── Search section: CardPanel 3-layer wrap
             var pnlCard = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
             pnlCard.Paint += PaintCardBorder;
             pnlCard.Controls.Add(tblCard);
@@ -231,12 +227,13 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             };
             pnlSearchOuter.Controls.Add(pnlCard);
 
-            // ── KPI bar: CardPanel 3-layer wrap
+            // ── KPI bar
+            // pnlKpi: left-aligned row of pills, vertically centred inside the white card
             pnlKpi = new Panel
             {
                 Dock      = DockStyle.Fill,
                 BackColor = Color.Transparent,
-                Padding   = new Padding(20, 10, 20, 10)
+                Padding   = new Padding(12, 10, 12, 10)   // inner breathing room
             };
 
             var pnlKpiInner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
@@ -246,7 +243,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             var pnlKpiOuter = new Panel
             {
                 Dock      = DockStyle.Top,
-                Height    = 96,
+                Height    = 80,                           // tightened to fit 50px pills + padding
                 BackColor = Color.FromArgb(240, 244, 249),
                 Padding   = new Padding(20, 8, 20, 8)
             };
@@ -263,7 +260,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlActions.Controls.Add(btnViewDetail);
             pnlActions.Controls.Add(btnModifyOrder);
 
-            // ── Grid: CardPanel 3-layer wrap
+            // ── Grid
             dgvOrders = new DataGridView
             {
                 ReadOnly = true, AllowUserToAddRows = false, AllowUserToDeleteRows = false,
@@ -304,11 +301,11 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlGridInner.Controls.Add(dgvOrders);
             pnlGridCard.Controls.Add(pnlGridInner);
 
-            // ── Assemble (DockStyle.Top stacks bottom-up; Fill fills the remainder)
+            // ── Assemble
             pnlMain.Controls.Add(pnlGridCard);    // Fill  — grid
             pnlMain.Controls.Add(pnlActions);     // Bottom
-            pnlMain.Controls.Add(pnlKpiOuter);    // Top   — KPI card (3-layer)
-            pnlMain.Controls.Add(pnlSearchOuter); // Top   — Search card (3-layer)
+            pnlMain.Controls.Add(pnlKpiOuter);    // Top   — KPI
+            pnlMain.Controls.Add(pnlSearchOuter); // Top   — Search
             pnlMain.Controls.Add(_shell);         // Top   — nav chrome
 
             this.Controls.Add(pnlMain);

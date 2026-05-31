@@ -24,7 +24,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         private static readonly Dictionary<string, (Color bg, Color fg)> StatusColors =
             new Dictionary<string, (Color, Color)>
             {
-                //  Status               bg                                fg
                 { "Pending",             (Color.FromArgb(254, 243, 199), Color.FromArgb(146,  64,  14)) },
                 { "Processing",          (Color.FromArgb(219, 234, 254), Color.FromArgb( 29,  78, 216)) },
                 { "Shipped",             (Color.FromArgb(224, 242, 254), Color.FromArgb(  3,  96, 170)) },
@@ -84,7 +83,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             UpdateActionButtons();
         }
 
-        // ── Reset ────────────────────────────────────────────────────────────────────────
+        // ── Reset ───────────────────────────────────────────────────────────────────────
         private void ResetFilters()
         {
             txtSearchOrderNo.Text  = string.Empty;
@@ -118,20 +117,30 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 ("Partially Delivered", partialDelivered.ToString(), Color.FromArgb( 91,  33, 182), Color.FromArgb(237, 233, 254)),
             };
 
-            const int PillW = 280;
-            const int PillH = 50;
-            const int Gap   = 14;
-            const int CountW = 52;   // left column: number
+            // ── FlowLayoutPanel: pills left-to-right, vertically centred, no wrap
+            var flow = new FlowLayoutPanel
+            {
+                Dock          = DockStyle.Fill,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents  = false,
+                BackColor     = Color.Transparent,
+                Padding       = new Padding(0),
+                AutoScroll    = false
+            };
 
-            int x = 0;
+            const int PillW  = 200;
+            const int PillH  = 50;
+            const int CountW = 46;   // left column: bold number
+            const int Gap    = 8;    // FlowLayoutPanel item margin
+
             foreach (var (label, count, fg, bg) in pills)
             {
-                // ── Pill container
+                // ── Pill panel
                 var pill = new Panel
                 {
                     BackColor = bg,
-                    Location  = new Point(x, 0),
                     Size      = new Size(PillW, PillH),
+                    Margin    = new Padding(0, 0, Gap, 0),
                     Cursor    = Cursors.Hand
                 };
                 pill.Paint += (s, e) =>
@@ -142,11 +151,11 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     e.Graphics.FillPath(brush, path);
                 };
 
-                // ── Left: large number, vertically centred
+                // ── Left: count, 12pt Bold, vertically centred
                 var lblCount = new Label
                 {
                     Text      = count,
-                    Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
+                    Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
                     ForeColor = fg,
                     BackColor = Color.Transparent,
                     Size      = new Size(CountW, PillH),
@@ -154,19 +163,19 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     TextAlign = ContentAlignment.MiddleCenter
                 };
 
-                // ── Right: status name, vertically centred
+                // ── Right: label, 10pt, vertically centred
                 var lblName = new Label
                 {
                     Text      = label,
-                    Font      = new Font("Segoe UI", 12f),
+                    Font      = new Font("Segoe UI", 10f),
                     ForeColor = fg,
                     BackColor = Color.Transparent,
-                    Size      = new Size(PillW - CountW - 8, PillH),
+                    Size      = new Size(PillW - CountW - 10, PillH),
                     Location  = new Point(CountW + 8, 0),
                     TextAlign = ContentAlignment.MiddleLeft
                 };
 
-                // Forward clicks from child labels to the pill handler
+                // Forward clicks from child labels to pill handler
                 string filterLabel = label == "Total" ? "All" : label;
                 EventHandler clickHandler = (s, e) =>
                 {
@@ -179,9 +188,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
                 pill.Controls.Add(lblCount);
                 pill.Controls.Add(lblName);
-                pnlKpi.Controls.Add(pill);
-                x += PillW + Gap;
+                flow.Controls.Add(pill);
             }
+
+            pnlKpi.Controls.Add(flow);
         }
 
         // ── Button state ─────────────────────────────────────────────────────────────────
