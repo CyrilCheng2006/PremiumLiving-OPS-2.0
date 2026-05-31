@@ -26,16 +26,17 @@ namespace PremiumLivingOPS.Controllers
             string keyword  = null,
             string category = null)
         {
-            var staff = SessionManager.CurrentStaff;
+            // SessionManager.CurrentUser mirrors OrderProcessingController usage
+            var user = SessionManager.CurrentUser;
 
             return new ViewProductViewModel
             {
                 UserBar = new UserBarViewModel
                 {
-                    DisplayName = staff?.StaffName ?? "Unknown",
-                    Department  = staff?.Department ?? ""
+                    DisplayName = user?.StaffName ?? "Unknown",
+                    Department  = user?.Department ?? ""
                 },
-                AllowedMenus = NavAccessPolicy.GetAllowedMenus(staff?.Department),
+                AllowedMenus = NavAccessPolicy.GetAllowedMenus(user?.Department),
                 Products     = _repo.SearchProducts(keyword, category)
             };
         }
@@ -59,16 +60,16 @@ namespace PremiumLivingOPS.Controllers
             string keyword  = null,
             string category = null)
         {
-            var staff = SessionManager.CurrentStaff;
+            var user = SessionManager.CurrentUser;
 
             return new ViewRawMaterialViewModel
             {
                 UserBar = new UserBarViewModel
                 {
-                    DisplayName = staff?.StaffName ?? "Unknown",
-                    Department  = staff?.Department ?? ""
+                    DisplayName = user?.StaffName ?? "Unknown",
+                    Department  = user?.Department ?? ""
                 },
-                AllowedMenus = NavAccessPolicy.GetAllowedMenus(staff?.Department),
+                AllowedMenus = NavAccessPolicy.GetAllowedMenus(user?.Department),
                 Materials    = _repo.SearchRawMaterials(keyword, category)
             };
         }
