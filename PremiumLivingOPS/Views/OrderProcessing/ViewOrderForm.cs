@@ -155,7 +155,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             const int PillW   = 270;   // pill width
             const int PillH   = 60;    // pill height
             const int Gap     = 8;
-            const int NumColW = 75;    // fixed number-column width
+            const int NumColW = 65;    // fixed number-column width; label column gets remaining space
 
             foreach (var (label, count, fg, bg, filterItem) in pills)
             {
@@ -183,8 +183,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
                     Padding         = new Padding(10, 0, 8, 0)
                 };
-                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, NumColW));
-                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, NumColW));  // number col: 65px fixed
+                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));       // label col: remaining
                 tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
                 var lblCount = new Label
