@@ -31,6 +31,17 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 { "Partially",  (Color.FromArgb(237, 233, 254), Color.FromArgb( 91,  33, 182)) },
             };
 
+        // ── Convert DB status value → display label shown in the grid
+        private static string DisplayStatus(string dbStatus)
+            => dbStatus == "Partially" ? "Partially Delivered" : dbStatus;
+
+        // ── Convert display label / cboStatus selection → DB query value
+        private static string ToDbStatus(string display)
+        {
+            if (display == "Partially Delivered" || display == "Partially") return "Partially";
+            return display; // Pending, Processing, Delivered, Shipped, All, null — pass through
+        }
+
         public ViewOrderForm()
         {
             InitializeComponent();
@@ -52,8 +63,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             string customer = txtSearchCustomer.Text.Trim();
             string statusDisplay = cboStatus.SelectedItem?.ToString();
 
-            // Map display label → DB value
-            string status = statusDisplay == "Partially Delivered" ? "Partially" : statusDisplay;
+            // Map any display label → DB value (handles both "Partially" and "Partially Delivered")
+            string dbStatus = ToDbStatus(statusDisplay);
 
             DateTime? dateFrom = chkDateFrom.Checked ? (DateTime?)dtpDateFrom.Value.Date : null;
 
@@ -62,7 +73,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                            : null;
 
             var vm = _ctrl.GetViewOrderVM(
-                status == "All" || string.IsNullOrEmpty(status) ? null : status,
+                dbStatus == "All" || string.IsNullOrEmpty(dbStatus) ? null : dbStatus,
                 keyword,
                 dateFrom);
 
@@ -81,6 +92,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     o.IssuedTime.ToString("yyyy-MM-dd"),
                     o.DeliveryDate.ToString("yyyy-MM-dd"),
                     $"HK$ {o.GrandTotal:N2}",
+                    // Store DB value in the cell; CellFormatting will colour it,
+                    // and CellFormatting also replaces "Partially" → "Partially Delivered" for display
                     o.OrderStatus);
 
             RefreshKpi();
@@ -114,13 +127,13 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             var pills = new[]
             {
                 // (pill label, count, fg, bg, cboStatus item to select on click)
-                ("Total",     total.ToString(),      Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254), "All"),
-                ("Pending",   pending.ToString(),    Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), "Pending"),
-                ("Processing",processing.ToString(), Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254), "Processing"),
-                ("Delivered", delivered.ToString(),  Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229), "Delivered"),
-                ("Shipped",   shipped.ToString(),    Color.FromArgb(  3,  96, 170), Color.FromArgb(224, 242, 254), "Shipped"),
-                // KPI pill 顯示 "Partially"，點擊後選中 cboStatus 的 "Partially Delivered"
-                ("Partially", partially.ToString(),  Color.FromArgb( 91,  33, 182), Color.FromArgb(237, 233, 254), "Partially Delivered"),
+                ("Total",      total.ToString(),      Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254), "All"),
+                ("Pending",    pending.ToString(),    Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), "Pending"),
+                ("Processing", processing.ToString(), Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254), "Processing"),
+                ("Delivered",  delivered.ToString(),  Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229), "Delivered"),
+                ("Shipped",    shipped.ToString(),    Color.FromArgb(  3,  96, 170), Color.FromArgb(224, 242, 254), "Shipped"),
+                // KPI pill shows "Partially"; clicking sets cboStatus to "Partially Delivered"
+                ("Partially",  partially.ToString(),  Color.FromArgb( 91,  33, 182), Color.FromArgb(237, 233, 254), "Partially Delivered"),
             };
 
             var flow = new FlowLayoutPanel
@@ -133,11 +146,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 AutoScroll    = false
             };
 
-            const int PillW = 260;
-            const int PillH = 60;
-            const int Gap   = 8;
-            // Fixed width for the number column — keeps the label column from being squeezed
-            const int NumColW = 44;
+            const int PillW   = 260;
+            const int PillH   = 60;
+            const int Gap     = 8;
+            const int NumColW = 90;   // fixed number-column width
 
             foreach (var (label, count, fg, bg, filterItem) in pills)
             {
@@ -165,7 +177,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
                     Padding         = new Padding(10, 0, 8, 0)
                 };
-                // Absolute width for number column → remaining space goes to label column
                 tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, NumColW));
                 tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
                 tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
@@ -227,8 +238,14 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         private void dgvOrders_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
             if (dgvOrders.Columns[e.ColumnIndex].Name != "colStatus" || e.Value == null) return;
-            string status = e.Value.ToString();
-            if (StatusColors.TryGetValue(status, out var colors))
+
+            string dbValue = e.Value.ToString(); // always the raw DB value (e.g. "Partially")
+
+            // Replace the displayed text with the friendly label
+            e.Value = DisplayStatus(dbValue);
+            e.FormattingApplied = true;
+
+            if (StatusColors.TryGetValue(dbValue, out var colors))
             {
                 e.CellStyle.ForeColor          = colors.fg;
                 e.CellStyle.BackColor          = colors.bg;
@@ -306,7 +323,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             StatusColors.TryGetValue(o.OrderStatus ?? "", out var sc);
             var lblStatusBadge = new Label
             {
-                Text      = o.OrderStatus ?? "Unknown",
+                Text      = DisplayStatus(o.OrderStatus) ?? "Unknown",
                 Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
                 ForeColor = sc.fg != default ? sc.fg : Color.White,
                 BackColor = sc.bg != default ? sc.bg : Color.FromArgb(80, 80, 80),
@@ -329,7 +346,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 ("Delivery Date", o.DeliveryDate.ToString("yyyy-MM-dd")),
                 ("Grand Total",   $"HK$ {o.GrandTotal:N2}"),
                 ("Shipping Addr", o.ShippingAddress),
-                ("Billing Addr",  o.BillingAddress), ("Status", o.OrderStatus),
+                ("Billing Addr",  o.BillingAddress),
+                ("Status",        DisplayStatus(o.OrderStatus)),   // friendly label in detail popup
             };
             for (int i = 0; i < fields.Length; i++)
             {
