@@ -11,13 +11,11 @@ namespace PremiumLivingOPS.Views.InventoryControl
 {
     public partial class ViewRawMaterialForm : Form
     {
-        // ── Controller & state ───────────────────────────────────────────────
         private readonly InventoryControlController _ctrl =
             new InventoryControlController();
 
         private List<RawMaterialEntity> _currentMaterials = new List<RawMaterialEntity>();
 
-        // ── Status badge colours ─────────────────────────────────────────────
         private static readonly Dictionary<string, (Color bg, Color fg)> StatusColors =
             new Dictionary<string, (Color, Color)>
             {
@@ -26,18 +24,12 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 { "Out of Stock", (Color.FromArgb(254, 226, 226), Color.FromArgb(153,  27,  27)) }
             };
 
-        // ── Constructor ──────────────────────────────────────────────────────
         public ViewRawMaterialForm()
         {
             InitializeComponent();
             this.Load += ViewRawMaterialForm_Load;
         }
 
-        // ── Load — wire AppShell events only, then RefreshGrid ───────────────
-        //    Mirrors ViewOrderForm_Load exactly.
-        //    SetPopupContainer is already called in Designer — NOT repeated here.
-        //    btnSearch / btnReset / txtSearch.KeyDown are wired in Designer — NOT repeated.
-        // ─────────────────────────────────────────────────────────────────────
         private void ViewRawMaterialForm_Load(object sender, EventArgs e)
         {
             _shell.MenuItemClicked += OnTopNavMenuItemClicked;
@@ -53,7 +45,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
             RefreshGrid();
         }
 
-        // ── Data helpers ─────────────────────────────────────────────────────
         private void LoadCategories()
         {
             cboCategory.Items.Clear();
@@ -63,7 +54,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 cboCategory.SelectedIndex = 0;
         }
 
-        // RefreshGrid — matches ViewOrderForm.RefreshGrid structure exactly.
         internal void RefreshGrid()
         {
             string keyword  = txtSearch.Text.Trim();
@@ -105,23 +95,24 @@ namespace PremiumLivingOPS.Views.InventoryControl
             RefreshGrid();
         }
 
-        // ── KPI pills ────────────────────────────────────────────────────────
+        // ── KPI pills — exact ViewOrderForm implementation ──────────────────────
         private void RefreshKpi()
         {
             pnlKpi.Controls.Clear();
 
-            var all      = _ctrl.GetViewRawMaterialVM().Materials;
-            int total    = all.Count;
-            int inStock  = all.FindAll(m => m.StockStatus == "In Stock").Count;
-            int lowStock = all.FindAll(m => m.StockStatus == "Low Stock").Count;
-            int outStock = all.FindAll(m => m.StockStatus == "Out of Stock").Count;
+            var allMaterials = _ctrl.GetViewRawMaterialVM().Materials;
+
+            int total    = allMaterials.Count;
+            int inStock  = allMaterials.FindAll(m => m.StockStatus == "In Stock").Count;
+            int lowStock = allMaterials.FindAll(m => m.StockStatus == "Low Stock").Count;
+            int outStock = allMaterials.FindAll(m => m.StockStatus == "Out of Stock").Count;
 
             var pills = new[]
             {
-                ("Total Materials", total.ToString(),    Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254), "All"),
-                ("In Stock",        inStock.ToString(),  Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229), "In Stock"),
-                ("Low Stock",       lowStock.ToString(), Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), "Low Stock"),
-                ("Out of Stock",    outStock.ToString(), Color.FromArgb(153,  27,  27), Color.FromArgb(254, 226, 226), "Out of Stock")
+                ("Total",        total.ToString(),    Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254), "All"),
+                ("In Stock",     inStock.ToString(),  Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229), "In Stock"),
+                ("Low Stock",    lowStock.ToString(), Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), "Low Stock"),
+                ("Out of Stock", outStock.ToString(), Color.FromArgb(153,  27,  27), Color.FromArgb(254, 226, 226), "Out of Stock"),
             };
 
             var flow = new FlowLayoutPanel
@@ -173,16 +164,19 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 {
                     Text      = count,
                     Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
-                    ForeColor = fg, BackColor = Color.Transparent,
+                    ForeColor = fg,
+                    BackColor = Color.Transparent,
                     Dock      = DockStyle.Fill,
                     TextAlign = ContentAlignment.MiddleCenter,
                     AutoSize  = false
                 }, 0, 0);
+
                 tlp.Controls.Add(new Label
                 {
                     Text      = label,
                     Font      = new Font("Segoe UI", 12f),
-                    ForeColor = fg, BackColor = Color.Transparent,
+                    ForeColor = fg,
+                    BackColor = Color.Transparent,
                     Dock      = DockStyle.Fill,
                     TextAlign = ContentAlignment.MiddleLeft,
                     AutoSize  = false
@@ -209,7 +203,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
         private void UpdateActionButtons()
             => btnViewDetail.Enabled = dgvMaterials.SelectedRows.Count > 0;
 
-        // ── Cell formatting ───────────────────────────────────────────────────
         private void DgvMaterials_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
             if (dgvMaterials.Columns[e.ColumnIndex].Name != "colStatus" || e.Value == null) return;
@@ -226,7 +219,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
             }
         }
 
-        // ── Detail dialog ─────────────────────────────────────────────────────
         private void OpenDetailDialog()
         {
             if (dgvMaterials.SelectedRows.Count == 0) return;
@@ -306,7 +298,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
             dlg.ShowDialog(this);
         }
 
-        // ── Navigation ────────────────────────────────────────────────────────
         private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
             => FormNavigator.NavigateTo(this, menuLabel, subItem);
 
@@ -316,7 +307,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
             Application.Restart();
         }
 
-        // ── Utility ───────────────────────────────────────────────────────────
         private static GraphicsPath RoundedRect(Rectangle r, int radius)
         {
             var path = new GraphicsPath(); int d = radius * 2;
