@@ -128,7 +128,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             txtContactName = MakeTextBox();
 
             cboDiscountType = MakeCombo();
-            cboDiscountType.Items.AddRange(new object[] { "None", "Amount", "Rate" });
+            cboDiscountType.Items.AddRange(new object[] { "None", "Amount", "Rate (%)" });
             cboDiscountType.SelectedIndex        = 0;
             cboDiscountType.SelectedIndexChanged += cboDiscountType_SelectedIndexChanged;
 
@@ -246,8 +246,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 TextAlign = ContentAlignment.MiddleLeft
             };
 
-            btnSubmit = MakePrimaryBtn("✓  Submit Order", Point.Empty, BtnW, BtnH);
-            btnClear  = MakeOutlineBtn("↺  Clear",        Point.Empty, BtnW, BtnH);
+            btnSubmit = MakeGreenBtn("\u2713  Submit Order", Point.Empty, BtnW, BtnH);
+            btnClear  = MakeRedBtn(  "↺  Clear",         Point.Empty, BtnW, BtnH);
             btnSubmit.Click += btnSubmit_Click;
             btnClear.Click  += btnClear_Click;
 
@@ -501,6 +501,44 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnl.Controls.Add(lbl);
             pnl.Controls.Add(div);
             return pnl;
+        }
+
+        /// <summary>Green — Submit Order button.</summary>
+        private static Button MakeGreenBtn(string text, Point loc, int w, int h)
+        {
+            var b = new Button
+            {
+                Text      = text,
+                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.White,
+                BackColor = Color.FromArgb(34, 139, 34),
+                FlatStyle = FlatStyle.Flat,
+                Location  = loc, Width = w, Height = h,
+                Cursor    = Cursors.Hand
+            };
+            b.FlatAppearance.BorderSize         = 0;
+            b.FlatAppearance.MouseOverBackColor = Color.FromArgb(22, 111, 22);
+            b.FlatAppearance.MouseDownBackColor = Color.FromArgb(14, 85, 14);
+            return b;
+        }
+
+        /// <summary>Red — Clear button.</summary>
+        private static Button MakeRedBtn(string text, Point loc, int w, int h)
+        {
+            var b = new Button
+            {
+                Text      = text,
+                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.White,
+                BackColor = Color.FromArgb(192, 57, 43),
+                FlatStyle = FlatStyle.Flat,
+                Location  = loc, Width = w, Height = h,
+                Cursor    = Cursors.Hand
+            };
+            b.FlatAppearance.BorderSize         = 0;
+            b.FlatAppearance.MouseOverBackColor = Color.FromArgb(160, 40, 30);
+            b.FlatAppearance.MouseDownBackColor = Color.FromArgb(125, 28, 20);
+            return b;
         }
 
         private static Button MakePrimaryBtn(string text, Point loc, int w, int h)
