@@ -121,7 +121,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 {
                     BackColor = bg,
                     Location  = new Point(x, 10),
-                    Size      = new Size(140, 40),
+                    Size      = new Size(210, 60),
                     Cursor    = Cursors.Hand
                 };
                 pill.Paint += (s, e) =>
@@ -135,18 +135,18 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 var lblCount = new Label
                 {
                     Text      = count,
-                    Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
+                    Font      = new Font("Segoe UI", 18f, FontStyle.Bold),
                     ForeColor = fg,
                     AutoSize  = true,
-                    Location  = new Point(10, 6)
+                    Location  = new Point(12, 10)
                 };
                 var lblName = new Label
                 {
                     Text      = label,
-                    Font      = new Font("Segoe UI", 10f),
+                    Font      = new Font("Segoe UI", 14f),
                     ForeColor = fg,
                     AutoSize  = true,
-                    Location  = new Point(44, 12)
+                    Location  = new Point(56, 18)
                 };
                 pill.Controls.Add(lblCount);
                 pill.Controls.Add(lblName);
@@ -159,7 +159,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 };
 
                 pnlKpi.Controls.Add(pill);
-                x += 154;
+                x += 224;
             }
         }
 
