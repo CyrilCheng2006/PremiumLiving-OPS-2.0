@@ -327,15 +327,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 BackColor = Color.White
             };
 
-            // ----------------------------------------------------------------
-            //  StatusPill — fully visible coloured badge
-            //
-            //  Fix: Use a FlowLayoutPanel as the outer wrapper so the pill
-            //  label is laid out by the flow engine (not absolute coordinates),
-            //  eliminating the clipping caused by the previous
-            //  "lbl.Location = new Point(0, 0)" approach.  The Layout event
-            //  centres the flow panel vertically inside the FieldRow cell.
-            // ----------------------------------------------------------------
             Control StatusPill(string status)
             {
                 Color pillBg = Color.FromArgb(229, 231, 235);
@@ -343,8 +334,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 if (StatusColors.TryGetValue(status ?? "", out var sc))
                 { pillBg = sc.bg; pillFg = sc.fg; }
 
-                // The pill label itself – AutoSize so it wraps its text
-                // exactly; no BorderStyle so the GDI border can't clip it.
                 var lbl = new Label
                 {
                     Text      = status ?? "\u2014",
@@ -355,19 +344,14 @@ namespace PremiumLivingOPS.Views.InventoryControl
                     Padding   = new Padding(16, 5, 16, 5),
                     TextAlign = ContentAlignment.MiddleCenter
                 };
-
-                // Draw a 1-px border via Paint so it never overlaps the text
                 lbl.Paint += (s, pe) =>
                 {
                     var lb = (Label)s;
                     using var pen = new System.Drawing.Pen(
-                        Color.FromArgb(180,
-                            pillFg.R, pillFg.G, pillFg.B), 1);
-                    pe.Graphics.DrawRectangle(pen,
-                        0, 0, lb.Width - 1, lb.Height - 1);
+                        Color.FromArgb(180, pillFg.R, pillFg.G, pillFg.B), 1);
+                    pe.Graphics.DrawRectangle(pen, 0, 0, lb.Width - 1, lb.Height - 1);
                 };
 
-                // FlowLayoutPanel centres the label inside the row cell
                 var flow = new FlowLayoutPanel
                 {
                     Dock          = DockStyle.Fill,
@@ -378,8 +362,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
                     Padding       = new Padding(0)
                 };
                 flow.Controls.Add(lbl);
-
-                // Vertically centre the auto-sized label inside the flow panel
                 flow.Layout += (s, _) =>
                 {
                     var fl = (FlowLayoutPanel)s;
@@ -387,11 +369,9 @@ namespace PremiumLivingOPS.Views.InventoryControl
                     var lb = fl.Controls[0];
                     lb.Top = Math.Max(0, (fl.Height - lb.Height) / 2);
                 };
-
                 return flow;
             }
 
-            // ─ FieldRow ────────────────────────────────────────────────
             Panel FieldRow(string labelText, Control input, bool lastRow = false)
             {
                 var row = new Panel { Height = D_RowH, BackColor = Color.White };
@@ -446,7 +426,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 return row;
             }
 
-            // ─ StackRows ──────────────────────────────────────────────
             Panel StackRows(IList<Panel> rowList, Padding innerPad)
             {
                 var content = new Panel
@@ -455,14 +434,12 @@ namespace PremiumLivingOPS.Views.InventoryControl
                     BackColor = Color.White,
                     Padding   = innerPad
                 };
-
                 var stack = new Panel
                 {
                     Location  = new Point(innerPad.Left, innerPad.Top),
                     Height    = rowList.Count * D_RowH,
                     BackColor = Color.White
                 };
-
                 int y = 0;
                 foreach (var r in rowList)
                 {
@@ -471,7 +448,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
                     stack.Controls.Add(r);
                     y += D_RowH;
                 }
-
                 content.Controls.Add(stack);
                 content.Resize += (s, _) =>
                 {
@@ -486,7 +462,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
             }
 
             // ================================================================
-            //  CARD 1 — Item Information
+            //  CARD 1 — Item Information  (3 rows)
             // ================================================================
             var card1Rows = new List<Panel>
             {
@@ -501,7 +477,14 @@ namespace PremiumLivingOPS.Views.InventoryControl
             card1Inner.Controls.Add(StackRows(card1Rows, new Padding(0)));
 
             // ================================================================
-            //  CARD 2 — Material Details + Stock Summary
+            //  CARD 2 — Material Details + Stock Summary  (5 rows)
+            //
+            //  outerHeight breakdown:
+            //    5 × D_RowH  = 5 × 64  = 320   (row content)
+            //    22                       = 22   (CardPanel outer pad: top 14 + bottom 8)
+            //    outerPadding.Vertical    = 16   (Padding(20,8,20,8): top 8 + bottom 8)
+            //    -----------------------------------------------
+            //    total                    = 358
             // ================================================================
             var card2Rows = new List<Panel>
             {
@@ -512,7 +495,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 FieldRow("Stock Status",          StatusPill(m.StockStatus), lastRow: true)
             };
             var (card2Outer, card2Inner) = CardPanel.Create(
-                outerHeight : card2Rows.Count * D_RowH + 22,
+                outerHeight : card2Rows.Count * D_RowH + 38,   // 38 = CardPanel pad(22) + outerPadding vertical(16)
                 outerPadding: new Padding(20, 8, 20, 8));
             card2Inner.Padding = new Padding(0);
             card2Inner.Controls.Add(StackRows(card2Rows, new Padding(0)));
