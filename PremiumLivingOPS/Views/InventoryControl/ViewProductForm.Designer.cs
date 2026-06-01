@@ -183,7 +183,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
 
             btnViewDetail  = MakePrimaryBtn("🔍 View Detail",  Point.Empty, 270, 60);
             btnAddItem     = MakeGreenBtn  ("＋ Add New",       Point.Empty, 270, 60);
-            btnModifyItem  = MakeOutlineBtn("✏  Modify Item",   Point.Empty, 270, 60);
+            btnModifyItem  = MakeYellowBtn("✏  Modify Item",   Point.Empty, 270, 60);
             btnInwardGoods = MakePrimaryBtn("📥 Inward Goods",  Point.Empty, 270, 60);
             btnWhTransfer  = MakeOutlineBtn("🔄 WH Transfer",   Point.Empty, 270, 60);
 
