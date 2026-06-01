@@ -92,7 +92,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Dock          = DockStyle.Fill
             };
 
-            btnLoadOrder = MakePrimaryBtn("Load Order", Point.Empty, 150, 44);
+            btnLoadOrder = MakePrimaryBtn("Load Order", Point.Empty, 210, 60);
             btnLoadOrder.Dock = DockStyle.Right;
             btnLoadOrder.Click += btnLoadOrder_Click;
 
