@@ -104,17 +104,17 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None, Padding = Padding.Empty
             };
             tblAction.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
-            tblAction.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 1100f)); // 5×210 + gaps
+            tblAction.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 1350f)); // 5×270 + gaps
             tblAction.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
             pnlKpi = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
 
             var pnlActionBtns = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            btnViewDetail  = MakePrimaryBtn("🔍 View Detail",  Point.Empty, 210, 60);
-            btnAddItem     = MakeGreenBtn  ("＋ Add New",       Point.Empty, 210, 60);
-            btnModifyItem  = MakeOutlineBtn("✏  Modify Item",   Point.Empty, 210, 60);
-            btnInwardGoods = MakePrimaryBtn("📥 Inward Goods",  Point.Empty, 210, 60);
-            btnWhTransfer  = MakeOutlineBtn("🔄 WH Transfer",   Point.Empty, 210, 60);
+            btnAddItem     = MakeGreenBtn  ("＋ Add New",       Point.Empty, 270, 60);
+            btnViewDetail  = MakePrimaryBtn("🔍 View Detail",  Point.Empty, 270, 60);
+            btnModifyItem  = MakeOutlineBtn("✏  Modify Item",   Point.Empty, 270, 60);
+            btnInwardGoods = MakePrimaryBtn("📥 Inward Goods",  Point.Empty, 270, 60);
+            btnWhTransfer  = MakeOutlineBtn("🔄 WH Transfer",   Point.Empty, 270, 60);
 
             btnViewDetail.Enabled  = false;
             btnModifyItem.Enabled  = false;
@@ -134,7 +134,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
                     xCursor += b.Width + gaps;
                 }
             };
-            pnlActionBtns.Controls.AddRange(new Control[] { btnViewDetail, btnAddItem, btnModifyItem, btnInwardGoods, btnWhTransfer });
+            pnlActionBtns.Controls.AddRange(new Control[] { btnAddItem, btnViewDetail, btnModifyItem, btnInwardGoods, btnWhTransfer });
 
             tblAction.Controls.Add(pnlKpi,        0, 0);
             tblAction.Controls.Add(pnlActionBtns, 1, 0);
