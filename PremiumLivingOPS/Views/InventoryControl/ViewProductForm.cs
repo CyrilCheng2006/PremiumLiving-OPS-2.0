@@ -66,7 +66,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
 
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
-            _shell.SetBreadcrumb("Inventory Control  ›  View Product");
+            _shell.SetBreadcrumb("Inventory Control  \u203a  View Product");
 
             _currentProducts = vm.Products;
             if (!string.IsNullOrEmpty(status) && status != "All")
@@ -117,9 +117,8 @@ namespace PremiumLivingOPS.Views.InventoryControl
             const int PillH   = 60;
             const int Gap     = 8;
             const int NumColW = 80;
-            const int LeftPad = 12;   // 左側留白
+            const int LeftPad = 12;
 
-            // flow 不用 Dock，用 AutoSize 讓它自身寬度剛好包住所有 pills
             var flow = new FlowLayoutPanel
             {
                 FlowDirection = FlowDirection.LeftToRight,
@@ -198,7 +197,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 flow.Controls.Add(pill);
             }
 
-            // wrapper: Dock=Fill, 透過 Layout 事件把 flow 靠左垄直置中
             var wrapper = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             wrapper.Controls.Add(flow);
             wrapper.Layout += (s, e) =>
@@ -241,10 +239,14 @@ namespace PremiumLivingOPS.Views.InventoryControl
             string stockQty = row.Cells["colStockQty"].Value?.ToString();
             string status   = row.Cells["colStatus"].Value?.ToString();
 
+            // ── Dialog dimensions ──────────────────────────────────────────────
+            // 6 rows × 56px + header 72 + footer 72 + body padding 48 ≈ 528
+            // Extra buffer added so nothing feels cramped.
             using var dlg = new Form
             {
                 Text            = $"Product Detail — {itemId}",
-                Size            = new Size(520, 380),
+                Size            = new Size(680, 580),
+                MinimumSize     = new Size(580, 480),
                 StartPosition   = FormStartPosition.CenterParent,
                 BackColor       = Color.White,
                 Font            = new Font("Segoe UI", 11f),
@@ -253,7 +255,8 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 MinimizeBox     = false
             };
 
-            var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 64, BackColor = Color.FromArgb(19, 35, 61) };
+            // ── Header ────────────────────────────────────────────────────────
+            var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 72, BackColor = Color.FromArgb(19, 35, 61) };
             pnlHeader.Controls.Add(new Label
             {
                 Text      = $"Product Detail  —  {itemId}",
@@ -261,18 +264,35 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 ForeColor = Color.White,
                 Dock      = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft,
-                Padding   = new Padding(20, 0, 0, 0)
+                Padding   = new Padding(28, 0, 0, 0)
             });
 
-            var pnlBody = new Panel { Dock = DockStyle.Fill, Padding = new Padding(24, 16, 24, 16), BackColor = Color.White };
+            // ── Body ──────────────────────────────────────────────────────────
+            var pnlBody = new Panel
+            {
+                Dock      = DockStyle.Fill,
+                Padding   = new Padding(32, 24, 32, 8),
+                BackColor = Color.White
+            };
+
+            // 6 fields × fixed 56px row height
+            const int RowH     = 56;
+            const int NumRows  = 6;
+            const int LabelCol = 160;
+
             var tbl = new TableLayoutPanel
             {
-                Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 6,
-                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+                Dock            = DockStyle.Top,
+                Height          = RowH * NumRows,
+                ColumnCount     = 2,
+                RowCount        = NumRows,
+                BackColor       = Color.Transparent,
+                CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
-            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140f));
+            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, LabelCol));
             tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-            for (int i = 0; i < 6; i++) tbl.RowStyles.Add(new RowStyle(SizeType.Percent, 100f / 6f));
+            for (int i = 0; i < NumRows; i++)
+                tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowH));
 
             var fields = new[]
             {
@@ -283,27 +303,76 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 ("Stock Qty",   stockQty),
                 ("Status",      status)
             };
+
             for (int i = 0; i < fields.Length; i++)
             {
-                tbl.Controls.Add(new Label { Text = fields[i].Item1, Font = new Font("Segoe UI", 10f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft }, 0, i);
-                tbl.Controls.Add(new Label { Text = fields[i].Item2 ?? "—", Font = new Font("Segoe UI", 11f), ForeColor = Color.FromArgb(15, 31, 53), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft }, 1, i);
+                // Separator line above each row (except first)
+                if (i > 0)
+                {
+                    var sep = new Panel
+                    {
+                        Dock      = DockStyle.Top,
+                        Height    = 1,
+                        BackColor = Color.FromArgb(235, 238, 244)
+                    };
+                    pnlBody.Controls.Add(sep);
+                    pnlBody.Controls.SetChildIndex(sep, 0); // insert before tbl
+                }
+
+                tbl.Controls.Add(new Label
+                {
+                    Text      = fields[i].Item1,
+                    Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
+                    ForeColor = Color.FromArgb(98, 112, 135),
+                    Dock      = DockStyle.Fill,
+                    TextAlign = ContentAlignment.MiddleLeft,
+                    Padding   = new Padding(0, 0, 8, 0)
+                }, 0, i);
+
+                tbl.Controls.Add(new Label
+                {
+                    Text      = fields[i].Item2 ?? "—",
+                    Font      = new Font("Segoe UI", 12f),
+                    ForeColor = Color.FromArgb(15, 31, 53),
+                    Dock      = DockStyle.Fill,
+                    TextAlign = ContentAlignment.MiddleLeft
+                }, 1, i);
             }
             pnlBody.Controls.Add(tbl);
 
-            var pnlFoot = new Panel { Dock = DockStyle.Bottom, Height = 60, Padding = new Padding(0, 10, 20, 10) };
+            // ── Footer ────────────────────────────────────────────────────────
+            var pnlFoot = new Panel
+            {
+                Dock      = DockStyle.Bottom,
+                Height    = 72,
+                Padding   = new Padding(0, 14, 28, 14),
+                BackColor = Color.FromArgb(248, 250, 253)
+            };
+            pnlFoot.Paint += (s, e) =>
+            {
+                using var pen = new System.Drawing.Pen(Color.FromArgb(221, 227, 236), 1);
+                e.Graphics.DrawLine(pen, 0, 0, ((Panel)s).Width, 0);
+            };
+
             var btnClose = new Button
             {
-                Text = "Close", Font = new Font("Segoe UI", 11f),
-                ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White,
-                FlatStyle = FlatStyle.Flat, Dock = DockStyle.Right, Width = 120, Cursor = Cursors.Hand
+                Text      = "Close",
+                Font      = new Font("Segoe UI", 12f),
+                ForeColor = Color.FromArgb(15, 31, 53),
+                BackColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Dock      = DockStyle.Right,
+                Width     = 140,
+                Cursor    = Cursors.Hand
             };
-            btnClose.FlatAppearance.BorderColor = Color.FromArgb(221, 227, 236);
+            btnClose.FlatAppearance.BorderColor = Color.FromArgb(200, 207, 220);
+            btnClose.FlatAppearance.BorderSize  = 1;
             btnClose.Click += (s, ev) => dlg.Close();
             pnlFoot.Controls.Add(btnClose);
 
             dlg.Controls.Add(pnlBody);
-            dlg.Controls.Add(pnlHeader);
             dlg.Controls.Add(pnlFoot);
+            dlg.Controls.Add(pnlHeader);
             dlg.ShowDialog(this);
         }
 
