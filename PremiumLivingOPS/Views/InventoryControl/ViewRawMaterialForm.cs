@@ -16,7 +16,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
 
         private List<RawMaterialEntity> _currentMaterials = new List<RawMaterialEntity>();
 
-        // Status badge colours (keyed on StockStatus computed value)
         private static readonly Dictionary<string, (Color bg, Color fg)> StatusColors =
             new Dictionary<string, (Color, Color)>
             {
@@ -24,6 +23,15 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 { "Low Stock",    (Color.FromArgb(254, 243, 199), Color.FromArgb(146,  64,  14)) },
                 { "Out of Stock", (Color.FromArgb(254, 226, 226), Color.FromArgb(153,  27,  27)) }
             };
+
+        // ── Detail dialog sizing — mirrors AddItemForm constants ──────────
+        private const int D_RowH     = 84;
+        private const int D_RowGap   = 20;
+        private const int D_LabelW   = 300;
+        private const int D_CardPadH = 56;
+        private const int D_CardPadV = 40;
+        private const int D_BtnW     = 210;
+        private const int D_BtnH     = 60;
 
         public ViewRawMaterialForm()
         {
@@ -271,9 +279,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
             btnInwardGoods.Enabled = hasSelection;
         }
 
-        // ────────────────────────────────────────────────────────────────
-        //  Cell formatting  — Status badge
-        // ────────────────────────────────────────────────────────────────
         private void DgvMaterials_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
             if (dgvMaterials.Columns[e.ColumnIndex].Name != "colStatus" || e.Value == null) return;
@@ -291,16 +296,16 @@ namespace PremiumLivingOPS.Views.InventoryControl
         }
 
         // ════════════════════════════════════════════════════════════════
-        //  Detail Dialog
-        //  Uses FlowLayoutPanel for vertical stacking — avoids the blank-
-        //  content bug that occurs when absolute Location coords are used
-        //  inside a DockStyle.Fill panel (coords are ignored by Fill layout).
+        //  Detail Dialog — mirrors AddItemForm visual language exactly:
+        //    same dark header, same scroll+card layout, same FieldRow()
+        //    two-column TLP structure, same footer with Close button.
         //
-        //  DB fields displayed:
-        //    Item          : ItemID, ItemName, ItemDescription
-        //    RawMaterial   : MaterialType (Category), purchasePrice (UnitCost)
-        //    WarehouseItem : WarehouseItemQuantity (sum), ReorderLevel
-        //    Computed      : StockStatus
+        //  Read-only display fields (all DB schema columns):
+        //    Item         : Item ID, Item Name, Description
+        //    RawMaterial  : Material Type (ENUM), Purchase Price
+        //    WarehouseItem: Total Stock Qty, Reorder Level
+        //    Computed     : Stock Status (colour pill)
+        //    Breakdown    : per-warehouse DGV if WarehouseBreakdown data exists
         // ════════════════════════════════════════════════════════════════
         private void OpenDetailDialog()
         {
@@ -315,120 +320,101 @@ namespace PremiumLivingOPS.Views.InventoryControl
             var m  = vm.Material;
             var wh = vm.WarehouseBreakdown ?? new List<WarehouseItemEntity>();
 
-            // ── Dialog shell ─────────────────────────────────────────────
-            using var dlg = new Form
+            // ── helper: read-only label control ───────────────────────────────
+            Label ReadLabel(string text, bool isBold = false) => new Label
             {
-                Text            = $"View Raw Material  \u2014  {m.MaterialID}",
-                Size            = new Size(900, 780),
-                MinimumSize     = new Size(700, 600),
-                StartPosition   = FormStartPosition.CenterParent,
-                BackColor       = Color.FromArgb(240, 244, 249),
-                Font            = new Font("Segoe UI", 11f),
-                FormBorderStyle = FormBorderStyle.Sizable,
-                MaximizeBox     = true,
-                MinimizeBox     = false
-            };
-
-            // ── Header ───────────────────────────────────────────────────
-            var pnlHeader = new Panel
-            {
-                Dock      = DockStyle.Top,
-                Height    = 80,
-                BackColor = Color.FromArgb(19, 35, 61)
-            };
-            pnlHeader.Controls.Add(new Label
-            {
-                Text      = $"View Raw Material  \u2014  {m.MaterialID}",
-                Font      = new Font("Segoe UI", 16f, FontStyle.Bold),
-                ForeColor = Color.White,
+                Text      = text ?? "\u2014",
+                Font      = new Font("Segoe UI", 13f, isBold ? FontStyle.Bold : FontStyle.Regular),
+                ForeColor = Color.FromArgb(15, 31, 53),
                 Dock      = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft,
-                Padding   = new Padding(36, 0, 0, 0)
-            });
-
-            // ── Footer ───────────────────────────────────────────────────
-            var pnlFoot = new Panel
-            {
-                Dock      = DockStyle.Bottom,
-                Height    = 72,
-                BackColor = Color.White
-            };
-            pnlFoot.Paint += (s, pe) =>
-            {
-                using var pen = new System.Drawing.Pen(Color.FromArgb(221, 227, 236), 1);
-                pe.Graphics.DrawLine(pen, 0, 0, ((Panel)s).Width, 0);
-            };
-            var btnClose = new Button
-            {
-                Text      = "Close",
-                Font      = new Font("Segoe UI", 11f),
-                BackColor = Color.White,
-                ForeColor = Color.FromArgb(15, 31, 53),
-                FlatStyle = FlatStyle.Flat,
-                Width     = 160,
-                Height    = 44,
-                Anchor    = AnchorStyles.Right | AnchorStyles.Top
-            };
-            btnClose.FlatAppearance.BorderColor = Color.FromArgb(200, 207, 220);
-            btnClose.FlatAppearance.BorderSize  = 1;
-            btnClose.Click += (s, ev) => dlg.Close();
-            btnClose.Location = new Point(pnlFoot.Width - 180, 14);
-            pnlFoot.Resize   += (s, ev) => btnClose.Left = pnlFoot.Width - 180;
-            pnlFoot.Controls.Add(btnClose);
-
-            // ── Scrollable body ──────────────────────────────────────────
-            var scroll = new Panel
-            {
-                Dock       = DockStyle.Fill,
-                AutoScroll = true,
-                BackColor  = Color.FromArgb(240, 244, 249),
-                Padding    = new Padding(36, 24, 36, 16)
+                BackColor = Color.Transparent
             };
 
-            // ── White card inside scroll ─────────────────────────────────
-            var card = new Panel
+            // ── helper: status pill label ───────────────────────────────────
+            Control StatusPill(string status)
             {
-                BackColor   = Color.White,
-                AutoSize    = true,
-                AutoSizeMode = AutoSizeMode.GrowAndShrink,
-                Anchor      = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
-                Padding     = new Padding(40, 32, 40, 32)
-            };
-            card.Paint += (s, pe) =>
-            {
-                using var pen = new System.Drawing.Pen(Color.FromArgb(221, 227, 236), 1);
-                pe.Graphics.DrawRectangle(pen, 0, 0, card.Width - 1, card.Height - 1);
-            };
+                Color pillBg = Color.FromArgb(229, 231, 235);
+                Color pillFg = Color.FromArgb(55,  65,  81);
+                if (StatusColors.TryGetValue(status ?? "", out var sc))
+                { pillBg = sc.bg; pillFg = sc.fg; }
 
-            // FlowLayoutPanel stacks rows top-to-bottom automatically
-            var flow = new FlowLayoutPanel
-            {
-                FlowDirection = FlowDirection.TopDown,
-                WrapContents  = false,
-                AutoSize      = true,
-                AutoSizeMode  = AutoSizeMode.GrowAndShrink,
-                Dock          = DockStyle.Top,
-                BackColor     = Color.Transparent
-            };
-
-            // ── Helpers ──────────────────────────────────────────────────
-            // Section header
-            Control MakeSectionHeader(string title)
-            {
-                var p = new Panel
+                var wrapper = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent,
+                                          Padding = new Padding(0, 18, 0, 18) };
+                var lbl = new Label
                 {
-                    Height    = 48,
-                    BackColor = Color.Transparent,
-                    Margin    = new Padding(0, 16, 0, 4)
+                    Text        = status ?? "\u2014",
+                    Font        = new Font("Segoe UI", 11f, FontStyle.Bold),
+                    ForeColor   = pillFg,
+                    BackColor   = pillBg,
+                    AutoSize    = true,
+                    Padding     = new Padding(14, 4, 14, 4),
+                    TextAlign   = ContentAlignment.MiddleCenter,
+                    BorderStyle = BorderStyle.FixedSingle
                 };
+                wrapper.Controls.Add(lbl);
+                lbl.Location = new Point(0, 0);
+                return wrapper;
+            }
+
+            // ── helper: FieldRow — identical signature to AddItemForm.FieldRow() ──
+            Panel FieldRow(string labelText, Control input)
+            {
+                var row = new Panel
+                {
+                    Height    = D_RowH,
+                    BackColor = Color.Transparent
+                };
+                var tlp = new TableLayoutPanel
+                {
+                    Dock            = DockStyle.Fill,
+                    ColumnCount     = 2,
+                    RowCount        = 1,
+                    BackColor       = Color.Transparent,
+                    CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                    Padding         = new Padding(0)
+                };
+                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, D_LabelW));
+                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
+                tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+
+                var lbl = new Label
+                {
+                    Text      = labelText,
+                    Font      = new Font("Segoe UI", 13f, FontStyle.Bold),
+                    ForeColor = Color.FromArgb(70, 85, 110),
+                    Dock      = DockStyle.Fill,
+                    TextAlign = ContentAlignment.MiddleLeft,
+                    AutoSize  = false
+                };
+
+                var inputWrapper = new Panel
+                {
+                    Dock      = DockStyle.Fill,
+                    BackColor = Color.Transparent,
+                    Padding   = new Padding(0, 14, 0, 14)
+                };
+                input.Dock = DockStyle.Fill;
+                inputWrapper.Controls.Add(input);
+
+                tlp.Controls.Add(lbl,          0, 0);
+                tlp.Controls.Add(inputWrapper, 1, 0);
+                row.Controls.Add(tlp);
+                return row;
+            }
+
+            // ── helper: thin section divider with title ───────────────────────
+            Panel SectionHeader(string title)
+            {
+                var p = new Panel { Height = 36, BackColor = Color.Transparent,
+                                    Margin = new Padding(0, 12, 0, 4) };
                 p.Controls.Add(new Label
                 {
                     Text      = title,
                     Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
                     ForeColor = Color.FromArgb(47, 111, 237),
                     Dock      = DockStyle.Top,
-                    Height    = 30,
-                    TextAlign = ContentAlignment.BottomLeft
+                    Height    = 26
                 });
                 p.Controls.Add(new Panel
                 {
@@ -439,239 +425,200 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 return p;
             }
 
-            // Field row: label + plain text value
-            Control MakeFieldRow(string label, string value)
-            {
-                var row = new Panel
-                {
-                    Height    = 56,
-                    BackColor = Color.Transparent,
-                    Margin    = new Padding(0, 0, 0, 2)
-                };
-                var tlp = new TableLayoutPanel
-                {
-                    Dock            = DockStyle.Fill,
-                    ColumnCount     = 2,
-                    RowCount        = 1,
-                    BackColor       = Color.Transparent,
-                    CellBorderStyle = TableLayoutPanelCellBorderStyle.None
-                };
-                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 220));
-                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-                tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+            // ── Collect all rows ─────────────────────────────────────────────
+            var rows = new List<Control>();
 
-                tlp.Controls.Add(new Label
-                {
-                    Text      = label,
-                    Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
-                    ForeColor = Color.FromArgb(90, 105, 130),
-                    Dock      = DockStyle.Fill,
-                    TextAlign = ContentAlignment.MiddleLeft
-                }, 0, 0);
+            // —— Section A: Item —————————————————————————————————————
+            rows.Add(SectionHeader("Item Information"));
+            rows.Add(FieldRow("Item ID",           ReadLabel(m.MaterialID)));
+            rows.Add(FieldRow("Item Name",         ReadLabel(m.MaterialName)));
+            rows.Add(FieldRow("Description",       ReadLabel(m.ItemDescription)));
 
-                tlp.Controls.Add(new Label
-                {
-                    Text      = value ?? "\u2014",
-                    Font      = new Font("Segoe UI", 11f),
-                    ForeColor = Color.FromArgb(15, 31, 53),
-                    Dock      = DockStyle.Fill,
-                    TextAlign = ContentAlignment.MiddleLeft
-                }, 1, 0);
+            // —— Section B: RawMaterial ————————————————————————————
+            rows.Add(SectionHeader("Raw Material Details"));
+            rows.Add(FieldRow("Material Type",     ReadLabel(m.Category)));
+            rows.Add(FieldRow("Purchase Price (HK$)", ReadLabel($"HK$ {m.UnitCost:N2}")));
 
-                row.Controls.Add(tlp);
+            // —— Section C: WarehouseItem ———————————————————————————
+            rows.Add(SectionHeader("Warehouse Stock"));
+            rows.Add(FieldRow("Total Stock Qty",   ReadLabel(m.StockQty.ToString())));
+            rows.Add(FieldRow("Reorder Level",     ReadLabel(m.ReorderLevel.ToString())));
 
-                // thin divider at bottom
-                row.Controls.Add(new Panel
-                {
-                    Dock      = DockStyle.Bottom,
-                    Height    = 1,
-                    BackColor = Color.FromArgb(240, 243, 248)
-                });
-                return row;
-            }
+            // —— Section D: Stock Status ————————————————————————————
+            rows.Add(SectionHeader("Status"));
+            rows.Add(FieldRow("Stock Status",      StatusPill(m.StockStatus)));
 
-            // Field row: label + coloured Status pill
-            Control MakeStatusRow(string label, string value)
-            {
-                var row = new Panel
-                {
-                    Height    = 56,
-                    BackColor = Color.Transparent,
-                    Margin    = new Padding(0, 0, 0, 2)
-                };
-                var tlp = new TableLayoutPanel
-                {
-                    Dock            = DockStyle.Fill,
-                    ColumnCount     = 2,
-                    RowCount        = 1,
-                    BackColor       = Color.Transparent,
-                    CellBorderStyle = TableLayoutPanelCellBorderStyle.None
-                };
-                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 220));
-                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-                tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-
-                tlp.Controls.Add(new Label
-                {
-                    Text      = label,
-                    Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
-                    ForeColor = Color.FromArgb(90, 105, 130),
-                    Dock      = DockStyle.Fill,
-                    TextAlign = ContentAlignment.MiddleLeft
-                }, 0, 0);
-
-                Color pillBg = Color.FromArgb(229, 231, 235);
-                Color pillFg = Color.FromArgb(55, 65, 81);
-                if (StatusColors.TryGetValue(value ?? "", out var sc))
-                {
-                    pillBg = sc.bg;
-                    pillFg = sc.fg;
-                }
-
-                var pillPanel = new Panel
-                {
-                    Dock      = DockStyle.Fill,
-                    BackColor = Color.Transparent,
-                    Padding   = new Padding(0, 12, 0, 12)
-                };
-                var pill = new Label
-                {
-                    Text        = value ?? "\u2014",
-                    Font        = new Font("Segoe UI", 10f, FontStyle.Bold),
-                    ForeColor   = pillFg,
-                    BackColor   = pillBg,
-                    AutoSize    = true,
-                    Padding     = new Padding(12, 3, 12, 3),
-                    TextAlign   = ContentAlignment.MiddleCenter,
-                    BorderStyle = BorderStyle.FixedSingle
-                };
-                pillPanel.Controls.Add(pill);
-                pill.Location = new Point(0, 0);
-
-                tlp.Controls.Add(pillPanel, 1, 0);
-                row.Controls.Add(tlp);
-                row.Controls.Add(new Panel
-                {
-                    Dock      = DockStyle.Bottom,
-                    Height    = 1,
-                    BackColor = Color.FromArgb(240, 243, 248)
-                });
-                return row;
-            }
-
-            // ── Set width of a flow item when dialog resizes ─────────────
-            void SetFlowItemWidth(Control c)
-            {
-                int w = flow.ClientSize.Width - flow.Padding.Horizontal;
-                if (w > 0) c.Width = w;
-            }
-
-            // ── Add all rows ─────────────────────────────────────────────
-
-            // Section A — Item
-            var secA = MakeSectionHeader("Item Information");
-            flow.Controls.Add(secA);
-
-            var rowItemId   = MakeFieldRow("Item ID",           m.MaterialID ?? "\u2014");
-            var rowItemName = MakeFieldRow("Item Name",         m.MaterialName ?? "\u2014");
-            var rowItemDesc = MakeFieldRow("Item Description",  m.ItemDescription ?? "\u2014");
-            flow.Controls.Add(rowItemId);
-            flow.Controls.Add(rowItemName);
-            flow.Controls.Add(rowItemDesc);
-
-            // Section B — RawMaterial
-            var secB = MakeSectionHeader("Raw Material Details");
-            flow.Controls.Add(secB);
-
-            var rowMatType = MakeFieldRow("Material Type",   m.Category ?? "\u2014");
-            var rowPrice   = MakeFieldRow("Purchase Price",  $"HK$ {m.UnitCost:N2}");
-            flow.Controls.Add(rowMatType);
-            flow.Controls.Add(rowPrice);
-
-            // Section C — WarehouseItem (aggregated)
-            var secC = MakeSectionHeader("Warehouse Stock");
-            flow.Controls.Add(secC);
-
-            var rowQty     = MakeFieldRow("Total Stock Qty", m.StockQty.ToString());
-            var rowReorder = MakeFieldRow("Reorder Level",   m.ReorderLevel.ToString());
-            flow.Controls.Add(rowQty);
-            flow.Controls.Add(rowReorder);
-
-            // Section D — Computed
-            var secD = MakeSectionHeader("Status");
-            flow.Controls.Add(secD);
-
-            var rowStatus = MakeStatusRow("Stock Status", m.StockStatus);
-            flow.Controls.Add(rowStatus);
-
-            // Section E — Warehouse Breakdown (if data exists)
+            // —— Section E: Warehouse Breakdown DGV ————————————————————
+            DataGridView dgvWh = null;
             if (wh.Count > 0)
             {
-                var secE = MakeSectionHeader("Warehouse Breakdown");
-                flow.Controls.Add(secE);
+                rows.Add(SectionHeader("Warehouse Breakdown"));
 
-                var dgv = new DataGridView
+                dgvWh = new DataGridView
                 {
-                    Height                = 28 + wh.Count * 30,
                     BackgroundColor       = Color.White,
-                    BorderStyle           = BorderStyle.None,
+                    BorderStyle           = BorderStyle.FixedSingle,
                     RowHeadersVisible     = false,
                     AllowUserToAddRows    = false,
                     AllowUserToDeleteRows = false,
                     ReadOnly              = true,
                     AutoSizeColumnsMode   = DataGridViewAutoSizeColumnsMode.Fill,
                     SelectionMode         = DataGridViewSelectionMode.FullRowSelect,
-                    Font                  = new Font("Segoe UI", 10f),
-                    Margin                = new Padding(0, 4, 0, 8),
-                    ColumnHeadersHeight   = 28
+                    Font                  = new Font("Segoe UI", 11f),
+                    ColumnHeadersHeight   = 32
                 };
-                dgv.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(240, 244, 249);
-                dgv.ColumnHeadersDefaultCellStyle.Font      = new Font("Segoe UI", 10f, FontStyle.Bold);
-                dgv.ColumnHeadersDefaultCellStyle.ForeColor = Color.FromArgb(70, 85, 110);
-                dgv.ColumnHeadersBorderStyle                 = DataGridViewHeaderBorderStyle.None;
-                dgv.DefaultCellStyle.BackColor               = Color.White;
-                dgv.DefaultCellStyle.SelectionBackColor      = Color.FromArgb(219, 234, 254);
-                dgv.DefaultCellStyle.SelectionForeColor      = Color.FromArgb(15, 31, 53);
-                dgv.EnableHeadersVisualStyles                = false;
+                dgvWh.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(240, 244, 249);
+                dgvWh.ColumnHeadersDefaultCellStyle.Font      = new Font("Segoe UI", 11f, FontStyle.Bold);
+                dgvWh.ColumnHeadersDefaultCellStyle.ForeColor = Color.FromArgb(70, 85, 110);
+                dgvWh.ColumnHeadersBorderStyle                 = DataGridViewHeaderBorderStyle.None;
+                dgvWh.DefaultCellStyle.BackColor               = Color.White;
+                dgvWh.DefaultCellStyle.SelectionBackColor      = Color.FromArgb(219, 234, 254);
+                dgvWh.DefaultCellStyle.SelectionForeColor      = Color.FromArgb(15, 31, 53);
+                dgvWh.EnableHeadersVisualStyles                = false;
 
-                dgv.Columns.Add("whId",   "Warehouse ID");
-                dgv.Columns.Add("whLoc",  "Location");
-                dgv.Columns.Add("qty",    "Qty");
-                dgv.Columns.Add("reorder","Reorder Level");
+                dgvWh.Columns.Add("whId",    "Warehouse ID");
+                dgvWh.Columns.Add("whLoc",   "Location");
+                dgvWh.Columns.Add("qty",     "Stock Qty");
+                dgvWh.Columns.Add("reorder", "Reorder Level");
 
                 foreach (var row in wh)
-                    dgv.Rows.Add(row.WarehouseID, row.WarehouseName, row.Quantity, row.ReorderLevel);
+                    dgvWh.Rows.Add(
+                        row.WarehouseID,
+                        row.WarehouseName,
+                        row.Quantity,
+                        row.ReorderLevel);
 
-                flow.Controls.Add(dgv);
+                // Height: header + rows
+                dgvWh.Height = 32 + wh.Count * 30 + 4;
+
+                // Wrap DGV in a FieldRow-height panel so it sits in the card
+                var dgvHolder = new Panel
+                {
+                    Height    = dgvWh.Height + 16,
+                    BackColor = Color.Transparent
+                };
+                dgvWh.Dock = DockStyle.Fill;
+                dgvHolder.Controls.Add(dgvWh);
+                rows.Add(dgvHolder);
             }
 
-            // ── Wire resizing so rows fill the card width ────────────────
-            flow.Layout += (s, le) =>
+            // ── Calculate card height the same way AddItemForm does ───────────
+            int y = 0;
+            foreach (var r in rows)
+                y += r.Height + (r is Panel rp && rp.Height == D_RowH ? D_RowGap : 4);
+            int cardContentH = y + D_CardPadV * 2;
+
+            // ── Build innerCard + outerCard (same as AddItemForm) ────────────
+            var (outerCard, innerCard) = CardPanel.Create(
+                outerHeight : cardContentH + 16,
+                outerPadding: new Padding(0));
+            innerCard.Padding = new Padding(D_CardPadH, D_CardPadV, D_CardPadH, D_CardPadV);
+
+            int yPos = 0;
+            foreach (var r in rows)
             {
-                int w = flow.ClientSize.Width - flow.Padding.Horizontal;
-                if (w <= 0) return;
-                foreach (Control c in flow.Controls)
-                    c.Width = w;
+                r.Location = new Point(0, yPos);
+                r.Anchor   = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+                innerCard.Controls.Add(r);
+                yPos += r.Height + (r.Height == D_RowH ? D_RowGap : 4);
+            }
+            innerCard.Height = cardContentH;
+
+            // ── Scroll panel ────────────────────────────────────────────────
+            var scroll = new Panel
+            {
+                Dock       = DockStyle.Fill,
+                BackColor  = Color.FromArgb(240, 244, 249),
+                AutoScroll = true,
+                Padding    = new Padding(56, 40, 56, 24)
+            };
+            scroll.Controls.Add(outerCard);
+
+            // ── Dialog shell ─────────────────────────────────────────────
+            using var dlg = new Form
+            {
+                Text            = $"View Raw Material  \u2014  {m.MaterialID}",
+                Size            = new Size(1600, 1200),
+                MinimumSize     = new Size(1200, 900),
+                StartPosition   = FormStartPosition.CenterParent,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox     = false,
+                MinimizeBox     = false,
+                BackColor       = Color.FromArgb(240, 244, 249),
+                Font            = new Font("Segoe UI", 12f)
             };
 
-            card.Controls.Add(flow);
-            scroll.Controls.Add(card);
+            // header
+            var pnlHeader = new Panel
+            {
+                Dock      = DockStyle.Top,
+                Height    = 90,
+                BackColor = Color.FromArgb(19, 35, 61)
+            };
+            pnlHeader.Controls.Add(new Label
+            {
+                Text      = $"View Raw Material  \u2014  {m.MaterialID}",
+                Font      = new Font("Segoe UI", 18f, FontStyle.Bold),
+                ForeColor = Color.White,
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Padding   = new Padding(48, 0, 0, 0)
+            });
 
-            // Keep card width in sync with scroll panel
-            scroll.Resize += (s, ev) =>
+            // footer
+            var pnlFoot = new Panel
             {
-                int w = scroll.ClientSize.Width - scroll.Padding.Horizontal;
-                if (w > 0) card.Width = w;
+                Dock      = DockStyle.Bottom,
+                Height    = 100,
+                BackColor = Color.White,
+                Padding   = new Padding(0, 20, 48, 20)
             };
-            dlg.Load += (s, ev) =>
+            pnlFoot.Paint += (s, pe) =>
             {
-                int w = scroll.ClientSize.Width - scroll.Padding.Horizontal;
-                if (w > 0) card.Width = w;
+                using var pen = new System.Drawing.Pen(Color.FromArgb(221, 227, 236), 1);
+                pe.Graphics.DrawLine(pen, 0, 0, ((Panel)s).Width, 0);
             };
+
+            var btnClose = new Button
+            {
+                Text      = "Close",
+                Font      = new Font("Segoe UI", 13f),
+                BackColor = Color.White,
+                ForeColor = Color.FromArgb(15, 31, 53),
+                FlatStyle = FlatStyle.Flat,
+                Width     = D_BtnW,
+                Height    = D_BtnH,
+                Margin    = new Padding(12, 0, 0, 0),
+                Cursor    = Cursors.Hand
+            };
+            btnClose.FlatAppearance.BorderColor = Color.FromArgb(200, 207, 220);
+            btnClose.FlatAppearance.BorderSize  = 1;
+            btnClose.Click += (s, ev) => dlg.Close();
+
+            var footFlow = new FlowLayoutPanel
+            {
+                Dock          = DockStyle.Right,
+                AutoSize      = true,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents  = false,
+                BackColor     = Color.Transparent
+            };
+            footFlow.Controls.Add(btnClose);
+            pnlFoot.Controls.Add(footFlow);
 
             dlg.Controls.Add(scroll);
             dlg.Controls.Add(pnlFoot);
             dlg.Controls.Add(pnlHeader);
+
+            // ── Resize outerCard width to match scroll, same as AddItemForm ──
+            void ResizeCard()
+            {
+                int w = scroll.ClientSize.Width - scroll.Padding.Horizontal;
+                if (w > 100) outerCard.Width = w;
+            }
+            dlg.Load          += (s, ev) => ResizeCard();
+            scroll.Resize     += (s, ev) => ResizeCard();
+
             dlg.ShowDialog(this);
         }
 
