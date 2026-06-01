@@ -95,7 +95,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
             searchInner.Controls.Add(tblSearchCard);
 
             // ── Action bar card ─────────────────────────────────────────────────
-            var (actionOuter, actionInner) = CardPanel.Create(outerHeight: 90,
+            var (actionOuter, actionInner) = CardPanel.Create(outerHeight: 96,
                 outerPadding: new Padding(20, 12, 20, 0));
 
             var tblAction = new TableLayoutPanel
@@ -104,17 +104,17 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None, Padding = Padding.Empty
             };
             tblAction.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
-            tblAction.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 720f));
+            tblAction.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 1100f)); // 5×210 + gaps
             tblAction.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
             pnlKpi = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
 
             var pnlActionBtns = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            btnViewDetail  = MakePrimaryBtn("🔍 View Detail",  Point.Empty, 160, 56);
-            btnAddItem     = MakeGreenBtn  ("＋ Add New",       Point.Empty, 140, 56);
-            btnModifyItem  = MakeOutlineBtn("✏  Modify Item",   Point.Empty, 150, 56);
-            btnInwardGoods = MakePrimaryBtn("📥 Inward Goods",  Point.Empty, 160, 56);
-            btnWhTransfer  = MakeOutlineBtn("🔄 WH Transfer",   Point.Empty, 150, 56);
+            btnViewDetail  = MakePrimaryBtn("🔍 View Detail",  Point.Empty, 210, 60);
+            btnAddItem     = MakeGreenBtn  ("＋ Add New",       Point.Empty, 210, 60);
+            btnModifyItem  = MakeOutlineBtn("✏  Modify Item",   Point.Empty, 210, 60);
+            btnInwardGoods = MakePrimaryBtn("📥 Inward Goods",  Point.Empty, 210, 60);
+            btnWhTransfer  = MakeOutlineBtn("🔄 WH Transfer",   Point.Empty, 210, 60);
 
             btnViewDetail.Enabled  = false;
             btnModifyItem.Enabled  = false;

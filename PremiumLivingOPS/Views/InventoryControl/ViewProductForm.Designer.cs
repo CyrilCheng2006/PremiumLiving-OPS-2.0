@@ -159,10 +159,8 @@ namespace PremiumLivingOPS.Views.InventoryControl
             tblSearchCard.Controls.Add(pnlSearchBtns,  0, 2);
             searchInner.Controls.Add(tblSearchCard);
 
-            // ── Action bar card (Top, height=90) ─────────────────────────────────
-            // Layout: [pills area | action buttons]
-            // Action buttons: View Detail | Add New | Modify | Inward Goods | Transfer
-            var (actionOuter, actionInner) = CardPanel.Create(outerHeight: 90,
+            // ── Action bar card (Top, height=96) ─────────────────────────────────
+            var (actionOuter, actionInner) = CardPanel.Create(outerHeight: 96,
                 outerPadding: new Padding(20, 12, 20, 0));
 
             var tblAction = new TableLayoutPanel
@@ -175,7 +173,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 Padding         = Padding.Empty
             };
             tblAction.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f)); // pills
-            tblAction.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 720f)); // buttons
+            tblAction.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 1100f)); // buttons (5×210 + gaps)
             tblAction.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
             pnlKpi = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
@@ -183,11 +181,11 @@ namespace PremiumLivingOPS.Views.InventoryControl
             // Right panel: action buttons
             var pnlActionBtns = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
 
-            btnViewDetail  = MakePrimaryBtn("🔍 View Detail",  Point.Empty, 160, 56);
-            btnAddItem     = MakeGreenBtn  ("＋ Add New",       Point.Empty, 140, 56);
-            btnModifyItem  = MakeOutlineBtn("✏  Modify Item",   Point.Empty, 150, 56);
-            btnInwardGoods = MakePrimaryBtn("📥 Inward Goods",  Point.Empty, 160, 56);
-            btnWhTransfer  = MakeOutlineBtn("🔄 WH Transfer",   Point.Empty, 150, 56);
+            btnViewDetail  = MakePrimaryBtn("🔍 View Detail",  Point.Empty, 210, 60);
+            btnAddItem     = MakeGreenBtn  ("＋ Add New",       Point.Empty, 210, 60);
+            btnModifyItem  = MakeOutlineBtn("✏  Modify Item",   Point.Empty, 210, 60);
+            btnInwardGoods = MakePrimaryBtn("📥 Inward Goods",  Point.Empty, 210, 60);
+            btnWhTransfer  = MakeOutlineBtn("🔄 WH Transfer",   Point.Empty, 210, 60);
 
             btnViewDetail.Enabled  = false;
             btnModifyItem.Enabled  = false;
@@ -265,7 +263,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
 
             // ── Assemble pnlScroll ────────────────────────────────────────────────────
             pnlScroll.Controls.Add(tableOuter);   // Fill — must be first
-            pnlScroll.Controls.Add(actionOuter);  // Top — action bar (replaces old KPI-only bar)
+            pnlScroll.Controls.Add(actionOuter);  // Top — action bar
             pnlScroll.Controls.Add(searchOuter);  // Top — search filters
 
             // ── Assemble root ─────────────────────────────────────────────────────────
