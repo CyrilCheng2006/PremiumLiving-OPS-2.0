@@ -39,8 +39,8 @@ namespace PremiumLivingOPS.Views.InventoryControl
         private void InitLayout()
         {
             Text            = "Warehouse Item Transfer";
-            Size            = new Size(620, 560);
-            MinimumSize     = new Size(560, 500);
+            Size            = new Size(1200, 800);
+            MinimumSize     = new Size(900, 700);
             StartPosition   = FormStartPosition.CenterParent;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox     = false;

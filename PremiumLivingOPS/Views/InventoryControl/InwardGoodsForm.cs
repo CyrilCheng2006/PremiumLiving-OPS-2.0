@@ -32,8 +32,8 @@ namespace PremiumLivingOPS.Views.InventoryControl
         private void InitLayout()
         {
             Text            = "Record Inward Goods";
-            Size            = new Size(580, 480);
-            MinimumSize     = new Size(520, 420);
+            Size            = new Size(1200, 800);
+            MinimumSize     = new Size(900, 700);
             StartPosition   = FormStartPosition.CenterParent;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox     = false;

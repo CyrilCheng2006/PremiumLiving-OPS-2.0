@@ -38,8 +38,8 @@ namespace PremiumLivingOPS.Views.InventoryControl
         {
             string title = _mode == ItemMode.Product ? "Add New Product" : "Add New Raw Material";
             Text            = title;
-            Size            = new Size(640, 620);
-            MinimumSize     = new Size(580, 560);
+            Size            = new Size(1200, 800);
+            MinimumSize     = new Size(900, 700);
             StartPosition   = FormStartPosition.CenterParent;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox     = false;

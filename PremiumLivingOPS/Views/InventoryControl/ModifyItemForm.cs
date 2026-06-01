@@ -38,8 +38,8 @@ namespace PremiumLivingOPS.Views.InventoryControl
         {
             string title = _mode == ItemMode.Product ? "Modify Product" : "Modify Raw Material";
             Text            = title;
-            Size            = new Size(760, 680);
-            MinimumSize     = new Size(680, 580);
+            Size            = new Size(1200, 800);
+            MinimumSize     = new Size(900, 700);
             StartPosition   = FormStartPosition.CenterParent;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox     = false;
@@ -232,10 +232,10 @@ namespace PremiumLivingOPS.Views.InventoryControl
             dgv.ColumnHeadersDefaultCellStyle.ForeColor = Color.FromArgb(70, 85, 110);
             dgv.EnableHeadersVisualStyles = false;
 
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colWhId",       HeaderText = "Warehouse ID",   FillWeight = 25 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colWhName",     HeaderText = "Location",       FillWeight = 45 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colQty",        HeaderText = "Stock Qty",      FillWeight = 15 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colReorder",    HeaderText = "Reorder Level",  FillWeight = 15 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colWhId",    HeaderText = "Warehouse ID",  FillWeight = 25 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colWhName",  HeaderText = "Location",      FillWeight = 45 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colQty",     HeaderText = "Stock Qty",     FillWeight = 15 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colReorder", HeaderText = "Reorder Level", FillWeight = 15 });
             return dgv;
         }
 
