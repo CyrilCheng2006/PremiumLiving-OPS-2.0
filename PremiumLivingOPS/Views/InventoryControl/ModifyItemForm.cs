@@ -57,7 +57,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
             BackColor       = Color.FromArgb(240, 244, 249);
             Font            = new Font("Segoe UI", 12f);
 
-            // ── Header ───────────────────────────────────────────────────
+            // ── Header ────────────────────────────────────────────────────
             var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 80, BackColor = Color.FromArgb(19, 35, 61) };
             pnlHeader.Controls.Add(new Label
             {
@@ -69,7 +69,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 Padding   = new Padding(36, 0, 0, 0)
             });
 
-            // ── Footer ───────────────────────────────────────────────────
+            // ── Footer ────────────────────────────────────────────────────
             var pnlFoot = new Panel
             {
                 Dock      = DockStyle.Bottom,
@@ -101,7 +101,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
             flow.Controls.AddRange(new Control[] { btnClose, btnDelete, btnSave });
             pnlFoot.Controls.Add(flow);
 
-            // ── Scroll body ──────────────────────────────────────────────
+            // ── Scroll body ────────────────────────────────────────────────
             _scroll = new Panel
             {
                 Dock       = DockStyle.Fill,
@@ -110,7 +110,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 Padding    = new Padding(40, 28, 40, 16)
             };
 
-            // ── Field card ────────────────────────────────────────────────
+            // ── Field card ─────────────────────────────────────────────────
             var (outerFields, innerFields) = CardPanel.Create(outerHeight: 100, outerPadding: new Padding(0));
             _outerFields = outerFields;
             innerFields.Padding = new Padding(CardPadH, CardPadV, CardPadH, CardPadV);
@@ -151,7 +151,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
             outerFields.Height  = fieldsContentH + 16;
             innerFields.Height  = fieldsContentH;
 
-            // ── Warehouse stock card ─────────────────────────────────────
+            // ── Warehouse stock card ───────────────────────────────────────
             var (outerGrid, innerGrid) = CardPanel.Create(outerHeight: 260, outerPadding: new Padding(0));
             _outerGrid = outerGrid;
             innerGrid.Padding = new Padding(CardPadH, CardPadV, CardPadH, CardPadV);
@@ -215,7 +215,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
             }
         }
 
-        // ── LoadData: uses correct controller methods ───────────────────
+        // ── LoadData ─────────────────────────────────────────────
         private void LoadData()
         {
             dgvWarehouses.Rows.Clear();
@@ -226,6 +226,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 if (vm?.Product == null) { MessageBox.Show("Item not found.", "Error"); Close(); return; }
 
                 var p = vm.Product;
+                // ProductEntity: ItemID, ItemName, ItemDescription, Category, SalesPrice
                 txtItemId.Text   = p.ItemID;
                 txtItemName.Text = p.ItemName;
                 txtItemDesc.Text = p.ItemDescription ?? "";
@@ -243,12 +244,13 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 if (vm?.Material == null) { MessageBox.Show("Item not found.", "Error"); Close(); return; }
 
                 var m = vm.Material;
-                txtItemId.Text   = m.ItemID;
-                txtItemName.Text = m.ItemName;
+                // RawMaterialEntity: MaterialID, MaterialName, ItemDescription, Category (=MaterialType), UnitCost
+                txtItemId.Text   = m.MaterialID;
+                txtItemName.Text = m.MaterialName;
                 txtItemDesc.Text = m.ItemDescription ?? "";
-                txtPrice.Text    = m.PurchasePrice.ToString("F2");
+                txtPrice.Text    = m.UnitCost.ToString("F2");
 
-                int catIdx = cboCategory.FindStringExact(m.MaterialType);
+                int catIdx = cboCategory.FindStringExact(m.Category);
                 if (catIdx >= 0) cboCategory.SelectedIndex = catIdx;
 
                 foreach (var wi in vm.WarehouseBreakdown)
@@ -312,7 +314,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
             }
         }
 
-        // ── UI helpers ─────────────────────────────────────────────────
+        // ── UI helpers ─────────────────────────────────────────────────────
         private static Panel FieldRow(string label, Control input)
         {
             var row = new Panel { Height = RowH, BackColor = Color.Transparent };
