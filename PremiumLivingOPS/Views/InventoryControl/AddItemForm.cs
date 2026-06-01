@@ -24,17 +24,19 @@ namespace PremiumLivingOPS.Views.InventoryControl
         private ComboBox      cboWarehouse;
         private NumericUpDown nudInitialQty, nudReorderLevel;
         private Button        btnSubmit, btnCancel;
-        private Label         lblPriceCaption;
 
-        // ──────────────────────────────────────────────────────────
-        // Sizing constants — all layout changes here
-        private const int RowH      = 68;   // was 52 — more breathing room
-        private const int RowGap    = 14;   // was 12
-        private const int LabelW    = 220;  // was 180
-        private const int BtnW      = 150;  // was 130
-        private const int BtnH      = 44;   // was 40
-        private const int CardPadH  = 32;   // was 24 (horizontal)
-        private const int CardPadV  = 28;   // was 16 (vertical)
+        // ── Sizing constants ─────────────────────────────────────────────
+        private const int RowH      = 72;
+        private const int RowGap    = 16;
+        private const int LabelW    = 240;
+        private const int BtnW      = 160;
+        private const int BtnH      = 46;
+        private const int CardPadH  = 40;
+        private const int CardPadV  = 32;
+
+        // Outer card reference kept for resize
+        private Panel _outerCard;
+        private Panel _scroll;
 
         public AddItemForm(ItemMode mode)
         {
@@ -53,53 +55,58 @@ namespace PremiumLivingOPS.Views.InventoryControl
             MaximizeBox     = false;
             MinimizeBox     = false;
             BackColor       = Color.FromArgb(240, 244, 249);
-            Font            = new Font("Segoe UI", 12f);   // was 11f
+            Font            = new Font("Segoe UI", 12f);
 
-            // ── Header ───────────────────────────────────────────────
-            var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 76, BackColor = Color.FromArgb(19, 35, 61) };
+            // ── Header ─────────────────────────────────────────────────────
+            var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 80, BackColor = Color.FromArgb(19, 35, 61) };
             pnlHeader.Controls.Add(new Label
             {
                 Text      = title,
-                Font      = new Font("Segoe UI", 16f, FontStyle.Bold),
+                Font      = new Font("Segoe UI", 17f, FontStyle.Bold),
                 ForeColor = Color.White,
                 Dock      = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft,
-                Padding   = new Padding(32, 0, 0, 0)
+                Padding   = new Padding(36, 0, 0, 0)
             });
 
-            // ── Scroll body ────────────────────────────────────────
-            var scroll = new Panel
+            // ── Scroll body ──────────────────────────────────────────────
+            _scroll = new Panel
             {
                 Dock       = DockStyle.Fill,
                 BackColor  = Color.FromArgb(240, 244, 249),
                 AutoScroll = true,
-                Padding    = new Padding(32, 20, 32, 16)
+                Padding    = new Padding(40, 28, 40, 16)
             };
 
-            var (outerCard, innerCard) = CardPanel.Create(600, new Padding(0));
+            // Card created without fixed width — will be set on Load/Resize
+            var (outerCard, innerCard) = CardPanel.Create(outerHeight: 100 /* placeholder */, outerPadding: new Padding(0));
+            _outerCard = outerCard;
             innerCard.Padding = new Padding(CardPadH, CardPadV, CardPadH, CardPadV);
 
+            // ── Build field rows using TableLayoutPanel (label + input, no fixed pixel width) ──
             var rows = BuildRows();
-            int y = CardPadV;
+            int y = 0;
             foreach (var row in rows)
             {
                 row.Location = new Point(0, y);
-                row.Width    = innerCard.Width - CardPadH * 2;
                 row.Anchor   = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
                 innerCard.Controls.Add(row);
-                y += row.Height + RowGap;
+                y += RowH + RowGap;
             }
-            outerCard.Height = y + CardPadV + 8;
+            // Set card height based on content
+            int cardContentH = y - RowGap + CardPadV * 2;
+            outerCard.Height  = cardContentH + 16;  // outer shadow padding
+            innerCard.Height  = cardContentH;
 
-            scroll.Controls.Add(outerCard);
+            _scroll.Controls.Add(outerCard);
 
-            // ── Footer ───────────────────────────────────────────
+            // ── Footer ───────────────────────────────────────────────────
             var pnlFoot = new Panel
             {
                 Dock      = DockStyle.Bottom,
-                Height    = 76,
+                Height    = 80,
                 BackColor = Color.White,
-                Padding   = new Padding(0, 14, 28, 14)
+                Padding   = new Padding(0, 16, 36, 16)
             };
             pnlFoot.Paint += (s, e) =>
             {
@@ -114,42 +121,87 @@ namespace PremiumLivingOPS.Views.InventoryControl
 
             var flow = new FlowLayoutPanel
             {
-                Dock = DockStyle.Right, AutoSize = true,
+                Dock          = DockStyle.Right,
+                AutoSize      = true,
                 FlowDirection = FlowDirection.LeftToRight,
-                WrapContents = false, BackColor = Color.Transparent
+                WrapContents  = false,
+                BackColor     = Color.Transparent
             };
             flow.Controls.AddRange(new Control[] { btnCancel, btnSubmit });
             pnlFoot.Controls.Add(flow);
 
-            Controls.Add(scroll);
+            Controls.Add(_scroll);
             Controls.Add(pnlFoot);
             Controls.Add(pnlHeader);
 
+            // ── Resize card to fill available scroll width ────────────────────
+            Load   += (s, e) => ResizeCard();
+            _scroll.Resize += (s, e) => ResizeCard();
+
             LoadDropdowns();
+        }
+
+        private void ResizeCard()
+        {
+            if (_outerCard == null || _scroll == null) return;
+            int w = _scroll.ClientSize.Width - _scroll.Padding.Horizontal;
+            if (w < 100) return;
+            _outerCard.Width = w;
         }
 
         private List<Panel> BuildRows()
         {
             var rows = new List<Panel>();
 
-            txtItemId   = MakeTxt(); rows.Add(FieldRow("Item ID *",   txtItemId));
-            txtItemName = MakeTxt(); rows.Add(FieldRow("Item Name *",  txtItemName));
-            txtItemDesc = MakeTxt(); rows.Add(FieldRow("Description",   txtItemDesc));
+            txtItemId   = MakeTxt();
+            txtItemName = MakeTxt();
+            txtItemDesc = MakeTxt();
 
-            cboCategory = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Dock = DockStyle.Fill, Font = new Font("Segoe UI", 12f) };
+            rows.Add(FieldRow("Item ID *",   txtItemId));
+            rows.Add(FieldRow("Item Name *",  txtItemName));
+            rows.Add(FieldRow("Description",  txtItemDesc));
+
+            cboCategory = new ComboBox
+            {
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Dock          = DockStyle.Fill,
+                Font          = new Font("Segoe UI", 12f)
+            };
             rows.Add(FieldRow(_mode == ItemMode.Product ? "Category *" : "Material Type *", cboCategory));
 
             txtPrice = MakeTxt(); txtPrice.Text = "0.00";
-            rows.Add(FieldRow(_mode == ItemMode.Product ? "Sales Price (HK$) *" : "Purchase Price (HK$) *", txtPrice));
+            rows.Add(FieldRow(_mode == ItemMode.Product
+                ? "Sales Price (HK$) *"
+                : "Purchase Price (HK$) *", txtPrice));
 
-            cboWarehouse = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Dock = DockStyle.Fill, Font = new Font("Segoe UI", 12f) };
+            cboWarehouse = new ComboBox
+            {
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Dock          = DockStyle.Fill,
+                Font          = new Font("Segoe UI", 12f)
+            };
             rows.Add(FieldRow("Initial Warehouse *", cboWarehouse));
 
-            nudInitialQty   = new NumericUpDown { Minimum = 0, Maximum = 99999, DecimalPlaces = 0, Dock = DockStyle.Fill, Font = new Font("Segoe UI", 12f) };
-            nudReorderLevel = new NumericUpDown { Minimum = 0, Maximum = 99999, DecimalPlaces = 0, Dock = DockStyle.Fill, Font = new Font("Segoe UI", 12f), Value = 10 };
+            nudInitialQty = new NumericUpDown
+            {
+                Minimum       = 0,
+                Maximum       = 99999,
+                DecimalPlaces = 0,
+                Dock          = DockStyle.Fill,
+                Font          = new Font("Segoe UI", 12f)
+            };
+            nudReorderLevel = new NumericUpDown
+            {
+                Minimum       = 0,
+                Maximum       = 99999,
+                DecimalPlaces = 0,
+                Value         = 10,
+                Dock          = DockStyle.Fill,
+                Font          = new Font("Segoe UI", 12f)
+            };
 
-            rows.Add(FieldRow("Initial Qty *",   nudInitialQty));
-            rows.Add(FieldRow("Reorder Level *", nudReorderLevel));
+            rows.Add(FieldRow("Initial Qty *",    nudInitialQty));
+            rows.Add(FieldRow("Reorder Level *",  nudReorderLevel));
 
             return rows;
         }
@@ -158,9 +210,11 @@ namespace PremiumLivingOPS.Views.InventoryControl
         {
             cboCategory.Items.Clear();
             if (_mode == ItemMode.Product)
-                foreach (var c in new[] { "Sofa", "Bed", "Table", "Chair", "Cabinet" }) cboCategory.Items.Add(c);
+                foreach (var c in new[] { "Sofa", "Bed", "Table", "Chair", "Cabinet" })
+                    cboCategory.Items.Add(c);
             else
-                foreach (var c in new[] { "Wood", "Metal", "Fabric", "Foam", "Glass", "Paint" }) cboCategory.Items.Add(c);
+                foreach (var c in new[] { "Wood", "Metal", "Fabric", "Foam", "Glass", "Paint" })
+                    cboCategory.Items.Add(c);
             if (cboCategory.Items.Count > 0) cboCategory.SelectedIndex = 0;
 
             cboWarehouse.Items.Clear();
@@ -180,46 +234,91 @@ namespace PremiumLivingOPS.Views.InventoryControl
             int    qty      = (int)nudInitialQty.Value;
             int    rl       = (int)nudReorderLevel.Value;
 
-            if (string.IsNullOrEmpty(id) || string.IsNullOrEmpty(name) || string.IsNullOrEmpty(category) || wh == null)
-            { MessageBox.Show("Please fill in all required fields (*)", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+            if (string.IsNullOrEmpty(id) || string.IsNullOrEmpty(name) ||
+                string.IsNullOrEmpty(category) || wh == null)
+            {
+                MessageBox.Show("Please fill in all required fields (*)",
+                    "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
 
             if (!double.TryParse(priceStr, out double price) || price < 0)
-            { MessageBox.Show("Price must be a valid non-negative number.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+            {
+                MessageBox.Show("Price must be a valid non-negative number.",
+                    "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
 
             try
             {
                 if (_mode == ItemMode.Product)
-                    _ctrl.SubmitAddProduct(id, name, string.IsNullOrEmpty(desc) ? null : desc, category, price, wh.Id, qty, rl);
+                    _ctrl.SubmitAddProduct(id, name,
+                        string.IsNullOrEmpty(desc) ? null : desc,
+                        category, price, wh.Id, qty, rl);
                 else
-                    _ctrl.SubmitAddRawMaterial(id, name, string.IsNullOrEmpty(desc) ? null : desc, category, price, wh.Id, qty, rl);
+                    _ctrl.SubmitAddRawMaterial(id, name,
+                        string.IsNullOrEmpty(desc) ? null : desc,
+                        category, price, wh.Id, qty, rl);
 
-                MessageBox.Show("Item added successfully.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("Item added successfully.",
+                    "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 DialogResult = DialogResult.OK;
                 Close();
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error: " + ex.Message, "Database Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Error: " + ex.Message,
+                    "Database Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
-        // ── UI helpers ───────────────────────────────────────────
+        // ── UI helpers ─────────────────────────────────────────────────
+
+        /// <summary>
+        /// Creates a labelled field row using TableLayoutPanel so the input
+        /// stretches to fill the remaining width automatically.
+        /// </summary>
         private static Panel FieldRow(string label, Control input)
         {
             var row = new Panel { Height = RowH, BackColor = Color.Transparent };
+
+            // TableLayoutPanel: col0 = fixed label, col1 = fill input
+            var tlp = new TableLayoutPanel
+            {
+                Dock            = DockStyle.Fill,
+                ColumnCount     = 2,
+                RowCount        = 1,
+                BackColor       = Color.Transparent,
+                CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                Padding         = new Padding(0)
+            };
+            tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, LabelW));
+            tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
+            tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+
             var lbl = new Label
             {
                 Text      = label,
-                Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
+                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(70, 85, 110),
-                AutoSize  = false,
-                Size      = new Size(LabelW, RowH),
+                Dock      = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft,
-                Dock      = DockStyle.Left
+                AutoSize  = false
+            };
+
+            // Wrap input in a padding panel so it doesn't touch the edges
+            var inputWrapper = new Panel
+            {
+                Dock      = DockStyle.Fill,
+                BackColor = Color.Transparent,
+                Padding   = new Padding(0, 12, 0, 12)
             };
             input.Dock = DockStyle.Fill;
-            row.Controls.Add(input);
-            row.Controls.Add(lbl);
+            inputWrapper.Controls.Add(input);
+
+            tlp.Controls.Add(lbl,          0, 0);
+            tlp.Controls.Add(inputWrapper, 1, 0);
+            row.Controls.Add(tlp);
             return row;
         }
 
@@ -241,7 +340,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 FlatStyle = FlatStyle.Flat,
                 Width     = BtnW,
                 Height    = BtnH,
-                Margin    = new Padding(8, 0, 0, 0),
+                Margin    = new Padding(10, 0, 0, 0),
                 Cursor    = Cursors.Hand
             };
             b.FlatAppearance.BorderColor = Color.FromArgb(200, 207, 220);
