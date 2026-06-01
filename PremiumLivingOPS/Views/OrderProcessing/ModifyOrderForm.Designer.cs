@@ -80,7 +80,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 ForeColor = Color.FromArgb(98, 112, 135),
                 Dock      = DockStyle.Left,
                 AutoSize  = false,
-                Width     = 200,
+                Width     = 400,
                 TextAlign = ContentAlignment.MiddleRight,
                 Padding   = new Padding(0, 0, 12, 0)
             };
