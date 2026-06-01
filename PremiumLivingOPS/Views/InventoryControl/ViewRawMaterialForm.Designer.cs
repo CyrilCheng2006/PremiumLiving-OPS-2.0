@@ -104,7 +104,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None, Padding = Padding.Empty
             };
             tblAction.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
-            tblAction.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 1350f)); // 5×270 + gaps
+            tblAction.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 1400f)); // 5×270 + gaps
             tblAction.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
             pnlKpi = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
@@ -123,7 +123,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
             pnlActionBtns.Layout += (s, ev) =>
             {
                 var p      = (Panel)s;
-                var btns   = new Button[] { btnViewDetail, btnAddItem, btnModifyItem, btnInwardGoods, btnWhTransfer };
+                var btns   = new Button[] { btnAddItem, btnViewDetail, btnModifyItem, btnInwardGoods, btnWhTransfer };
                 int total  = 0; foreach (var b in btns) total += b.Width;
                 int gaps   = (p.Width - total - 8) / (btns.Length - 1);
                 int xCursor = 4;
