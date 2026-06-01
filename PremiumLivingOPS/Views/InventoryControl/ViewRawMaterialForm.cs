@@ -39,7 +39,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
             dgvMaterials.CellDoubleClick  += (s, ce) => { if (ce.RowIndex >= 0) OpenDetailDialog(); };
             dgvMaterials.CellFormatting   += DgvMaterials_CellFormatting;
 
-            // ── Action bar button wiring ─────────────────────────────────────
+            // ── Action bar button wiring ─────────────────────────────────────────────
             btnViewDetail.Click    += (s, _) => OpenDetailDialog();
             btnAddItem.Click       += BtnAddItem_Click;
             btnModifyItem.Click    += BtnModifyItem_Click;
@@ -164,9 +164,9 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 ("Out of Stock", outStock.ToString(), Color.FromArgb(153,  27,  27), Color.FromArgb(254, 226, 226), "Out of Stock"),
             };
 
-            const int PillW   = 310;
+            const int PillW   = 280;
             const int PillH   = 60;
-            const int Gap     = 10;
+            const int Gap     = 8;
             const int NumColW = 80;
             const int LeftPad = 12;
 
@@ -299,37 +299,39 @@ namespace PremiumLivingOPS.Views.InventoryControl
             using var dlg = new Form
             {
                 Text            = $"Raw Material Detail — {materialId}",
-                Size            = new Size(680, 640),
-                MinimumSize     = new Size(580, 540),
+                Size            = new Size(1200, 800),
+                MinimumSize     = new Size(900, 600),
                 StartPosition   = FormStartPosition.CenterParent,
                 BackColor       = Color.White,
-                Font            = new Font("Segoe UI", 11f),
+                Font            = new Font("Segoe UI", 12f),
                 FormBorderStyle = FormBorderStyle.FixedDialog,
                 MaximizeBox     = false,
                 MinimizeBox     = false
             };
 
-            var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 72, BackColor = Color.FromArgb(19, 35, 61) };
+            // ── Header ─────────────────────────────────────────────────────
+            var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 80, BackColor = Color.FromArgb(19, 35, 61) };
             pnlHeader.Controls.Add(new Label
             {
                 Text      = $"Raw Material Detail  —  {materialId}",
-                Font      = new Font("Segoe UI", 15f, FontStyle.Bold),
+                Font      = new Font("Segoe UI", 17f, FontStyle.Bold),
                 ForeColor = Color.White,
                 Dock      = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft,
-                Padding   = new Padding(28, 0, 0, 0)
+                Padding   = new Padding(36, 0, 0, 0)
             });
 
+            // ── Body ──────────────────────────────────────────────────────
             var pnlBody = new Panel
             {
                 Dock      = DockStyle.Fill,
-                Padding   = new Padding(32, 24, 32, 8),
+                Padding   = new Padding(48, 36, 48, 12),
                 BackColor = Color.White
             };
 
-            const int RowH     = 56;
+            const int RowH     = 76;
             const int NumRows  = 7;
-            const int LabelCol = 170;
+            const int LabelCol = 240;
 
             var tbl = new TableLayoutPanel
             {
@@ -361,17 +363,17 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 tbl.Controls.Add(new Label
                 {
                     Text      = fields[i].Item1,
-                    Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
+                    Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
                     ForeColor = Color.FromArgb(98, 112, 135),
                     Dock      = DockStyle.Fill,
                     TextAlign = ContentAlignment.MiddleLeft,
-                    Padding   = new Padding(0, 0, 8, 0)
+                    Padding   = new Padding(0, 0, 16, 0)
                 }, 0, i);
 
                 tbl.Controls.Add(new Label
                 {
                     Text      = fields[i].Item2 ?? "—",
-                    Font      = new Font("Segoe UI", 12f),
+                    Font      = new Font("Segoe UI", 13f),
                     ForeColor = Color.FromArgb(15, 31, 53),
                     Dock      = DockStyle.Fill,
                     TextAlign = ContentAlignment.MiddleLeft
@@ -379,11 +381,12 @@ namespace PremiumLivingOPS.Views.InventoryControl
             }
             pnlBody.Controls.Add(tbl);
 
+            // ── Footer ──────────────────────────────────────────────────────
             var pnlFoot = new Panel
             {
                 Dock      = DockStyle.Bottom,
-                Height    = 72,
-                Padding   = new Padding(0, 14, 28, 14),
+                Height    = 80,
+                Padding   = new Padding(0, 16, 36, 16),
                 BackColor = Color.FromArgb(248, 250, 253)
             };
             pnlFoot.Paint += (s, e) =>
@@ -400,7 +403,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 BackColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
                 Dock      = DockStyle.Right,
-                Width     = 140,
+                Width     = 160,
                 Cursor    = Cursors.Hand
             };
             btnClose.FlatAppearance.BorderColor = Color.FromArgb(200, 207, 220);
