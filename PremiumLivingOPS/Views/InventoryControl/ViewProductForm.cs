@@ -289,23 +289,24 @@ namespace PremiumLivingOPS.Views.InventoryControl
             var row     = dgvProducts.SelectedRows[0];
             string itemId = row.Cells["colItemID"].Value?.ToString();
 
-            // Fetch full record from controller to get ItemDescription
+            // Fetch full record from controller to get all fields including ReorderLevel
             var vm = _ctrl.GetModifyProductVM(itemId);
             if (vm?.Product == null) return;
             var p = vm.Product;
 
-            string itemName = p.ItemName;
-            string itemDesc = p.ItemDescription ?? "—";
-            string category = p.Category;
-            string price    = $"HK$ {p.SalesPrice:N2}";
-            string stockQty = p.StockQty.ToString();
-            string status   = p.StockStatus;
+            string itemName     = p.ItemName;
+            string itemDesc     = p.ItemDescription ?? "\u2014";
+            string category     = p.Category;
+            string price        = $"HK$ {p.SalesPrice:N2}";
+            string stockQty     = p.StockQty.ToString();
+            string reorderLevel = p.ReorderLevel.ToString();
+            string status       = p.StockStatus;
 
             using var dlg = new Form
             {
-                Text            = $"Product Detail — {itemId}",
-                Size            = new Size(1200, 800),
-                MinimumSize     = new Size(900, 650),
+                Text            = $"Product Detail \u2014 {itemId}",
+                Size            = new Size(1600, 1100),
+                MinimumSize     = new Size(1100, 800),
                 StartPosition   = FormStartPosition.CenterParent,
                 BackColor       = Color.FromArgb(240, 244, 249),
                 Font            = new Font("Segoe UI", 12f),
@@ -318,7 +319,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
             var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 70, BackColor = Color.FromArgb(19, 35, 61) };
             pnlHeader.Controls.Add(new Label
             {
-                Text      = $"Product Detail  —  {itemId}",
+                Text      = $"Product Detail  \u2014  {itemId}",
                 Font      = new Font("Segoe UI", 16f, FontStyle.Bold),
                 ForeColor = Color.White,
                 Dock      = DockStyle.Fill,
@@ -372,7 +373,11 @@ namespace PremiumLivingOPS.Views.InventoryControl
 
             const int RowH     = 66;
             const int RowGap   = 2;
-            const int NumRows  = 7;   // ItemID, ItemName, Description, Category, SalesPrice, StockQty, Status
+            // Schema fields: Item(ItemID, ItemName, ItemDescription)
+            //              + Product(Category, SalesPrice)
+            //              + WarehouseItem(ReorderLevel)
+            //              + computed(StockQty, StockStatus)  => 8 rows total
+            const int NumRows  = 8;
             const int LabelCol = 260;
 
             var tbl = new TableLayoutPanel
@@ -389,16 +394,16 @@ namespace PremiumLivingOPS.Views.InventoryControl
             for (int i = 0; i < NumRows; i++)
                 tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowH));
 
-            // Schema fields: Item(ItemID, ItemName, ItemDescription) + Product(SalesPrice, Category) + computed(StockQty, StockStatus)
             var fields = new[]
             {
-                ("Item ID",      itemId),
-                ("Item Name",    itemName),
-                ("Description",  itemDesc),
-                ("Category",     category),
-                ("Sales Price",  price),
-                ("Stock Qty",    stockQty),
-                ("Status",       status)
+                ("Item ID",       itemId),
+                ("Item Name",     itemName),
+                ("Description",   itemDesc),
+                ("Category",      category),
+                ("Sales Price",   price),
+                ("Stock Qty",     stockQty),
+                ("Reorder Level", reorderLevel),
+                ("Status",        status)
             };
 
             for (int i = 0; i < fields.Length; i++)
@@ -425,7 +430,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
 
                 tbl.Controls.Add(new Label
                 {
-                    Text      = fields[i].Item2 ?? "—",
+                    Text      = fields[i].Item2 ?? "\u2014",
                     Font      = new Font("Segoe UI", 12f),
                     ForeColor = Color.FromArgb(15, 31, 53),
                     Dock      = DockStyle.Fill,
