@@ -25,16 +25,15 @@ namespace PremiumLivingOPS.Views.InventoryControl
         private NumericUpDown nudInitialQty, nudReorderLevel;
         private Button        btnSubmit, btnCancel;
 
-        // ── Sizing constants ─────────────────────────────────────────────
-        private const int RowH      = 72;
-        private const int RowGap    = 16;
-        private const int LabelW    = 240;
-        private const int BtnW      = 160;
-        private const int BtnH      = 46;
-        private const int CardPadH  = 40;
-        private const int CardPadV  = 32;
+        // ── Sizing constants ──────────────────────────────────────────────
+        private const int RowH      = 84;
+        private const int RowGap    = 20;
+        private const int LabelW    = 300;
+        private const int BtnW      = 180;
+        private const int BtnH      = 52;
+        private const int CardPadH  = 56;
+        private const int CardPadV  = 40;
 
-        // Outer card reference kept for resize
         private Panel _outerCard;
         private Panel _scroll;
 
@@ -48,8 +47,8 @@ namespace PremiumLivingOPS.Views.InventoryControl
         {
             string title = _mode == ItemMode.Product ? "Add New Product" : "Add New Raw Material";
             Text            = title;
-            Size            = new Size(1200, 800);
-            MinimumSize     = new Size(900, 700);
+            Size            = new Size(1600, 1100);
+            MinimumSize     = new Size(1100, 800);
             StartPosition   = FormStartPosition.CenterParent;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox     = false;
@@ -57,33 +56,31 @@ namespace PremiumLivingOPS.Views.InventoryControl
             BackColor       = Color.FromArgb(240, 244, 249);
             Font            = new Font("Segoe UI", 12f);
 
-            // ── Header ─────────────────────────────────────────────────────
-            var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 80, BackColor = Color.FromArgb(19, 35, 61) };
+            // ── Header ──────────────────────────────────────────────────────────────
+            var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 90, BackColor = Color.FromArgb(19, 35, 61) };
             pnlHeader.Controls.Add(new Label
             {
                 Text      = title,
-                Font      = new Font("Segoe UI", 17f, FontStyle.Bold),
+                Font      = new Font("Segoe UI", 18f, FontStyle.Bold),
                 ForeColor = Color.White,
                 Dock      = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft,
-                Padding   = new Padding(36, 0, 0, 0)
+                Padding   = new Padding(48, 0, 0, 0)
             });
 
-            // ── Scroll body ──────────────────────────────────────────────
+            // ── Scroll body ──────────────────────────────────────────────────────
             _scroll = new Panel
             {
                 Dock       = DockStyle.Fill,
                 BackColor  = Color.FromArgb(240, 244, 249),
                 AutoScroll = true,
-                Padding    = new Padding(40, 28, 40, 16)
+                Padding    = new Padding(56, 40, 56, 24)
             };
 
-            // Card created without fixed width — will be set on Load/Resize
-            var (outerCard, innerCard) = CardPanel.Create(outerHeight: 100 /* placeholder */, outerPadding: new Padding(0));
+            var (outerCard, innerCard) = CardPanel.Create(outerHeight: 100, outerPadding: new Padding(0));
             _outerCard = outerCard;
             innerCard.Padding = new Padding(CardPadH, CardPadV, CardPadH, CardPadV);
 
-            // ── Build field rows using TableLayoutPanel (label + input, no fixed pixel width) ──
             var rows = BuildRows();
             int y = 0;
             foreach (var row in rows)
@@ -93,20 +90,19 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 innerCard.Controls.Add(row);
                 y += RowH + RowGap;
             }
-            // Set card height based on content
             int cardContentH = y - RowGap + CardPadV * 2;
-            outerCard.Height  = cardContentH + 16;  // outer shadow padding
+            outerCard.Height  = cardContentH + 16;
             innerCard.Height  = cardContentH;
 
             _scroll.Controls.Add(outerCard);
 
-            // ── Footer ───────────────────────────────────────────────────
+            // ── Footer ──────────────────────────────────────────────────────────────
             var pnlFoot = new Panel
             {
                 Dock      = DockStyle.Bottom,
-                Height    = 80,
+                Height    = 90,
                 BackColor = Color.White,
-                Padding   = new Padding(0, 16, 36, 16)
+                Padding   = new Padding(0, 20, 48, 20)
             };
             pnlFoot.Paint += (s, e) =>
             {
@@ -134,8 +130,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
             Controls.Add(pnlFoot);
             Controls.Add(pnlHeader);
 
-            // ── Resize card to fill available scroll width ────────────────────
-            Load   += (s, e) => ResizeCard();
+            Load          += (s, e) => ResizeCard();
             _scroll.Resize += (s, e) => ResizeCard();
 
             LoadDropdowns();
@@ -165,7 +160,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
             {
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 Dock          = DockStyle.Fill,
-                Font          = new Font("Segoe UI", 12f)
+                Font          = new Font("Segoe UI", 13f)
             };
             rows.Add(FieldRow(_mode == ItemMode.Product ? "Category *" : "Material Type *", cboCategory));
 
@@ -178,7 +173,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
             {
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 Dock          = DockStyle.Fill,
-                Font          = new Font("Segoe UI", 12f)
+                Font          = new Font("Segoe UI", 13f)
             };
             rows.Add(FieldRow("Initial Warehouse *", cboWarehouse));
 
@@ -188,7 +183,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 Maximum       = 99999,
                 DecimalPlaces = 0,
                 Dock          = DockStyle.Fill,
-                Font          = new Font("Segoe UI", 12f)
+                Font          = new Font("Segoe UI", 13f)
             };
             nudReorderLevel = new NumericUpDown
             {
@@ -197,7 +192,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 DecimalPlaces = 0,
                 Value         = 10,
                 Dock          = DockStyle.Fill,
-                Font          = new Font("Segoe UI", 12f)
+                Font          = new Font("Segoe UI", 13f)
             };
 
             rows.Add(FieldRow("Initial Qty *",    nudInitialQty));
@@ -272,17 +267,11 @@ namespace PremiumLivingOPS.Views.InventoryControl
             }
         }
 
-        // ── UI helpers ─────────────────────────────────────────────────
-
-        /// <summary>
-        /// Creates a labelled field row using TableLayoutPanel so the input
-        /// stretches to fill the remaining width automatically.
-        /// </summary>
+        // ── UI helpers ─────────────────────────────────────────────────────
         private static Panel FieldRow(string label, Control input)
         {
             var row = new Panel { Height = RowH, BackColor = Color.Transparent };
 
-            // TableLayoutPanel: col0 = fixed label, col1 = fill input
             var tlp = new TableLayoutPanel
             {
                 Dock            = DockStyle.Fill,
@@ -299,19 +288,18 @@ namespace PremiumLivingOPS.Views.InventoryControl
             var lbl = new Label
             {
                 Text      = label,
-                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                Font      = new Font("Segoe UI", 13f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(70, 85, 110),
                 Dock      = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft,
                 AutoSize  = false
             };
 
-            // Wrap input in a padding panel so it doesn't touch the edges
             var inputWrapper = new Panel
             {
                 Dock      = DockStyle.Fill,
                 BackColor = Color.Transparent,
-                Padding   = new Padding(0, 12, 0, 12)
+                Padding   = new Padding(0, 14, 0, 14)
             };
             input.Dock = DockStyle.Fill;
             inputWrapper.Controls.Add(input);
@@ -324,7 +312,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
 
         private static TextBox MakeTxt() => new TextBox
         {
-            Font      = new Font("Segoe UI", 12f),
+            Font      = new Font("Segoe UI", 13f),
             Dock      = DockStyle.Fill,
             BackColor = Color.White
         };
@@ -334,13 +322,13 @@ namespace PremiumLivingOPS.Views.InventoryControl
             var b = new Button
             {
                 Text      = text,
-                Font      = new Font("Segoe UI", 12f),
+                Font      = new Font("Segoe UI", 13f),
                 BackColor = bg,
                 ForeColor = fg,
                 FlatStyle = FlatStyle.Flat,
                 Width     = BtnW,
                 Height    = BtnH,
-                Margin    = new Padding(10, 0, 0, 0),
+                Margin    = new Padding(12, 0, 0, 0),
                 Cursor    = Cursors.Hand
             };
             b.FlatAppearance.BorderColor = Color.FromArgb(200, 207, 220);

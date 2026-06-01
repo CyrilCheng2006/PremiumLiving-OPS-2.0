@@ -39,7 +39,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
             dgvProducts.CellDoubleClick  += (s, ce) => { if (ce.RowIndex >= 0) OpenDetailDialog(); };
             dgvProducts.CellFormatting   += DgvProducts_CellFormatting;
 
-            // ── Action bar button wiring ────────────────────────────────────────────
+            // ── Action bar button wiring ──────────────────────────────────────────────────
             btnViewDetail.Click    += (s, _) => OpenDetailDialog();
             btnAddItem.Click       += BtnAddItem_Click;
             btnModifyItem.Click    += BtnModifyItem_Click;
@@ -287,18 +287,25 @@ namespace PremiumLivingOPS.Views.InventoryControl
         {
             if (dgvProducts.SelectedRows.Count == 0) return;
             var row     = dgvProducts.SelectedRows[0];
-            string itemId   = row.Cells["colItemID"].Value?.ToString();
-            string itemName = row.Cells["colItemName"].Value?.ToString();
-            string category = row.Cells["colCategory"].Value?.ToString();
-            string price    = row.Cells["colPrice"].Value?.ToString();
-            string stockQty = row.Cells["colStockQty"].Value?.ToString();
-            string status   = row.Cells["colStatus"].Value?.ToString();
+            string itemId = row.Cells["colItemID"].Value?.ToString();
+
+            // Fetch full record from controller to get ItemDescription
+            var vm = _ctrl.GetModifyProductVM(itemId);
+            if (vm?.Product == null) return;
+            var p = vm.Product;
+
+            string itemName = p.ItemName;
+            string itemDesc = p.ItemDescription ?? "—";
+            string category = p.Category;
+            string price    = $"HK$ {p.SalesPrice:N2}";
+            string stockQty = p.StockQty.ToString();
+            string status   = p.StockStatus;
 
             using var dlg = new Form
             {
                 Text            = $"Product Detail — {itemId}",
-                Size            = new Size(1200, 800),
-                MinimumSize     = new Size(900, 600),
+                Size            = new Size(1600, 1100),
+                MinimumSize     = new Size(1100, 750),
                 StartPosition   = FormStartPosition.CenterParent,
                 BackColor       = Color.FromArgb(240, 244, 249),
                 Font            = new Font("Segoe UI", 12f),
@@ -307,29 +314,24 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 MinimizeBox     = false
             };
 
-            // ── Header ─────────────────────────────────────────────────────
-            var pnlHeader = new Panel
-            {
-                Dock      = DockStyle.Top,
-                Height    = 80,
-                BackColor = Color.FromArgb(19, 35, 61)
-            };
+            // ── Header ──────────────────────────────────────────────────────────────
+            var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 90, BackColor = Color.FromArgb(19, 35, 61) };
             pnlHeader.Controls.Add(new Label
             {
                 Text      = $"Product Detail  —  {itemId}",
-                Font      = new Font("Segoe UI", 17f, FontStyle.Bold),
+                Font      = new Font("Segoe UI", 18f, FontStyle.Bold),
                 ForeColor = Color.White,
                 Dock      = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft,
-                Padding   = new Padding(36, 0, 0, 0)
+                Padding   = new Padding(48, 0, 0, 0)
             });
 
-            // ── Footer ──────────────────────────────────────────────────────
+            // ── Footer ──────────────────────────────────────────────────────────────
             var pnlFoot = new Panel
             {
                 Dock      = DockStyle.Bottom,
-                Height    = 80,
-                Padding   = new Padding(0, 16, 36, 16),
+                Height    = 90,
+                Padding   = new Padding(0, 20, 48, 20),
                 BackColor = Color.FromArgb(248, 250, 253)
             };
             pnlFoot.Paint += (s, e) =>
@@ -341,12 +343,12 @@ namespace PremiumLivingOPS.Views.InventoryControl
             var btnClose = new Button
             {
                 Text      = "Close",
-                Font      = new Font("Segoe UI", 12f),
+                Font      = new Font("Segoe UI", 13f),
                 ForeColor = Color.FromArgb(15, 31, 53),
                 BackColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
                 Dock      = DockStyle.Right,
-                Width     = 160,
+                Width     = 180,
                 Cursor    = Cursors.Hand
             };
             btnClose.FlatAppearance.BorderColor = Color.FromArgb(200, 207, 220);
@@ -354,24 +356,24 @@ namespace PremiumLivingOPS.Views.InventoryControl
             btnClose.Click += (s, ev) => dlg.Close();
             pnlFoot.Controls.Add(btnClose);
 
-            // ── Scrollable body ────────────────────────────────────────────
+            // ── Scrollable body ──────────────────────────────────────────────────────
             var pnlScroll = new Panel
             {
                 Dock       = DockStyle.Fill,
                 AutoScroll = true,
                 BackColor  = Color.FromArgb(240, 244, 249),
-                Padding    = new Padding(40, 28, 40, 16)
+                Padding    = new Padding(56, 40, 56, 24)
             };
 
-            // ── Card wrapping fields ───────────────────────────────────────
-            var (outerCard, innerCard) = CardPanel.Create(outerHeight: 520,
+            // ── Card wrapping fields ──────────────────────────────────────────────
+            var (outerCard, innerCard) = CardPanel.Create(outerHeight: 100,
                 outerPadding: new Padding(0));
-            innerCard.Padding = new Padding(36, 28, 36, 28);
+            innerCard.Padding = new Padding(48, 36, 48, 36);
 
-            const int RowH     = 72;
-            const int NumRows  = 6;
-            const int LabelCol = 260;
-            const int RowGap   = 8;
+            const int RowH     = 84;
+            const int RowGap   = 4;
+            const int NumRows  = 7;   // ItemID, ItemName, Description, Category, SalesPrice, StockQty, Status
+            const int LabelCol = 300;
 
             var tbl = new TableLayoutPanel
             {
@@ -387,19 +389,20 @@ namespace PremiumLivingOPS.Views.InventoryControl
             for (int i = 0; i < NumRows; i++)
                 tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowH));
 
+            // Schema fields: Item(ItemID, ItemName, ItemDescription) + Product(SalesPrice, Category) + computed(StockQty, StockStatus)
             var fields = new[]
             {
-                ("Item ID",     itemId),
-                ("Item Name",   itemName),
-                ("Category",    category),
-                ("Sales Price", price),
-                ("Stock Qty",   stockQty),
-                ("Status",      status)
+                ("Item ID",      itemId),
+                ("Item Name",    itemName),
+                ("Description",  itemDesc),
+                ("Category",     category),
+                ("Sales Price",  price),
+                ("Stock Qty",    stockQty),
+                ("Status",       status)
             };
 
             for (int i = 0; i < fields.Length; i++)
             {
-                // Divider between rows
                 if (i > 0)
                 {
                     var prev = tbl.GetControlFromPosition(0, i - 1);
@@ -413,11 +416,11 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 tbl.Controls.Add(new Label
                 {
                     Text      = fields[i].Item1,
-                    Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                    Font      = new Font("Segoe UI", 13f, FontStyle.Bold),
                     ForeColor = Color.FromArgb(98, 112, 135),
                     Dock      = DockStyle.Fill,
                     TextAlign = ContentAlignment.MiddleLeft,
-                    Padding   = new Padding(0, 0, 16, 0)
+                    Padding   = new Padding(0, 0, 20, 0)
                 }, 0, i);
 
                 tbl.Controls.Add(new Label
@@ -430,10 +433,14 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 }, 1, i);
             }
 
+            // Set card height to fit content
+            int cardH = tbl.Height + innerCard.Padding.Vertical + 16;
+            outerCard.Height = cardH;
+            innerCard.Height = cardH - 16;
+
             innerCard.Controls.Add(tbl);
             pnlScroll.Controls.Add(outerCard);
 
-            // Resize outerCard width to match scroll area
             dlg.Load += (s, e) =>
             {
                 outerCard.Width  = pnlScroll.ClientSize.Width - pnlScroll.Padding.Horizontal;

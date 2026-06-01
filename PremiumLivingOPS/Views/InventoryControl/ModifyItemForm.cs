@@ -24,13 +24,13 @@ namespace PremiumLivingOPS.Views.InventoryControl
         private Button       btnSave, btnDelete, btnClose;
 
         // ── Layout constants ─────────────────────────────────────────────
-        private const int RowH     = 72;
-        private const int RowGap   = 16;
-        private const int LabelW   = 240;
-        private const int BtnW     = 160;
-        private const int BtnH     = 46;
-        private const int CardPadH = 40;
-        private const int CardPadV = 32;
+        private const int RowH     = 84;
+        private const int RowGap   = 20;
+        private const int LabelW   = 300;
+        private const int BtnW     = 180;
+        private const int BtnH     = 52;
+        private const int CardPadH = 56;
+        private const int CardPadV = 40;
 
         private Panel _outerFields;
         private Panel _outerGrid;
@@ -48,8 +48,8 @@ namespace PremiumLivingOPS.Views.InventoryControl
         {
             string title = _mode == ItemMode.Product ? "Modify Product" : "Modify Raw Material";
             Text            = title;
-            Size            = new Size(1200, 800);
-            MinimumSize     = new Size(900, 700);
+            Size            = new Size(1600, 1100);
+            MinimumSize     = new Size(1100, 800);
             StartPosition   = FormStartPosition.CenterParent;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox     = false;
@@ -58,24 +58,24 @@ namespace PremiumLivingOPS.Views.InventoryControl
             Font            = new Font("Segoe UI", 12f);
 
             // ── Header ────────────────────────────────────────────────────
-            var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 80, BackColor = Color.FromArgb(19, 35, 61) };
+            var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 90, BackColor = Color.FromArgb(19, 35, 61) };
             pnlHeader.Controls.Add(new Label
             {
                 Text      = title,
-                Font      = new Font("Segoe UI", 17f, FontStyle.Bold),
+                Font      = new Font("Segoe UI", 18f, FontStyle.Bold),
                 ForeColor = Color.White,
                 Dock      = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft,
-                Padding   = new Padding(36, 0, 0, 0)
+                Padding   = new Padding(48, 0, 0, 0)
             });
 
             // ── Footer ────────────────────────────────────────────────────
             var pnlFoot = new Panel
             {
                 Dock      = DockStyle.Bottom,
-                Height    = 80,
+                Height    = 90,
                 BackColor = Color.White,
-                Padding   = new Padding(0, 16, 36, 16)
+                Padding   = new Padding(0, 20, 48, 20)
             };
             pnlFoot.Paint += (s, e) =>
             {
@@ -107,7 +107,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 Dock       = DockStyle.Fill,
                 BackColor  = Color.FromArgb(240, 244, 249),
                 AutoScroll = true,
-                Padding    = new Padding(40, 28, 40, 16)
+                Padding    = new Padding(56, 40, 56, 24)
             };
 
             // ── Field card ─────────────────────────────────────────────────
@@ -119,7 +119,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
             txtItemName = MakeTxt();
             txtItemDesc = MakeTxt();
             txtPrice    = MakeTxt();
-            cboCategory = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 12f) };
+            cboCategory = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 13f) };
 
             if (_mode == ItemMode.Product)
                 foreach (var c in new[] { "Sofa", "Bed", "Table", "Chair", "Cabinet" })
@@ -152,17 +152,17 @@ namespace PremiumLivingOPS.Views.InventoryControl
             innerFields.Height  = fieldsContentH;
 
             // ── Warehouse stock card ───────────────────────────────────────
-            var (outerGrid, innerGrid) = CardPanel.Create(outerHeight: 260, outerPadding: new Padding(0));
+            var (outerGrid, innerGrid) = CardPanel.Create(outerHeight: 320, outerPadding: new Padding(0));
             _outerGrid = outerGrid;
             innerGrid.Padding = new Padding(CardPadH, CardPadV, CardPadH, CardPadV);
 
             innerGrid.Controls.Add(new Label
             {
                 Text      = "Warehouse Stock Breakdown",
-                Font      = new Font("Segoe UI", 13f, FontStyle.Bold),
+                Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(19, 35, 61),
                 Dock      = DockStyle.Top,
-                Height    = 44
+                Height    = 52
             });
 
             dgvWarehouses = new DataGridView
@@ -175,20 +175,20 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 BackgroundColor       = Color.White,
                 BorderStyle           = BorderStyle.None,
                 GridColor             = Color.FromArgb(230, 235, 245),
-                Font                  = new Font("Segoe UI", 12f),
-                ColumnHeadersHeight   = 44,
-                RowTemplate           = { Height = 48 }
+                Font                  = new Font("Segoe UI", 13f),
+                ColumnHeadersHeight   = 52,
+                RowTemplate           = { Height = 56 }
             };
-            dgvWarehouses.ColumnHeadersDefaultCellStyle.Font      = new Font("Segoe UI", 12f, FontStyle.Bold);
+            dgvWarehouses.ColumnHeadersDefaultCellStyle.Font      = new Font("Segoe UI", 13f, FontStyle.Bold);
             dgvWarehouses.ColumnHeadersDefaultCellStyle.BackColor  = Color.FromArgb(240, 244, 249);
             dgvWarehouses.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Warehouse",   Name = "colWH",  AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill });
             dgvWarehouses.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Location",    Name = "colLoc", AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill });
-            dgvWarehouses.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Qty on Hand", Name = "colQty", Width = 140 });
+            dgvWarehouses.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Qty on Hand", Name = "colQty", Width = 160 });
             innerGrid.Controls.Add(dgvWarehouses);
 
             outerFields.Location = new Point(0, 0);
             outerFields.Anchor   = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            outerGrid.Location   = new Point(0, outerFields.Height + 24);
+            outerGrid.Location   = new Point(0, outerFields.Height + 32);
             outerGrid.Anchor     = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
 
             _scroll.Controls.Add(outerGrid);
@@ -211,7 +211,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
             if (_outerGrid   != null)
             {
                 _outerGrid.Width    = w;
-                _outerGrid.Location = new Point(0, _outerFields.Height + 24);
+                _outerGrid.Location = new Point(0, _outerFields.Height + 32);
             }
         }
 
@@ -226,7 +226,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 if (vm?.Product == null) { MessageBox.Show("Item not found.", "Error"); Close(); return; }
 
                 var p = vm.Product;
-                // ProductEntity: ItemID, ItemName, ItemDescription, Category, SalesPrice
                 txtItemId.Text   = p.ItemID;
                 txtItemName.Text = p.ItemName;
                 txtItemDesc.Text = p.ItemDescription ?? "";
@@ -335,7 +334,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
             var lbl = new Label
             {
                 Text      = label,
-                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                Font      = new Font("Segoe UI", 13f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(70, 85, 110),
                 Dock      = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft,
@@ -346,7 +345,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
             {
                 Dock      = DockStyle.Fill,
                 BackColor = Color.Transparent,
-                Padding   = new Padding(0, 12, 0, 12)
+                Padding   = new Padding(0, 14, 0, 14)
             };
             input.Dock = DockStyle.Fill;
             inputWrapper.Controls.Add(input);
@@ -359,7 +358,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
 
         private static TextBox MakeTxt(bool readOnly = false) => new TextBox
         {
-            Font      = new Font("Segoe UI", 12f),
+            Font      = new Font("Segoe UI", 13f),
             Dock      = DockStyle.Fill,
             BackColor = readOnly ? Color.FromArgb(245, 247, 250) : Color.White,
             ReadOnly  = readOnly
@@ -370,13 +369,13 @@ namespace PremiumLivingOPS.Views.InventoryControl
             var b = new Button
             {
                 Text      = text,
-                Font      = new Font("Segoe UI", 12f),
+                Font      = new Font("Segoe UI", 13f),
                 BackColor = bg,
                 ForeColor = fg,
                 FlatStyle = FlatStyle.Flat,
                 Width     = BtnW,
                 Height    = BtnH,
-                Margin    = new Padding(10, 0, 0, 0),
+                Margin    = new Padding(12, 0, 0, 0),
                 Cursor    = Cursors.Hand
             };
             b.FlatAppearance.BorderColor = Color.FromArgb(200, 207, 220);
