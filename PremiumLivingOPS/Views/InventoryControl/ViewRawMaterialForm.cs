@@ -305,8 +305,8 @@ namespace PremiumLivingOPS.Views.InventoryControl
             using var dlg = new Form
             {
                 Text            = $"Raw Material Detail — {materialId}",
-                Size            = new Size(1600, 1100),
-                MinimumSize     = new Size(1100, 750),
+                Size            = new Size(1200, 800),
+                MinimumSize     = new Size(900, 650),
                 StartPosition   = FormStartPosition.CenterParent,
                 BackColor       = Color.FromArgb(240, 244, 249),
                 Font            = new Font("Segoe UI", 12f),
@@ -316,23 +316,23 @@ namespace PremiumLivingOPS.Views.InventoryControl
             };
 
             // ── Header ──────────────────────────────────────────────────────────────
-            var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 90, BackColor = Color.FromArgb(19, 35, 61) };
+            var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 70, BackColor = Color.FromArgb(19, 35, 61) };
             pnlHeader.Controls.Add(new Label
             {
                 Text      = $"Raw Material Detail  —  {materialId}",
-                Font      = new Font("Segoe UI", 18f, FontStyle.Bold),
+                Font      = new Font("Segoe UI", 16f, FontStyle.Bold),
                 ForeColor = Color.White,
                 Dock      = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft,
-                Padding   = new Padding(48, 0, 0, 0)
+                Padding   = new Padding(32, 0, 0, 0)
             });
 
             // ── Footer ──────────────────────────────────────────────────────────────
             var pnlFoot = new Panel
             {
                 Dock      = DockStyle.Bottom,
-                Height    = 90,
-                Padding   = new Padding(0, 20, 48, 20),
+                Height    = 72,
+                Padding   = new Padding(0, 12, 32, 12),
                 BackColor = Color.FromArgb(248, 250, 253)
             };
             pnlFoot.Paint += (s, e) =>
@@ -344,12 +344,12 @@ namespace PremiumLivingOPS.Views.InventoryControl
             var btnClose = new Button
             {
                 Text      = "Close",
-                Font      = new Font("Segoe UI", 13f),
+                Font      = new Font("Segoe UI", 12f),
                 ForeColor = Color.FromArgb(15, 31, 53),
                 BackColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
                 Dock      = DockStyle.Right,
-                Width     = 180,
+                Width     = 160,
                 Cursor    = Cursors.Hand
             };
             btnClose.FlatAppearance.BorderColor = Color.FromArgb(200, 207, 220);
@@ -363,18 +363,18 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 Dock       = DockStyle.Fill,
                 AutoScroll = true,
                 BackColor  = Color.FromArgb(240, 244, 249),
-                Padding    = new Padding(56, 40, 56, 24)
+                Padding    = new Padding(36, 24, 36, 16)
             };
 
             // ── Card wrapping fields ──────────────────────────────────────────────
             var (outerCard, innerCard) = CardPanel.Create(outerHeight: 100,
                 outerPadding: new Padding(0));
-            innerCard.Padding = new Padding(48, 36, 48, 36);
+            innerCard.Padding = new Padding(32, 24, 32, 24);
 
-            const int RowH     = 84;
-            const int RowGap   = 4;
+            const int RowH     = 66;
+            const int RowGap   = 2;
             const int NumRows  = 8;   // MaterialID, MaterialName, Description, Category, Unit, UnitCost, StockQty, Status
-            const int LabelCol = 300;
+            const int LabelCol = 260;
 
             var tbl = new TableLayoutPanel
             {
@@ -418,17 +418,17 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 tbl.Controls.Add(new Label
                 {
                     Text      = fields[i].Item1,
-                    Font      = new Font("Segoe UI", 13f, FontStyle.Bold),
+                    Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
                     ForeColor = Color.FromArgb(98, 112, 135),
                     Dock      = DockStyle.Fill,
                     TextAlign = ContentAlignment.MiddleLeft,
-                    Padding   = new Padding(0, 0, 20, 0)
+                    Padding   = new Padding(0, 0, 16, 0)
                 }, 0, i);
 
                 tbl.Controls.Add(new Label
                 {
                     Text      = fields[i].Item2 ?? "—",
-                    Font      = new Font("Segoe UI", 13f),
+                    Font      = new Font("Segoe UI", 12f),
                     ForeColor = Color.FromArgb(15, 31, 53),
                     Dock      = DockStyle.Fill,
                     TextAlign = ContentAlignment.MiddleLeft
