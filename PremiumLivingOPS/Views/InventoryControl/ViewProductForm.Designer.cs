@@ -316,7 +316,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 Text      = text,
                 Font      = new Font("Segoe UI", 11f),
                 ForeColor = Color.FromArgb(15, 31, 53),
-                BackColor = Color.FromArgb(255, 234, 0),
+                BackColor = Color.FromArgb(255, 255, 66),
                 FlatStyle = FlatStyle.Flat,
                 Location  = loc,
                 Size      = new Size(w, h),
