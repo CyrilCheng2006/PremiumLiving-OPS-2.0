@@ -166,9 +166,9 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 ("Out of Stock", outStock.ToString(), Color.FromArgb(153,  27,  27), Color.FromArgb(254, 226, 226), "Out of Stock"),
             };
 
-            const int PillW   = 280;
+            const int PillW   = 310;
             const int PillH   = 60;
-            const int Gap     = 8;
+            const int Gap     = 10;
             const int NumColW = 80;
             const int LeftPad = 12;
 
