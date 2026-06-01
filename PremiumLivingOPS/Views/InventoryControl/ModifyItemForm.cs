@@ -2,7 +2,6 @@ using PremiumLivingOPS.Controllers;
 using PremiumLivingOPS.Models.Entities;
 using PremiumLivingOPS.Views.Shared;
 using System;
-using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
 
@@ -17,7 +16,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
         public enum ItemMode { Product, RawMaterial }
         private readonly ItemMode _mode;
         private readonly InventoryControlController _ctrl = new InventoryControlController();
-
         private readonly string _itemId;
 
         private TextBox      txtItemId, txtItemName, txtItemDesc, txtPrice;
@@ -34,7 +32,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
         private const int CardPadH = 40;
         private const int CardPadV = 32;
 
-        // kept for resize
         private Panel _outerFields;
         private Panel _outerGrid;
         private Panel _scroll;
@@ -86,9 +83,9 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 e.Graphics.DrawLine(pen, 0, 0, ((Panel)s).Width, 0);
             };
 
-            btnClose  = MakeBtn("Close",       Color.White,                  Color.FromArgb(15, 31, 53));
-            btnDelete = MakeBtn("Delete Item",  Color.FromArgb(220, 38, 38), Color.White);
-            btnSave   = MakeBtn("Save Changes", Color.FromArgb(22, 163, 74), Color.White);
+            btnClose  = MakeBtn("Close",        Color.White,                  Color.FromArgb(15, 31, 53));
+            btnDelete = MakeBtn("Delete Item",   Color.FromArgb(220, 38, 38), Color.White);
+            btnSave   = MakeBtn("Save Changes",  Color.FromArgb(22, 163, 74), Color.White);
             btnClose.Click  += (s, e) => Close();
             btnDelete.Click += BtnDelete_Click;
             btnSave.Click   += BtnSave_Click;
@@ -189,7 +186,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
             dgvWarehouses.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Qty on Hand", Name = "colQty", Width = 140 });
             innerGrid.Controls.Add(dgvWarehouses);
 
-            // Position both cards vertically inside scroll
             outerFields.Location = new Point(0, 0);
             outerFields.Anchor   = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             outerGrid.Location   = new Point(0, outerFields.Height + 24);
@@ -202,8 +198,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
             Controls.Add(pnlFoot);
             Controls.Add(pnlHeader);
 
-            // Stretch cards to fill scroll width
-            Load   += (s, e) => ResizeCards();
+            Load          += (s, e) => ResizeCards();
             _scroll.Resize += (s, e) => ResizeCards();
         }
 
@@ -212,7 +207,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
             if (_scroll == null) return;
             int w = _scroll.ClientSize.Width - _scroll.Padding.Horizontal;
             if (w < 100) return;
-            if (_outerFields != null) { _outerFields.Width = w; }
+            if (_outerFields != null) _outerFields.Width = w;
             if (_outerGrid   != null)
             {
                 _outerGrid.Width    = w;
@@ -220,26 +215,45 @@ namespace PremiumLivingOPS.Views.InventoryControl
             }
         }
 
+        // ── LoadData: uses correct controller methods ───────────────────
         private void LoadData()
         {
-            var data = _ctrl.GetItemForEdit(_mode == ItemMode.Product
-                ? InventoryControlController.EditItemMode.Product
-                : InventoryControlController.EditItemMode.RawMaterial,
-                _itemId);
-
-            if (data == null) { MessageBox.Show("Item not found.", "Error"); Close(); return; }
-
-            txtItemId.Text   = data.ItemID;
-            txtItemName.Text = data.ItemName;
-            txtItemDesc.Text = data.Description ?? "";
-            txtPrice.Text    = data.Price.ToString("F2");
-
-            int catIdx = cboCategory.FindStringExact(data.Category);
-            if (catIdx >= 0) cboCategory.SelectedIndex = catIdx;
-
             dgvWarehouses.Rows.Clear();
-            foreach (var wi in _ctrl.GetWarehouseItemsByItem(_itemId))
-                dgvWarehouses.Rows.Add(wi.WarehouseID, wi.WarehouseName, wi.Quantity);
+
+            if (_mode == ItemMode.Product)
+            {
+                var vm = _ctrl.GetModifyProductVM(_itemId);
+                if (vm?.Product == null) { MessageBox.Show("Item not found.", "Error"); Close(); return; }
+
+                var p = vm.Product;
+                txtItemId.Text   = p.ItemID;
+                txtItemName.Text = p.ItemName;
+                txtItemDesc.Text = p.ItemDescription ?? "";
+                txtPrice.Text    = p.SalesPrice.ToString("F2");
+
+                int catIdx = cboCategory.FindStringExact(p.Category);
+                if (catIdx >= 0) cboCategory.SelectedIndex = catIdx;
+
+                foreach (var wi in vm.WarehouseBreakdown)
+                    dgvWarehouses.Rows.Add(wi.WarehouseID, wi.WarehouseName, wi.Quantity);
+            }
+            else
+            {
+                var vm = _ctrl.GetModifyRawMaterialVM(_itemId);
+                if (vm?.Material == null) { MessageBox.Show("Item not found.", "Error"); Close(); return; }
+
+                var m = vm.Material;
+                txtItemId.Text   = m.ItemID;
+                txtItemName.Text = m.ItemName;
+                txtItemDesc.Text = m.ItemDescription ?? "";
+                txtPrice.Text    = m.PurchasePrice.ToString("F2");
+
+                int catIdx = cboCategory.FindStringExact(m.MaterialType);
+                if (catIdx >= 0) cboCategory.SelectedIndex = catIdx;
+
+                foreach (var wi in vm.WarehouseBreakdown)
+                    dgvWarehouses.Rows.Add(wi.WarehouseID, wi.WarehouseName, wi.Quantity);
+            }
         }
 
         private void BtnSave_Click(object sender, EventArgs e)
@@ -257,10 +271,13 @@ namespace PremiumLivingOPS.Views.InventoryControl
 
             try
             {
-                _ctrl.SubmitModifyItem(_mode == ItemMode.Product
-                    ? InventoryControlController.EditItemMode.Product
-                    : InventoryControlController.EditItemMode.RawMaterial,
-                    _itemId, name, string.IsNullOrEmpty(desc) ? null : desc, category, price);
+                if (_mode == ItemMode.Product)
+                    _ctrl.SubmitUpdateProduct(_itemId, name,
+                        string.IsNullOrEmpty(desc) ? null : desc, category, price);
+                else
+                    _ctrl.SubmitUpdateRawMaterial(_itemId, name,
+                        string.IsNullOrEmpty(desc) ? null : desc, category, price);
+
                 MessageBox.Show("Item updated successfully.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 DialogResult = DialogResult.OK;
                 Close();
@@ -280,10 +297,11 @@ namespace PremiumLivingOPS.Views.InventoryControl
 
             try
             {
-                _ctrl.SubmitDeleteItem(_mode == ItemMode.Product
-                    ? InventoryControlController.EditItemMode.Product
-                    : InventoryControlController.EditItemMode.RawMaterial,
-                    _itemId);
+                if (_mode == ItemMode.Product)
+                    _ctrl.DeleteProduct(_itemId);
+                else
+                    _ctrl.DeleteRawMaterial(_itemId);
+
                 MessageBox.Show("Item deleted.", "Deleted", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 DialogResult = DialogResult.OK;
                 Close();
