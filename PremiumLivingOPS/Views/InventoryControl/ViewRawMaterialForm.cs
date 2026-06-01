@@ -24,14 +24,18 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 { "Out of Stock", (Color.FromArgb(254, 226, 226), Color.FromArgb(153,  27,  27)) }
             };
 
-        // ── Detail dialog sizing — mirrors AddItemForm constants ──────────
-        private const int D_RowH     = 72;
-        private const int D_RowGap   = 0;          // FlowLayoutPanel handles spacing via Margin
-        private const int D_LabelW   = 280;
-        private const int D_CardPadH = 48;
-        private const int D_CardPadV = 32;
-        private const int D_BtnW     = 210;
-        private const int D_BtnH     = 60;
+        // ── Detail dialog layout constants ─────────────────────────────────
+        private const int D_RowH    = 64;    // height of each FieldRow
+        private const int D_LabelW  = 260;   // fixed width of label column
+        private const int D_CardPad = 20;    // CardPanel outer padding (matches CardPanel defaults)
+        private const int D_BtnW    = 210;
+        private const int D_BtnH    = 60;
+
+        // ── Card 1: 3 rows (ID / Name / Description)
+        // Card 2: 5 rows (Type / Price / StockQty / Reorder / Status)
+        // outerHeight = rows * D_RowH + inner top/bottom padding (24*2) + CardPanel outer pad (14+8)
+        private const int Card1OuterH = 3 * D_RowH + 48 + 22;   // 3×64 + 48 + 22 = 262
+        private const int Card2OuterH = 5 * D_RowH + 48 + 22;   // 5×64 + 48 + 22 = 390
 
         public ViewRawMaterialForm()
         {
@@ -297,6 +301,16 @@ namespace PremiumLivingOPS.Views.InventoryControl
 
         // ════════════════════════════════════════════════════════════════
         //  Detail Dialog
+        //
+        //  MVC compliance:
+        //    • View  — this method (pure UI construction, no logic)
+        //    • Model — RawMaterialEntity / WarehouseItemEntity (data shapes)
+        //    • Controller — _ctrl.GetModifyRawMaterialVM() supplies all data
+        //
+        //  CardPanel structure (3-layer nesting per CardPanel.cs spec):
+        //    outer (PageBg #F0F4F9 + Padding)
+        //      └─ inner/pnlCard (White + 1px #DDE3EC border)
+        //               └─ content TLP / DGV
         // ════════════════════════════════════════════════════════════════
         private void OpenDetailDialog()
         {
@@ -305,13 +319,18 @@ namespace PremiumLivingOPS.Views.InventoryControl
             string materialId = dgvMaterials.SelectedRows[0]
                 .Cells["colMaterialID"].Value?.ToString();
 
+            // ─ MVC: Controller supplies all data; View only renders ──────────────
             var vm = _ctrl.GetModifyRawMaterialVM(materialId);
             if (vm?.Material == null) return;
 
             var m  = vm.Material;
             var wh = vm.WarehouseBreakdown ?? new List<WarehouseItemEntity>();
 
-            // ── helper: read-only value label ─────────────────────────────────
+            // ================================================================
+            //  LOCAL HELPERS  (pure UI, no logic)
+            // ================================================================
+
+            // ─ read-only value label ───────────────────────────────────────
             Label ReadLabel(string text) => new Label
             {
                 Text      = text ?? "\u2014",
@@ -319,10 +338,10 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 ForeColor = Color.FromArgb(15, 31, 53),
                 Dock      = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft,
-                BackColor = Color.Transparent
+                BackColor = Color.White
             };
 
-            // ── helper: coloured status pill ───────────────────────────────
+            // ─ coloured status pill ──────────────────────────────────────
             Control StatusPill(string status)
             {
                 Color pillBg = Color.FromArgb(229, 231, 235);
@@ -333,8 +352,8 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 var wrapper = new Panel
                 {
                     Dock      = DockStyle.Fill,
-                    BackColor = Color.Transparent,
-                    Padding   = new Padding(0, 16, 0, 16)
+                    BackColor = Color.White,
+                    Padding   = new Padding(0, 14, 0, 14)
                 };
                 var lbl = new Label
                 {
@@ -352,17 +371,25 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 return wrapper;
             }
 
-            // ── helper: one FieldRow ─────────────────────────────────────────
-            //  Height = D_RowH, left column = D_LabelW, right column = fill
-            //  Margin bottom = 1px — gives a subtle hairline divider between rows
-            Panel FieldRow(string labelText, Control input)
+            // ─ FieldRow: 2-col TLP identical to AddItemForm ────────────────
+            //   Left  = D_LabelW fixed, grey-tint bg
+            //   Right = 100% fill, white bg
+            //   Separator: 1-px bottom border painted on the row
+            Panel FieldRow(string labelText, Control input, bool lastRow = false)
             {
-                var row = new Panel
+                var row = new Panel { Height = D_RowH, BackColor = Color.White };
+
+                // hairline separator at bottom of every row except the last
+                if (!lastRow)
                 {
-                    Height    = D_RowH,
-                    BackColor = Color.White,
-                    Margin    = new Padding(0, 0, 0, 1)   // 1-px divider
-                };
+                    row.Paint += (s, pe) =>
+                    {
+                        var p = (Panel)s;
+                        using var pen = new System.Drawing.Pen(
+                            Color.FromArgb(221, 227, 236), 1);
+                        pe.Graphics.DrawLine(pen, 0, p.Height - 1, p.Width, p.Height - 1);
+                    };
+                }
 
                 var tlp = new TableLayoutPanel
                 {
@@ -377,25 +404,23 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
                 tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
-                // left: bold field label
                 var lbl = new Label
                 {
                     Text      = labelText,
                     Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
                     ForeColor = Color.FromArgb(70, 85, 110),
-                    BackColor = Color.FromArgb(248, 250, 252),   // very-light-grey tint
+                    BackColor = Color.FromArgb(248, 250, 252),
                     Dock      = DockStyle.Fill,
                     TextAlign = ContentAlignment.MiddleLeft,
                     AutoSize  = false,
-                    Padding   = new Padding(16, 0, 8, 0)
+                    Padding   = new Padding(20, 0, 8, 0)
                 };
 
-                // right: value control inside a padded wrapper
                 var inputWrapper = new Panel
                 {
                     Dock      = DockStyle.Fill,
                     BackColor = Color.White,
-                    Padding   = new Padding(16, 12, 16, 12)
+                    Padding   = new Padding(20, 10, 20, 10)
                 };
                 input.Dock = DockStyle.Fill;
                 inputWrapper.Controls.Add(input);
@@ -406,47 +431,125 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 return row;
             }
 
-            // ── helper: Warehouse Breakdown section header ─────────────────
-            Panel WhBreakdownHeader()
+            // ─ stack rows top-to-bottom inside a content Panel ─────────────
+            Panel StackRows(IList<Panel> rowList, Padding innerPad)
             {
-                var p = new Panel
+                // Total height = rows * rowHeight + inner top + bottom padding
+                int totalH = rowList.Count * D_RowH + innerPad.Top + innerPad.Bottom;
+                var content = new Panel
                 {
-                    Height    = 40,
-                    BackColor = Color.FromArgb(240, 244, 249),
-                    Margin    = new Padding(0, 16, 0, 0)
+                    Dock      = DockStyle.Fill,
+                    BackColor = Color.White,
+                    Padding   = innerPad
                 };
-                p.Controls.Add(new Label
+
+                // Use a Panel with absolute layout for pixel-perfect row stacking
+                var stack = new Panel
+                {
+                    Location  = new Point(innerPad.Left, innerPad.Top),
+                    BackColor = Color.White
+                };
+                // Width set in Resize event; height is fixed
+                stack.Height = rowList.Count * D_RowH;
+
+                int y = 0;
+                foreach (var r in rowList)
+                {
+                    r.Location = new Point(0, y);
+                    r.Anchor   = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+                    stack.Controls.Add(r);
+                    y += D_RowH;
+                }
+
+                content.Controls.Add(stack);
+
+                // Keep stack & rows full-width whenever content resizes
+                content.Resize += (s, _) =>
+                {
+                    int w = content.Width - innerPad.Horizontal;
+                    if (w < 1) return;
+                    stack.Width = w;
+                    stack.Left  = innerPad.Left;
+                    stack.Top   = innerPad.Top;
+                    foreach (Panel r in stack.Controls) r.Width = w;
+                };
+
+                return content;
+            }
+
+            // ================================================================
+            //  CARD 1 — Item Information (3 rows)
+            //  CardPanel.Create(): outer(grey+pad) → inner(white+border) → content
+            // ================================================================
+            var card1Rows = new List<Panel>
+            {
+                FieldRow("Item ID",    ReadLabel(m.MaterialID)),
+                FieldRow("Item Name",  ReadLabel(m.MaterialName)),
+                FieldRow("Description",ReadLabel(m.ItemDescription), lastRow: true)
+            };
+            var card1InnerPad = new Padding(0);   // rows are flush to card edge; pad via row itself
+            var card1Content  = StackRows(card1Rows, new Padding(0));
+
+            var (card1Outer, card1Inner) = CardPanel.Create(
+                outerHeight : card1Rows.Count * D_RowH + 22,   // 22 = CardPanel outer pad top+bottom
+                outerPadding: new Padding(20, 14, 20, 8));
+            card1Inner.Padding = new Padding(0);
+            card1Inner.Controls.Add(card1Content);
+
+            // ================================================================
+            //  CARD 2 — Material Details + Stock Summary (5 rows)
+            // ================================================================
+            var card2Rows = new List<Panel>
+            {
+                FieldRow("Material Type",        ReadLabel(m.Category)),
+                FieldRow("Purchase Price (HK$)", ReadLabel($"HK$ {m.UnitCost:N2}")),
+                FieldRow("Total Stock Qty",       ReadLabel(m.StockQty.ToString())),
+                FieldRow("Reorder Level",         ReadLabel(m.ReorderLevel.ToString())),
+                FieldRow("Stock Status",          StatusPill(m.StockStatus), lastRow: true)
+            };
+            var card2Content = StackRows(card2Rows, new Padding(0));
+
+            var (card2Outer, card2Inner) = CardPanel.Create(
+                outerHeight : card2Rows.Count * D_RowH + 22,
+                outerPadding: new Padding(20, 8, 20, 8));
+            card2Inner.Padding = new Padding(0);
+            card2Inner.Controls.Add(card2Content);
+
+            // ================================================================
+            //  CARD 3 — Warehouse Breakdown (conditional, Fill)
+            //  Uses CardPanel.CreateFill() so it grows with window height
+            // ================================================================
+            Panel card3Outer = null;
+            if (wh.Count > 0)
+            {
+                // Build section header label
+                var whHeader = new Panel
+                {
+                    Dock      = DockStyle.Top,
+                    Height    = 42,
+                    BackColor = Color.White,
+                    Padding   = new Padding(20, 0, 20, 0)
+                };
+                whHeader.Controls.Add(new Label
                 {
                     Text      = "Warehouse Breakdown",
                     Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
                     ForeColor = Color.FromArgb(47, 111, 237),
                     Dock      = DockStyle.Fill,
-                    TextAlign = ContentAlignment.MiddleLeft,
-                    Padding   = new Padding(16, 0, 0, 0)
+                    TextAlign = ContentAlignment.MiddleLeft
                 });
-                return p;
-            }
+                whHeader.Paint += (s, pe) =>
+                {
+                    var p = (Panel)s;
+                    using var pen = new System.Drawing.Pen(
+                        Color.FromArgb(221, 227, 236), 1);
+                    pe.Graphics.DrawLine(pen, 20, p.Height - 1, p.Width - 20, p.Height - 1);
+                };
 
-            // ── Build all row controls ────────────────────────────────────────
-            var rows = new List<Control>
-            {
-                FieldRow("Item ID",              ReadLabel(m.MaterialID)),
-                FieldRow("Item Name",            ReadLabel(m.MaterialName)),
-                FieldRow("Description",          ReadLabel(m.ItemDescription)),
-                FieldRow("Material Type",        ReadLabel(m.Category)),
-                FieldRow("Purchase Price (HK$)", ReadLabel($"HK$ {m.UnitCost:N2}")),
-                FieldRow("Total Stock Qty",      ReadLabel(m.StockQty.ToString())),
-                FieldRow("Reorder Level",        ReadLabel(m.ReorderLevel.ToString())),
-                FieldRow("Stock Status",         StatusPill(m.StockStatus))
-            };
-
-            Panel dgvHolder = null;
-            if (wh.Count > 0)
-            {
-                rows.Add(WhBreakdownHeader());
-
+                // DGV
                 var dgvWh = new DataGridView
                 {
+                    Dock                  = DockStyle.Fill,
                     BackgroundColor       = Color.White,
                     BorderStyle           = BorderStyle.None,
                     RowHeadersVisible     = false,
@@ -456,13 +559,13 @@ namespace PremiumLivingOPS.Views.InventoryControl
                     AutoSizeColumnsMode   = DataGridViewAutoSizeColumnsMode.Fill,
                     SelectionMode         = DataGridViewSelectionMode.FullRowSelect,
                     Font                  = new Font("Segoe UI", 11f),
-                    ColumnHeadersHeight   = 34,
-                    RowTemplate           = { Height = 30 }
+                    ColumnHeadersHeight   = 36,
+                    RowTemplate           = { Height = 32 }
                 };
-                dgvWh.ColumnHeadersDefaultCellStyle.BackColor  = Color.FromArgb(240, 244, 249);
+                dgvWh.ColumnHeadersDefaultCellStyle.BackColor  = Color.FromArgb(248, 250, 252);
                 dgvWh.ColumnHeadersDefaultCellStyle.Font       = new Font("Segoe UI", 11f, FontStyle.Bold);
                 dgvWh.ColumnHeadersDefaultCellStyle.ForeColor  = Color.FromArgb(70, 85, 110);
-                dgvWh.ColumnHeadersBorderStyle                  = DataGridViewHeaderBorderStyle.None;
+                dgvWh.ColumnHeadersBorderStyle                  = DataGridViewHeaderBorderStyle.Single;
                 dgvWh.DefaultCellStyle.BackColor                = Color.White;
                 dgvWh.DefaultCellStyle.SelectionBackColor       = Color.FromArgb(219, 234, 254);
                 dgvWh.DefaultCellStyle.SelectionForeColor       = Color.FromArgb(15, 31, 53);
@@ -474,84 +577,29 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 dgvWh.Columns.Add("whLoc",   "Location");
                 dgvWh.Columns.Add("qty",     "Stock Qty");
                 dgvWh.Columns.Add("reorder", "Reorder Level");
-
                 foreach (var row in wh)
                     dgvWh.Rows.Add(row.WarehouseID, row.WarehouseName,
                                    row.Quantity, row.ReorderLevel);
 
-                int dgvH = dgvWh.ColumnHeadersHeight + wh.Count * 30 + 4;
-                dgvWh.Height = dgvH;
-
-                dgvHolder = new Panel
-                {
-                    Height    = dgvH + 24,
-                    BackColor = Color.White,
-                    Padding   = new Padding(16, 8, 16, 8),
-                    Margin    = new Padding(0)
-                };
-                dgvWh.Dock = DockStyle.Fill;
-                dgvHolder.Controls.Add(dgvWh);
-                rows.Add(dgvHolder);
+                var (c3Outer, c3Inner) = CardPanel.Create(
+                    outerHeight : whHeader.Height + wh.Count * 32 + 36 + 22,
+                    outerPadding: new Padding(20, 8, 20, 16));
+                c3Inner.Padding = new Padding(0);
+                c3Inner.Controls.Add(dgvWh);
+                c3Inner.Controls.Add(whHeader);   // DockStyle.Top paints above Fill
+                card3Outer = c3Outer;
             }
 
-            // ── FlowLayoutPanel — TopDown, auto-sizes in height ───────────────
-            //   Each row width is set in ResizeCard() to fill the available space.
-            var flow = new FlowLayoutPanel
-            {
-                FlowDirection = FlowDirection.TopDown,
-                WrapContents  = false,
-                AutoSize      = true,
-                AutoSizeMode  = AutoSizeMode.GrowAndShrink,
-                BackColor     = Color.FromArgb(237, 241, 247),   // gap colour between rows
-                Padding       = new Padding(0),
-                Margin        = new Padding(0)
-            };
-            foreach (var r in rows) flow.Controls.Add(r);
-
-            // ── White card that wraps the flow ─────────────────────────────
-            var card = new Panel
-            {
-                BackColor    = Color.White,
-                Padding      = new Padding(0),
-                AutoSize     = true,
-                AutoSizeMode = AutoSizeMode.GrowAndShrink,
-                Margin       = new Padding(0)
-            };
-            card.Controls.Add(flow);
-
-            // outer shadow wrapper
-            var outerCard = new Panel
-            {
-                BackColor = Color.FromArgb(240, 244, 249),
-                Padding   = new Padding(0, 0, 0, 8),
-                AutoSize  = true,
-                AutoSizeMode = AutoSizeMode.GrowAndShrink
-            };
-            outerCard.Controls.Add(card);
-
-            // ── Scroll panel ──────────────────────────────────────────────
-            var scroll = new Panel
-            {
-                Dock       = DockStyle.Fill,
-                BackColor  = Color.FromArgb(240, 244, 249),
-                AutoScroll = true,
-                Padding    = new Padding(48, 36, 48, 24)
-            };
-            scroll.Controls.Add(outerCard);
-
-            // ResizeCard: set every row's Width so they fill the card edge-to-edge
-            void ResizeCard()
-            {
-                int w = scroll.ClientSize.Width - scroll.Padding.Horizontal;
-                if (w < 100) return;
-                outerCard.Width = w;
-                card.Width      = w;
-                flow.Width      = w;
-                foreach (Control r in flow.Controls)
-                    r.Width = w;
-            }
-
-            // ── Dialog shell ──────────────────────────────────────────
+            // ================================================================
+            //  DIALOG SHELL
+            //  Layout (top-to-bottom Dock chain):
+            //    pnlHeader  (DockStyle.Top, 90px)
+            //    pnlFoot    (DockStyle.Bottom, 100px)
+            //    scroll     (DockStyle.Fill) ← grey page bg, holds cards
+            //      card1Outer (DockStyle.Top)
+            //      card2Outer (DockStyle.Top)
+            //      card3Outer (DockStyle.Top, conditional)
+            // ================================================================
             using var dlg = new Form
             {
                 Text            = $"View Raw Material  \u2014  {m.MaterialID}",
@@ -565,6 +613,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 Font            = new Font("Segoe UI", 12f)
             };
 
+            // ─ Header bar ───────────────────────────────────────────────
             var pnlHeader = new Panel
             {
                 Dock      = DockStyle.Top,
@@ -581,6 +630,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 Padding   = new Padding(48, 0, 0, 0)
             });
 
+            // ─ Footer bar ─────────────────────────────────────────────
             var pnlFoot = new Panel
             {
                 Dock      = DockStyle.Bottom,
@@ -590,7 +640,8 @@ namespace PremiumLivingOPS.Views.InventoryControl
             };
             pnlFoot.Paint += (s, pe) =>
             {
-                using var pen = new System.Drawing.Pen(Color.FromArgb(221, 227, 236), 1);
+                using var pen = new System.Drawing.Pen(
+                    Color.FromArgb(221, 227, 236), 1);
                 pe.Graphics.DrawLine(pen, 0, 0, ((Panel)s).Width, 0);
             };
 
@@ -603,7 +654,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 FlatStyle = FlatStyle.Flat,
                 Width     = D_BtnW,
                 Height    = D_BtnH,
-                Margin    = new Padding(12, 0, 0, 0),
                 Cursor    = Cursors.Hand
             };
             btnClose.FlatAppearance.BorderColor = Color.FromArgb(200, 207, 220);
@@ -621,12 +671,25 @@ namespace PremiumLivingOPS.Views.InventoryControl
             footFlow.Controls.Add(btnClose);
             pnlFoot.Controls.Add(footFlow);
 
+            // ─ Scroll area (grey page background) ───────────────────────
+            var scroll = new Panel
+            {
+                Dock       = DockStyle.Fill,
+                BackColor  = Color.FromArgb(240, 244, 249),
+                AutoScroll = true,
+                Padding    = new Padding(0)
+            };
+
+            // Add cards to scroll — Dock.Top paints first-added last,
+            // so add in reverse order so Card1 appears at the top.
+            if (card3Outer != null) scroll.Controls.Add(card3Outer);
+            scroll.Controls.Add(card2Outer);
+            scroll.Controls.Add(card1Outer);
+
+            // Assemble dialog (order matters for Dock chain):
             dlg.Controls.Add(scroll);
             dlg.Controls.Add(pnlFoot);
             dlg.Controls.Add(pnlHeader);
-
-            dlg.Load      += (s, ev) => ResizeCard();
-            scroll.Resize += (s, ev) => ResizeCard();
 
             dlg.ShowDialog(this);
         }
