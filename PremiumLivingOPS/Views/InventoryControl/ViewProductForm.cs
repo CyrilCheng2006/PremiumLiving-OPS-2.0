@@ -123,7 +123,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 AutoScroll    = false
             };
 
-            const int PillW   = 290;
+            const int PillW   = 340;
             const int PillH   = 60;
             const int Gap     = 8;
             const int NumColW = 80;
@@ -158,7 +158,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
                 tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
-                // 數字 Label — 靠左垂直置中
                 tlp.Controls.Add(new Label
                 {
                     Text      = count,
@@ -170,7 +169,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
                     AutoSize  = false
                 }, 0, 0);
 
-                // 文字 Label — 靠左垂直置中
                 tlp.Controls.Add(new Label
                 {
                     Text      = label,
