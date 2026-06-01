@@ -14,19 +14,27 @@ namespace PremiumLivingOPS.Views.InventoryControl
     /// </summary>
     public class AddItemForm : Form
     {
-        // ── Mode ──────────────────────────────────────────────────────────────
         public enum ItemMode { Product, RawMaterial }
         private readonly ItemMode _mode;
         private readonly InventoryControlController _ctrl = new InventoryControlController();
 
-        // ── Controls ─────────────────────────────────────────────────────────
-        private TextBox    txtItemId, txtItemName, txtItemDesc;
-        private ComboBox   cboCategory;
-        private TextBox    txtPrice;
-        private ComboBox   cboWarehouse;
+        private TextBox       txtItemId, txtItemName, txtItemDesc;
+        private ComboBox      cboCategory;
+        private TextBox       txtPrice;
+        private ComboBox      cboWarehouse;
         private NumericUpDown nudInitialQty, nudReorderLevel;
-        private Button     btnSubmit, btnCancel;
-        private Label      lblPriceCaption;
+        private Button        btnSubmit, btnCancel;
+        private Label         lblPriceCaption;
+
+        // ──────────────────────────────────────────────────────────
+        // Sizing constants — all layout changes here
+        private const int RowH      = 68;   // was 52 — more breathing room
+        private const int RowGap    = 14;   // was 12
+        private const int LabelW    = 220;  // was 180
+        private const int BtnW      = 150;  // was 130
+        private const int BtnH      = 44;   // was 40
+        private const int CardPadH  = 32;   // was 24 (horizontal)
+        private const int CardPadV  = 28;   // was 16 (vertical)
 
         public AddItemForm(ItemMode mode)
         {
@@ -45,60 +53,53 @@ namespace PremiumLivingOPS.Views.InventoryControl
             MaximizeBox     = false;
             MinimizeBox     = false;
             BackColor       = Color.FromArgb(240, 244, 249);
-            Font            = new Font("Segoe UI", 11f);
+            Font            = new Font("Segoe UI", 12f);   // was 11f
 
-            // ── Header card ────────────────────────────────────────────────
-            var pnlHeader = new Panel
-            {
-                Dock      = DockStyle.Top,
-                Height    = 64,
-                BackColor = Color.FromArgb(19, 35, 61)
-            };
+            // ── Header ───────────────────────────────────────────────
+            var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 76, BackColor = Color.FromArgb(19, 35, 61) };
             pnlHeader.Controls.Add(new Label
             {
                 Text      = title,
-                Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
+                Font      = new Font("Segoe UI", 16f, FontStyle.Bold),
                 ForeColor = Color.White,
                 Dock      = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft,
-                Padding   = new Padding(24, 0, 0, 0)
+                Padding   = new Padding(32, 0, 0, 0)
             });
 
-            // ── Scroll body ────────────────────────────────────────────────
+            // ── Scroll body ────────────────────────────────────────
             var scroll = new Panel
             {
-                Dock          = DockStyle.Fill,
-                BackColor     = Color.FromArgb(240, 244, 249),
-                AutoScroll    = true,
-                Padding       = new Padding(20, 14, 20, 8)
+                Dock       = DockStyle.Fill,
+                BackColor  = Color.FromArgb(240, 244, 249),
+                AutoScroll = true,
+                Padding    = new Padding(32, 20, 32, 16)
             };
 
-            var (outerCard, innerCard) = CardPanel.Create(480, new Padding(0));
-            innerCard.Padding = new Padding(24, 16, 24, 16);
+            var (outerCard, innerCard) = CardPanel.Create(600, new Padding(0));
+            innerCard.Padding = new Padding(CardPadH, CardPadV, CardPadH, CardPadV);
 
-            // Build field rows inside innerCard
             var rows = BuildRows();
-            int y = 16;
+            int y = CardPadV;
             foreach (var row in rows)
             {
                 row.Location = new Point(0, y);
-                row.Width    = innerCard.Width - 48;
+                row.Width    = innerCard.Width - CardPadH * 2;
                 row.Anchor   = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
                 innerCard.Controls.Add(row);
-                y += row.Height + 12;
+                y += row.Height + RowGap;
             }
-            // Resize card to fit content
-            outerCard.Height = y + 40;
+            outerCard.Height = y + CardPadV + 8;
 
             scroll.Controls.Add(outerCard);
 
-            // ── Footer ─────────────────────────────────────────────────────
+            // ── Footer ───────────────────────────────────────────
             var pnlFoot = new Panel
             {
                 Dock      = DockStyle.Bottom,
-                Height    = 68,
+                Height    = 76,
                 BackColor = Color.White,
-                Padding   = new Padding(0, 12, 24, 12)
+                Padding   = new Padding(0, 14, 28, 14)
             };
             pnlFoot.Paint += (s, e) =>
             {
@@ -106,29 +107,24 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 e.Graphics.DrawLine(pen, 0, 0, ((Panel)s).Width, 0);
             };
 
-            btnCancel = MakeBtn("Cancel",  Color.White,                   Color.FromArgb(15, 31, 53));
-            btnSubmit = MakeBtn("Add Item", Color.FromArgb(22, 163, 74),  Color.White);
+            btnCancel = MakeBtn("Cancel",   Color.White,                  Color.FromArgb(15, 31, 53));
+            btnSubmit = MakeBtn("Add Item",  Color.FromArgb(22, 163, 74), Color.White);
             btnCancel.Click += (s, e) => Close();
             btnSubmit.Click += BtnSubmit_Click;
 
             var flow = new FlowLayoutPanel
             {
-                Dock          = DockStyle.Right,
-                AutoSize      = true,
+                Dock = DockStyle.Right, AutoSize = true,
                 FlowDirection = FlowDirection.LeftToRight,
-                WrapContents  = false,
-                BackColor     = Color.Transparent,
-                Padding       = new Padding(0)
+                WrapContents = false, BackColor = Color.Transparent
             };
-            flow.Controls.Add(btnCancel);
-            flow.Controls.Add(btnSubmit);
+            flow.Controls.AddRange(new Control[] { btnCancel, btnSubmit });
             pnlFoot.Controls.Add(flow);
 
             Controls.Add(scroll);
             Controls.Add(pnlFoot);
             Controls.Add(pnlHeader);
 
-            // Populate dropdowns
             LoadDropdowns();
         }
 
@@ -136,25 +132,24 @@ namespace PremiumLivingOPS.Views.InventoryControl
         {
             var rows = new List<Panel>();
 
-            txtItemId   = MakeTxt(); rows.Add(FieldRow("Item ID *",          txtItemId));
-            txtItemName = MakeTxt(); rows.Add(FieldRow("Item Name *",         txtItemName));
-            txtItemDesc = MakeTxt(); rows.Add(FieldRow("Description",          txtItemDesc));
+            txtItemId   = MakeTxt(); rows.Add(FieldRow("Item ID *",   txtItemId));
+            txtItemName = MakeTxt(); rows.Add(FieldRow("Item Name *",  txtItemName));
+            txtItemDesc = MakeTxt(); rows.Add(FieldRow("Description",   txtItemDesc));
 
-            cboCategory = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Dock = DockStyle.Fill, Font = new Font("Segoe UI", 11f) };
+            cboCategory = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Dock = DockStyle.Fill, Font = new Font("Segoe UI", 12f) };
             rows.Add(FieldRow(_mode == ItemMode.Product ? "Category *" : "Material Type *", cboCategory));
 
-            lblPriceCaption = new Label { Text = _mode == ItemMode.Product ? "Sales Price (HK$) *" : "Purchase Price (HK$) *", AutoSize = false, TextAlign = ContentAlignment.MiddleLeft, Dock = DockStyle.Left, Width = 180, Font = new Font("Segoe UI", 11f), ForeColor = Color.FromArgb(70, 85, 110) };
             txtPrice = MakeTxt(); txtPrice.Text = "0.00";
             rows.Add(FieldRow(_mode == ItemMode.Product ? "Sales Price (HK$) *" : "Purchase Price (HK$) *", txtPrice));
 
-            cboWarehouse = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Dock = DockStyle.Fill, Font = new Font("Segoe UI", 11f) };
+            cboWarehouse = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Dock = DockStyle.Fill, Font = new Font("Segoe UI", 12f) };
             rows.Add(FieldRow("Initial Warehouse *", cboWarehouse));
 
-            nudInitialQty   = new NumericUpDown { Minimum = 0, Maximum = 99999, DecimalPlaces = 0, Dock = DockStyle.Fill, Font = new Font("Segoe UI", 11f) };
-            nudReorderLevel = new NumericUpDown { Minimum = 0, Maximum = 99999, DecimalPlaces = 0, Dock = DockStyle.Fill, Font = new Font("Segoe UI", 11f), Value = 10 };
+            nudInitialQty   = new NumericUpDown { Minimum = 0, Maximum = 99999, DecimalPlaces = 0, Dock = DockStyle.Fill, Font = new Font("Segoe UI", 12f) };
+            nudReorderLevel = new NumericUpDown { Minimum = 0, Maximum = 99999, DecimalPlaces = 0, Dock = DockStyle.Fill, Font = new Font("Segoe UI", 12f), Value = 10 };
 
-            rows.Add(FieldRow("Initial Qty *",    nudInitialQty));
-            rows.Add(FieldRow("Reorder Level *",  nudReorderLevel));
+            rows.Add(FieldRow("Initial Qty *",   nudInitialQty));
+            rows.Add(FieldRow("Reorder Level *", nudReorderLevel));
 
             return rows;
         }
@@ -208,17 +203,17 @@ namespace PremiumLivingOPS.Views.InventoryControl
             }
         }
 
-        // ── UI helpers ────────────────────────────────────────────────────────
+        // ── UI helpers ───────────────────────────────────────────
         private static Panel FieldRow(string label, Control input)
         {
-            var row = new Panel { Height = 52, BackColor = Color.Transparent };
+            var row = new Panel { Height = RowH, BackColor = Color.Transparent };
             var lbl = new Label
             {
                 Text      = label,
-                Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
+                Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(70, 85, 110),
                 AutoSize  = false,
-                Size      = new Size(180, 52),
+                Size      = new Size(LabelW, RowH),
                 TextAlign = ContentAlignment.MiddleLeft,
                 Dock      = DockStyle.Left
             };
@@ -230,7 +225,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
 
         private static TextBox MakeTxt() => new TextBox
         {
-            Font      = new Font("Segoe UI", 11f),
+            Font      = new Font("Segoe UI", 12f),
             Dock      = DockStyle.Fill,
             BackColor = Color.White
         };
@@ -240,13 +235,13 @@ namespace PremiumLivingOPS.Views.InventoryControl
             var b = new Button
             {
                 Text      = text,
-                Font      = new Font("Segoe UI", 11f),
+                Font      = new Font("Segoe UI", 12f),
                 BackColor = bg,
                 ForeColor = fg,
                 FlatStyle = FlatStyle.Flat,
-                Width     = 130,
-                Height    = 40,
-                Margin    = new Padding(6, 0, 0, 0),
+                Width     = BtnW,
+                Height    = BtnH,
+                Margin    = new Padding(8, 0, 0, 0),
                 Cursor    = Cursors.Hand
             };
             b.FlatAppearance.BorderColor = Color.FromArgb(200, 207, 220);

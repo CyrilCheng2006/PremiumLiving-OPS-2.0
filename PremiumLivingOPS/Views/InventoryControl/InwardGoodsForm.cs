@@ -23,6 +23,15 @@ namespace PremiumLivingOPS.Views.InventoryControl
         private Label         lblCurrentStock;
         private Button        btnConfirm, btnCancel;
 
+        // ── Layout constants ────────────────────────────────────────────
+        private const int RowH     = 68;
+        private const int RowGap   = 14;
+        private const int LabelW   = 220;
+        private const int BtnW     = 150;
+        private const int BtnH     = 44;
+        private const int CardPadH = 32;
+        private const int CardPadV = 28;
+
         public InwardGoodsForm(string preSelectedItemId = null)
         {
             _preSelectedItemId = preSelectedItemId;
@@ -39,71 +48,87 @@ namespace PremiumLivingOPS.Views.InventoryControl
             MaximizeBox     = false;
             MinimizeBox     = false;
             BackColor       = Color.FromArgb(240, 244, 249);
-            Font            = new Font("Segoe UI", 11f);
+            Font            = new Font("Segoe UI", 12f);
 
-            // ── Header ──────────────────────────────────────────────────────────
-            var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 64, BackColor = Color.FromArgb(19, 35, 61) };
+            // ── Header ─────────────────────────────────────────────
+            var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 76, BackColor = Color.FromArgb(19, 35, 61) };
             pnlHeader.Controls.Add(new Label
             {
                 Text = "Record Inward Goods",
-                Font = new Font("Segoe UI", 14f, FontStyle.Bold),
+                Font = new Font("Segoe UI", 16f, FontStyle.Bold),
                 ForeColor = Color.White, Dock = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(24, 0, 0, 0)
+                TextAlign = ContentAlignment.MiddleLeft,
+                Padding   = new Padding(32, 0, 0, 0)
             });
 
-            // ── Footer ──────────────────────────────────────────────────────────
-            var pnlFoot = new Panel { Dock = DockStyle.Bottom, Height = 68, BackColor = Color.White, Padding = new Padding(0, 12, 24, 12) };
+            // ── Footer ─────────────────────────────────────────────
+            var pnlFoot = new Panel
+            {
+                Dock = DockStyle.Bottom, Height = 76, BackColor = Color.White,
+                Padding = new Padding(0, 14, 28, 14)
+            };
             pnlFoot.Paint += (s, e) =>
             {
                 using var pen = new System.Drawing.Pen(Color.FromArgb(221, 227, 236), 1);
                 e.Graphics.DrawLine(pen, 0, 0, ((Panel)s).Width, 0);
             };
 
-            btnCancel  = MakeBtn("Cancel",  Color.White,                  Color.FromArgb(15, 31, 53));
-            btnConfirm = MakeBtn("Confirm",  Color.FromArgb(22, 163, 74), Color.White);
+            btnCancel  = MakeBtn("Cancel",   Color.White,                  Color.FromArgb(15, 31, 53));
+            btnConfirm = MakeBtn("Confirm",   Color.FromArgb(22, 163, 74), Color.White);
             btnCancel.Click  += (s, e) => Close();
             btnConfirm.Click += BtnConfirm_Click;
 
             var flow = new FlowLayoutPanel
             {
                 Dock = DockStyle.Right, AutoSize = true,
-                FlowDirection = FlowDirection.LeftToRight, WrapContents = false, BackColor = Color.Transparent
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents = false, BackColor = Color.Transparent
             };
             flow.Controls.AddRange(new Control[] { btnCancel, btnConfirm });
             pnlFoot.Controls.Add(flow);
 
-            // ── Body card ────────────────────────────────────────────────────────
-            var scroll = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(240, 244, 249), AutoScroll = true, Padding = new Padding(20, 14, 20, 8) };
-            var (outerCard, innerCard) = CardPanel.Create(310, new Padding(0));
-            innerCard.Padding = new Padding(24, 20, 24, 20);
+            // ── Body card ────────────────────────────────────────
+            var scroll = new Panel
+            {
+                Dock = DockStyle.Fill, BackColor = Color.FromArgb(240, 244, 249),
+                AutoScroll = true, Padding = new Padding(32, 20, 32, 16)
+            };
 
-            cboItem       = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 11f) };
-            cboWarehouse  = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 11f) };
-            nudQty        = new NumericUpDown { Minimum = 1, Maximum = 99999, Value = 1, Font = new Font("Segoe UI", 11f) };
-            lblCurrentStock = new Label { Text = "Current Stock: —", Font = new Font("Segoe UI", 10f), ForeColor = Color.FromArgb(70, 85, 110), Height = 24, AutoSize = false };
+            var (outerCard, innerCard) = CardPanel.Create(380, new Padding(0));
+            innerCard.Padding = new Padding(CardPadH, CardPadV, CardPadH, CardPadV);
+
+            cboItem       = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 12f) };
+            cboWarehouse  = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 12f) };
+            nudQty        = new NumericUpDown { Minimum = 1, Maximum = 99999, Value = 1, Font = new Font("Segoe UI", 12f) };
+            lblCurrentStock = new Label
+            {
+                Text = "Current Stock: —",
+                Font = new Font("Segoe UI", 11f), ForeColor = Color.FromArgb(70, 85, 110),
+                Height = 32, AutoSize = false
+            };
 
             cboItem.SelectedIndexChanged      += (s, e) => UpdateCurrentStock();
             cboWarehouse.SelectedIndexChanged += (s, e) => UpdateCurrentStock();
 
             var fieldRows = new[]
             {
-                FieldRow("Item *",             cboItem),
-                FieldRow("Warehouse *",        cboWarehouse),
-                FieldRow("Quantity Received *", nudQty)
+                FieldRow("Item *",              cboItem),
+                FieldRow("Warehouse *",         cboWarehouse),
+                FieldRow("Quantity Received *",  nudQty)
             };
 
-            int y = 20;
+            int y = CardPadV;
             foreach (var row in fieldRows)
             {
                 row.Location = new Point(0, y);
-                row.Width    = innerCard.Width - 48;
+                row.Width    = innerCard.Width - CardPadH * 2;
                 row.Anchor   = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
                 innerCard.Controls.Add(row);
-                y += row.Height + 10;
+                y += row.Height + RowGap;
             }
 
-            lblCurrentStock.Location = new Point(180, y + 4);
-            lblCurrentStock.Width    = innerCard.Width - 204;
+            lblCurrentStock.Location = new Point(LabelW, y + 6);
+            lblCurrentStock.Width    = innerCard.Width - LabelW - CardPadH * 2;
             lblCurrentStock.Anchor   = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             innerCard.Controls.Add(lblCurrentStock);
 
@@ -128,7 +153,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 cboWarehouse.Items.Add(new WarehouseComboItem(w.WarehouseID, w.WarehouseLocation));
             if (cboWarehouse.Items.Count > 0) cboWarehouse.SelectedIndex = 0;
 
-            // Pre-select item if specified
             if (!string.IsNullOrEmpty(_preSelectedItemId))
             {
                 for (int i = 0; i < cboItem.Items.Count; i++)
@@ -176,15 +200,16 @@ namespace PremiumLivingOPS.Views.InventoryControl
             }
         }
 
-        // ── UI helpers ──────────────────────────────────────────────────────────
+        // ── UI helpers ───────────────────────────────────────────
         private static Panel FieldRow(string label, Control input)
         {
-            var row = new Panel { Height = 52, BackColor = Color.Transparent };
+            var row = new Panel { Height = RowH, BackColor = Color.Transparent };
             var lbl = new Label
             {
-                Text = label, Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+                Text = label, Font = new Font("Segoe UI", 11f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(70, 85, 110), AutoSize = false,
-                Size = new Size(180, 52), TextAlign = ContentAlignment.MiddleLeft, Dock = DockStyle.Left
+                Size = new Size(LabelW, RowH), TextAlign = ContentAlignment.MiddleLeft,
+                Dock = DockStyle.Left
             };
             input.Dock = DockStyle.Fill;
             row.Controls.Add(input);
@@ -196,16 +221,15 @@ namespace PremiumLivingOPS.Views.InventoryControl
         {
             var b = new Button
             {
-                Text = text, Font = new Font("Segoe UI", 11f),
+                Text = text, Font = new Font("Segoe UI", 12f),
                 BackColor = bg, ForeColor = fg, FlatStyle = FlatStyle.Flat,
-                Width = 130, Height = 40, Margin = new Padding(6, 0, 0, 0), Cursor = Cursors.Hand
+                Width = BtnW, Height = BtnH, Margin = new Padding(8, 0, 0, 0), Cursor = Cursors.Hand
             };
             b.FlatAppearance.BorderColor = Color.FromArgb(200, 207, 220);
             b.FlatAppearance.BorderSize  = 1;
             return b;
         }
 
-        // ── Private combo item wrappers ─────────────────────────────────────────
         private sealed class ItemComboItem
         {
             public string Id   { get; }

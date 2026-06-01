@@ -19,16 +19,24 @@ namespace PremiumLivingOPS.Views.InventoryControl
         private readonly InventoryControlController _ctrl = new InventoryControlController();
         private WarehouseTransferViewModel _vm;
 
-        private ComboBox       cboFromItem;       // ItemLookup
-        private ComboBox       cboFromWarehouse;  // WarehouseEntity of source
-        private ComboBox       cboToWarehouse;    // WarehouseEntity of destination
-        private NumericUpDown  nudQty;
-        private Label          lblTransferId, lblAvailable;
-        private Button         btnConfirm, btnCancel;
+        private ComboBox      cboFromItem;
+        private ComboBox      cboFromWarehouse;
+        private ComboBox      cboToWarehouse;
+        private NumericUpDown nudQty;
+        private Label         lblTransferId, lblAvailable;
+        private Button        btnConfirm, btnCancel;
 
-        // Source WarehouseItem resolved from cboFromItem + cboFromWarehouse
         private string _fromWarehouseItemId;
         private int    _availableQty;
+
+        // ── Layout constants ────────────────────────────────────────────
+        private const int RowH     = 68;
+        private const int RowGap   = 14;
+        private const int LabelW   = 220;
+        private const int BtnW     = 150;
+        private const int BtnH     = 44;
+        private const int CardPadH = 32;
+        private const int CardPadV = 28;
 
         public WarehouseTransferForm()
         {
@@ -46,61 +54,94 @@ namespace PremiumLivingOPS.Views.InventoryControl
             MaximizeBox     = false;
             MinimizeBox     = false;
             BackColor       = Color.FromArgb(240, 244, 249);
-            Font            = new Font("Segoe UI", 11f);
+            Font            = new Font("Segoe UI", 12f);
 
-            // Header
-            var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 64, BackColor = Color.FromArgb(19, 35, 61) };
-            pnlHeader.Controls.Add(new Label { Text = "Warehouse Item Transfer", Font = new Font("Segoe UI", 14f, FontStyle.Bold), ForeColor = Color.White, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(24, 0, 0, 0) });
+            // ── Header ─────────────────────────────────────────────
+            var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 76, BackColor = Color.FromArgb(19, 35, 61) };
+            pnlHeader.Controls.Add(new Label
+            {
+                Text = "Warehouse Item Transfer",
+                Font = new Font("Segoe UI", 16f, FontStyle.Bold),
+                ForeColor = Color.White, Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Padding   = new Padding(32, 0, 0, 0)
+            });
 
-            // Footer
-            var pnlFoot = new Panel { Dock = DockStyle.Bottom, Height = 68, BackColor = Color.White, Padding = new Padding(0, 12, 24, 12) };
-            pnlFoot.Paint += (s, e) => { using var pen = new System.Drawing.Pen(Color.FromArgb(221, 227, 236), 1); e.Graphics.DrawLine(pen, 0, 0, ((Panel)s).Width, 0); };
+            // ── Footer ─────────────────────────────────────────────
+            var pnlFoot = new Panel
+            {
+                Dock = DockStyle.Bottom, Height = 76, BackColor = Color.White,
+                Padding = new Padding(0, 14, 28, 14)
+            };
+            pnlFoot.Paint += (s, e) =>
+            {
+                using var pen = new System.Drawing.Pen(Color.FromArgb(221, 227, 236), 1);
+                e.Graphics.DrawLine(pen, 0, 0, ((Panel)s).Width, 0);
+            };
 
             btnCancel  = MakeBtn("Cancel",   Color.White,                  Color.FromArgb(15, 31, 53));
             btnConfirm = MakeBtn("Transfer",  Color.FromArgb(47, 111, 237), Color.White);
             btnCancel.Click  += (s, e) => Close();
             btnConfirm.Click += BtnConfirm_Click;
 
-            var flow = new FlowLayoutPanel { Dock = DockStyle.Right, AutoSize = true, FlowDirection = FlowDirection.LeftToRight, WrapContents = false, BackColor = Color.Transparent };
+            var flow = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Right, AutoSize = true,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents = false, BackColor = Color.Transparent
+            };
             flow.Controls.AddRange(new Control[] { btnCancel, btnConfirm });
             pnlFoot.Controls.Add(flow);
 
-            // Body card
-            var scroll = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(240, 244, 249), AutoScroll = true, Padding = new Padding(20, 14, 20, 8) };
-            var (outerCard, innerCard) = CardPanel.Create(390, new Padding(0));
-            innerCard.Padding = new Padding(24, 20, 24, 20);
+            // ── Body card ───────────────────────────────────────
+            var scroll = new Panel
+            {
+                Dock = DockStyle.Fill, BackColor = Color.FromArgb(240, 244, 249),
+                AutoScroll = true, Padding = new Padding(32, 20, 32, 16)
+            };
 
-            // Transfer ID (readonly)
-            lblTransferId = new Label { Font = new Font("Segoe UI", 11f), ForeColor = Color.FromArgb(19, 35, 61), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft };
+            var (outerCard, innerCard) = CardPanel.Create(480, new Padding(0));
+            innerCard.Padding = new Padding(CardPadH, CardPadV, CardPadH, CardPadV);
 
-            cboFromItem      = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 11f) };
-            cboFromWarehouse = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 11f) };
-            cboToWarehouse   = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 11f) };
-            nudQty           = new NumericUpDown { Minimum = 1, Maximum = 99999, Value = 1, Font = new Font("Segoe UI", 11f) };
-            lblAvailable     = new Label { Text = "Available: —", Font = new Font("Segoe UI", 10f), ForeColor = Color.FromArgb(70, 85, 110), Height = 24, AutoSize = false };
+            lblTransferId = new Label
+            {
+                Font = new Font("Segoe UI", 12f), ForeColor = Color.FromArgb(19, 35, 61),
+                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft
+            };
+            cboFromItem      = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 12f) };
+            cboFromWarehouse = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 12f) };
+            cboToWarehouse   = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 12f) };
+            nudQty           = new NumericUpDown { Minimum = 1, Maximum = 99999, Value = 1, Font = new Font("Segoe UI", 12f) };
+            lblAvailable     = new Label
+            {
+                Text = "Available: —", Font = new Font("Segoe UI", 11f),
+                ForeColor = Color.FromArgb(70, 85, 110), Height = 32, AutoSize = false
+            };
 
             cboFromItem.SelectedIndexChanged      += (s, e) => RefreshFromWarehouses();
             cboFromWarehouse.SelectedIndexChanged += (s, e) => RefreshAvailable();
 
-            var rows = new[] {
-                FieldRow("Transfer ID",    lblTransferId),
-                FieldRow("Item *",          cboFromItem),
-                FieldRow("From Warehouse *", cboFromWarehouse),
-                FieldRow("To Warehouse *",   cboToWarehouse),
-                FieldRow("Transfer Qty *",   nudQty)
+            var rows = new[]
+            {
+                FieldRow("Transfer ID",     lblTransferId),
+                FieldRow("Item *",           cboFromItem),
+                FieldRow("From Warehouse *",  cboFromWarehouse),
+                FieldRow("To Warehouse *",    cboToWarehouse),
+                FieldRow("Transfer Qty *",    nudQty)
             };
 
-            int y = 20;
+            int y = CardPadV;
             foreach (var row in rows)
             {
                 row.Location = new Point(0, y);
-                row.Width    = innerCard.Width - 48;
+                row.Width    = innerCard.Width - CardPadH * 2;
                 row.Anchor   = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
                 innerCard.Controls.Add(row);
-                y += row.Height + 10;
+                y += row.Height + RowGap;
             }
-            lblAvailable.Location = new Point(180, y + 4);
-            lblAvailable.Width    = innerCard.Width - 204;
+
+            lblAvailable.Location = new Point(LabelW, y + 6);
+            lblAvailable.Width    = innerCard.Width - LabelW - CardPadH * 2;
             lblAvailable.Anchor   = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             innerCard.Controls.Add(lblAvailable);
 
@@ -113,11 +154,9 @@ namespace PremiumLivingOPS.Views.InventoryControl
         private void LoadDropdowns()
         {
             _vm = _ctrl.GetWarehouseTransferVM();
-
             lblTransferId.Text = _vm.NextTransferID;
 
-            // Distinct items that exist in WarehouseItems
-            var seen  = new System.Collections.Generic.HashSet<string>();
+            var seen = new HashSet<string>();
             cboFromItem.Items.Clear();
             foreach (var wi in _vm.WarehouseItems)
             {
@@ -126,7 +165,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
             }
             if (cboFromItem.Items.Count > 0) cboFromItem.SelectedIndex = 0;
 
-            // Destination warehouses
             cboToWarehouse.Items.Clear();
             foreach (var w in _vm.Warehouses)
                 cboToWarehouse.Items.Add(new WarehouseComboItem(w.WarehouseID, w.WarehouseLocation));
@@ -137,7 +175,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
         {
             cboFromWarehouse.Items.Clear();
             if (!(cboFromItem.SelectedItem is ItemComboItem ic)) return;
-
             foreach (var wi in _vm.WarehouseItems)
             {
                 if (wi.ItemID == ic.Id && wi.Quantity > 0)
@@ -164,7 +201,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
             if (!(cboToWarehouse.SelectedItem is WarehouseComboItem toWh))
             { MessageBox.Show("Please select a destination warehouse.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
 
-            // Prevent same warehouse
             if (cboFromWarehouse.SelectedItem is WarehouseItemComboItem fromWi && fromWi.WarehouseId == toWh.Id)
             { MessageBox.Show("Source and destination warehouse cannot be the same.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
 
@@ -175,18 +211,28 @@ namespace PremiumLivingOPS.Views.InventoryControl
             try
             {
                 _ctrl.SubmitWarehouseTransfer(_vm.NextTransferID, _fromWarehouseItemId, toWh.Id, qty);
-                MessageBox.Show($"Transfer {_vm.NextTransferID} completed successfully.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show($"Transfer {_vm.NextTransferID} completed successfully.",
+                    "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 DialogResult = DialogResult.OK;
                 Close();
             }
-            catch (Exception ex) { MessageBox.Show("Error: " + ex.Message, "Database Error", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error: " + ex.Message, "Database Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
-        // ── helpers ──────────────────────────────────────────────────────────
+        // ── UI helpers ───────────────────────────────────────────
         private static Panel FieldRow(string label, Control input)
         {
-            var row = new Panel { Height = 52, BackColor = Color.Transparent };
-            var lbl = new Label { Text = label, Font = new Font("Segoe UI", 10f, FontStyle.Bold), ForeColor = Color.FromArgb(70, 85, 110), AutoSize = false, Size = new Size(180, 52), TextAlign = ContentAlignment.MiddleLeft, Dock = DockStyle.Left };
+            var row = new Panel { Height = RowH, BackColor = Color.Transparent };
+            var lbl = new Label
+            {
+                Text = label, Font = new Font("Segoe UI", 11f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(70, 85, 110), AutoSize = false,
+                Size = new Size(LabelW, RowH), TextAlign = ContentAlignment.MiddleLeft,
+                Dock = DockStyle.Left
+            };
             input.Dock = DockStyle.Fill;
             row.Controls.Add(input);
             row.Controls.Add(lbl);
@@ -195,8 +241,14 @@ namespace PremiumLivingOPS.Views.InventoryControl
 
         private static Button MakeBtn(string text, Color bg, Color fg)
         {
-            var b = new Button { Text = text, Font = new Font("Segoe UI", 11f), BackColor = bg, ForeColor = fg, FlatStyle = FlatStyle.Flat, Width = 130, Height = 40, Margin = new Padding(6, 0, 0, 0), Cursor = Cursors.Hand };
-            b.FlatAppearance.BorderColor = Color.FromArgb(200, 207, 220); b.FlatAppearance.BorderSize = 1;
+            var b = new Button
+            {
+                Text = text, Font = new Font("Segoe UI", 12f),
+                BackColor = bg, ForeColor = fg, FlatStyle = FlatStyle.Flat,
+                Width = BtnW, Height = BtnH, Margin = new Padding(8, 0, 0, 0), Cursor = Cursors.Hand
+            };
+            b.FlatAppearance.BorderColor = Color.FromArgb(200, 207, 220);
+            b.FlatAppearance.BorderSize  = 1;
             return b;
         }
 
