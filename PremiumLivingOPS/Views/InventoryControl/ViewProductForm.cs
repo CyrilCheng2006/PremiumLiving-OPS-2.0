@@ -94,7 +94,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
             RefreshGrid();
         }
 
-        // ── KPI pills — exact ViewOrderForm implementation ──────────────────────
         private void RefreshKpi()
         {
             pnlKpi.Controls.Clear();
@@ -108,10 +107,10 @@ namespace PremiumLivingOPS.Views.InventoryControl
 
             var pills = new[]
             {
-                ("Total",         total.ToString(),    Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254), "All"),
-                ("In Stock",      inStock.ToString(),  Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229), "In Stock"),
-                ("Low Stock",     lowStock.ToString(), Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), "Low Stock"),
-                ("Out of Stock",  outStock.ToString(), Color.FromArgb(153,  27,  27), Color.FromArgb(254, 226, 226), "Out of Stock"),
+                ("Total",        total.ToString(),    Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254), "All"),
+                ("In Stock",     inStock.ToString(),  Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229), "In Stock"),
+                ("Low Stock",    lowStock.ToString(), Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), "Low Stock"),
+                ("Out of Stock", outStock.ToString(), Color.FromArgb(153,  27,  27), Color.FromArgb(254, 226, 226), "Out of Stock"),
             };
 
             var flow = new FlowLayoutPanel
@@ -153,12 +152,13 @@ namespace PremiumLivingOPS.Views.InventoryControl
                     RowCount        = 1,
                     BackColor       = Color.Transparent,
                     CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                    Padding         = new Padding(10, 0, 8, 0)
+                    Padding         = new Padding(14, 0, 8, 0)
                 };
                 tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, NumColW));
                 tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
                 tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
+                // 數字 Label — 靠左垂直置中
                 tlp.Controls.Add(new Label
                 {
                     Text      = count,
@@ -166,10 +166,11 @@ namespace PremiumLivingOPS.Views.InventoryControl
                     ForeColor = fg,
                     BackColor = Color.Transparent,
                     Dock      = DockStyle.Fill,
-                    TextAlign = ContentAlignment.MiddleCenter,
+                    TextAlign = ContentAlignment.MiddleLeft,
                     AutoSize  = false
                 }, 0, 0);
 
+                // 文字 Label — 靠左垂直置中
                 tlp.Controls.Add(new Label
                 {
                     Text      = label,

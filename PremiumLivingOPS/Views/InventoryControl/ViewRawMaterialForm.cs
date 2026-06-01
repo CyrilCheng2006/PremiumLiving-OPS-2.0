@@ -95,7 +95,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
             RefreshGrid();
         }
 
-        // ── KPI pills — exact ViewOrderForm implementation ──────────────────────
         private void RefreshKpi()
         {
             pnlKpi.Controls.Clear();
@@ -154,12 +153,13 @@ namespace PremiumLivingOPS.Views.InventoryControl
                     RowCount        = 1,
                     BackColor       = Color.Transparent,
                     CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                    Padding         = new Padding(10, 0, 8, 0)
+                    Padding         = new Padding(14, 0, 8, 0)
                 };
                 tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, NumColW));
                 tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
                 tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
+                // 數字 Label — 靠左垂直置中
                 tlp.Controls.Add(new Label
                 {
                     Text      = count,
@@ -167,10 +167,11 @@ namespace PremiumLivingOPS.Views.InventoryControl
                     ForeColor = fg,
                     BackColor = Color.Transparent,
                     Dock      = DockStyle.Fill,
-                    TextAlign = ContentAlignment.MiddleCenter,
+                    TextAlign = ContentAlignment.MiddleLeft,
                     AutoSize  = false
                 }, 0, 0);
 
+                // 文字 Label — 靠左垂直置中
                 tlp.Controls.Add(new Label
                 {
                     Text      = label,
