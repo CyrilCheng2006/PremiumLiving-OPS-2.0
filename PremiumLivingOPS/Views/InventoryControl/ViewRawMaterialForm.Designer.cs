@@ -62,11 +62,10 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 Padding         = new Padding(18, 14, 18, 14)
             };
             tblSearchCard.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-            tblSearchCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  52f));  // title
-            tblSearchCard.RowStyles.Add(new RowStyle(SizeType.Absolute, 110f));  // fields
-            tblSearchCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  68f));  // buttons
+            tblSearchCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  52f));
+            tblSearchCard.RowStyles.Add(new RowStyle(SizeType.Absolute, 110f));
+            tblSearchCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  68f));
 
-            // Title row
             var pnlSearchTitle = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             var lblSearchTitle = new Label
             {
@@ -80,7 +79,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
             pnlSearchTitle.Controls.Add(lblSearchTitle);
             pnlSearchTitle.Controls.Add(divSearch);
 
-            // Fields TLP helper
             TableLayoutPanel MakeCell(string caption, Control ctrl, bool rightPad = true)
             {
                 var tlp = new TableLayoutPanel
@@ -148,7 +146,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
             tblFields.Controls.Add(MakeCell("Category", cboCategory),      1, 0);
             tblFields.Controls.Add(MakeCell("Status",   cboStatus, false), 2, 0);
 
-            // Buttons row
             var pnlSearchBtns = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             btnSearch = MakePrimaryBtn("🔍  Search", new Point(0, 4),   210, 52);
             btnReset  = MakeOutlineBtn("↺  Reset",  new Point(218, 4), 210, 52);
@@ -163,10 +160,49 @@ namespace PremiumLivingOPS.Views.InventoryControl
             searchInner.Controls.Add(tblSearchCard);
 
             // ── KPI card (Top, height=90) ───────────────────────────────────────
+            // KPI bar split: Left = pills area, Right (230px) = View Detail button
             var (kpiOuter, kpiInner) = CardPanel.Create(outerHeight: 90,
                 outerPadding: new Padding(20, 12, 20, 0));
+
+            var tblKpi = new TableLayoutPanel
+            {
+                Dock            = DockStyle.Fill,
+                ColumnCount     = 2,
+                RowCount        = 1,
+                BackColor       = Color.Transparent,
+                CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                Padding         = Padding.Empty
+            };
+            tblKpi.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
+            tblKpi.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 230f));
+            tblKpi.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+
             pnlKpi = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            kpiInner.Controls.Add(pnlKpi);
+
+            var pnlKpiBtn = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
+            btnViewDetail = new Button
+            {
+                Text      = "🔍  View Detail",
+                Font      = new Font("Segoe UI", 12f),
+                ForeColor = Color.White,
+                BackColor = Color.FromArgb(47, 111, 237),
+                FlatStyle = FlatStyle.Flat,
+                Size      = new Size(210, 60),
+                Cursor    = Cursors.Hand,
+                Enabled   = false
+            };
+            btnViewDetail.FlatAppearance.BorderSize = 0;
+            pnlKpiBtn.Controls.Add(btnViewDetail);
+            pnlKpiBtn.Layout += (s, e) =>
+            {
+                var p = (Panel)s;
+                btnViewDetail.Left = p.Width - btnViewDetail.Width - 8;
+                btnViewDetail.Top  = (p.Height - btnViewDetail.Height) / 2;
+            };
+
+            tblKpi.Controls.Add(pnlKpi,    0, 0);
+            tblKpi.Controls.Add(pnlKpiBtn, 1, 0);
+            kpiInner.Controls.Add(tblKpi);
 
             // ── Table card (Fill) ───────────────────────────────────────────────
             var (tableOuter, tableInner) = CardPanel.CreateFill(
@@ -216,38 +252,16 @@ namespace PremiumLivingOPS.Views.InventoryControl
             dgvMaterials.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStockQty",     HeaderText = "STOCK QTY",     FillWeight = 10 });
             dgvMaterials.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",       HeaderText = "STATUS",        FillWeight = 10 });
 
-            // Footer inside table card
-            var pnlFooter = new Panel
-            {
-                Dock      = DockStyle.Bottom,
-                Height    = 60,
-                BackColor = Color.White,
-                Padding   = new Padding(12, 10, 12, 10)
-            };
-            pnlFooter.Paint += (s, e) =>
-            {
-                using var pen = new System.Drawing.Pen(Color.FromArgb(221, 227, 236), 1);
-                e.Graphics.DrawLine(pen, 0, 0, ((Panel)s).Width, 0);
-            };
-            btnViewDetail         = MakePrimaryBtn("🔍  View Detail", Point.Empty, 160, 40);
-            btnViewDetail.Enabled = false;
-            btnViewDetail.Dock    = DockStyle.Right;
-            pnlFooter.Controls.Add(btnViewDetail);
-
             tableInner.Controls.Add(dgvMaterials);
-            tableInner.Controls.Add(pnlFooter);
 
             // ── Assemble pnlScroll ────────────────────────────────────────────────────
-            // Fill must be added first; Top controls stack in reverse add order
-            // (last added = topmost), so: tableOuter(Fill) → kpiOuter(Top) → searchOuter(Top)
-            // gives visual order: Search → KPI Bar → Item Table
             pnlScroll.Controls.Add(tableOuter);   // Fill — must be first
             pnlScroll.Controls.Add(kpiOuter);     // Top — appears below Search
             pnlScroll.Controls.Add(searchOuter);  // Top — appears at very top
 
             // ── Assemble root ─────────────────────────────────────────────────────────
-            pnlRoot.Controls.Add(pnlScroll);  // Fill
-            pnlRoot.Controls.Add(_shell);     // Top — topmost
+            pnlRoot.Controls.Add(pnlScroll);
+            pnlRoot.Controls.Add(_shell);
 
             Controls.Add(pnlRoot);
             ResumeLayout(false);
