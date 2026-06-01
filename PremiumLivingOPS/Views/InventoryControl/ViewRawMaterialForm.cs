@@ -546,25 +546,46 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 Font            = new Font("Segoe UI", 12f)
             };
 
-            // ----------------------------------------------------------------
-            //  Header bar  —  title (left) + Stock Status pill (right)
-            // ----------------------------------------------------------------
+            // ================================================================
+            //  HEADER BAR  —  title (left) + Stock Status block (right)
+            //
+            //  Layout goal:
+            //    ┌────────────────────────────────────────┬───────────────┐
+            //  |  View Raw Material — RM001  |   In Stock      |
+            //  └────────────────────────────────────────┴───────────────┘
+            //
+            //  The status block fills the full header height (90 px) and is
+            //  just wide enough for its text + horizontal padding.
+            //  Width = TextRenderer.MeasureText(statusText, font).Width
+            //          + hPad * 2   (hPad = 36 px each side)
+            // ================================================================
             Color pillBg = Color.FromArgb(229, 231, 235);
             Color pillFg = Color.FromArgb(55, 65, 81);
             if (StatusColors.TryGetValue(m.StockStatus ?? "", out var headerSc))
             { pillBg = headerSc.bg; pillFg = headerSc.fg; }
 
-            // Status label (auto-sized so it never clips)
+            // ---- status font & measured width --------------------------------
+            var   statusFont = new Font("Segoe UI", 13f, FontStyle.Bold);
+            const int hPad   = 36;   // horizontal padding each side (px)
+            int   textW      = TextRenderer.MeasureText(
+                                   m.StockStatus ?? "\u2014", statusFont).Width;
+            int   statusColW = textW + hPad * 2;   // exact column width
+
+            // ---- the status Label itself -------------------------------------
+            //  Dock = Fill  → stretches to all 90 px of header height.
+            //  AutoSize = false so Dock takes full effect.
+            //  TextAlign = MiddleCenter centres the text both axes.
             var statusLbl = new Label
             {
                 Text      = m.StockStatus ?? "\u2014",
-                Font      = new Font("Segoe UI", 13f, FontStyle.Bold),
+                Font      = statusFont,
                 ForeColor = pillFg,
                 BackColor = pillBg,
-                AutoSize  = true,
-                Padding   = new Padding(18, 6, 18, 6),
+                Dock      = DockStyle.Fill,   // ← fills the right TLP cell completely
+                AutoSize  = false,            // ← must be false for Dock to work
                 TextAlign = ContentAlignment.MiddleCenter
             };
+            // Thin border drawn via Paint so it never clips the text
             statusLbl.Paint += (s, pe) =>
             {
                 var lb = (Label)s;
@@ -573,32 +594,9 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 pe.Graphics.DrawRectangle(pen, 0, 0, lb.Width - 1, lb.Height - 1);
             };
 
-            // Right cell: FlowLayoutPanel centres the pill vertically
-            var pillCell = new FlowLayoutPanel
-            {
-                Dock          = DockStyle.Fill,
-                BackColor     = Color.Transparent,
-                FlowDirection = FlowDirection.RightToLeft,   // flush to the right edge
-                WrapContents  = false,
-                AutoSize      = false,
-                Padding       = new Padding(0, 0, 48, 0)     // right margin matching header title
-            };
-            pillCell.Controls.Add(statusLbl);
-            pillCell.Layout += (s, _) =>
-            {
-                var fl = (FlowLayoutPanel)s;
-                if (fl.Controls.Count == 0) return;
-                fl.Controls[0].Top = Math.Max(0, (fl.Height - fl.Controls[0].Height) / 2);
-            };
-
-            var pnlHeader = new Panel
-            {
-                Dock      = DockStyle.Top,
-                Height    = 90,
-                BackColor = Color.FromArgb(19, 35, 61)
-            };
-
-            // Build header as a two-column TLP: [title | pill]
+            // ---- header TableLayoutPanel -------------------------------------
+            //  Column 0: 100 % → title
+            //  Column 1: Absolute statusColW → status block
             var headerTlp = new TableLayoutPanel
             {
                 Dock            = DockStyle.Fill,
@@ -608,8 +606,8 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
                 Padding         = new Padding(0)
             };
-            headerTlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));  // title takes all spare space
-            headerTlp.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));        // pill cell shrinks to content
+            headerTlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
+            headerTlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, statusColW));
             headerTlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
             headerTlp.Controls.Add(new Label
@@ -623,7 +621,14 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 Padding   = new Padding(48, 0, 0, 0)
             }, 0, 0);
 
-            headerTlp.Controls.Add(pillCell, 1, 0);
+            headerTlp.Controls.Add(statusLbl, 1, 0);
+
+            var pnlHeader = new Panel
+            {
+                Dock      = DockStyle.Top,
+                Height    = 90,
+                BackColor = Color.FromArgb(19, 35, 61)
+            };
             pnlHeader.Controls.Add(headerTlp);
 
             // ----------------------------------------------------------------
