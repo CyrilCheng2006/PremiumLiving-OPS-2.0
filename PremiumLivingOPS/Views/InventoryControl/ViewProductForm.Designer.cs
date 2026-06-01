@@ -309,6 +309,23 @@ namespace PremiumLivingOPS.Views.InventoryControl
             return b;
         }
 
+        private static Button MakeYellowBtn(string text, Point loc, int w, int h)
+        {
+            var b = new Button
+            {
+                Text      = text,
+                Font      = new Font("Segoe UI", 11f),
+                ForeColor = Color.FromArgb(15, 31, 53),
+                BackColor = Color.FromArgb(255, 234, 0),
+                FlatStyle = FlatStyle.Flat,
+                Location  = loc,
+                Size      = new Size(w, h),
+                Cursor    = Cursors.Hand
+            };
+            b.FlatAppearance.BorderSize = 0;
+            return b;
+        }
+
         private static Button MakeOutlineBtn(string text, Point loc, int w, int h)
         {
             var b = new Button
