@@ -19,7 +19,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
         {
             SuspendLayout();
 
-            // ── Form ───────────────────────────────────────────────────────────
             Name          = "ViewRawMaterialForm";
             Text          = "Premium Living OPS — Inventory Control";
             Size          = new Size(1440, 900);
@@ -29,37 +28,21 @@ namespace PremiumLivingOPS.Views.InventoryControl
             WindowState   = FormWindowState.Maximized;
             Font          = new Font("Segoe UI", 13f);
 
-            // ── Root panel ─────────────────────────────────────────────────────
-            pnlRoot = new Panel
-            {
-                Dock      = DockStyle.Fill,
-                BackColor = Color.FromArgb(240, 244, 249)
-            };
-
-            // ── AppShell (Top) ─────────────────────────────────────────────────
-            _shell = new AppShell();
+            pnlRoot = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(240, 244, 249) };
+            _shell  = new AppShell();
             _shell.SetPopupContainer(pnlRoot);
 
-            // ── Scrollable content area (Fill) ──────────────────────────────────
-            pnlScroll = new Panel
-            {
-                Dock       = DockStyle.Fill,
-                AutoScroll = true,
-                BackColor  = Color.FromArgb(240, 244, 249)
-            };
+            pnlScroll = new Panel { Dock = DockStyle.Fill, AutoScroll = true, BackColor = Color.FromArgb(240, 244, 249) };
 
-            // ── Search / filter card (Top, height=260) ──────────────────────────
+            // ── Search card ─────────────────────────────────────────────────────
             var (searchOuter, searchInner) = CardPanel.Create(outerHeight: 260,
                 outerPadding: new Padding(20, 12, 20, 0));
 
             var tblSearchCard = new TableLayoutPanel
             {
-                Dock            = DockStyle.Fill,
-                RowCount        = 3,
-                ColumnCount     = 1,
-                BackColor       = Color.Transparent,
-                CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                Padding         = new Padding(18, 14, 18, 14)
+                Dock = DockStyle.Fill, RowCount = 3, ColumnCount = 1,
+                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                Padding = new Padding(18, 14, 18, 14)
             };
             tblSearchCard.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
             tblSearchCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  52f));
@@ -67,77 +50,29 @@ namespace PremiumLivingOPS.Views.InventoryControl
             tblSearchCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  68f));
 
             var pnlSearchTitle = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            var lblSearchTitle = new Label
-            {
-                Text      = "Search Raw Materials",
-                Font      = new Font("Segoe UI", 13f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(15, 31, 53),
-                Dock      = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleLeft
-            };
-            var divSearch = new Panel { Dock = DockStyle.Bottom, Height = 1, BackColor = Color.FromArgb(221, 227, 236) };
-            pnlSearchTitle.Controls.Add(lblSearchTitle);
-            pnlSearchTitle.Controls.Add(divSearch);
+            pnlSearchTitle.Controls.Add(new Label { Text = "Search Raw Materials", Font = new Font("Segoe UI", 13f, FontStyle.Bold), ForeColor = Color.FromArgb(15, 31, 53), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft });
+            pnlSearchTitle.Controls.Add(new Panel { Dock = DockStyle.Bottom, Height = 1, BackColor = Color.FromArgb(221, 227, 236) });
 
             TableLayoutPanel MakeCell(string caption, Control ctrl, bool rightPad = true)
             {
-                var tlp = new TableLayoutPanel
-                {
-                    Dock            = DockStyle.Fill,
-                    RowCount        = 2,
-                    ColumnCount     = 1,
-                    BackColor       = Color.Transparent,
-                    CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                    Padding         = rightPad ? new Padding(0, 0, 12, 0) : Padding.Empty
-                };
+                var tlp = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 2, ColumnCount = 1, BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None, Padding = rightPad ? new Padding(0, 0, 12, 0) : Padding.Empty };
                 tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
                 tlp.RowStyles.Add(new RowStyle(SizeType.Absolute, 36f));
                 tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-                var lbl = new Label
-                {
-                    Text      = caption,
-                    Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
-                    ForeColor = Color.FromArgb(98, 112, 135),
-                    Dock      = DockStyle.Fill,
-                    TextAlign = ContentAlignment.BottomLeft,
-                    Padding   = new Padding(0, 0, 0, 2)
-                };
+                tlp.Controls.Add(new Label { Text = caption, Font = new Font("Segoe UI", 10f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), Dock = DockStyle.Fill, TextAlign = ContentAlignment.BottomLeft, Padding = new Padding(0,0,0,2) }, 0, 0);
                 ctrl.Dock = DockStyle.Fill;
-                tlp.Controls.Add(lbl,  0, 0);
                 tlp.Controls.Add(ctrl, 0, 1);
                 return tlp;
             }
 
-            txtSearch = new TextBox
-            {
-                Font            = new Font("Segoe UI", 12f),
-                BorderStyle     = BorderStyle.FixedSingle,
-                PlaceholderText = "Search material ID, name or category…"
-            };
+            txtSearch   = new TextBox { Font = new Font("Segoe UI", 12f), BorderStyle = BorderStyle.FixedSingle, PlaceholderText = "Search material ID, name or category…" };
             txtSearch.KeyDown += (s, ke) => { if (ke.KeyCode == Keys.Enter) RefreshGrid(); };
-
-            cboCategory = new ComboBox
-            {
-                DropDownStyle = ComboBoxStyle.DropDownList,
-                Font          = new Font("Segoe UI", 12f)
-            };
-
-            cboStatus = new ComboBox
-            {
-                DropDownStyle = ComboBoxStyle.DropDownList,
-                Font          = new Font("Segoe UI", 12f)
-            };
+            cboCategory = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 12f) };
+            cboStatus   = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 12f) };
             cboStatus.Items.AddRange(new object[] { "All", "In Stock", "Low Stock", "Out of Stock" });
             cboStatus.SelectedIndex = 0;
 
-            var tblFields = new TableLayoutPanel
-            {
-                Dock            = DockStyle.Fill,
-                ColumnCount     = 3,
-                RowCount        = 1,
-                BackColor       = Color.Transparent,
-                CellBorderStyle = TableLayoutPanelCellBorderStyle.None
-            };
+            var tblFields = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 1, BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None };
             tblFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40f));
             tblFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30f));
             tblFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30f));
@@ -159,151 +94,125 @@ namespace PremiumLivingOPS.Views.InventoryControl
             tblSearchCard.Controls.Add(pnlSearchBtns,  0, 2);
             searchInner.Controls.Add(tblSearchCard);
 
-            // ── KPI card (Top, height=90) ───────────────────────────────────────
-            // KPI bar split: Left = pills area, Right (230px) = View Detail button
-            var (kpiOuter, kpiInner) = CardPanel.Create(outerHeight: 90,
+            // ── Action bar card ─────────────────────────────────────────────────
+            var (actionOuter, actionInner) = CardPanel.Create(outerHeight: 90,
                 outerPadding: new Padding(20, 12, 20, 0));
 
-            var tblKpi = new TableLayoutPanel
+            var tblAction = new TableLayoutPanel
             {
-                Dock            = DockStyle.Fill,
-                ColumnCount     = 2,
-                RowCount        = 1,
-                BackColor       = Color.Transparent,
-                CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                Padding         = Padding.Empty
+                Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
+                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None, Padding = Padding.Empty
             };
-            tblKpi.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
-            tblKpi.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 230f));
-            tblKpi.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+            tblAction.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
+            tblAction.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 720f));
+            tblAction.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
             pnlKpi = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
 
-            var pnlKpiBtn = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            btnViewDetail = new Button
-            {
-                Text      = "🔍  View Detail",
-                Font      = new Font("Segoe UI", 12f),
-                ForeColor = Color.White,
-                BackColor = Color.FromArgb(47, 111, 237),
-                FlatStyle = FlatStyle.Flat,
-                Size      = new Size(210, 60),
-                Cursor    = Cursors.Hand,
-                Enabled   = false
-            };
-            btnViewDetail.FlatAppearance.BorderSize = 0;
-            pnlKpiBtn.Controls.Add(btnViewDetail);
-            pnlKpiBtn.Layout += (s, e) =>
-            {
-                var p = (Panel)s;
-                btnViewDetail.Left = p.Width - btnViewDetail.Width - 8;
-                btnViewDetail.Top  = (p.Height - btnViewDetail.Height) / 2;
-            };
+            var pnlActionBtns = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
+            btnViewDetail  = MakePrimaryBtn("🔍 View Detail",  Point.Empty, 160, 56);
+            btnAddItem     = MakeGreenBtn  ("＋ Add New",       Point.Empty, 140, 56);
+            btnModifyItem  = MakeOutlineBtn("✏  Modify Item",   Point.Empty, 150, 56);
+            btnInwardGoods = MakePrimaryBtn("📥 Inward Goods",  Point.Empty, 160, 56);
+            btnWhTransfer  = MakeOutlineBtn("🔄 WH Transfer",   Point.Empty, 150, 56);
 
-            tblKpi.Controls.Add(pnlKpi,    0, 0);
-            tblKpi.Controls.Add(pnlKpiBtn, 1, 0);
-            kpiInner.Controls.Add(tblKpi);
+            btnViewDetail.Enabled  = false;
+            btnModifyItem.Enabled  = false;
+            btnInwardGoods.Enabled = false;
 
-            // ── Table card (Fill) ───────────────────────────────────────────────
+            pnlActionBtns.Layout += (s, ev) =>
+            {
+                var p      = (Panel)s;
+                var btns   = new Button[] { btnViewDetail, btnAddItem, btnModifyItem, btnInwardGoods, btnWhTransfer };
+                int total  = 0; foreach (var b in btns) total += b.Width;
+                int gaps   = (p.Width - total - 8) / (btns.Length - 1);
+                int xCursor = 4;
+                foreach (var b in btns)
+                {
+                    b.Left = xCursor;
+                    b.Top  = (p.Height - b.Height) / 2;
+                    xCursor += b.Width + gaps;
+                }
+            };
+            pnlActionBtns.Controls.AddRange(new Control[] { btnViewDetail, btnAddItem, btnModifyItem, btnInwardGoods, btnWhTransfer });
+
+            tblAction.Controls.Add(pnlKpi,        0, 0);
+            tblAction.Controls.Add(pnlActionBtns, 1, 0);
+            actionInner.Controls.Add(tblAction);
+
+            // ── Table card ───────────────────────────────────────────────────────
             var (tableOuter, tableInner) = CardPanel.CreateFill(
                 outerPadding: new Padding(20, 12, 20, 20));
 
             dgvMaterials = new DataGridView
             {
-                Dock                      = DockStyle.Fill,
-                ReadOnly                  = true,
-                AllowUserToAddRows        = false,
-                AllowUserToDeleteRows     = false,
-                RowHeadersVisible         = false,
-                SelectionMode             = DataGridViewSelectionMode.FullRowSelect,
-                MultiSelect               = false,
-                BackgroundColor           = Color.White,
-                BorderStyle               = BorderStyle.None,
-                GridColor                 = Color.FromArgb(221, 227, 236),
-                Font                      = new Font("Segoe UI", 13f),
-                AutoSizeColumnsMode       = DataGridViewAutoSizeColumnsMode.Fill,
-                CellBorderStyle           = DataGridViewCellBorderStyle.SingleHorizontal,
-                EnableHeadersVisualStyles = false,
-                ColumnHeadersHeight       = 46,
+                Dock = DockStyle.Fill, ReadOnly = true, AllowUserToAddRows = false,
+                AllowUserToDeleteRows = false, RowHeadersVisible = false,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect, MultiSelect = false,
+                BackgroundColor = Color.White, BorderStyle = BorderStyle.None,
+                GridColor = Color.FromArgb(221, 227, 236), Font = new Font("Segoe UI", 13f),
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal,
+                EnableHeadersVisualStyles = false, ColumnHeadersHeight = 46,
                 ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
                 {
-                    BackColor = Color.FromArgb(246, 249, 255),
-                    ForeColor = Color.FromArgb(98, 112, 135),
-                    Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
-                    Padding   = new Padding(12, 0, 0, 0),
-                    Alignment = DataGridViewContentAlignment.MiddleLeft
+                    BackColor = Color.FromArgb(246, 249, 255), ForeColor = Color.FromArgb(98, 112, 135),
+                    Font = new Font("Segoe UI", 11f, FontStyle.Bold),
+                    Padding = new Padding(12, 0, 0, 0), Alignment = DataGridViewContentAlignment.MiddleLeft
                 },
                 DefaultCellStyle = new DataGridViewCellStyle
                 {
-                    BackColor          = Color.White,
-                    ForeColor          = Color.FromArgb(15, 31, 53),
+                    BackColor = Color.White, ForeColor = Color.FromArgb(15, 31, 53),
                     SelectionBackColor = Color.FromArgb(219, 234, 254),
                     SelectionForeColor = Color.FromArgb(15, 31, 53),
-                    Padding            = new Padding(12, 6, 12, 6)
+                    Padding = new Padding(12, 6, 12, 6)
                 }
             };
             dgvMaterials.RowTemplate.Height = 48;
 
             dgvMaterials.Columns.Add(new DataGridViewTextBoxColumn { Name = "colMaterialID",   HeaderText = "MATERIAL ID",   FillWeight = 14 });
-            dgvMaterials.Columns.Add(new DataGridViewTextBoxColumn { Name = "colMaterialName", HeaderText = "MATERIAL NAME", FillWeight = 28 });
+            dgvMaterials.Columns.Add(new DataGridViewTextBoxColumn { Name = "colMaterialName", HeaderText = "MATERIAL NAME", FillWeight = 30 });
             dgvMaterials.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCategory",     HeaderText = "CATEGORY",      FillWeight = 16 });
-            dgvMaterials.Columns.Add(new DataGridViewTextBoxColumn { Name = "colUnit",         HeaderText = "UNIT",          FillWeight = 10 });
+            dgvMaterials.Columns.Add(new DataGridViewTextBoxColumn { Name = "colUnit",         HeaderText = "UNIT",          FillWeight =  8 });
             dgvMaterials.Columns.Add(new DataGridViewTextBoxColumn { Name = "colUnitCost",     HeaderText = "UNIT COST",     FillWeight = 12 });
             dgvMaterials.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStockQty",     HeaderText = "STOCK QTY",     FillWeight = 10 });
             dgvMaterials.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",       HeaderText = "STATUS",        FillWeight = 10 });
 
             tableInner.Controls.Add(dgvMaterials);
 
-            // ── Assemble pnlScroll ────────────────────────────────────────────────────
-            pnlScroll.Controls.Add(tableOuter);   // Fill — must be first
-            pnlScroll.Controls.Add(kpiOuter);     // Top — appears below Search
-            pnlScroll.Controls.Add(searchOuter);  // Top — appears at very top
+            pnlScroll.Controls.Add(tableOuter);
+            pnlScroll.Controls.Add(actionOuter);
+            pnlScroll.Controls.Add(searchOuter);
 
-            // ── Assemble root ─────────────────────────────────────────────────────────
             pnlRoot.Controls.Add(pnlScroll);
             pnlRoot.Controls.Add(_shell);
-
             Controls.Add(pnlRoot);
             ResumeLayout(false);
         }
 
-        // ── Button factories ───────────────────────────────────────────────────────
+        // ── Button factories ────────────────────────────────────────────────────
         private static Button MakePrimaryBtn(string text, Point loc, int w, int h)
         {
-            var b = new Button
-            {
-                Text      = text,
-                Font      = new Font("Segoe UI", 12f),
-                ForeColor = Color.White,
-                BackColor = Color.FromArgb(47, 111, 237),
-                FlatStyle = FlatStyle.Flat,
-                Location  = loc,
-                Size      = new Size(w, h),
-                Cursor    = Cursors.Hand
-            };
+            var b = new Button { Text = text, Font = new Font("Segoe UI", 11f), ForeColor = Color.White, BackColor = Color.FromArgb(47, 111, 237), FlatStyle = FlatStyle.Flat, Location = loc, Size = new Size(w, h), Cursor = Cursors.Hand };
+            b.FlatAppearance.BorderSize = 0;
+            return b;
+        }
+
+        private static Button MakeGreenBtn(string text, Point loc, int w, int h)
+        {
+            var b = new Button { Text = text, Font = new Font("Segoe UI", 11f), ForeColor = Color.White, BackColor = Color.FromArgb(22, 163, 74), FlatStyle = FlatStyle.Flat, Location = loc, Size = new Size(w, h), Cursor = Cursors.Hand };
             b.FlatAppearance.BorderSize = 0;
             return b;
         }
 
         private static Button MakeOutlineBtn(string text, Point loc, int w, int h)
         {
-            var b = new Button
-            {
-                Text      = text,
-                Font      = new Font("Segoe UI", 12f),
-                ForeColor = Color.FromArgb(98, 112, 135),
-                BackColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Location  = loc,
-                Size      = new Size(w, h),
-                Cursor    = Cursors.Hand
-            };
-            b.FlatAppearance.BorderColor = Color.FromArgb(221, 227, 236);
-            b.FlatAppearance.BorderSize  = 1;
+            var b = new Button { Text = text, Font = new Font("Segoe UI", 11f), ForeColor = Color.FromArgb(98, 112, 135), BackColor = Color.White, FlatStyle = FlatStyle.Flat, Location = loc, Size = new Size(w, h), Cursor = Cursors.Hand };
+            b.FlatAppearance.BorderColor = Color.FromArgb(221, 227, 236); b.FlatAppearance.BorderSize = 1;
             return b;
         }
 
-        // ── Field declarations ─────────────────────────────────────────────────
+        // ── Field declarations ────────────────────────────────────────────────
         private Panel        pnlRoot;
         private AppShell     _shell;
         private Panel        pnlScroll;
@@ -315,5 +224,9 @@ namespace PremiumLivingOPS.Views.InventoryControl
         private Button       btnReset;
         private DataGridView dgvMaterials;
         private Button       btnViewDetail;
+        private Button       btnAddItem;
+        private Button       btnModifyItem;
+        private Button       btnInwardGoods;
+        private Button       btnWhTransfer;
     }
 }

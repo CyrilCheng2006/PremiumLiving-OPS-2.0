@@ -48,7 +48,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 BackColor  = Color.FromArgb(240, 244, 249)
             };
 
-            // ── Search / filter card (Top, height=260) ──────────────────────────
+            // ── Search / filter card ────────────────────────────────────────────
             var (searchOuter, searchInner) = CardPanel.Create(outerHeight: 260,
                 outerPadding: new Padding(20, 12, 20, 0));
 
@@ -159,14 +159,13 @@ namespace PremiumLivingOPS.Views.InventoryControl
             tblSearchCard.Controls.Add(pnlSearchBtns,  0, 2);
             searchInner.Controls.Add(tblSearchCard);
 
-            // ── KPI card (Top, height=90) ───────────────────────────────────────
-            // KPI bar is split into two columns:
-            //   Left (Percent 100%) — pills area (managed by RefreshKpi)
-            //   Right (Absolute 230px) — View Detail button, right-anchored & vertically centred
-            var (kpiOuter, kpiInner) = CardPanel.Create(outerHeight: 90,
+            // ── Action bar card (Top, height=90) ─────────────────────────────────
+            // Layout: [pills area | action buttons]
+            // Action buttons: View Detail | Add New | Modify | Inward Goods | Transfer
+            var (actionOuter, actionInner) = CardPanel.Create(outerHeight: 90,
                 outerPadding: new Padding(20, 12, 20, 0));
 
-            var tblKpi = new TableLayoutPanel
+            var tblAction = new TableLayoutPanel
             {
                 Dock            = DockStyle.Fill,
                 ColumnCount     = 2,
@@ -175,37 +174,45 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
                 Padding         = Padding.Empty
             };
-            tblKpi.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f)); // pills
-            tblKpi.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 230f)); // button
-            tblKpi.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+            tblAction.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f)); // pills
+            tblAction.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 720f)); // buttons
+            tblAction.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
             pnlKpi = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
 
-            // Right panel: holds btnViewDetail, vertically centred via Layout event
-            var pnlKpiBtn = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            btnViewDetail = new Button
-            {
-                Text      = "🔍  View Detail",
-                Font      = new Font("Segoe UI", 12f),
-                ForeColor = Color.White,
-                BackColor = Color.FromArgb(47, 111, 237),
-                FlatStyle = FlatStyle.Flat,
-                Size      = new Size(210, 60),
-                Cursor    = Cursors.Hand,
-                Enabled   = false
-            };
-            btnViewDetail.FlatAppearance.BorderSize = 0;
-            pnlKpiBtn.Controls.Add(btnViewDetail);
-            pnlKpiBtn.Layout += (s, e) =>
-            {
-                var p = (Panel)s;
-                btnViewDetail.Left = p.Width - btnViewDetail.Width - 8;
-                btnViewDetail.Top  = (p.Height - btnViewDetail.Height) / 2;
-            };
+            // Right panel: action buttons
+            var pnlActionBtns = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
 
-            tblKpi.Controls.Add(pnlKpi,    0, 0);
-            tblKpi.Controls.Add(pnlKpiBtn, 1, 0);
-            kpiInner.Controls.Add(tblKpi);
+            btnViewDetail  = MakePrimaryBtn("🔍 View Detail",  Point.Empty, 160, 56);
+            btnAddItem     = MakeGreenBtn  ("＋ Add New",       Point.Empty, 140, 56);
+            btnModifyItem  = MakeOutlineBtn("✏  Modify Item",   Point.Empty, 150, 56);
+            btnInwardGoods = MakePrimaryBtn("📥 Inward Goods",  Point.Empty, 160, 56);
+            btnWhTransfer  = MakeOutlineBtn("🔄 WH Transfer",   Point.Empty, 150, 56);
+
+            btnViewDetail.Enabled  = false;
+            btnModifyItem.Enabled  = false;
+            btnInwardGoods.Enabled = false;
+
+            // Auto-space buttons horizontally, vertically centred
+            pnlActionBtns.Layout += (s, ev) =>
+            {
+                var p      = (Panel)s;
+                var btns   = new Button[] { btnViewDetail, btnAddItem, btnModifyItem, btnInwardGoods, btnWhTransfer };
+                int total  = 0; foreach (var b in btns) total += b.Width;
+                int gaps   = (p.Width - total - 8) / (btns.Length - 1);
+                int xCursor = 4;
+                foreach (var b in btns)
+                {
+                    b.Left = xCursor;
+                    b.Top  = (p.Height - b.Height) / 2;
+                    xCursor += b.Width + gaps;
+                }
+            };
+            pnlActionBtns.Controls.AddRange(new Control[] { btnViewDetail, btnAddItem, btnModifyItem, btnInwardGoods, btnWhTransfer });
+
+            tblAction.Controls.Add(pnlKpi,       0, 0);
+            tblAction.Controls.Add(pnlActionBtns, 1, 0);
+            actionInner.Controls.Add(tblAction);
 
             // ── Table card (Fill) ───────────────────────────────────────────────
             var (tableOuter, tableInner) = CardPanel.CreateFill(
@@ -258,8 +265,8 @@ namespace PremiumLivingOPS.Views.InventoryControl
 
             // ── Assemble pnlScroll ────────────────────────────────────────────────────
             pnlScroll.Controls.Add(tableOuter);   // Fill — must be first
-            pnlScroll.Controls.Add(kpiOuter);     // Top — appears below Search
-            pnlScroll.Controls.Add(searchOuter);  // Top — appears at very top
+            pnlScroll.Controls.Add(actionOuter);  // Top — action bar (replaces old KPI-only bar)
+            pnlScroll.Controls.Add(searchOuter);  // Top — search filters
 
             // ── Assemble root ─────────────────────────────────────────────────────────
             pnlRoot.Controls.Add(pnlScroll);
@@ -269,15 +276,32 @@ namespace PremiumLivingOPS.Views.InventoryControl
             ResumeLayout(false);
         }
 
-        // ── Button factories ───────────────────────────────────────────────────────
+        // ── Button factories ────────────────────────────────────────────────────
         private static Button MakePrimaryBtn(string text, Point loc, int w, int h)
         {
             var b = new Button
             {
                 Text      = text,
-                Font      = new Font("Segoe UI", 12f),
+                Font      = new Font("Segoe UI", 11f),
                 ForeColor = Color.White,
                 BackColor = Color.FromArgb(47, 111, 237),
+                FlatStyle = FlatStyle.Flat,
+                Location  = loc,
+                Size      = new Size(w, h),
+                Cursor    = Cursors.Hand
+            };
+            b.FlatAppearance.BorderSize = 0;
+            return b;
+        }
+
+        private static Button MakeGreenBtn(string text, Point loc, int w, int h)
+        {
+            var b = new Button
+            {
+                Text      = text,
+                Font      = new Font("Segoe UI", 11f),
+                ForeColor = Color.White,
+                BackColor = Color.FromArgb(22, 163, 74),
                 FlatStyle = FlatStyle.Flat,
                 Location  = loc,
                 Size      = new Size(w, h),
@@ -292,7 +316,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
             var b = new Button
             {
                 Text      = text,
-                Font      = new Font("Segoe UI", 12f),
+                Font      = new Font("Segoe UI", 11f),
                 ForeColor = Color.FromArgb(98, 112, 135),
                 BackColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
@@ -305,7 +329,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
             return b;
         }
 
-        // ── Field declarations ─────────────────────────────────────────────────
+        // ── Field declarations ────────────────────────────────────────────────
         private Panel        pnlRoot;
         private AppShell     _shell;
         private Panel        pnlScroll;
@@ -317,5 +341,9 @@ namespace PremiumLivingOPS.Views.InventoryControl
         private Button       btnReset;
         private DataGridView dgvProducts;
         private Button       btnViewDetail;
+        private Button       btnAddItem;
+        private Button       btnModifyItem;
+        private Button       btnInwardGoods;
+        private Button       btnWhTransfer;
     }
 }

@@ -39,10 +39,63 @@ namespace PremiumLivingOPS.Views.InventoryControl
             dgvProducts.CellDoubleClick  += (s, ce) => { if (ce.RowIndex >= 0) OpenDetailDialog(); };
             dgvProducts.CellFormatting   += DgvProducts_CellFormatting;
 
-            btnViewDetail.Click += (s, _) => OpenDetailDialog();
+            // ── Action bar button wiring ────────────────────────────────────
+            btnViewDetail.Click    += (s, _) => OpenDetailDialog();
+            btnAddItem.Click       += BtnAddItem_Click;
+            btnModifyItem.Click    += BtnModifyItem_Click;
+            btnInwardGoods.Click   += BtnInwardGoods_Click;
+            btnWhTransfer.Click    += BtnWhTransfer_Click;
 
             LoadCategories();
             RefreshGrid();
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  Action handlers
+        // ════════════════════════════════════════════════════════════════
+
+        private void BtnAddItem_Click(object sender, EventArgs e)
+        {
+            using var frm = new AddItemForm(AddItemForm.ItemMode.Product);
+            if (frm.ShowDialog(this) == DialogResult.OK)
+                RefreshGrid();
+        }
+
+        private void BtnModifyItem_Click(object sender, EventArgs e)
+        {
+            string itemId = GetSelectedItemId("colItemID");
+            if (itemId == null) return;
+            using var frm = new ModifyItemForm(ModifyItemForm.ItemMode.Product, itemId);
+            if (frm.ShowDialog(this) == DialogResult.OK)
+                RefreshGrid();
+        }
+
+        private void BtnInwardGoods_Click(object sender, EventArgs e)
+        {
+            // Pre-select currently highlighted product if any
+            string itemId = GetSelectedItemId("colItemID");
+            using var frm = new InwardGoodsForm(itemId);
+            if (frm.ShowDialog(this) == DialogResult.OK)
+                RefreshGrid();
+        }
+
+        private void BtnWhTransfer_Click(object sender, EventArgs e)
+        {
+            using var frm = new WarehouseTransferForm();
+            if (frm.ShowDialog(this) == DialogResult.OK)
+                RefreshGrid();
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  Helpers
+        // ════════════════════════════════════════════════════════════════
+
+        /// <summary>Returns the cell value of the given column in the selected row,
+        /// or null (with an info message) if no row is selected.</summary>
+        private string GetSelectedItemId(string columnName)
+        {
+            if (dgvProducts.SelectedRows.Count == 0) return null;
+            return dgvProducts.SelectedRows[0].Cells[columnName].Value?.ToString();
         }
 
         private void LoadCategories()
@@ -113,7 +166,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 ("Out of Stock", outStock.ToString(), Color.FromArgb(153,  27,  27), Color.FromArgb(254, 226, 226), "Out of Stock"),
             };
 
-            const int PillW   = 340;
+            const int PillW   = 280;
             const int PillH   = 60;
             const int Gap     = 8;
             const int NumColW = 80;
@@ -210,7 +263,13 @@ namespace PremiumLivingOPS.Views.InventoryControl
         }
 
         private void UpdateActionButtons()
-            => btnViewDetail.Enabled = dgvProducts.SelectedRows.Count > 0;
+        {
+            bool hasSelection = dgvProducts.SelectedRows.Count > 0;
+            btnViewDetail.Enabled  = hasSelection;
+            btnModifyItem.Enabled  = hasSelection;
+            btnInwardGoods.Enabled = hasSelection;
+            // Warehouse transfer does not require a pre-selected row
+        }
 
         private void DgvProducts_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
@@ -239,9 +298,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
             string stockQty = row.Cells["colStockQty"].Value?.ToString();
             string status   = row.Cells["colStatus"].Value?.ToString();
 
-            // ── Dialog dimensions ──────────────────────────────────────────────
-            // 6 rows × 56px + header 72 + footer 72 + body padding 48 ≈ 528
-            // Extra buffer added so nothing feels cramped.
             using var dlg = new Form
             {
                 Text            = $"Product Detail — {itemId}",
@@ -255,7 +311,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 MinimizeBox     = false
             };
 
-            // ── Header ────────────────────────────────────────────────────────
             var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 72, BackColor = Color.FromArgb(19, 35, 61) };
             pnlHeader.Controls.Add(new Label
             {
@@ -267,7 +322,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 Padding   = new Padding(28, 0, 0, 0)
             });
 
-            // ── Body ──────────────────────────────────────────────────────────
             var pnlBody = new Panel
             {
                 Dock      = DockStyle.Fill,
@@ -275,9 +329,8 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 BackColor = Color.White
             };
 
-            // 6 fields × fixed 56px row height
-            const int RowH     = 56;
-            const int NumRows  = 6;
+            const int RowH    = 56;
+            const int NumRows = 6;
             const int LabelCol = 160;
 
             var tbl = new TableLayoutPanel
@@ -306,19 +359,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
 
             for (int i = 0; i < fields.Length; i++)
             {
-                // Separator line above each row (except first)
-                if (i > 0)
-                {
-                    var sep = new Panel
-                    {
-                        Dock      = DockStyle.Top,
-                        Height    = 1,
-                        BackColor = Color.FromArgb(235, 238, 244)
-                    };
-                    pnlBody.Controls.Add(sep);
-                    pnlBody.Controls.SetChildIndex(sep, 0); // insert before tbl
-                }
-
                 tbl.Controls.Add(new Label
                 {
                     Text      = fields[i].Item1,
@@ -340,7 +380,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
             }
             pnlBody.Controls.Add(tbl);
 
-            // ── Footer ────────────────────────────────────────────────────────
             var pnlFoot = new Panel
             {
                 Dock      = DockStyle.Bottom,

@@ -39,10 +39,60 @@ namespace PremiumLivingOPS.Views.InventoryControl
             dgvMaterials.CellDoubleClick  += (s, ce) => { if (ce.RowIndex >= 0) OpenDetailDialog(); };
             dgvMaterials.CellFormatting   += DgvMaterials_CellFormatting;
 
-            btnViewDetail.Click += (s, _) => OpenDetailDialog();
+            // ── Action bar button wiring ─────────────────────────────────────
+            btnViewDetail.Click    += (s, _) => OpenDetailDialog();
+            btnAddItem.Click       += BtnAddItem_Click;
+            btnModifyItem.Click    += BtnModifyItem_Click;
+            btnInwardGoods.Click   += BtnInwardGoods_Click;
+            btnWhTransfer.Click    += BtnWhTransfer_Click;
 
             LoadCategories();
             RefreshGrid();
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  Action handlers
+        // ════════════════════════════════════════════════════════════════
+
+        private void BtnAddItem_Click(object sender, EventArgs e)
+        {
+            using var frm = new AddItemForm(AddItemForm.ItemMode.RawMaterial);
+            if (frm.ShowDialog(this) == DialogResult.OK)
+                RefreshGrid();
+        }
+
+        private void BtnModifyItem_Click(object sender, EventArgs e)
+        {
+            string itemId = GetSelectedItemId("colMaterialID");
+            if (itemId == null) return;
+            using var frm = new ModifyItemForm(ModifyItemForm.ItemMode.RawMaterial, itemId);
+            if (frm.ShowDialog(this) == DialogResult.OK)
+                RefreshGrid();
+        }
+
+        private void BtnInwardGoods_Click(object sender, EventArgs e)
+        {
+            string itemId = GetSelectedItemId("colMaterialID");
+            using var frm = new InwardGoodsForm(itemId);
+            if (frm.ShowDialog(this) == DialogResult.OK)
+                RefreshGrid();
+        }
+
+        private void BtnWhTransfer_Click(object sender, EventArgs e)
+        {
+            using var frm = new WarehouseTransferForm();
+            if (frm.ShowDialog(this) == DialogResult.OK)
+                RefreshGrid();
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  Helpers
+        // ════════════════════════════════════════════════════════════════
+
+        private string GetSelectedItemId(string columnName)
+        {
+            if (dgvMaterials.SelectedRows.Count == 0) return null;
+            return dgvMaterials.SelectedRows[0].Cells[columnName].Value?.ToString();
         }
 
         private void LoadCategories()
@@ -114,7 +164,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 ("Out of Stock", outStock.ToString(), Color.FromArgb(153,  27,  27), Color.FromArgb(254, 226, 226), "Out of Stock"),
             };
 
-            const int PillW   = 340;
+            const int PillW   = 280;
             const int PillH   = 60;
             const int Gap     = 8;
             const int NumColW = 80;
@@ -211,7 +261,12 @@ namespace PremiumLivingOPS.Views.InventoryControl
         }
 
         private void UpdateActionButtons()
-            => btnViewDetail.Enabled = dgvMaterials.SelectedRows.Count > 0;
+        {
+            bool hasSelection = dgvMaterials.SelectedRows.Count > 0;
+            btnViewDetail.Enabled  = hasSelection;
+            btnModifyItem.Enabled  = hasSelection;
+            btnInwardGoods.Enabled = hasSelection;
+        }
 
         private void DgvMaterials_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
@@ -241,8 +296,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
             string stockQty     = row.Cells["colStockQty"].Value?.ToString();
             string status       = row.Cells["colStatus"].Value?.ToString();
 
-            // ── Dialog dimensions ──────────────────────────────────────────────
-            // 7 rows × 56px + header 72 + footer 72 + body padding 48 ≈ 584
             using var dlg = new Form
             {
                 Text            = $"Raw Material Detail — {materialId}",
@@ -256,7 +309,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 MinimizeBox     = false
             };
 
-            // ── Header ────────────────────────────────────────────────────────
             var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 72, BackColor = Color.FromArgb(19, 35, 61) };
             pnlHeader.Controls.Add(new Label
             {
@@ -268,7 +320,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 Padding   = new Padding(28, 0, 0, 0)
             });
 
-            // ── Body ──────────────────────────────────────────────────────────
             var pnlBody = new Panel
             {
                 Dock      = DockStyle.Fill,
@@ -276,7 +327,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 BackColor = Color.White
             };
 
-            // 7 fields × fixed 56px row height
             const int RowH     = 56;
             const int NumRows  = 7;
             const int LabelCol = 170;
@@ -329,7 +379,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
             }
             pnlBody.Controls.Add(tbl);
 
-            // ── Footer ────────────────────────────────────────────────────────
             var pnlFoot = new Panel
             {
                 Dock      = DockStyle.Bottom,
