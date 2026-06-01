@@ -48,12 +48,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 BackColor  = Color.FromArgb(240, 244, 249)
             };
 
-            // ── KPI card (Top, height=90) ───────────────────────────────────────
-            var (kpiOuter, kpiInner) = CardPanel.Create(outerHeight: 90,
-                outerPadding: new Padding(20, 12, 20, 0));
-            pnlKpi = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            kpiInner.Controls.Add(pnlKpi);
-
             // ── Search / filter card (Top, height=260) ──────────────────────────
             var (searchOuter, searchInner) = CardPanel.Create(outerHeight: 260,
                 outerPadding: new Padding(20, 12, 20, 0));
@@ -168,6 +162,12 @@ namespace PremiumLivingOPS.Views.InventoryControl
             tblSearchCard.Controls.Add(pnlSearchBtns,  0, 2);
             searchInner.Controls.Add(tblSearchCard);
 
+            // ── KPI card (Top, height=90) ───────────────────────────────────────
+            var (kpiOuter, kpiInner) = CardPanel.Create(outerHeight: 90,
+                outerPadding: new Padding(20, 12, 20, 0));
+            pnlKpi = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
+            kpiInner.Controls.Add(pnlKpi);
+
             // ── Table card (Fill) ───────────────────────────────────────────────
             var (tableOuter, tableInner) = CardPanel.CreateFill(
                 outerPadding: new Padding(20, 12, 20, 20));
@@ -237,12 +237,15 @@ namespace PremiumLivingOPS.Views.InventoryControl
             tableInner.Controls.Add(dgvMaterials);
             tableInner.Controls.Add(pnlFooter);
 
-            // ── Assemble pnlScroll (Fill first, then Top bottom-up) ─────────────
+            // ── Assemble pnlScroll ────────────────────────────────────────────────────
+            // Fill must be added first; Top controls stack in reverse add order
+            // (last added = topmost), so: tableOuter(Fill) → kpiOuter(Top) → searchOuter(Top)
+            // gives visual order: Search → KPI Bar → Item Table
             pnlScroll.Controls.Add(tableOuter);   // Fill — must be first
-            pnlScroll.Controls.Add(searchOuter);  // Top
-            pnlScroll.Controls.Add(kpiOuter);     // Top
+            pnlScroll.Controls.Add(kpiOuter);     // Top — appears below Search
+            pnlScroll.Controls.Add(searchOuter);  // Top — appears at very top
 
-            // ── Assemble root (Fill first, then Top bottom-up) ──────────────────
+            // ── Assemble root ─────────────────────────────────────────────────────────
             pnlRoot.Controls.Add(pnlScroll);  // Fill
             pnlRoot.Controls.Add(_shell);     // Top — topmost
 
