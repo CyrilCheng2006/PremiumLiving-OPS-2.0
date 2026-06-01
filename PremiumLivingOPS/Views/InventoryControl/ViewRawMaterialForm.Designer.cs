@@ -112,7 +112,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
             var pnlActionBtns = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             btnAddItem     = MakeGreenBtn  ("＋ Add New",       Point.Empty, 270, 60);
             btnViewDetail  = MakePrimaryBtn("🔍 View Detail",  Point.Empty, 270, 60);
-            btnModifyItem  = MakeOutlineBtn("✏  Modify Item",   Point.Empty, 270, 60);
+            btnModifyItem  = MakeYellowBtn("✏  Modify Item",   Point.Empty, 270, 60);
             btnInwardGoods = MakePrimaryBtn("📥 Inward Goods",  Point.Empty, 270, 60);
             btnWhTransfer  = MakeOutlineBtn("🔄 WH Transfer",   Point.Empty, 270, 60);
 
@@ -201,6 +201,23 @@ namespace PremiumLivingOPS.Views.InventoryControl
         private static Button MakeGreenBtn(string text, Point loc, int w, int h)
         {
             var b = new Button { Text = text, Font = new Font("Segoe UI", 11f), ForeColor = Color.White, BackColor = Color.FromArgb(22, 163, 74), FlatStyle = FlatStyle.Flat, Location = loc, Size = new Size(w, h), Cursor = Cursors.Hand };
+            b.FlatAppearance.BorderSize = 0;
+            return b;
+        }
+
+        private static Button MakeYellowBtn(string text, Point loc, int w, int h)
+        {
+            var b = new Button
+            {
+                Text      = text,
+                Font      = new Font("Segoe UI", 11f),
+                ForeColor = Color.FromArgb(15, 31, 53),
+                BackColor = Color.FromArgb(255, 255, 66),
+                FlatStyle = FlatStyle.Flat,
+                Location  = loc,
+                Size      = new Size(w, h),
+                Cursor    = Cursors.Hand
+            };
             b.FlatAppearance.BorderSize = 0;
             return b;
         }
