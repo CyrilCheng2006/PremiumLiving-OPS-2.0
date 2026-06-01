@@ -119,8 +119,8 @@ namespace PremiumLivingOPS.Views.InventoryControl
             string status       = cboStatus.SelectedItem?.ToString();
 
             var vm = _ctrl.GetViewRawMaterialVM(
-                string.IsNullOrEmpty(keyword)                                     ? null : keyword,
-                materialType == "All" || string.IsNullOrEmpty(materialType)       ? null : materialType);
+                string.IsNullOrEmpty(keyword)                               ? null : keyword,
+                materialType == "All" || string.IsNullOrEmpty(materialType) ? null : materialType);
 
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
@@ -296,16 +296,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
         }
 
         // ════════════════════════════════════════════════════════════════
-        //  Detail Dialog — mirrors AddItemForm visual language exactly:
-        //    same dark header, same scroll+card layout, same FieldRow()
-        //    two-column TLP structure, same footer with Close button.
-        //
-        //  Read-only display fields (all DB schema columns):
-        //    Item         : Item ID, Item Name, Description
-        //    RawMaterial  : Material Type (ENUM), Purchase Price
-        //    WarehouseItem: Total Stock Qty, Reorder Level
-        //    Computed     : Stock Status (colour pill)
-        //    Breakdown    : per-warehouse DGV if WarehouseBreakdown data exists
+        //  Detail Dialog
         // ════════════════════════════════════════════════════════════════
         private void OpenDetailDialog()
         {
@@ -320,7 +311,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
             var m  = vm.Material;
             var wh = vm.WarehouseBreakdown ?? new List<WarehouseItemEntity>();
 
-            // ── helper: read-only label control ───────────────────────────────
+            // ── helper: read-only label ────────────────────────────────────────
             Label ReadLabel(string text, bool isBold = false) => new Label
             {
                 Text      = text ?? "\u2014",
@@ -331,7 +322,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 BackColor = Color.Transparent
             };
 
-            // ── helper: status pill label ───────────────────────────────────
+            // ── helper: coloured status pill ──────────────────────────────
             Control StatusPill(string status)
             {
                 Color pillBg = Color.FromArgb(229, 231, 235);
@@ -339,8 +330,12 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 if (StatusColors.TryGetValue(status ?? "", out var sc))
                 { pillBg = sc.bg; pillFg = sc.fg; }
 
-                var wrapper = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent,
-                                          Padding = new Padding(0, 18, 0, 18) };
+                var wrapper = new Panel
+                {
+                    Dock      = DockStyle.Fill,
+                    BackColor = Color.Transparent,
+                    Padding   = new Padding(0, 18, 0, 18)
+                };
                 var lbl = new Label
                 {
                     Text        = status ?? "\u2014",
@@ -357,14 +352,10 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 return wrapper;
             }
 
-            // ── helper: FieldRow — identical signature to AddItemForm.FieldRow() ──
+            // ── helper: FieldRow — same as AddItemForm ───────────────────────
             Panel FieldRow(string labelText, Control input)
             {
-                var row = new Panel
-                {
-                    Height    = D_RowH,
-                    BackColor = Color.Transparent
-                };
+                var row = new Panel { Height = D_RowH, BackColor = Color.Transparent };
                 var tlp = new TableLayoutPanel
                 {
                     Dock            = DockStyle.Fill,
@@ -387,7 +378,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
                     TextAlign = ContentAlignment.MiddleLeft,
                     AutoSize  = false
                 };
-
                 var inputWrapper = new Panel
                 {
                     Dock      = DockStyle.Fill,
@@ -403,14 +393,18 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 return row;
             }
 
-            // ── helper: thin section divider with title ───────────────────────
-            Panel SectionHeader(string title)
+            // ── helper: Warehouse Breakdown section header (kept) ──────────
+            Panel WhBreakdownHeader()
             {
-                var p = new Panel { Height = 36, BackColor = Color.Transparent,
-                                    Margin = new Padding(0, 12, 0, 4) };
+                var p = new Panel
+                {
+                    Height    = 36,
+                    BackColor = Color.Transparent,
+                    Margin    = new Padding(0, 12, 0, 4)
+                };
                 p.Controls.Add(new Label
                 {
-                    Text      = title,
+                    Text      = "Warehouse Breakdown",
                     Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
                     ForeColor = Color.FromArgb(47, 111, 237),
                     Dock      = DockStyle.Top,
@@ -425,36 +419,31 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 return p;
             }
 
-            // ── Collect all rows ─────────────────────────────────────────────
+            // ── Build rows (no section headers except Warehouse Breakdown) ───
             var rows = new List<Control>();
 
-            // —— Section A: Item —————————————————————————————————————
-            rows.Add(SectionHeader("Item Information"));
-            rows.Add(FieldRow("Item ID",           ReadLabel(m.MaterialID)));
-            rows.Add(FieldRow("Item Name",         ReadLabel(m.MaterialName)));
-            rows.Add(FieldRow("Description",       ReadLabel(m.ItemDescription)));
+            // Item (Item table)
+            rows.Add(FieldRow("Item ID",              ReadLabel(m.MaterialID)));
+            rows.Add(FieldRow("Item Name",            ReadLabel(m.MaterialName)));
+            rows.Add(FieldRow("Description",          ReadLabel(m.ItemDescription)));
 
-            // —— Section B: RawMaterial ————————————————————————————
-            rows.Add(SectionHeader("Raw Material Details"));
-            rows.Add(FieldRow("Material Type",     ReadLabel(m.Category)));
+            // RawMaterial table
+            rows.Add(FieldRow("Material Type",        ReadLabel(m.Category)));
             rows.Add(FieldRow("Purchase Price (HK$)", ReadLabel($"HK$ {m.UnitCost:N2}")));
 
-            // —— Section C: WarehouseItem ———————————————————————————
-            rows.Add(SectionHeader("Warehouse Stock"));
-            rows.Add(FieldRow("Total Stock Qty",   ReadLabel(m.StockQty.ToString())));
-            rows.Add(FieldRow("Reorder Level",     ReadLabel(m.ReorderLevel.ToString())));
+            // WarehouseItem table (aggregated)
+            rows.Add(FieldRow("Total Stock Qty",      ReadLabel(m.StockQty.ToString())));
+            rows.Add(FieldRow("Reorder Level",        ReadLabel(m.ReorderLevel.ToString())));
 
-            // —— Section D: Stock Status ————————————————————————————
-            rows.Add(SectionHeader("Status"));
-            rows.Add(FieldRow("Stock Status",      StatusPill(m.StockStatus)));
+            // Computed
+            rows.Add(FieldRow("Stock Status",         StatusPill(m.StockStatus)));
 
-            // —— Section E: Warehouse Breakdown DGV ————————————————————
-            DataGridView dgvWh = null;
+            // Warehouse Breakdown DGV — only when data exists
             if (wh.Count > 0)
             {
-                rows.Add(SectionHeader("Warehouse Breakdown"));
+                rows.Add(WhBreakdownHeader());
 
-                dgvWh = new DataGridView
+                var dgvWh = new DataGridView
                 {
                     BackgroundColor       = Color.White,
                     BorderStyle           = BorderStyle.FixedSingle,
@@ -488,10 +477,8 @@ namespace PremiumLivingOPS.Views.InventoryControl
                         row.Quantity,
                         row.ReorderLevel);
 
-                // Height: header + rows
                 dgvWh.Height = 32 + wh.Count * 30 + 4;
 
-                // Wrap DGV in a FieldRow-height panel so it sits in the card
                 var dgvHolder = new Panel
                 {
                     Height    = dgvWh.Height + 16,
@@ -502,13 +489,13 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 rows.Add(dgvHolder);
             }
 
-            // ── Calculate card height the same way AddItemForm does ───────────
+            // ── Calculate card height ────────────────────────────────────────
             int y = 0;
             foreach (var r in rows)
-                y += r.Height + (r is Panel rp && rp.Height == D_RowH ? D_RowGap : 4);
+                y += r.Height + (r.Height == D_RowH ? D_RowGap : 4);
             int cardContentH = y + D_CardPadV * 2;
 
-            // ── Build innerCard + outerCard (same as AddItemForm) ────────────
+            // ── Build card (same as AddItemForm) ───────────────────────────
             var (outerCard, innerCard) = CardPanel.Create(
                 outerHeight : cardContentH + 16,
                 outerPadding: new Padding(0));
@@ -524,7 +511,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
             }
             innerCard.Height = cardContentH;
 
-            // ── Scroll panel ────────────────────────────────────────────────
+            // ── Scroll panel ──────────────────────────────────────────────
             var scroll = new Panel
             {
                 Dock       = DockStyle.Fill,
@@ -534,7 +521,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
             };
             scroll.Controls.Add(outerCard);
 
-            // ── Dialog shell ─────────────────────────────────────────────
+            // ── Dialog shell ──────────────────────────────────────────
             using var dlg = new Form
             {
                 Text            = $"View Raw Material  \u2014  {m.MaterialID}",
@@ -548,7 +535,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 Font            = new Font("Segoe UI", 12f)
             };
 
-            // header
             var pnlHeader = new Panel
             {
                 Dock      = DockStyle.Top,
@@ -565,7 +551,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 Padding   = new Padding(48, 0, 0, 0)
             });
 
-            // footer
             var pnlFoot = new Panel
             {
                 Dock      = DockStyle.Bottom,
@@ -610,14 +595,13 @@ namespace PremiumLivingOPS.Views.InventoryControl
             dlg.Controls.Add(pnlFoot);
             dlg.Controls.Add(pnlHeader);
 
-            // ── Resize outerCard width to match scroll, same as AddItemForm ──
             void ResizeCard()
             {
                 int w = scroll.ClientSize.Width - scroll.Padding.Horizontal;
                 if (w > 100) outerCard.Width = w;
             }
-            dlg.Load          += (s, ev) => ResizeCard();
-            scroll.Resize     += (s, ev) => ResizeCard();
+            dlg.Load      += (s, ev) => ResizeCard();
+            scroll.Resize += (s, ev) => ResizeCard();
 
             dlg.ShowDialog(this);
         }
