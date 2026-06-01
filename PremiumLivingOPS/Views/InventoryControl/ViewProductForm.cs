@@ -113,20 +113,23 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 ("Out of Stock", outStock.ToString(), Color.FromArgb(153,  27,  27), Color.FromArgb(254, 226, 226), "Out of Stock"),
             };
 
-            var flow = new FlowLayoutPanel
-            {
-                Dock          = DockStyle.Fill,
-                FlowDirection = FlowDirection.LeftToRight,
-                WrapContents  = false,
-                BackColor     = Color.Transparent,
-                Padding       = new Padding(0),
-                AutoScroll    = false
-            };
-
             const int PillW   = 340;
             const int PillH   = 60;
             const int Gap     = 8;
             const int NumColW = 80;
+            const int LeftPad = 12;   // 左側留白
+
+            // flow 不用 Dock，用 AutoSize 讓它自身寬度剛好包住所有 pills
+            var flow = new FlowLayoutPanel
+            {
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents  = false,
+                BackColor     = Color.Transparent,
+                Padding       = new Padding(0),
+                AutoScroll    = false,
+                AutoSize      = true,
+                AutoSizeMode  = AutoSizeMode.GrowAndShrink
+            };
 
             foreach (var (label, count, fg, bg, filterStatus) in pills)
             {
@@ -195,7 +198,17 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 flow.Controls.Add(pill);
             }
 
-            pnlKpi.Controls.Add(flow);
+            // wrapper: Dock=Fill, 透過 Layout 事件把 flow 靠左垄直置中
+            var wrapper = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
+            wrapper.Controls.Add(flow);
+            wrapper.Layout += (s, e) =>
+            {
+                var w = (Panel)s;
+                flow.Left = LeftPad;
+                flow.Top  = (w.Height - PillH) / 2;
+            };
+
+            pnlKpi.Controls.Add(wrapper);
         }
 
         private void UpdateActionButtons()
