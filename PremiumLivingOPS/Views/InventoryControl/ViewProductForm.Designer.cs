@@ -162,8 +162,8 @@ namespace PremiumLivingOPS.Views.InventoryControl
             tblSearchCard.Controls.Add(pnlSearchBtns,  0, 2);
             searchInner.Controls.Add(tblSearchCard);
 
-            // ── KPI card (Top, height=116) ──────────────────────────────────────
-            var (kpiOuter, kpiInner) = CardPanel.Create(outerHeight: 116,
+            // ── KPI card (Top, height=90) — aligned to ViewOrder style ──────────
+            var (kpiOuter, kpiInner) = CardPanel.Create(outerHeight: 90,
                 outerPadding: new Padding(20, 12, 20, 0));
             pnlKpi = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             kpiInner.Controls.Add(pnlKpi);
@@ -239,7 +239,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
             // ── Assemble pnlScroll ─────────────────────────────────────────────
             // WinForms DockStyle.Top: last added = topmost.
             // Desired order top→bottom: Search → KPI → Table(Fill)
-            // So add in reverse: Fill first, then KPI (Top), then Search (Top, added last = topmost)
             pnlScroll.Controls.Add(tableOuter);   // Fill — must be first
             pnlScroll.Controls.Add(kpiOuter);     // Top — second
             pnlScroll.Controls.Add(searchOuter);  // Top — added last, renders at very top
