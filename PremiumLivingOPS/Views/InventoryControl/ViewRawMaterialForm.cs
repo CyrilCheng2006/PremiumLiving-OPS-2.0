@@ -39,12 +39,11 @@ namespace PremiumLivingOPS.Views.InventoryControl
             dgvMaterials.CellDoubleClick  += (s, ce) => { if (ce.RowIndex >= 0) OpenDetailDialog(); };
             dgvMaterials.CellFormatting   += DgvMaterials_CellFormatting;
 
-            // ── Action bar button wiring ─────────────────────────────────────────────
-            btnViewDetail.Click    += (s, _) => OpenDetailDialog();
-            btnAddItem.Click       += BtnAddItem_Click;
-            btnModifyItem.Click    += BtnModifyItem_Click;
-            btnInwardGoods.Click   += BtnInwardGoods_Click;
-            btnWhTransfer.Click    += BtnWhTransfer_Click;
+            btnViewDetail.Click  += (s, _) => OpenDetailDialog();
+            btnAddItem.Click     += BtnAddItem_Click;
+            btnModifyItem.Click  += BtnModifyItem_Click;
+            btnInwardGoods.Click += BtnInwardGoods_Click;
+            btnWhTransfer.Click  += BtnWhTransfer_Click;
 
             LoadCategories();
             RefreshGrid();
@@ -302,7 +301,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 Size            = new Size(1200, 800),
                 MinimumSize     = new Size(900, 600),
                 StartPosition   = FormStartPosition.CenterParent,
-                BackColor       = Color.White,
+                BackColor       = Color.FromArgb(240, 244, 249),
                 Font            = new Font("Segoe UI", 12f),
                 FormBorderStyle = FormBorderStyle.FixedDialog,
                 MaximizeBox     = false,
@@ -310,7 +309,12 @@ namespace PremiumLivingOPS.Views.InventoryControl
             };
 
             // ── Header ─────────────────────────────────────────────────────
-            var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 80, BackColor = Color.FromArgb(19, 35, 61) };
+            var pnlHeader = new Panel
+            {
+                Dock      = DockStyle.Top,
+                Height    = 80,
+                BackColor = Color.FromArgb(19, 35, 61)
+            };
             pnlHeader.Controls.Add(new Label
             {
                 Text      = $"Raw Material Detail  —  {materialId}",
@@ -320,66 +324,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 TextAlign = ContentAlignment.MiddleLeft,
                 Padding   = new Padding(36, 0, 0, 0)
             });
-
-            // ── Body ──────────────────────────────────────────────────────
-            var pnlBody = new Panel
-            {
-                Dock      = DockStyle.Fill,
-                Padding   = new Padding(48, 36, 48, 12),
-                BackColor = Color.White
-            };
-
-            const int RowH     = 76;
-            const int NumRows  = 7;
-            const int LabelCol = 240;
-
-            var tbl = new TableLayoutPanel
-            {
-                Dock            = DockStyle.Top,
-                Height          = RowH * NumRows,
-                ColumnCount     = 2,
-                RowCount        = NumRows,
-                BackColor       = Color.Transparent,
-                CellBorderStyle = TableLayoutPanelCellBorderStyle.None
-            };
-            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, LabelCol));
-            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-            for (int i = 0; i < NumRows; i++)
-                tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowH));
-
-            var fields = new[]
-            {
-                ("Material ID",   materialId),
-                ("Material Name", materialName),
-                ("Category",      category),
-                ("Unit",          unit),
-                ("Unit Cost",     unitCost),
-                ("Stock Qty",     stockQty),
-                ("Status",        status)
-            };
-
-            for (int i = 0; i < fields.Length; i++)
-            {
-                tbl.Controls.Add(new Label
-                {
-                    Text      = fields[i].Item1,
-                    Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
-                    ForeColor = Color.FromArgb(98, 112, 135),
-                    Dock      = DockStyle.Fill,
-                    TextAlign = ContentAlignment.MiddleLeft,
-                    Padding   = new Padding(0, 0, 16, 0)
-                }, 0, i);
-
-                tbl.Controls.Add(new Label
-                {
-                    Text      = fields[i].Item2 ?? "—",
-                    Font      = new Font("Segoe UI", 13f),
-                    ForeColor = Color.FromArgb(15, 31, 53),
-                    Dock      = DockStyle.Fill,
-                    TextAlign = ContentAlignment.MiddleLeft
-                }, 1, i);
-            }
-            pnlBody.Controls.Add(tbl);
 
             // ── Footer ──────────────────────────────────────────────────────
             var pnlFoot = new Panel
@@ -411,7 +355,95 @@ namespace PremiumLivingOPS.Views.InventoryControl
             btnClose.Click += (s, ev) => dlg.Close();
             pnlFoot.Controls.Add(btnClose);
 
-            dlg.Controls.Add(pnlBody);
+            // ── Scrollable body ────────────────────────────────────────────
+            var pnlScroll = new Panel
+            {
+                Dock       = DockStyle.Fill,
+                AutoScroll = true,
+                BackColor  = Color.FromArgb(240, 244, 249),
+                Padding    = new Padding(40, 28, 40, 16)
+            };
+
+            // ── Card wrapping fields ───────────────────────────────────────
+            var (outerCard, innerCard) = CardPanel.Create(outerHeight: 564,
+                outerPadding: new Padding(0));
+            innerCard.Padding = new Padding(36, 28, 36, 28);
+
+            const int RowH     = 72;
+            const int NumRows  = 7;
+            const int LabelCol = 260;
+
+            var tbl = new TableLayoutPanel
+            {
+                Dock            = DockStyle.Top,
+                Height          = RowH * NumRows,
+                ColumnCount     = 2,
+                RowCount        = NumRows,
+                BackColor       = Color.Transparent,
+                CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+            };
+            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, LabelCol));
+            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+            for (int i = 0; i < NumRows; i++)
+                tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowH));
+
+            var fields = new[]
+            {
+                ("Material ID",   materialId),
+                ("Material Name", materialName),
+                ("Category",      category),
+                ("Unit",          unit),
+                ("Unit Cost",     unitCost),
+                ("Stock Qty",     stockQty),
+                ("Status",        status)
+            };
+
+            for (int i = 0; i < fields.Length; i++)
+            {
+                if (i > 0)
+                {
+                    var prev = tbl.GetControlFromPosition(0, i - 1);
+                    if (prev != null)
+                    {
+                        var div = new Panel { Height = 1, Dock = DockStyle.Bottom, BackColor = Color.FromArgb(221, 227, 236) };
+                        prev.Controls.Add(div);
+                    }
+                }
+
+                tbl.Controls.Add(new Label
+                {
+                    Text      = fields[i].Item1,
+                    Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                    ForeColor = Color.FromArgb(98, 112, 135),
+                    Dock      = DockStyle.Fill,
+                    TextAlign = ContentAlignment.MiddleLeft,
+                    Padding   = new Padding(0, 0, 16, 0)
+                }, 0, i);
+
+                tbl.Controls.Add(new Label
+                {
+                    Text      = fields[i].Item2 ?? "—",
+                    Font      = new Font("Segoe UI", 13f),
+                    ForeColor = Color.FromArgb(15, 31, 53),
+                    Dock      = DockStyle.Fill,
+                    TextAlign = ContentAlignment.MiddleLeft
+                }, 1, i);
+            }
+
+            innerCard.Controls.Add(tbl);
+            pnlScroll.Controls.Add(outerCard);
+
+            dlg.Load += (s, e) =>
+            {
+                outerCard.Width  = pnlScroll.ClientSize.Width - pnlScroll.Padding.Horizontal;
+                outerCard.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            };
+            pnlScroll.Resize += (s, e) =>
+            {
+                outerCard.Width = pnlScroll.ClientSize.Width - pnlScroll.Padding.Horizontal;
+            };
+
+            dlg.Controls.Add(pnlScroll);
             dlg.Controls.Add(pnlFoot);
             dlg.Controls.Add(pnlHeader);
             dlg.ShowDialog(this);
