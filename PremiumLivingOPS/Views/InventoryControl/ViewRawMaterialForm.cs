@@ -495,7 +495,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 FieldRow("Stock Status",          StatusPill(m.StockStatus), lastRow: true)
             };
             var (card2Outer, card2Inner) = CardPanel.Create(
-                outerHeight : card2Rows.Count * D_RowH + 38,   // 38 = CardPanel pad(22) + outerPadding vertical(16)
+                outerHeight : card2Rows.Count * D_RowH + 60,   // 38 = CardPanel pad(22) + outerPadding vertical(16)
                 outerPadding: new Padding(20, 8, 20, 8));
             card2Inner.Padding = new Padding(0);
             card2Inner.Controls.Add(StackRows(card2Rows, new Padding(0)));
