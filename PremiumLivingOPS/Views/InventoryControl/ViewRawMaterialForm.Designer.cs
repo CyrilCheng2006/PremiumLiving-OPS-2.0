@@ -48,8 +48,8 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 BackColor  = Color.FromArgb(240, 244, 249)
             };
 
-            // ── KPI card (Top, height=116) ──────────────────────────────────────
-            var (kpiOuter, kpiInner) = CardPanel.Create(outerHeight: 116,
+            // ── KPI card (Top, height=90) ───────────────────────────────────────
+            var (kpiOuter, kpiInner) = CardPanel.Create(outerHeight: 90,
                 outerPadding: new Padding(20, 12, 20, 0));
             pnlKpi = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             kpiInner.Controls.Add(pnlKpi);

@@ -114,20 +114,22 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 ("Out of Stock", outStock.ToString(), Color.FromArgb(153,  27,  27), Color.FromArgb(254, 226, 226), "Out of Stock"),
             };
 
+            const int PillW   = 340;
+            const int PillH   = 60;
+            const int Gap     = 8;
+            const int NumColW = 80;
+            const int LeftPad = 12;
+
             var flow = new FlowLayoutPanel
             {
-                Dock          = DockStyle.Fill,
                 FlowDirection = FlowDirection.LeftToRight,
                 WrapContents  = false,
                 BackColor     = Color.Transparent,
                 Padding       = new Padding(0),
-                AutoScroll    = false
+                AutoScroll    = false,
+                AutoSize      = true,
+                AutoSizeMode  = AutoSizeMode.GrowAndShrink
             };
-
-            const int PillW   = 290;
-            const int PillH   = 60;
-            const int Gap     = 8;
-            const int NumColW = 80;
 
             foreach (var (label, count, fg, bg, filterStatus) in pills)
             {
@@ -153,13 +155,12 @@ namespace PremiumLivingOPS.Views.InventoryControl
                     RowCount        = 1,
                     BackColor       = Color.Transparent,
                     CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                    Padding         = new Padding(14, 0, 8, 0)
+                    Padding         = new Padding(10, 0, 8, 0)
                 };
                 tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, NumColW));
                 tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
                 tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
-                // 數字 Label — 靠左垂直置中
                 tlp.Controls.Add(new Label
                 {
                     Text      = count,
@@ -167,11 +168,10 @@ namespace PremiumLivingOPS.Views.InventoryControl
                     ForeColor = fg,
                     BackColor = Color.Transparent,
                     Dock      = DockStyle.Fill,
-                    TextAlign = ContentAlignment.MiddleLeft,
+                    TextAlign = ContentAlignment.MiddleCenter,
                     AutoSize  = false
                 }, 0, 0);
 
-                // 文字 Label — 靠左垂直置中
                 tlp.Controls.Add(new Label
                 {
                     Text      = label,
@@ -198,7 +198,16 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 flow.Controls.Add(pill);
             }
 
-            pnlKpi.Controls.Add(flow);
+            var wrapper = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
+            wrapper.Controls.Add(flow);
+            wrapper.Layout += (s, e) =>
+            {
+                var w = (Panel)s;
+                flow.Left = LeftPad;
+                flow.Top  = (w.Height - PillH) / 2;
+            };
+
+            pnlKpi.Controls.Add(wrapper);
         }
 
         private void UpdateActionButtons()
