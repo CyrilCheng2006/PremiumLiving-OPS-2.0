@@ -173,7 +173,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 Padding         = Padding.Empty
             };
             tblAction.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f)); // pills
-            tblAction.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 1100f)); // buttons (5×210 + gaps)
+            tblAction.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 1400f)); // 5×270 + gaps
             tblAction.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
             pnlKpi = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
@@ -181,11 +181,11 @@ namespace PremiumLivingOPS.Views.InventoryControl
             // Right panel: action buttons
             var pnlActionBtns = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
 
-            btnViewDetail  = MakePrimaryBtn("🔍 View Detail",  Point.Empty, 210, 60);
-            btnAddItem     = MakeGreenBtn  ("＋ Add New",       Point.Empty, 210, 60);
-            btnModifyItem  = MakeOutlineBtn("✏  Modify Item",   Point.Empty, 210, 60);
-            btnInwardGoods = MakePrimaryBtn("📥 Inward Goods",  Point.Empty, 210, 60);
-            btnWhTransfer  = MakeOutlineBtn("🔄 WH Transfer",   Point.Empty, 210, 60);
+            btnViewDetail  = MakePrimaryBtn("🔍 View Detail",  Point.Empty, 270, 60);
+            btnAddItem     = MakeGreenBtn  ("＋ Add New",       Point.Empty, 270, 60);
+            btnModifyItem  = MakeOutlineBtn("✏  Modify Item",   Point.Empty, 270, 60);
+            btnInwardGoods = MakePrimaryBtn("📥 Inward Goods",  Point.Empty, 270, 60);
+            btnWhTransfer  = MakeOutlineBtn("🔄 WH Transfer",   Point.Empty, 270, 60);
 
             btnViewDetail.Enabled  = false;
             btnModifyItem.Enabled  = false;
@@ -195,7 +195,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
             pnlActionBtns.Layout += (s, ev) =>
             {
                 var p      = (Panel)s;
-                var btns   = new Button[] { btnViewDetail, btnAddItem, btnModifyItem, btnInwardGoods, btnWhTransfer };
+                var btns   = new Button[] { btnAddItem, btnViewDetail, btnModifyItem, btnInwardGoods, btnWhTransfer };
                 int total  = 0; foreach (var b in btns) total += b.Width;
                 int gaps   = (p.Width - total - 8) / (btns.Length - 1);
                 int xCursor = 4;
@@ -206,7 +206,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
                     xCursor += b.Width + gaps;
                 }
             };
-            pnlActionBtns.Controls.AddRange(new Control[] { btnViewDetail, btnAddItem, btnModifyItem, btnInwardGoods, btnWhTransfer });
+            pnlActionBtns.Controls.AddRange(new Control[] { btnAddItem, btnViewDetail, btnModifyItem, btnInwardGoods, btnWhTransfer });
 
             tblAction.Controls.Add(pnlKpi,       0, 0);
             tblAction.Controls.Add(pnlActionBtns, 1, 0);
