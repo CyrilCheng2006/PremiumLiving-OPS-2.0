@@ -299,16 +299,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
 
         // ════════════════════════════════════════════════════════════════
         //  Detail Dialog
-        //
-        //  MVC compliance:
-        //    • View  — this method (pure UI construction, no logic)
-        //    • Model — RawMaterialEntity / WarehouseItemEntity (data shapes)
-        //    • Controller — _ctrl.GetModifyRawMaterialVM() supplies all data
-        //
-        //  CardPanel structure (3-layer nesting per CardPanel.cs spec):
-        //    outer (PageBg #F0F4F9 + Padding)
-        //      └─ inner/pnlCard (White + 1px #DDE3EC border)
-        //               └─ content TLP / DGV
         // ════════════════════════════════════════════════════════════════
         private void OpenDetailDialog()
         {
@@ -317,7 +307,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
             string materialId = dgvMaterials.SelectedRows[0]
                 .Cells["colMaterialID"].Value?.ToString();
 
-            // ─ MVC: Controller supplies all data; View only renders ──────────────
             var vm = _ctrl.GetModifyRawMaterialVM(materialId);
             if (vm?.Material == null) return;
 
@@ -325,10 +314,9 @@ namespace PremiumLivingOPS.Views.InventoryControl
             var wh = vm.WarehouseBreakdown ?? new List<WarehouseItemEntity>();
 
             // ================================================================
-            //  LOCAL HELPERS  (pure UI, no logic)
+            //  LOCAL HELPERS
             // ================================================================
 
-            // ─ read-only value label ───────────────────────────────────────
             Label ReadLabel(string text) => new Label
             {
                 Text      = text ?? "\u2014",
@@ -339,7 +327,15 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 BackColor = Color.White
             };
 
-            // ─ coloured status pill ──────────────────────────────────────
+            // ----------------------------------------------------------------
+            //  StatusPill — fully visible coloured badge
+            //
+            //  Fix: Use a FlowLayoutPanel as the outer wrapper so the pill
+            //  label is laid out by the flow engine (not absolute coordinates),
+            //  eliminating the clipping caused by the previous
+            //  "lbl.Location = new Point(0, 0)" approach.  The Layout event
+            //  centres the flow panel vertically inside the FieldRow cell.
+            // ----------------------------------------------------------------
             Control StatusPill(string status)
             {
                 Color pillBg = Color.FromArgb(229, 231, 235);
@@ -347,29 +343,55 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 if (StatusColors.TryGetValue(status ?? "", out var sc))
                 { pillBg = sc.bg; pillFg = sc.fg; }
 
-                var wrapper = new Panel
-                {
-                    Dock      = DockStyle.Fill,
-                    BackColor = Color.White,
-                    Padding   = new Padding(0, 14, 0, 14)
-                };
+                // The pill label itself – AutoSize so it wraps its text
+                // exactly; no BorderStyle so the GDI border can't clip it.
                 var lbl = new Label
                 {
-                    Text        = status ?? "\u2014",
-                    Font        = new Font("Segoe UI", 11f, FontStyle.Bold),
-                    ForeColor   = pillFg,
-                    BackColor   = pillBg,
-                    AutoSize    = true,
-                    Padding     = new Padding(14, 4, 14, 4),
-                    TextAlign   = ContentAlignment.MiddleCenter,
-                    BorderStyle = BorderStyle.FixedSingle
+                    Text      = status ?? "\u2014",
+                    Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                    ForeColor = pillFg,
+                    BackColor = pillBg,
+                    AutoSize  = true,
+                    Padding   = new Padding(16, 5, 16, 5),
+                    TextAlign = ContentAlignment.MiddleCenter
                 };
-                wrapper.Controls.Add(lbl);
-                lbl.Location = new Point(0, 0);
-                return wrapper;
+
+                // Draw a 1-px border via Paint so it never overlaps the text
+                lbl.Paint += (s, pe) =>
+                {
+                    var lb = (Label)s;
+                    using var pen = new System.Drawing.Pen(
+                        Color.FromArgb(180,
+                            pillFg.R, pillFg.G, pillFg.B), 1);
+                    pe.Graphics.DrawRectangle(pen,
+                        0, 0, lb.Width - 1, lb.Height - 1);
+                };
+
+                // FlowLayoutPanel centres the label inside the row cell
+                var flow = new FlowLayoutPanel
+                {
+                    Dock          = DockStyle.Fill,
+                    BackColor     = Color.White,
+                    FlowDirection = FlowDirection.LeftToRight,
+                    WrapContents  = false,
+                    AutoSize      = false,
+                    Padding       = new Padding(0)
+                };
+                flow.Controls.Add(lbl);
+
+                // Vertically centre the auto-sized label inside the flow panel
+                flow.Layout += (s, _) =>
+                {
+                    var fl = (FlowLayoutPanel)s;
+                    if (fl.Controls.Count == 0) return;
+                    var lb = fl.Controls[0];
+                    lb.Top = Math.Max(0, (fl.Height - lb.Height) / 2);
+                };
+
+                return flow;
             }
 
-            // ─ FieldRow: 2-col TLP identical to AddItemForm ────────────────
+            // ─ FieldRow ────────────────────────────────────────────────
             Panel FieldRow(string labelText, Control input, bool lastRow = false)
             {
                 var row = new Panel { Height = D_RowH, BackColor = Color.White };
@@ -378,7 +400,8 @@ namespace PremiumLivingOPS.Views.InventoryControl
                     row.Paint += (s, pe) =>
                     {
                         var p = (Panel)s;
-                        using var pen = new System.Drawing.Pen(Color.FromArgb(221, 227, 236), 1);
+                        using var pen = new System.Drawing.Pen(
+                            Color.FromArgb(221, 227, 236), 1);
                         pe.Graphics.DrawLine(pen, 0, p.Height - 1, p.Width, p.Height - 1);
                     };
                 }
@@ -423,7 +446,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 return row;
             }
 
-            // ─ stack rows top-to-bottom inside a content Panel ─────────────
+            // ─ StackRows ──────────────────────────────────────────────
             Panel StackRows(IList<Panel> rowList, Padding innerPad)
             {
                 var content = new Panel
@@ -450,7 +473,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 }
 
                 content.Controls.Add(stack);
-
                 content.Resize += (s, _) =>
                 {
                     int w = content.Width - innerPad.Horizontal;
@@ -460,12 +482,11 @@ namespace PremiumLivingOPS.Views.InventoryControl
                     stack.Top   = innerPad.Top;
                     foreach (Panel r in stack.Controls) r.Width = w;
                 };
-
                 return content;
             }
 
             // ================================================================
-            //  CARD 1 — Item Information (3 rows)
+            //  CARD 1 — Item Information
             // ================================================================
             var card1Rows = new List<Panel>
             {
@@ -480,7 +501,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
             card1Inner.Controls.Add(StackRows(card1Rows, new Padding(0)));
 
             // ================================================================
-            //  CARD 2 — Material Details + Stock Summary (5 rows)
+            //  CARD 2 — Material Details + Stock Summary
             // ================================================================
             var card2Rows = new List<Panel>
             {
@@ -498,30 +519,21 @@ namespace PremiumLivingOPS.Views.InventoryControl
 
             // ================================================================
             //  CARD 3 — Warehouse Breakdown (conditional)
-            //
-            //  outerHeight is derived from the same constants used to
-            //  configure the DGV, ensuring all rows are always visible:
-            //    D_WhSecH  = section header panel height (50 px)
-            //    D_WhHdrH  = DGV column-header height   (44 px)
-            //    D_WhRowH  = DGV data-row height        (44 px)
-            //    22        = CardPanel outer pad top (14) + bottom (8)
-            //    16        = bottom inner breathing room
             // ================================================================
             Panel card3Outer = null;
             if (wh.Count > 0)
             {
-                // ─ Section header ───────────────────────────────────────
                 var whHeader = new Panel
                 {
                     Dock      = DockStyle.Top,
-                    Height    = D_WhSecH,    // 50 px — matches D_WhSecH
+                    Height    = D_WhSecH,
                     BackColor = Color.White,
                     Padding   = new Padding(20, 0, 20, 0)
                 };
                 whHeader.Controls.Add(new Label
                 {
                     Text      = "Warehouse Breakdown",
-                    Font      = new Font("Segoe UI", 12f, FontStyle.Bold),  // matches FieldRow label
+                    Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
                     ForeColor = Color.FromArgb(47, 111, 237),
                     Dock      = DockStyle.Fill,
                     TextAlign = ContentAlignment.MiddleLeft
@@ -529,11 +541,11 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 whHeader.Paint += (s, pe) =>
                 {
                     var p = (Panel)s;
-                    using var pen = new System.Drawing.Pen(Color.FromArgb(221, 227, 236), 1);
+                    using var pen = new System.Drawing.Pen(
+                        Color.FromArgb(221, 227, 236), 1);
                     pe.Graphics.DrawLine(pen, 20, p.Height - 1, p.Width - 20, p.Height - 1);
                 };
 
-                // ─ Warehouse Breakdown DGV ────────────────────────────
                 var dgvWh = new DataGridView
                 {
                     Dock                  = DockStyle.Fill,
@@ -545,12 +557,12 @@ namespace PremiumLivingOPS.Views.InventoryControl
                     ReadOnly              = true,
                     AutoSizeColumnsMode   = DataGridViewAutoSizeColumnsMode.Fill,
                     SelectionMode         = DataGridViewSelectionMode.FullRowSelect,
-                    Font                  = new Font("Segoe UI", 12f),          // matches FieldRow body text
-                    ColumnHeadersHeight   = D_WhHdrH,                           // 44 px
-                    RowTemplate           = { Height = D_WhRowH }               // 44 px
+                    Font                  = new Font("Segoe UI", 12f),
+                    ColumnHeadersHeight   = D_WhHdrH,
+                    RowTemplate           = { Height = D_WhRowH }
                 };
                 dgvWh.ColumnHeadersDefaultCellStyle.BackColor  = Color.FromArgb(248, 250, 252);
-                dgvWh.ColumnHeadersDefaultCellStyle.Font       = new Font("Segoe UI", 12f, FontStyle.Bold); // matches FieldRow label
+                dgvWh.ColumnHeadersDefaultCellStyle.Font       = new Font("Segoe UI", 12f, FontStyle.Bold);
                 dgvWh.ColumnHeadersDefaultCellStyle.ForeColor  = Color.FromArgb(70, 85, 110);
                 dgvWh.ColumnHeadersBorderStyle                  = DataGridViewHeaderBorderStyle.Single;
                 dgvWh.DefaultCellStyle.BackColor                = Color.White;
@@ -569,19 +581,18 @@ namespace PremiumLivingOPS.Views.InventoryControl
                     dgvWh.Rows.Add(row.WarehouseID, row.WarehouseName,
                                    row.Quantity, row.ReorderLevel);
 
-                // Card height = section header + DGV header + all data rows + inner breathing + outer pad
-                int card3H = D_WhSecH                    // section header: 50
-                           + D_WhHdrH                    // DGV col header: 44
-                           + wh.Count * D_WhRowH         // data rows
-                           + 16                          // bottom inner pad
-                           + 22;                         // CardPanel outer pad top(14)+bottom(8)
+                int card3H = D_WhSecH
+                           + D_WhHdrH
+                           + wh.Count * D_WhRowH
+                           + 16
+                           + 22;
 
                 var (c3Outer, c3Inner) = CardPanel.Create(
                     outerHeight : card3H,
                     outerPadding: new Padding(20, 8, 20, 16));
                 c3Inner.Padding = new Padding(0);
-                c3Inner.Controls.Add(dgvWh);      // DockStyle.Fill
-                c3Inner.Controls.Add(whHeader);   // DockStyle.Top (paints above Fill)
+                c3Inner.Controls.Add(dgvWh);
+                c3Inner.Controls.Add(whHeader);
                 card3Outer = c3Outer;
             }
 
@@ -601,7 +612,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 Font            = new Font("Segoe UI", 12f)
             };
 
-            // ─ Header bar ───────────────────────────────────────────────
             var pnlHeader = new Panel
             {
                 Dock      = DockStyle.Top,
@@ -618,7 +628,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 Padding   = new Padding(48, 0, 0, 0)
             });
 
-            // ─ Footer bar ─────────────────────────────────────────────
             var pnlFoot = new Panel
             {
                 Dock      = DockStyle.Bottom,
@@ -628,7 +637,8 @@ namespace PremiumLivingOPS.Views.InventoryControl
             };
             pnlFoot.Paint += (s, pe) =>
             {
-                using var pen = new System.Drawing.Pen(Color.FromArgb(221, 227, 236), 1);
+                using var pen = new System.Drawing.Pen(
+                    Color.FromArgb(221, 227, 236), 1);
                 pe.Graphics.DrawLine(pen, 0, 0, ((Panel)s).Width, 0);
             };
 
@@ -658,7 +668,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
             footFlow.Controls.Add(btnClose);
             pnlFoot.Controls.Add(footFlow);
 
-            // ─ Scroll area (grey page background) ───────────────────────
             var scroll = new Panel
             {
                 Dock       = DockStyle.Fill,
@@ -667,7 +676,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 Padding    = new Padding(0)
             };
 
-            // Add in reverse order: last-added Dock.Top appears at top of stack
             if (card3Outer != null) scroll.Controls.Add(card3Outer);
             scroll.Controls.Add(card2Outer);
             scroll.Controls.Add(card1Outer);
