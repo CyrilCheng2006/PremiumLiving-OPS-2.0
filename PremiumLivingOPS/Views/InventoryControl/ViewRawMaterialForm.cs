@@ -286,27 +286,28 @@ namespace PremiumLivingOPS.Views.InventoryControl
         private void OpenDetailDialog()
         {
             if (dgvMaterials.SelectedRows.Count == 0) return;
-            var row = dgvMaterials.SelectedRows[0];
+            var row        = dgvMaterials.SelectedRows[0];
             string materialId = row.Cells["colMaterialID"].Value?.ToString();
 
-            // Fetch full record from controller to get ItemDescription
+            // Fetch full record from controller to get all fields including ReorderLevel
             var vm = _ctrl.GetModifyRawMaterialVM(materialId);
             if (vm?.Material == null) return;
             var m = vm.Material;
 
             string materialName = m.MaterialName;
-            string itemDesc     = m.ItemDescription ?? "—";
+            string itemDesc     = m.ItemDescription ?? "\u2014";
             string category     = m.Category;
-            string unit         = m.Unit ?? "—";
+            string unit         = m.Unit ?? "\u2014";
             string unitCost     = $"HK$ {m.UnitCost:N2}";
             string stockQty     = m.StockQty.ToString();
+            string reorderLevel = m.ReorderLevel.ToString();
             string status       = m.StockStatus;
 
             using var dlg = new Form
             {
-                Text            = $"Raw Material Detail — {materialId}",
-                Size            = new Size(1200, 800),
-                MinimumSize     = new Size(900, 650),
+                Text            = $"Raw Material Detail \u2014 {materialId}",
+                Size            = new Size(1600, 1100),
+                MinimumSize     = new Size(1100, 800),
                 StartPosition   = FormStartPosition.CenterParent,
                 BackColor       = Color.FromArgb(240, 244, 249),
                 Font            = new Font("Segoe UI", 12f),
@@ -319,7 +320,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
             var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 70, BackColor = Color.FromArgb(19, 35, 61) };
             pnlHeader.Controls.Add(new Label
             {
-                Text      = $"Raw Material Detail  —  {materialId}",
+                Text      = $"Raw Material Detail  \u2014  {materialId}",
                 Font      = new Font("Segoe UI", 16f, FontStyle.Bold),
                 ForeColor = Color.White,
                 Dock      = DockStyle.Fill,
@@ -373,7 +374,12 @@ namespace PremiumLivingOPS.Views.InventoryControl
 
             const int RowH     = 66;
             const int RowGap   = 2;
-            const int NumRows  = 8;   // MaterialID, MaterialName, Description, Category, Unit, UnitCost, StockQty, Status
+            // Schema fields: Item(ItemID/MaterialID, ItemName, ItemDescription)
+            //              + RawMaterial(MaterialType/Category, purchasePrice/UnitCost)
+            //              + Entity Unit field
+            //              + WarehouseItem(ReorderLevel)
+            //              + computed(StockQty, StockStatus)  => 9 rows total
+            const int NumRows  = 9;
             const int LabelCol = 260;
 
             var tbl = new TableLayoutPanel
@@ -390,7 +396,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
             for (int i = 0; i < NumRows; i++)
                 tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowH));
 
-            // Schema fields: Item(ItemID, ItemName, ItemDescription) + RawMaterial(MaterialType/Category, purchasePrice/UnitCost) + Item Unit + computed(StockQty, StockStatus)
             var fields = new[]
             {
                 ("Material ID",   materialId),
@@ -400,6 +405,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 ("Unit",          unit),
                 ("Unit Cost",     unitCost),
                 ("Stock Qty",     stockQty),
+                ("Reorder Level", reorderLevel),
                 ("Status",        status)
             };
 
@@ -427,7 +433,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
 
                 tbl.Controls.Add(new Label
                 {
-                    Text      = fields[i].Item2 ?? "—",
+                    Text      = fields[i].Item2 ?? "\u2014",
                     Font      = new Font("Segoe UI", 12f),
                     ForeColor = Color.FromArgb(15, 31, 53),
                     Dock      = DockStyle.Fill,
