@@ -327,51 +327,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 BackColor = Color.White
             };
 
-            Control StatusPill(string status)
-            {
-                Color pillBg = Color.FromArgb(229, 231, 235);
-                Color pillFg = Color.FromArgb(55, 65, 81);
-                if (StatusColors.TryGetValue(status ?? "", out var sc))
-                { pillBg = sc.bg; pillFg = sc.fg; }
-
-                var lbl = new Label
-                {
-                    Text      = status ?? "\u2014",
-                    Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
-                    ForeColor = pillFg,
-                    BackColor = pillBg,
-                    AutoSize  = true,
-                    Padding   = new Padding(16, 5, 16, 5),
-                    TextAlign = ContentAlignment.MiddleCenter
-                };
-                lbl.Paint += (s, pe) =>
-                {
-                    var lb = (Label)s;
-                    using var pen = new System.Drawing.Pen(
-                        Color.FromArgb(180, pillFg.R, pillFg.G, pillFg.B), 1);
-                    pe.Graphics.DrawRectangle(pen, 0, 0, lb.Width - 1, lb.Height - 1);
-                };
-
-                var flow = new FlowLayoutPanel
-                {
-                    Dock          = DockStyle.Fill,
-                    BackColor     = Color.White,
-                    FlowDirection = FlowDirection.LeftToRight,
-                    WrapContents  = false,
-                    AutoSize      = false,
-                    Padding       = new Padding(0)
-                };
-                flow.Controls.Add(lbl);
-                flow.Layout += (s, _) =>
-                {
-                    var fl = (FlowLayoutPanel)s;
-                    if (fl.Controls.Count == 0) return;
-                    var lb = fl.Controls[0];
-                    lb.Top = Math.Max(0, (fl.Height - lb.Height) / 2);
-                };
-                return flow;
-            }
-
             Panel FieldRow(string labelText, Control input, bool lastRow = false)
             {
                 var row = new Panel { Height = D_RowH, BackColor = Color.White };
@@ -477,25 +432,21 @@ namespace PremiumLivingOPS.Views.InventoryControl
             card1Inner.Controls.Add(StackRows(card1Rows, new Padding(0)));
 
             // ================================================================
-            //  CARD 2 — Material Details + Stock Summary  (5 rows)
+            //  CARD 2 — Material Details + Stock Summary  (4 rows)
             //
-            //  outerHeight breakdown:
-            //    5 × D_RowH  = 5 × 64  = 320   (row content)
-            //    22                       = 22   (CardPanel outer pad: top 14 + bottom 8)
-            //    outerPadding.Vertical    = 16   (Padding(20,8,20,8): top 8 + bottom 8)
-            //    -----------------------------------------------
-            //    total                    = 358
+            //  Stock Status has been moved to the dialog header right side.
+            //  outerHeight = 4 × 64 + 38 = 294
+            //  (38 = CardPanel pad 22 + outerPadding.Vertical 16)
             // ================================================================
             var card2Rows = new List<Panel>
             {
                 FieldRow("Material Type",        ReadLabel(m.Category)),
                 FieldRow("Purchase Price (HK$)", ReadLabel($"HK$ {m.UnitCost:N2}")),
                 FieldRow("Total Stock Qty",       ReadLabel(m.StockQty.ToString())),
-                FieldRow("Reorder Level",         ReadLabel(m.ReorderLevel.ToString())),
-                FieldRow("Stock Status",          StatusPill(m.StockStatus), lastRow: true)
+                FieldRow("Reorder Level",         ReadLabel(m.ReorderLevel.ToString()), lastRow: true)
             };
             var (card2Outer, card2Inner) = CardPanel.Create(
-                outerHeight : card2Rows.Count * D_RowH + 60,   // 38 = CardPanel pad(22) + outerPadding vertical(16)
+                outerHeight : card2Rows.Count * D_RowH + 38,
                 outerPadding: new Padding(20, 8, 20, 8));
             card2Inner.Padding = new Padding(0);
             card2Inner.Controls.Add(StackRows(card2Rows, new Padding(0)));
@@ -595,22 +546,89 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 Font            = new Font("Segoe UI", 12f)
             };
 
+            // ----------------------------------------------------------------
+            //  Header bar  —  title (left) + Stock Status pill (right)
+            // ----------------------------------------------------------------
+            Color pillBg = Color.FromArgb(229, 231, 235);
+            Color pillFg = Color.FromArgb(55, 65, 81);
+            if (StatusColors.TryGetValue(m.StockStatus ?? "", out var headerSc))
+            { pillBg = headerSc.bg; pillFg = headerSc.fg; }
+
+            // Status label (auto-sized so it never clips)
+            var statusLbl = new Label
+            {
+                Text      = m.StockStatus ?? "\u2014",
+                Font      = new Font("Segoe UI", 13f, FontStyle.Bold),
+                ForeColor = pillFg,
+                BackColor = pillBg,
+                AutoSize  = true,
+                Padding   = new Padding(18, 6, 18, 6),
+                TextAlign = ContentAlignment.MiddleCenter
+            };
+            statusLbl.Paint += (s, pe) =>
+            {
+                var lb = (Label)s;
+                using var pen = new System.Drawing.Pen(
+                    Color.FromArgb(120, pillFg.R, pillFg.G, pillFg.B), 1);
+                pe.Graphics.DrawRectangle(pen, 0, 0, lb.Width - 1, lb.Height - 1);
+            };
+
+            // Right cell: FlowLayoutPanel centres the pill vertically
+            var pillCell = new FlowLayoutPanel
+            {
+                Dock          = DockStyle.Fill,
+                BackColor     = Color.Transparent,
+                FlowDirection = FlowDirection.RightToLeft,   // flush to the right edge
+                WrapContents  = false,
+                AutoSize      = false,
+                Padding       = new Padding(0, 0, 48, 0)     // right margin matching header title
+            };
+            pillCell.Controls.Add(statusLbl);
+            pillCell.Layout += (s, _) =>
+            {
+                var fl = (FlowLayoutPanel)s;
+                if (fl.Controls.Count == 0) return;
+                fl.Controls[0].Top = Math.Max(0, (fl.Height - fl.Controls[0].Height) / 2);
+            };
+
             var pnlHeader = new Panel
             {
                 Dock      = DockStyle.Top,
                 Height    = 90,
                 BackColor = Color.FromArgb(19, 35, 61)
             };
-            pnlHeader.Controls.Add(new Label
+
+            // Build header as a two-column TLP: [title | pill]
+            var headerTlp = new TableLayoutPanel
+            {
+                Dock            = DockStyle.Fill,
+                ColumnCount     = 2,
+                RowCount        = 1,
+                BackColor       = Color.Transparent,
+                CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                Padding         = new Padding(0)
+            };
+            headerTlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));  // title takes all spare space
+            headerTlp.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));        // pill cell shrinks to content
+            headerTlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+
+            headerTlp.Controls.Add(new Label
             {
                 Text      = $"View Raw Material  \u2014  {m.MaterialID}",
                 Font      = new Font("Segoe UI", 18f, FontStyle.Bold),
                 ForeColor = Color.White,
                 Dock      = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft,
+                BackColor = Color.Transparent,
                 Padding   = new Padding(48, 0, 0, 0)
-            });
+            }, 0, 0);
 
+            headerTlp.Controls.Add(pillCell, 1, 0);
+            pnlHeader.Controls.Add(headerTlp);
+
+            // ----------------------------------------------------------------
+            //  Footer
+            // ----------------------------------------------------------------
             var pnlFoot = new Panel
             {
                 Dock      = DockStyle.Bottom,
@@ -651,6 +669,9 @@ namespace PremiumLivingOPS.Views.InventoryControl
             footFlow.Controls.Add(btnClose);
             pnlFoot.Controls.Add(footFlow);
 
+            // ----------------------------------------------------------------
+            //  Scroll area
+            // ----------------------------------------------------------------
             var scroll = new Panel
             {
                 Dock       = DockStyle.Fill,
