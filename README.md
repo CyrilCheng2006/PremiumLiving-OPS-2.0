@@ -57,6 +57,9 @@ PremiumLiving-OPS-2.0/                          ← Repository Root
     │   │   │                                       QuotationViewModel,
     │   │   │                                       CreateOrderViewModel,
     │   │   │                                       ModifyOrderViewModel
+    │   │   ├── InventoryControlViewModel.cs    ✅  ProductEntity, RawMaterialEntity,
+    │   │   │                                       ViewProductViewModel,
+    │   │   │                                       ViewRawMaterialViewModel
     │   │   ├── Customer.cs                     🔲
     │   │   ├── Product.cs                      🔲
     │   │   ├── RawMaterial.cs                  🔲
@@ -82,6 +85,9 @@ PremiumLiving-OPS-2.0/                          ← Repository Root
     │   │   │                                       CreateOrder, CreateOrderLine,
     │   │   │                                       UpdateOrder, UpdateOrderStatus,
     │   │   │                                       ReplaceOrderLines, UpdateQuotationStatus
+    │   │   ├── InventoryControlRepo.cs         ✅  GetAllProducts, GetProductCategories,
+    │   │   │                                       GetAllRawMaterials,
+    │   │   │                                       GetRawMaterialCategories
     │   │   ├── StaffRepo.cs                    ✅  Login auth, staff lookup
     │   │   ├── CustomerRepo.cs                 🔲
     │   │   ├── ProductRepo.cs                  🔲
@@ -101,11 +107,15 @@ PremiumLiving-OPS-2.0/                          ← Repository Root
     │   ├── SessionManager.cs                   ✅  Current user session state
     │   ├── NavAccessPolicy.cs                  ✅  Role-based menu access rules
     │   ├── DashboardController.cs              ✅  GetDashboardVM
-    │   └── OrderProcessingController.cs        ✅  GetViewOrderVM, GetOrderLines,
-    │                                               GetQuotationVM, UpdateQuotationStatus,
-    │                                               GetCreateOrderVM, SubmitCreateOrder,
-    │                                               GetModifyOrderVM, SubmitModifyOrder,
-    │                                               CancelOrder, GetOrderDetail
+    │   ├── OrderProcessingController.cs        ✅  GetViewOrderVM, GetOrderLines,
+    │   │                                           GetQuotationVM, UpdateQuotationStatus,
+    │   │                                           GetCreateOrderVM, SubmitCreateOrder,
+    │   │                                           GetModifyOrderVM, SubmitModifyOrder,
+    │   │                                           CancelOrder, GetOrderDetail
+    │   └── InventoryControlController.cs       ✅  GetViewProductVM,
+    │                                               GetProductCategories,
+    │                                               GetViewRawMaterialVM,
+    │                                               GetRawMaterialCategories
     │
     └── Views/                                      Windows Forms (UI only, no business logic)
         │
@@ -123,6 +133,10 @@ PremiumLiving-OPS-2.0/                          ← Repository Root
         │   ├── TopNavBar.cs                    ✅  Apple-style horizontal nav bar (44 px)
         │   │                                       Mega-menu dropdown per role
         │   ├── UserInfoLabel.cs                ✅  User name + department display chip
+        │   ├── CardPanel.cs                    ✅  Shared card factory:
+        │   │                                         CardPanel.Create(outerHeight, outerPadding)
+        │   │                                         CardPanel.CreateFill(outerPadding)
+        │   │                                       Returns (outerPanel, innerPanel) tuple
         │   ├── Palette.cs                      ✅  Centralised colour constants
         │   │                                       (BgPage, BgCard, Primary, Danger,
         │   │                                        Success, TextMain, TextMuted, BorderColor)
@@ -148,17 +162,23 @@ PremiumLiving-OPS-2.0/                          ← Repository Root
         │   └── ModifyOrderForm.Designer.cs     ✅    business rule: Delivered/Completed
         │                                             orders cannot be cancelled
         │
+        ├── InventoryControl/                   ✅  2 pages complete
+        │   ├── ViewProductForm.cs              ✅  Search & filter products,
+        │   ├── ViewProductForm.Designer.cs     ✅    KPI bar (Total / In Stock /
+        │   │                                         Low Stock / Out of Stock),
+        │   │                                         DataGridView + Product Detail dialog
+        │   │                                         View Detail button in KPI bar (right-aligned)
+        │   ├── ViewRawMaterialForm.cs          ✅  Search & filter raw materials,
+        │   └── ViewRawMaterialForm.Designer.cs ✅    KPI bar + DataGridView +
+        │                                             Raw Material Detail dialog
+        │                                             View Detail button in KPI bar (right-aligned)
+        │
         ├── Logistics/                          🔲
         │   ├── ShipmentListForm.cs             🔲
         │   ├── ScheduleShipmentForm.cs         🔲
         │   ├── DeliveryNoteForm.cs             🔲
         │   ├── SupplierReceiptForm.cs          🔲
         │   └── PurchaseInvoiceForm.cs          🔲
-        │
-        ├── Inventory/                          🔲
-        │   ├── InventoryListForm.cs            🔲
-        │   ├── InwardGoodsForm.cs              🔲
-        │   └── WarehouseTransferForm.cs        🔲
         │
         ├── AfterService/                       🔲
         │   ├── CreateInvoiceForm.cs            🔲
@@ -218,6 +238,23 @@ _shell.SetVisibleMenus(vm.AllowedMenus);
 _shell.SetBreadcrumb("Module  ›  Page Title");
 ```
 
+### Views/Shared — CardPanel Factory
+
+`CardPanel` is a shared helper used by all list/view forms to produce consistent white rounded cards.
+
+```csharp
+// Fixed-height card (e.g. Search bar, KPI bar)
+var (outerPanel, innerPanel) = CardPanel.Create(
+    outerHeight: 260,
+    outerPadding: new Padding(20, 12, 20, 0));
+
+// Fill-height card (e.g. data table)
+var (outerPanel, innerPanel) = CardPanel.CreateFill(
+    outerPadding: new Padding(20, 12, 20, 20));
+```
+
+Both methods return a `(Panel outer, Panel inner)` tuple. Add content controls to `innerPanel`; add `outerPanel` to the scroll container.
+
 ---
 
 ### Order Processing — MVC Data Flow
@@ -270,12 +307,15 @@ Dashboard
 │       ├── Upload Supplier Receipt
 │       └── Record Purchase Invoice
 │
-├── 4. Inventory Control Management           🔲
-│   └── View & Search Product / Raw Material
-│       ├── Add New Item
-│       ├── Modify Item (Edit / Delete)
-│       ├── Record Inward Goods
-│       └── Record Warehouse Item Transfer
+├── 4. Inventory Control Management           ✅ Partial (View only)
+│   ├── View & Search Product                 ✅  (ViewProductForm)
+│   │   └── Product Detail (popup dialog)     ✅
+│   ├── View & Search Raw Material            ✅  (ViewRawMaterialForm)
+│   │   └── Raw Material Detail (popup dialog)✅
+│   ├── Add New Item                          🔲
+│   ├── Modify Item (Edit / Delete)           🔲
+│   ├── Record Inward Goods                   🔲
+│   └── Record Warehouse Item Transfer        🔲
 │
 ├── 5. Raw Material Management                🔲 Prototype 2
 │   ├── Create Procurement
@@ -385,19 +425,20 @@ The `sample_data.sql` file includes **13 realistic business scenarios** for test
 
 ### Prototype 1
 - [x] **Phase 0** — Database Schema + MySQL Connection (`DatabaseHelper.cs`) + Login (UC-019)
-- [x] **Phase 1** — Shared Chrome: `AppShell`, `TopNavBar`, `UserBar`, `Palette`, `FormNavigator`
+- [x] **Phase 1** — Shared Chrome: `AppShell`, `TopNavBar`, `UserBar`, `Palette`, `FormNavigator`, `CardPanel`
 - [x] **Phase 2** — Dashboard
 - [x] **Phase 3** — Order Processing Management (all 4 tabs: View Order, Quotation, Create Order, Modify Order)
-- [ ] **Phase 4** — Inventory & Procurement Module
-- [ ] **Phase 5** — Logistics Module (Shipment, Delivery, Return)
-- [ ] **Phase 6** — After-service Module (Invoice, Complaint, Return Order, Finance)
-- [ ] **Phase 7** — Master Data & System Security
+- [x] **Phase 4** — Inventory Control — View Product & View Raw Material (read-only + detail dialog)
+- [ ] **Phase 5** — Inventory Control — Add / Edit / Delete Item, Inward Goods, Warehouse Transfer
+- [ ] **Phase 6** — Logistics Module (Shipment, Delivery, Return)
+- [ ] **Phase 7** — After-service Module (Invoice, Complaint, Return Order, Finance)
+- [ ] **Phase 8** — Master Data & System Security
 
 ### Prototype 2
-- [ ] **Phase 8** — Production Processing Management
-- [ ] **Phase 9** — Raw Material Management (Procurement)
-- [ ] **Phase 10** — Statistical Reports
+- [ ] **Phase 9** — Production Processing Management
+- [ ] **Phase 10** — Raw Material Management (Procurement)
+- [ ] **Phase 11** — Statistical Reports
 
 ---
 
-*Last updated: 2026-05-31*
+*Last updated: 2026-06-01*
