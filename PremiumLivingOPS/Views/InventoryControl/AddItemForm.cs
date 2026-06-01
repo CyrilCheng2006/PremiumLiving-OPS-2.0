@@ -29,8 +29,8 @@ namespace PremiumLivingOPS.Views.InventoryControl
         private const int RowH      = 84;
         private const int RowGap    = 20;
         private const int LabelW    = 300;
-        private const int BtnW      = 180;
-        private const int BtnH      = 52;
+        private const int BtnW      = 210;
+        private const int BtnH      = 60;
         private const int CardPadH  = 56;
         private const int CardPadV  = 40;
 
@@ -47,8 +47,8 @@ namespace PremiumLivingOPS.Views.InventoryControl
         {
             string title = _mode == ItemMode.Product ? "Add New Product" : "Add New Raw Material";
             Text            = title;
-            Size            = new Size(1600, 1100);
-            MinimumSize     = new Size(1100, 800);
+            Size            = new Size(1600, 1200);
+            MinimumSize     = new Size(1200, 900);
             StartPosition   = FormStartPosition.CenterParent;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox     = false;
@@ -100,7 +100,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
             var pnlFoot = new Panel
             {
                 Dock      = DockStyle.Bottom,
-                Height    = 90,
+                Height    = 100,
                 BackColor = Color.White,
                 Padding   = new Padding(0, 20, 48, 20)
             };
