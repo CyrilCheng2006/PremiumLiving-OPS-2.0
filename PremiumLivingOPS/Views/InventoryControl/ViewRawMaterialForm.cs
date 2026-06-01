@@ -16,6 +16,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
 
         private List<RawMaterialEntity> _currentMaterials = new List<RawMaterialEntity>();
 
+        // Status badge colours (keyed on StockStatus computed value)
         private static readonly Dictionary<string, (Color bg, Color fg)> StatusColors =
             new Dictionary<string, (Color, Color)>
             {
@@ -45,7 +46,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
             btnInwardGoods.Click += BtnInwardGoods_Click;
             btnWhTransfer.Click  += BtnWhTransfer_Click;
 
-            LoadCategories();
+            LoadMaterialTypeFilter();
             RefreshGrid();
         }
 
@@ -94,30 +95,36 @@ namespace PremiumLivingOPS.Views.InventoryControl
             return dgvMaterials.SelectedRows[0].Cells[columnName].Value?.ToString();
         }
 
-        private void LoadCategories()
+        /// <summary>
+        /// Populate the Material Type combo-box from the DB ENUM values.
+        /// </summary>
+        private void LoadMaterialTypeFilter()
         {
-            cboCategory.Items.Clear();
-            foreach (var c in _ctrl.GetRawMaterialCategories())
-                cboCategory.Items.Add(c);
-            if (cboCategory.Items.Count > 0)
-                cboCategory.SelectedIndex = 0;
+            cboMaterialType.Items.Clear();
+            cboMaterialType.Items.Add("All");
+            foreach (var t in new[] { "Wood", "Metal", "Fabric", "Foam", "Glass", "Paint" })
+                cboMaterialType.Items.Add(t);
+            cboMaterialType.SelectedIndex = 0;
         }
 
         internal void RefreshGrid()
         {
-            string keyword  = txtSearch.Text.Trim();
-            string category = cboCategory.SelectedItem?.ToString();
-            string status   = cboStatus.SelectedItem?.ToString();
+            string keyword      = txtSearch.Text.Trim();
+            string materialType = cboMaterialType.SelectedItem?.ToString();
+            string status       = cboStatus.SelectedItem?.ToString();
 
+            // Pass materialType as the category filter (maps to RawMaterial.MaterialType)
             var vm = _ctrl.GetViewRawMaterialVM(
-                string.IsNullOrEmpty(keyword) ? null : keyword,
-                category == "All"             ? null : category);
+                string.IsNullOrEmpty(keyword)                      ? null : keyword,
+                materialType == "All" || string.IsNullOrEmpty(materialType) ? null : materialType);
 
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
             _shell.SetBreadcrumb("Inventory Control  \u203a  View Raw Material");
 
             _currentMaterials = vm.Materials;
+
+            // Apply status filter client-side
             if (!string.IsNullOrEmpty(status) && status != "All")
                 _currentMaterials = _currentMaterials.FindAll(m => m.StockStatus == status);
 
@@ -126,11 +133,11 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 dgvMaterials.Rows.Add(
                     m.MaterialID,
                     m.MaterialName,
-                    m.Category,
-                    m.Unit,
-                    $"HK$ {m.UnitCost:N2}",
-                    m.StockQty,
-                    m.StockStatus);
+                    m.Category,          // maps to RawMaterial.MaterialType
+                    $"HK$ {m.UnitCost:N2}",  // maps to RawMaterial.purchasePrice
+                    m.StockQty,          // sum of WarehouseItem.WarehouseItemQuantity
+                    m.ReorderLevel,      // WarehouseItem.ReorderLevel
+                    m.StockStatus);      // computed
 
             RefreshKpi();
             UpdateActionButtons();
@@ -139,11 +146,14 @@ namespace PremiumLivingOPS.Views.InventoryControl
         internal void ResetFilters()
         {
             txtSearch.Text = string.Empty;
-            if (cboCategory.Items.Count > 0) cboCategory.SelectedIndex = 0;
+            if (cboMaterialType.Items.Count > 0) cboMaterialType.SelectedIndex = 0;
             cboStatus.SelectedIndex = 0;
             RefreshGrid();
         }
 
+        // ────────────────────────────────────────────────────────────────
+        //  KPI pills
+        // ────────────────────────────────────────────────────────────────
         private void RefreshKpi()
         {
             pnlKpi.Controls.Clear();
@@ -166,7 +176,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
             const int PillW   = 280;
             const int PillH   = 60;
             const int Gap     = 8;
-            const int NumColW = 80;
             const int LeftPad = 12;
 
             var flow = new FlowLayoutPanel
@@ -206,7 +215,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
                     CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
                     Padding         = new Padding(10, 0, 8, 0)
                 };
-                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, NumColW));
+                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 80));
                 tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
                 tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
@@ -267,6 +276,9 @@ namespace PremiumLivingOPS.Views.InventoryControl
             btnInwardGoods.Enabled = hasSelection;
         }
 
+        // ────────────────────────────────────────────────────────────────
+        //  Cell formatting  — Status badge
+        // ────────────────────────────────────────────────────────────────
         private void DgvMaterials_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
             if (dgvMaterials.Columns[e.ColumnIndex].Name != "colStatus" || e.Value == null) return;
@@ -274,38 +286,54 @@ namespace PremiumLivingOPS.Views.InventoryControl
             e.FormattingApplied = true;
             if (StatusColors.TryGetValue(val, out var colors))
             {
-                e.CellStyle.ForeColor            = colors.fg;
-                e.CellStyle.BackColor            = colors.bg;
-                e.CellStyle.SelectionForeColor   = colors.fg;
-                e.CellStyle.SelectionBackColor   = colors.bg;
-                e.CellStyle.Font                 = new Font("Segoe UI", 11f, FontStyle.Bold);
-                e.CellStyle.Alignment            = DataGridViewContentAlignment.MiddleCenter;
+                e.CellStyle.ForeColor          = colors.fg;
+                e.CellStyle.BackColor          = colors.bg;
+                e.CellStyle.SelectionForeColor = colors.fg;
+                e.CellStyle.SelectionBackColor = colors.bg;
+                e.CellStyle.Font               = new Font("Segoe UI", 11f, FontStyle.Bold);
+                e.CellStyle.Alignment          = DataGridViewContentAlignment.MiddleCenter;
             }
         }
 
+        // ════════════════════════════════════════════════════════════════
+        //  Detail Dialog  — rebuilt to match AddItemForm style
+        //  Fields mirror DB tables:
+        //    Item           : ItemID, ItemName, ItemDescription
+        //    RawMaterial    : MaterialType, purchasePrice
+        //    WarehouseItem  : WarehouseID (+ Location), WarehouseItemQuantity,
+        //                     ReorderLevel
+        //    (computed)     : StockStatus
+        // ════════════════════════════════════════════════════════════════
         private void OpenDetailDialog()
         {
             if (dgvMaterials.SelectedRows.Count == 0) return;
-            var row        = dgvMaterials.SelectedRows[0];
-            string materialId = row.Cells["colMaterialID"].Value?.ToString();
 
-            // Fetch full record from controller to get all fields including ReorderLevel
+            string materialId = dgvMaterials.SelectedRows[0]
+                .Cells["colMaterialID"].Value?.ToString();
+
+            // Fetch full record so we get every schema field
             var vm = _ctrl.GetModifyRawMaterialVM(materialId);
             if (vm?.Material == null) return;
             var m = vm.Material;
 
-            string materialName = m.MaterialName;
+            // ── Derive display values ────────────────────────────────────
+            // Item table
+            string itemId       = m.MaterialID;
+            string itemName     = m.MaterialName ?? "\u2014";
             string itemDesc     = m.ItemDescription ?? "\u2014";
-            string category     = m.Category;
-            string unit         = m.Unit ?? "\u2014";
-            string unitCost     = $"HK$ {m.UnitCost:N2}";
-            string stockQty     = m.StockQty.ToString();
-            string reorderLevel = m.ReorderLevel.ToString();
-            string status       = m.StockStatus;
+            // RawMaterial table
+            string materialType = m.Category ?? "\u2014";     // MaterialType ENUM
+            string purchPrice   = $"HK$ {m.UnitCost:N2}";   // purchasePrice
+            // WarehouseItem table (aggregated across warehouses)
+            string stockQty     = m.StockQty.ToString();     // SUM(WarehouseItemQuantity)
+            string reorderLvl   = m.ReorderLevel.ToString(); // ReorderLevel
+            // computed
+            string status       = m.StockStatus ?? "\u2014";
 
+            // ── Dialog shell — mirrors AddItemForm sizing/style ──────────
             using var dlg = new Form
             {
-                Text            = $"Raw Material Detail \u2014 {materialId}",
+                Text            = $"View Raw Material  \u2014  {itemId}",
                 Size            = new Size(1600, 1100),
                 MinimumSize     = new Size(1100, 800),
                 StartPosition   = FormStartPosition.CenterParent,
@@ -316,147 +344,320 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 MinimizeBox     = false
             };
 
-            // ── Header ──────────────────────────────────────────────────────────────
-            var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 70, BackColor = Color.FromArgb(19, 35, 61) };
+            // ── Header (dark navy, identical to AddItemForm) ─────────────
+            var pnlHeader = new Panel
+            {
+                Dock      = DockStyle.Top,
+                Height    = 90,
+                BackColor = Color.FromArgb(19, 35, 61)
+            };
             pnlHeader.Controls.Add(new Label
             {
-                Text      = $"Raw Material Detail  \u2014  {materialId}",
-                Font      = new Font("Segoe UI", 16f, FontStyle.Bold),
+                Text      = $"View Raw Material  \u2014  {itemId}",
+                Font      = new Font("Segoe UI", 18f, FontStyle.Bold),
                 ForeColor = Color.White,
                 Dock      = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft,
-                Padding   = new Padding(32, 0, 0, 0)
+                Padding   = new Padding(48, 0, 0, 0)
             });
 
-            // ── Footer ──────────────────────────────────────────────────────────────
+            // ── Footer ──────────────────────────────────────────────────
             var pnlFoot = new Panel
             {
                 Dock      = DockStyle.Bottom,
-                Height    = 72,
-                Padding   = new Padding(0, 12, 32, 12),
-                BackColor = Color.FromArgb(248, 250, 253)
+                Height    = 100,
+                BackColor = Color.White,
+                Padding   = new Padding(0, 20, 48, 20)
             };
             pnlFoot.Paint += (s, e) =>
             {
                 using var pen = new System.Drawing.Pen(Color.FromArgb(221, 227, 236), 1);
                 e.Graphics.DrawLine(pen, 0, 0, ((Panel)s).Width, 0);
             };
-
             var btnClose = new Button
             {
                 Text      = "Close",
-                Font      = new Font("Segoe UI", 12f),
-                ForeColor = Color.FromArgb(15, 31, 53),
+                Font      = new Font("Segoe UI", 13f),
                 BackColor = Color.White,
+                ForeColor = Color.FromArgb(15, 31, 53),
                 FlatStyle = FlatStyle.Flat,
-                Dock      = DockStyle.Right,
-                Width     = 160,
+                Width     = 210,
+                Height    = 60,
+                Margin    = new Padding(12, 0, 0, 0),
                 Cursor    = Cursors.Hand
             };
             btnClose.FlatAppearance.BorderColor = Color.FromArgb(200, 207, 220);
             btnClose.FlatAppearance.BorderSize  = 1;
             btnClose.Click += (s, ev) => dlg.Close();
-            pnlFoot.Controls.Add(btnClose);
+            var footFlow = new FlowLayoutPanel
+            {
+                Dock          = DockStyle.Right,
+                AutoSize      = true,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents  = false,
+                BackColor     = Color.Transparent
+            };
+            footFlow.Controls.Add(btnClose);
+            pnlFoot.Controls.Add(footFlow);
 
-            // ── Scrollable body ──────────────────────────────────────────────────────
+            // ── Scrollable body ─────────────────────────────────────────
             var pnlScroll = new Panel
             {
                 Dock       = DockStyle.Fill,
                 AutoScroll = true,
                 BackColor  = Color.FromArgb(240, 244, 249),
-                Padding    = new Padding(36, 24, 36, 16)
+                Padding    = new Padding(56, 40, 56, 24)
             };
 
-            // ── Card wrapping fields ──────────────────────────────────────────────
-            var (outerCard, innerCard) = CardPanel.Create(outerHeight: 100,
-                outerPadding: new Padding(0));
-            innerCard.Padding = new Padding(32, 24, 32, 24);
+            // ── Card (white rounded panel, same as AddItemForm) ──────────
+            var (outerCard, innerCard) = CardPanel.Create(
+                outerHeight: 100, outerPadding: new Padding(0));
+            innerCard.Padding = new Padding(56, 40, 56, 40);
 
-            const int RowH     = 66;
-            const int RowGap   = 2;
-            // Schema fields: Item(ItemID/MaterialID, ItemName, ItemDescription)
-            //              + RawMaterial(MaterialType/Category, purchasePrice/UnitCost)
-            //              + Entity Unit field
-            //              + WarehouseItem(ReorderLevel)
-            //              + computed(StockQty, StockStatus)  => 9 rows total
-            const int NumRows  = 9;
-            const int LabelCol = 260;
+            // ── Field rows — each label + read-only value ────────────────
+            //  Section A: Item table fields
+            //  Section B: RawMaterial table fields
+            //  Section C: WarehouseItem table fields (aggregated)
+            //  Section D: Computed / derived
 
-            var tbl = new TableLayoutPanel
+            const int RowH    = 84;
+            const int RowGap  = 20;
+            const int LabelW  = 340;
+
+            var fieldDefs = new[]
             {
-                Dock            = DockStyle.Top,
-                Height          = RowH * NumRows + RowGap * (NumRows - 1),
-                ColumnCount     = 2,
-                RowCount        = NumRows,
-                BackColor       = Color.Transparent,
-                CellBorderStyle = TableLayoutPanelCellBorderStyle.None
-            };
-            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, LabelCol));
-            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-            for (int i = 0; i < NumRows; i++)
-                tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowH));
-
-            var fields = new[]
-            {
-                ("Material ID",   materialId),
-                ("Material Name", materialName),
-                ("Description",   itemDesc),
-                ("Category",      category),
-                ("Unit",          unit),
-                ("Unit Cost",     unitCost),
-                ("Stock Qty",     stockQty),
-                ("Reorder Level", reorderLevel),
-                ("Status",        status)
+                // ── Item ─────────────────────────────────────────────────
+                ("Item ID",            itemId,       "Item.ItemID"),
+                ("Item Name",          itemName,     "Item.ItemName"),
+                ("Item Description",   itemDesc,     "Item.ItemDescription"),
+                // ── RawMaterial ──────────────────────────────────────────
+                ("Material Type",      materialType, "RawMaterial.MaterialType"),
+                ("Purchase Price",     purchPrice,   "RawMaterial.purchasePrice"),
+                // ── WarehouseItem (aggregated) ───────────────────────────
+                ("Total Stock Qty",    stockQty,     "WarehouseItem.WarehouseItemQuantity (sum)"),
+                ("Reorder Level",      reorderLvl,   "WarehouseItem.ReorderLevel"),
+                // ── Computed ────────────────────────────────────────────
+                ("Stock Status",       status,       "Computed")
             };
 
-            for (int i = 0; i < fields.Length; i++)
+            int yPos = 0;
+            var rows = new List<Panel>();
+
+            // Section header helper
+            Panel SectionHeader(string title)
             {
-                if (i > 0)
+                var p = new Panel
                 {
-                    var prev = tbl.GetControlFromPosition(0, i - 1);
-                    if (prev != null)
-                    {
-                        var div = new Panel { Height = 1, Dock = DockStyle.Bottom, BackColor = Color.FromArgb(221, 227, 236) };
-                        prev.Controls.Add(div);
-                    }
-                }
-
-                tbl.Controls.Add(new Label
+                    Height    = 40,
+                    BackColor = Color.Transparent,
+                    Location  = new Point(0, yPos),
+                    Anchor    = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
+                };
+                p.Controls.Add(new Label
                 {
-                    Text      = fields[i].Item1,
-                    Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
-                    ForeColor = Color.FromArgb(98, 112, 135),
+                    Text      = title,
+                    Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
+                    ForeColor = Color.FromArgb(47, 111, 237),
                     Dock      = DockStyle.Fill,
-                    TextAlign = ContentAlignment.MiddleLeft,
-                    Padding   = new Padding(0, 0, 16, 0)
-                }, 0, i);
-
-                tbl.Controls.Add(new Label
+                    TextAlign = ContentAlignment.BottomLeft,
+                    Padding   = new Padding(0, 0, 0, 4)
+                });
+                p.Controls.Add(new Panel
                 {
-                    Text      = fields[i].Item2 ?? "\u2014",
-                    Font      = new Font("Segoe UI", 12f),
-                    ForeColor = Color.FromArgb(15, 31, 53),
-                    Dock      = DockStyle.Fill,
-                    TextAlign = ContentAlignment.MiddleLeft
-                }, 1, i);
+                    Dock      = DockStyle.Bottom,
+                    Height    = 1,
+                    BackColor = Color.FromArgb(221, 227, 236)
+                });
+                return p;
             }
 
-            // Set card height to fit content
-            int cardH = tbl.Height + innerCard.Padding.Vertical + 16;
-            outerCard.Height = cardH;
-            innerCard.Height = cardH - 16;
+            // Field row helper — label on left, value on right
+            Panel FieldRow(string label, string value, bool isStatus = false)
+            {
+                var row = new Panel
+                {
+                    Height    = RowH,
+                    BackColor = Color.Transparent,
+                    Location  = new Point(0, yPos),
+                    Anchor    = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
+                };
 
-            innerCard.Controls.Add(tbl);
+                var tlp = new TableLayoutPanel
+                {
+                    Dock            = DockStyle.Fill,
+                    ColumnCount     = 2,
+                    RowCount        = 1,
+                    BackColor       = Color.Transparent,
+                    CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                    Padding         = new Padding(0)
+                };
+                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, LabelW));
+                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+                tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+
+                tlp.Controls.Add(new Label
+                {
+                    Text      = label,
+                    Font      = new Font("Segoe UI", 13f, FontStyle.Bold),
+                    ForeColor = Color.FromArgb(70, 85, 110),
+                    Dock      = DockStyle.Fill,
+                    TextAlign = ContentAlignment.MiddleLeft,
+                    AutoSize  = false
+                }, 0, 0);
+
+                Control valueCtrl;
+                if (isStatus && StatusColors.TryGetValue(value, out var sc))
+                {
+                    // Render Status as a coloured pill label
+                    var pill = new Label
+                    {
+                        Text      = value,
+                        Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                        ForeColor = sc.fg,
+                        BackColor = sc.bg,
+                        AutoSize  = true,
+                        Padding   = new Padding(14, 4, 14, 4),
+                        TextAlign = ContentAlignment.MiddleCenter,
+                        BorderStyle = BorderStyle.FixedSingle
+                    };
+                    var pillWrapper = new Panel
+                    {
+                        Dock      = DockStyle.Fill,
+                        BackColor = Color.Transparent,
+                        Padding   = new Padding(0, 22, 0, 22)
+                    };
+                    pillWrapper.Controls.Add(pill);
+                    pill.Location = new Point(0, 0);
+                    valueCtrl = pillWrapper;
+                }
+                else
+                {
+                    var lbl = new Label
+                    {
+                        Text      = value ?? "\u2014",
+                        Font      = new Font("Segoe UI", 13f),
+                        ForeColor = Color.FromArgb(15, 31, 53),
+                        Dock      = DockStyle.Fill,
+                        TextAlign = ContentAlignment.MiddleLeft,
+                        AutoSize  = false
+                    };
+                    valueCtrl = lbl;
+                }
+
+                var inputWrapper = new Panel
+                {
+                    Dock      = DockStyle.Fill,
+                    BackColor = Color.Transparent,
+                    Padding   = new Padding(0, 14, 0, 14)
+                };
+                valueCtrl.Dock = DockStyle.Fill;
+                inputWrapper.Controls.Add(valueCtrl);
+
+                tlp.Controls.Add(inputWrapper, 1, 0);
+                row.Controls.Add(tlp);
+
+                // Divider at bottom
+                row.Controls.Add(new Panel
+                {
+                    Dock      = DockStyle.Bottom,
+                    Height    = 1,
+                    BackColor = Color.FromArgb(235, 238, 245)
+                });
+                return row;
+            }
+
+            // ── Build sections ──────────────────────────────────────────
+            // Section A: Item
+            var secA = SectionHeader("Item Information");
+            innerCard.Controls.Add(secA);
+            yPos += 40 + 10;
+
+            foreach (var (lbl, val, _) in new[]
+            {
+                (fieldDefs[0].Item1, fieldDefs[0].Item2, false),
+                (fieldDefs[1].Item1, fieldDefs[1].Item2, false),
+                (fieldDefs[2].Item1, fieldDefs[2].Item2, false)
+            })
+            {
+                var r = FieldRow(lbl, val, false);
+                r.Location = new Point(0, yPos);
+                r.Anchor   = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+                innerCard.Controls.Add(r);
+                yPos += RowH + RowGap;
+            }
+
+            // Section B: RawMaterial
+            var secB = SectionHeader("Raw Material Details");
+            secB.Location = new Point(0, yPos);
+            innerCard.Controls.Add(secB);
+            yPos += 40 + 10;
+
+            foreach (var (lbl, val, _) in new[]
+            {
+                (fieldDefs[3].Item1, fieldDefs[3].Item2, false),
+                (fieldDefs[4].Item1, fieldDefs[4].Item2, false)
+            })
+            {
+                var r = FieldRow(lbl, val, false);
+                r.Location = new Point(0, yPos);
+                r.Anchor   = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+                innerCard.Controls.Add(r);
+                yPos += RowH + RowGap;
+            }
+
+            // Section C: WarehouseItem
+            var secC = SectionHeader("Warehouse Stock");
+            secC.Location = new Point(0, yPos);
+            innerCard.Controls.Add(secC);
+            yPos += 40 + 10;
+
+            foreach (var (lbl, val, _) in new[]
+            {
+                (fieldDefs[5].Item1, fieldDefs[5].Item2, false),
+                (fieldDefs[6].Item1, fieldDefs[6].Item2, false)
+            })
+            {
+                var r = FieldRow(lbl, val, false);
+                r.Location = new Point(0, yPos);
+                r.Anchor   = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+                innerCard.Controls.Add(r);
+                yPos += RowH + RowGap;
+            }
+
+            // Section D: Computed
+            var secD = SectionHeader("Computed / Status");
+            secD.Location = new Point(0, yPos);
+            innerCard.Controls.Add(secD);
+            yPos += 40 + 10;
+
+            var statusRow = FieldRow(fieldDefs[7].Item1, fieldDefs[7].Item2, isStatus: true);
+            statusRow.Location = new Point(0, yPos);
+            statusRow.Anchor   = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            innerCard.Controls.Add(statusRow);
+            yPos += RowH + RowGap;
+
+            // ── Size card to content ─────────────────────────────────────
+            int cardContentH = yPos + innerCard.Padding.Vertical;
+            outerCard.Height  = cardContentH + 16;
+            innerCard.Height  = cardContentH;
+
             pnlScroll.Controls.Add(outerCard);
 
+            // ── Resize helpers ───────────────────────────────────────────
             dlg.Load += (s, e) =>
             {
                 outerCard.Width  = pnlScroll.ClientSize.Width - pnlScroll.Padding.Horizontal;
                 outerCard.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+
+                // Also anchor section headers and field rows
+                foreach (Control c in innerCard.Controls)
+                    c.Width = innerCard.ClientSize.Width - innerCard.Padding.Horizontal;
             };
             pnlScroll.Resize += (s, e) =>
             {
                 outerCard.Width = pnlScroll.ClientSize.Width - pnlScroll.Padding.Horizontal;
+                foreach (Control c in innerCard.Controls)
+                    c.Width = innerCard.ClientSize.Width - innerCard.Padding.Horizontal;
             };
 
             dlg.Controls.Add(pnlScroll);
@@ -464,6 +665,10 @@ namespace PremiumLivingOPS.Views.InventoryControl
             dlg.Controls.Add(pnlHeader);
             dlg.ShowDialog(this);
         }
+
+        // ════════════════════════════════════════════════════════════════
+        //  Navigation / session
+        // ════════════════════════════════════════════════════════════════
 
         private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
             => FormNavigator.NavigateTo(this, menuLabel, subItem);
@@ -473,6 +678,10 @@ namespace PremiumLivingOPS.Views.InventoryControl
             SessionManager.Clear();
             Application.Restart();
         }
+
+        // ════════════════════════════════════════════════════════════════
+        //  Utility
+        // ════════════════════════════════════════════════════════════════
 
         private static GraphicsPath RoundedRect(Rectangle r, int radius)
         {
