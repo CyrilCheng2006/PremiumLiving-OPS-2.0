@@ -566,7 +566,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
 
             // ---- status font & measured width --------------------------------
             var   statusFont = new Font("Segoe UI", 13f, FontStyle.Bold);
-            const int hPad   = 80;   // horizontal padding each side (px)
+            const int hPad   = 40;   // horizontal padding each side (px)
             int   textW      = TextRenderer.MeasureText(
                                    m.StockStatus ?? "\u2014", statusFont).Width;
             int   statusColW = textW + hPad * 2;   // exact column width
