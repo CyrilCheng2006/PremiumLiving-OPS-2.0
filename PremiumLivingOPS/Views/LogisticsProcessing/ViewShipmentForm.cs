@@ -10,47 +10,35 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 {
     /// <summary>
     /// Logistics Processing – View Shipment page.
-    /// Follows the same MVC + CardPanel three-layer nesting pattern as Order Processing forms.
-    /// Layout: UserBar (top) → TopNavBar → filter bar → shipment DataGridView (CardPanel layer 3)
-    ///         → detail panel (CardPanel layer 3) showing lines + delivery note.
+    /// MVC: Controller handles all DB access; this form is pure View.
+    /// Layout: UserInfoLabel (top) → TopNavBar → CardPanel three-layer nesting.
     /// </summary>
     public partial class ViewShipmentForm : Form
     {
-        // ── Fields ─────────────────────────────────────────────────────
         private readonly LogisticsProcessingController _controller = new LogisticsProcessingController();
         private ViewShipmentVM _vm;
 
-        // ── Constructor ──────────────────────────────────────────────────
         public ViewShipmentForm()
         {
             InitializeComponent();
             Load += ViewShipmentForm_Load;
         }
 
-        // ── Load ──────────────────────────────────────────────────────────
-        private void ViewShipmentForm_Load(object sender, EventArgs e)
-        {
-            RefreshData();
-        }
+        // ── Load ─────────────────────────────────────────────────────
+        private void ViewShipmentForm_Load(object sender, EventArgs e) => RefreshData();
 
-        // ── RefreshData ──────────────────────────────────────────────────
+        // ── RefreshData ─────────────────────────────────────────────────
         private void RefreshData(string status = null, string keyword = null, DateTime? from = null)
         {
             try
             {
                 _vm = _controller.GetViewShipmentVM(status, keyword, from);
 
-                // User bar
-                lblUserName.Text   = _vm.UserBar.DisplayName;
-                lblDepartment.Text = _vm.UserBar.Department;
+                userInfoLabel.UserName   = _vm.UserBar.DisplayName;
+                userInfoLabel.Department = _vm.UserBar.Department;
+                topNavBar.SetVisibleMenus(_vm.AllowedMenus);
 
-                // Nav bar allowed menus
-                topNavBar.SetAllowedMenus(_vm.AllowedMenus);
-
-                // Bind grid
                 BindShipmentGrid(_vm.Shipments);
-
-                // Clear detail
                 ClearDetail();
             }
             catch (Exception ex)
@@ -60,7 +48,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }
         }
 
-        // ── BindShipmentGrid ───────────────────────────────────────────
+        // ── BindShipmentGrid ──────────────────────────────────────────
         private void BindShipmentGrid(System.Collections.Generic.List<ShipmentEntity> data)
         {
             dgvShipments.Rows.Clear();
@@ -77,31 +65,26 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                     s.DeliveryMethod,
                     s.TotalAmount.ToString("C"));
 
-                // Status badge colour
                 var cell = dgvShipments.Rows[i].Cells["colStatus"];
                 switch (s.ShipmentStatus)
                 {
-                    case "Completed":   cell.Style.ForeColor = Color.FromArgb(67, 122, 34);  break; // green
-                    case "In Transit":  cell.Style.ForeColor = Color.FromArgb(0, 100, 148);  break; // blue
-                    default:            cell.Style.ForeColor = Color.FromArgb(154, 66, 25);  break; // amber
+                    case "Completed":  cell.Style.ForeColor = Color.FromArgb(67, 122, 34);  break;
+                    case "In Transit": cell.Style.ForeColor = Color.FromArgb(0, 100, 148);  break;
+                    default:           cell.Style.ForeColor = Color.FromArgb(154, 66, 25);  break;
                 }
             }
-
             lblRecordCount.Text = $"{data.Count} record(s)";
         }
 
-        // ── Row selection ────────────────────────────────────────────────
+        // ── Row selection ───────────────────────────────────────────────
         private void dgvShipments_SelectionChanged(object sender, EventArgs e)
         {
             if (dgvShipments.SelectedRows.Count == 0) { ClearDetail(); return; }
-
-            string shipmentId = dgvShipments.SelectedRows[0].Cells["colShipmentID"].Value?.ToString();
-            if (string.IsNullOrEmpty(shipmentId)) return;
-
+            string id = dgvShipments.SelectedRows[0].Cells["colShipmentID"].Value?.ToString();
+            if (string.IsNullOrEmpty(id)) return;
             try
             {
-                var detail = _controller.GetShipmentDetail(shipmentId);
-                ShowDetail(detail);
+                ShowDetail(_controller.GetShipmentDetail(id));
             }
             catch (Exception ex)
             {
@@ -110,7 +93,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }
         }
 
-        // ── ShowDetail ─────────────────────────────────────────────────────
+        // ── ShowDetail ───────────────────────────────────────────────────
         private void ShowDetail(ShipmentDetailVM d)
         {
             if (d.Shipment == null) { ClearDetail(); return; }
@@ -126,13 +109,12 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             lblDetailAmount.Text      = d.Shipment.TotalAmount.ToString("C");
             lblDetailAddress.Text     = d.Shipment.ShippingAddress;
 
-            // Delivery Note
             if (d.DeliveryNote != null)
             {
-                lblDNID.Text       = d.DeliveryNote.DeliveryID;
-                lblDNShipTo.Text   = d.DeliveryNote.ShipToName;
-                lblDNDate.Text     = d.DeliveryNote.DeliveryDate.ToString("yyyy-MM-dd");
-                lblDNOutQty.Text   = d.DeliveryNote.OutstandingQty?.ToString() ?? "0";
+                lblDNID.Text     = d.DeliveryNote.DeliveryID;
+                lblDNShipTo.Text = d.DeliveryNote.ShipToName;
+                lblDNDate.Text   = d.DeliveryNote.DeliveryDate.ToString("yyyy-MM-dd");
+                lblDNOutQty.Text = d.DeliveryNote.OutstandingQty?.ToString() ?? "0";
                 pnlDeliveryNote.Visible = true;
             }
             else
@@ -140,25 +122,15 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 pnlDeliveryNote.Visible = false;
             }
 
-            // Lines
             dgvLines.Rows.Clear();
             foreach (var line in d.Lines)
-            {
-                dgvLines.Rows.Add(
-                    line.ShipmentLineID,
-                    line.ItemID,
-                    line.ItemName,
-                    line.QtyShipped,
-                    line.QtyOutstanding?.ToString() ?? "0");
-            }
+                dgvLines.Rows.Add(line.ShipmentLineID, line.ItemID, line.ItemName,
+                                  line.QtyShipped, line.QtyOutstanding?.ToString() ?? "0");
 
             pnlDetail.Visible = true;
         }
 
-        private void ClearDetail()
-        {
-            pnlDetail.Visible = false;
-        }
+        private void ClearDetail() => pnlDetail.Visible = false;
 
         // ── Filter / Search ───────────────────────────────────────────────
         private void btnSearch_Click(object sender, EventArgs e)
@@ -177,10 +149,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             RefreshData();
         }
 
-        // ── Navigation (TopNavBar event) ─────────────────────────────────
-        private void topNavBar_MenuItemClicked(object sender, MenuItemClickedEventArgs e)
-        {
-            FormNavigator.NavigateTo(this, e.MenuLabel, e.SubItem);
-        }
+        // ── Navigation ─────────────────────────────────────────────────────
+        private void TopNavBar_MenuItemClicked(string menuLabel, string subItem)
+            => FormNavigator.NavigateTo(this, menuLabel, subItem);
     }
 }
