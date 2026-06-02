@@ -169,7 +169,11 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlPage.Controls.Add(pnlScroll);
 
             // ── AppShell (TopNavBar + UserBar) ────────────────────────────────
+            // Height is locked to AppShell.TotalHeight (116 px = NavBar 44 + UserBar 72).
+            // MinimumSize prevents WinForms auto-scale from shrinking the shell.
             _shell = new AppShell();
+            _shell.Height      = AppShell.TotalHeight;                         // enforce 116 px
+            _shell.MinimumSize = new Size(0, AppShell.TotalHeight);            // prevent shrink
             _shell.MenuItemClicked += OnTopNavMenuItemClicked;
             _shell.LogoutClicked   += btnLogout_Click;
 
