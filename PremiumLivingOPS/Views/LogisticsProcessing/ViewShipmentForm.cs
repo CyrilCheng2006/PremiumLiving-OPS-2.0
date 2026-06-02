@@ -10,7 +10,7 @@ using System.Windows.Forms;
 
 namespace PremiumLivingOPS.Views.LogisticsProcessing
 {
-    /// &lt;summary&gt;
+    /// <summary>
     /// Logistics Processing – View Shipment page.
     ///
     /// MVC contract
@@ -20,17 +20,17 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
     /// • AppShell provides TopNavBar + UserBar (identical pattern to ViewOrderForm).
     /// • CardPanel three-layer nesting wraps every content block.
     /// • KPI pills mirror the ViewOrderForm design and filter the grid on click.
-    /// &lt;/summary&gt;
+    /// </summary>
     public partial class ViewShipmentForm : Form
     {
         private readonly LogisticsProcessingController _ctrl =
             new LogisticsProcessingController();
 
-        private List&lt;ShipmentEntity&gt; _currentShipments = new List&lt;ShipmentEntity&gt;();
+        private List<ShipmentEntity> _currentShipments = new List<ShipmentEntity>();
 
         // ── Status colour map (bg, fg) ────────────────────────────────────
-        private static readonly Dictionary&lt;string, (Color bg, Color fg)&gt; StatusColors =
-            new Dictionary&lt;string, (Color, Color)&gt;
+        private static readonly Dictionary<string, (Color bg, Color fg)> StatusColors =
+            new Dictionary<string, (Color, Color)>
             {
                 { "Pending",    (Color.FromArgb(254, 243, 199), Color.FromArgb(146,  64,  14)) },
                 { "In Transit", (Color.FromArgb(219, 234, 254), Color.FromArgb( 29,  78, 216)) },
@@ -86,7 +86,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }
         }
 
-        private void BindShipmentGrid(List&lt;ShipmentEntity&gt; data)
+        private void BindShipmentGrid(List<ShipmentEntity> data)
         {
             dgvShipments.Rows.Clear();
             foreach (var s in data)
@@ -109,14 +109,13 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         {
             pnlKpi.Controls.Clear();
 
-            // Always count against ALL shipments (no filter applied)
             var allVm = _ctrl.GetViewShipmentVM();
             var all   = allVm.Shipments;
 
             int total     = all.Count;
-            int pending   = all.FindAll(s =&gt; s.ShipmentStatus == "Pending").Count;
-            int inTransit = all.FindAll(s =&gt; s.ShipmentStatus == "In Transit").Count;
-            int completed = all.FindAll(s =&gt; s.ShipmentStatus == "Completed").Count;
+            int pending   = all.FindAll(s => s.ShipmentStatus == "Pending").Count;
+            int inTransit = all.FindAll(s => s.ShipmentStatus == "In Transit").Count;
+            int completed = all.FindAll(s => s.ShipmentStatus == "Completed").Count;
 
             var pills = new[]
             {
@@ -151,7 +150,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                     Margin    = new Padding(0, 0, Gap, 0),
                     Cursor    = Cursors.Hand
                 };
-                pill.Paint += (s, e) =&gt;
+                pill.Paint += (s, e) =>
                 {
                     e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
                     using var path  = RoundedRect(((Panel)s).ClientRectangle, 8);
@@ -193,10 +192,10 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                     AutoSize  = false
                 }, 1, 0);
 
-                EventHandler clickHandler = (s, e) =&gt;
+                EventHandler clickHandler = (s, e) =>
                 {
                     int idx = cmbStatusFilter.FindStringExact(localFilter);
-                    if (idx &gt;= 0) cmbStatusFilter.SelectedIndex = idx;
+                    if (idx >= 0) cmbStatusFilter.SelectedIndex = idx;
                     RefreshGrid();
                 };
                 pill.Click += clickHandler;
@@ -267,14 +266,12 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             lblDetailAmount.Text     = $"HK$ {s.TotalAmount:N2}";
             lblDetailAddress.Text    = s.ShippingAddress ?? "—";
 
-            // Style the status value label
             if (StatusColors.TryGetValue(s.ShipmentStatus ?? "", out var sc))
             {
                 lblDetailStatus.ForeColor = sc.fg;
                 lblDetailStatus.BackColor = sc.bg;
             }
 
-            // Delivery Note sub-panel
             if (d.DeliveryNote != null)
             {
                 lblDNID.Text     = d.DeliveryNote.DeliveryID;
@@ -288,7 +285,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 pnlDNOuter.Visible = false;
             }
 
-            // Shipment lines sub-grid
             dgvLines.Rows.Clear();
             foreach (var line in d.Lines)
                 dgvLines.Rows.Add(
@@ -301,12 +297,12 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlDetailOuter.Visible = true;
         }
 
-        private void ClearDetail() =&gt; pnlDetailOuter.Visible = false;
+        private void ClearDetail() => pnlDetailOuter.Visible = false;
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         //  Filter buttons
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        private void btnSearch_Click(object sender, EventArgs e) =&gt; RefreshGrid();
+        private void btnSearch_Click(object sender, EventArgs e) => RefreshGrid();
 
         private void btnReset_Click(object sender, EventArgs e)
         {
@@ -320,7 +316,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         //  Nav / Logout
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
-            =&gt; FormNavigator.NavigateTo(this, menuLabel, subItem);
+            => FormNavigator.NavigateTo(this, menuLabel, subItem);
 
         private void btnLogout_Click(object sender, EventArgs e)
         {
@@ -328,7 +324,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             Application.Restart();
         }
 
-        // ── Rounded rectangle helper (shared with KPI pills) ─────────────
+        // ── Rounded rectangle helper ───────────────────────────────────────────
         private static GraphicsPath RoundedRect(Rectangle r, int radius)
         {
             int d    = radius * 2;

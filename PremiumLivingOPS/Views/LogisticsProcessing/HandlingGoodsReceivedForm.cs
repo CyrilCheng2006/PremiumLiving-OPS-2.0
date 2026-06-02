@@ -9,7 +9,7 @@ using System.Windows.Forms;
 
 namespace PremiumLivingOPS.Views.LogisticsProcessing
 {
-    /// &lt;summary&gt;
+    /// <summary>
     /// Logistics Processing – Handling Goods Received page.
     ///
     /// MVC contract
@@ -19,15 +19,15 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
     /// • AppShell provides TopNavBar + UserBar (identical pattern to ViewOrderForm).
     /// • CardPanel three-layer nesting wraps every content block.
     /// • KPI pills count PO status breakdowns; clicking filters the Receipts grid.
-    /// &lt;/summary&gt;
+    /// </summary>
     public partial class HandlingGoodsReceivedForm : Form
     {
         private readonly LogisticsProcessingController _ctrl =
             new LogisticsProcessingController();
 
         // ── Status colour map (bg, fg) ────────────────────────────────────
-        private static readonly Dictionary&lt;string, (Color bg, Color fg)&gt; StatusColors =
-            new Dictionary&lt;string, (Color, Color)&gt;
+        private static readonly Dictionary<string, (Color bg, Color fg)> StatusColors =
+            new Dictionary<string, (Color, Color)>
             {
                 { "Sent",               (Color.FromArgb(254, 243, 199), Color.FromArgb(146,  64,  14)) },
                 { "Partially Received", (Color.FromArgb(219, 234, 254), Color.FromArgb( 29,  78, 216)) },
@@ -86,7 +86,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         //  Grid binding
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        private void BindReceiptsGrid(List&lt;GoodsReceivedEntity&gt; data)
+        private void BindReceiptsGrid(List<GoodsReceivedEntity> data)
         {
             dgvReceipts.Rows.Clear();
             foreach (var r in data)
@@ -106,7 +106,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             lblReceiptCount.Text = $"{data.Count} receipt(s)";
         }
 
-        private void BindPurchaseOrdersGrid(List&lt;PurchaseOrderEntity&gt; data)
+        private void BindPurchaseOrdersGrid(List<PurchaseOrderEntity> data)
         {
             dgvPO.Rows.Clear();
             foreach (var po in data)
@@ -119,15 +119,15 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         }
 
         // ── KPI Pill Bar ────────────────────────────────────────────────────
-        private void RefreshKpi(List&lt;PurchaseOrderEntity&gt; allPOs)
+        private void RefreshKpi(List<PurchaseOrderEntity> allPOs)
         {
             pnlKpi.Controls.Clear();
 
             int total     = allPOs.Count;
-            int sent      = allPOs.FindAll(p =&gt; p.PurchaseStatus == "Sent").Count;
-            int partial   = allPOs.FindAll(p =&gt; p.PurchaseStatus == "Partially Received").Count;
-            int received  = allPOs.FindAll(p =&gt; p.PurchaseStatus == "Received").Count;
-            int completed = allPOs.FindAll(p =&gt; p.PurchaseStatus == "Completed").Count;
+            int sent      = allPOs.FindAll(p => p.PurchaseStatus == "Sent").Count;
+            int partial   = allPOs.FindAll(p => p.PurchaseStatus == "Partially Received").Count;
+            int received  = allPOs.FindAll(p => p.PurchaseStatus == "Received").Count;
+            int completed = allPOs.FindAll(p => p.PurchaseStatus == "Completed").Count;
 
             var pills = new[]
             {
@@ -163,7 +163,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                     Margin    = new Padding(0, 0, Gap, 0),
                     Cursor    = Cursors.Hand
                 };
-                pill.Paint += (s, e) =&gt;
+                pill.Paint += (s, e) =>
                 {
                     e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
                     using var path  = RoundedRect(((Panel)s).ClientRectangle, 8);
@@ -205,10 +205,10 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                     AutoSize  = false
                 }, 1, 0);
 
-                EventHandler clickHandler = (s, e) =&gt;
+                EventHandler clickHandler = (s, e) =>
                 {
                     int idx = cmbStatusFilter.FindStringExact(localFilter);
-                    if (idx &gt;= 0) cmbStatusFilter.SelectedIndex = idx;
+                    if (idx >= 0) cmbStatusFilter.SelectedIndex = idx;
                     RefreshData();
                 };
                 pill.Click += clickHandler;
@@ -257,7 +257,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         //  Filter buttons
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        private void btnSearch_Click(object sender, EventArgs e) =&gt; RefreshData();
+        private void btnSearch_Click(object sender, EventArgs e) => RefreshData();
 
         private void btnReset_Click(object sender, EventArgs e)
         {
@@ -271,7 +271,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         //  Nav / Logout
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
-            =&gt; FormNavigator.NavigateTo(this, menuLabel, subItem);
+            => FormNavigator.NavigateTo(this, menuLabel, subItem);
 
         private void btnLogout_Click(object sender, EventArgs e)
         {
