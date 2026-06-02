@@ -234,7 +234,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Padding   = new Padding(12, 10, 12, 10)
             };
 
-            const int BtnW   = 210;   // each button width
+            const int BtnW   = 290;   // each button width
             const int BtnH   = 60;    // each button height
             const int BtnGap = 8;     // horizontal gap between the two buttons
             const int BtnPad = 12;    // left/right outer padding inside pnlActionBtns
