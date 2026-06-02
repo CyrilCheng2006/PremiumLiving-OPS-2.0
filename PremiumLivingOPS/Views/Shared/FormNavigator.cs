@@ -1,4 +1,5 @@
 using PremiumLivingOPS.Views.InventoryControl;
+using PremiumLivingOPS.Views.LogisticsProcessing;
 using PremiumLivingOPS.Views.OrderProcessing;
 using System;
 using System.Windows.Forms;
@@ -88,12 +89,24 @@ namespace PremiumLivingOPS.Views.Shared
                     {
                         case "View Product / Raw Material":
                         case "View Product":
-                        case "View Raw Material":       // direct tab route
+                        case "View Raw Material":
                             return sub == "View Raw Material"
                                 ? (Form) new ViewRawMaterialForm()
                                 : (Form) new ViewProductForm();
                         default:
                             return new ViewProductForm();
+                    }
+
+                // ── Logistics Processing ────────────────────────────────────────────
+                case "Logistics Processing":
+                    switch (sub)
+                    {
+                        case "View Shipment":
+                            return new ViewShipmentForm();
+                        case "Handling Goods Received":
+                            return new HandlingGoodsReceivedForm();
+                        default:
+                            return new ViewShipmentForm();
                     }
 
                 default:
