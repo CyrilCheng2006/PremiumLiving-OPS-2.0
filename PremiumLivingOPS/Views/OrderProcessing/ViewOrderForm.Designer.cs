@@ -76,8 +76,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 "Pending",
                 "Processing",
                 "Delivered",
-                "Shipped",
-                "Partially Delivered"
+                "Partially Delivered",
+                "Cancelled",
+                "Completed"
             });
             cboStatus.SelectedIndex = 0;
 
@@ -223,7 +224,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             };
             pnlSearchOuter.Controls.Add(pnlCard);
 
-            // ── KPI bar ──────────────────────────────────────────────────────────
+            // ── KPI bar ───────────────────────────────────────────────────────────────────
             //  Left  : pnlKpi (FlowLayout of pills)  ─ DockStyle.Fill
             //  Right : btnViewDetail + btnModifyOrder SIDE-BY-SIDE, vertically centred
             pnlKpi = new Panel
