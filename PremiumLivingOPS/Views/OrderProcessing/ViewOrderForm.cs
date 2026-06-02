@@ -119,10 +119,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Padding = new Padding(0), AutoScroll = false
             };
 
-            const int PillW    = 240;
+            const int PillW    = 290;
             const int PillH    = 60;
             const int Gap      = 8;
-            const int NumColW  = 70;
+            const int NumColW  = 80;
 
             foreach (var (label, count, fg, bg, filterItem) in pills)
             {
