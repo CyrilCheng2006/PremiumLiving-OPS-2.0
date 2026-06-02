@@ -13,13 +13,18 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
     /// <summary>
     /// Logistics Processing – View Shipment page.
     ///
-    /// MVC contract
+    /// AppShell wiring summary
     /// ─────────────────────────────────────────────────────────────────
-    /// • All DB access is delegated to LogisticsProcessingController.
-    /// • This class contains NO SQL and NO business logic.
-    /// • AppShell provides TopNavBar + UserBar (identical pattern to ViewOrderForm).
-    /// • CardPanel three-layer nesting wraps every content block.
-    /// • KPI pills mirror the ViewOrderForm design and filter the grid on click.
+    /// Designer.cs InitializeComponent() handles ALL construction-time wiring:
+    ///   _shell = new AppShell();
+    ///   _shell.Height      = AppShell.TotalHeight;          // 44 + 72 = 116 px
+    ///   _shell.MinimumSize = new Size(0, AppShell.TotalHeight);
+    ///   _shell.SetPopupContainer(pnlMain);
+    ///   _shell.MenuItemClicked += OnTopNavMenuItemClicked;  // wired ONCE here
+    ///   _shell.LogoutClicked   += btnLogout_Click;          // wired ONCE here
+    ///
+    /// This file must NOT re-subscribe those events in _Load.
+    /// _Load only calls RefreshGrid() to populate data.
     /// </summary>
     public partial class ViewShipmentForm : Form
     {
@@ -40,16 +45,17 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         public ViewShipmentForm()
         {
             InitializeComponent();
+            // NOTE: AppShell events (MenuItemClicked, LogoutClicked) are already
+            // subscribed inside InitializeComponent() in Designer.cs.
+            // Do NOT subscribe them again here.
             Load += ViewShipmentForm_Load;
         }
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  Load
+        //  Load — populate data only; AppShell already wired in Designer.cs
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void ViewShipmentForm_Load(object sender, EventArgs e)
         {
-            _shell.MenuItemClicked += OnTopNavMenuItemClicked;
-            _shell.LogoutClicked   += btnLogout_Click;
             RefreshGrid();
         }
 
@@ -104,7 +110,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             lblRecordCount.Text = $"{data.Count} record(s)";
         }
 
-        // ── KPI Pill Bar (mirrors ViewOrderForm.RefreshKpi) ──────────────
+        // ── KPI Pill Bar ────────────────────────────────────────────────────
         private void RefreshKpi()
         {
             pnlKpi.Controls.Clear();
@@ -313,7 +319,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         }
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  Nav / Logout
+        //  Nav / Logout — handlers wired in Designer.cs InitializeComponent()
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
             => FormNavigator.NavigateTo(this, menuLabel, subItem);
