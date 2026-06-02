@@ -36,11 +36,13 @@ namespace PremiumLivingOPS.Controllers
 
         public ShipmentDetailVM GetShipmentDetail(string shipmentId)
         {
+            var dn = _repo.GetDeliveryNoteByShipment(shipmentId);
             return new ShipmentDetailVM
             {
                 Shipment     = _repo.GetShipmentById(shipmentId),
                 Lines        = _repo.GetShipmentLines(shipmentId),
-                DeliveryNote = _repo.GetDeliveryNoteByShipment(shipmentId)
+                DeliveryNote = dn,
+                ReplySlip    = dn != null ? _repo.GetReplySlipByDelivery(dn.DeliveryID) : null
             };
         }
 

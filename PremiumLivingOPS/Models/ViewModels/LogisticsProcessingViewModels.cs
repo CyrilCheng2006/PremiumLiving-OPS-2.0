@@ -17,6 +17,8 @@ namespace PremiumLivingOPS.Models.ViewModels
         public ShipmentEntity           Shipment     { get; set; }
         public List<ShipmentLineEntity> Lines        { get; set; }
         public DeliveryNoteEntity       DeliveryNote { get; set; }
+        /// <summary>Reply Slip linked to the DeliveryNote (may be null if not yet received).</summary>
+        public ReplySlipEntity          ReplySlip    { get; set; }
     }
 
     // ── Handling Goods Received ─────────────────────────────────────────────────

@@ -120,6 +120,29 @@ namespace PremiumLivingOPS.Models.DAL
             }
         }
 
+        /// <summary>
+        /// Returns the ReplySlip for a given DeliveryID, or null if not yet received.
+        /// </summary>
+        public ReplySlipEntity GetReplySlipByDelivery(string deliveryId)
+        {
+            if (string.IsNullOrEmpty(deliveryId)) return null;
+            using (var conn = OpenConnection())
+            {
+                const string sql = @"
+                    SELECT rs.SlipID, rs.DeliveryID, rs.actualRecipient,
+                           rs.ReceivedDate, rs.RecipientRemark
+                    FROM ReplySlip rs
+                    WHERE rs.DeliveryID = @id
+                    LIMIT 1";
+                using (var cmd = new MySqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@id", deliveryId);
+                    using (var r = cmd.ExecuteReader())
+                        return r.Read() ? MapReplySlip(r) : null;
+                }
+            }
+        }
+
         // ── Goods Received ───────────────────────────────────────────
         public List<GoodsReceivedEntity> SearchReceipts(
             string statusFilter, string keyword, DateTime? dateFrom)
@@ -235,6 +258,17 @@ namespace PremiumLivingOPS.Models.DAL
                                 : Convert.ToInt32(r["Outstanding_qty"]),
             ShippingAddress = r["ShippingAddress"].ToString(),
             ShipToName      = r["ShipToName"].ToString()
+        };
+
+        private static ReplySlipEntity MapReplySlip(MySqlDataReader r) => new ReplySlipEntity
+        {
+            SlipID          = r["SlipID"].ToString(),
+            DeliveryID      = r["DeliveryID"].ToString(),
+            ActualRecipient = r["actualRecipient"].ToString(),
+            ReceivedDate    = Convert.ToDateTime(r["ReceivedDate"]),
+            RecipientRemark = r["RecipientRemark"] == DBNull.Value
+                                ? null
+                                : r["RecipientRemark"].ToString()
         };
 
         private static GoodsReceivedEntity MapReceipt(MySqlDataReader r) => new GoodsReceivedEntity

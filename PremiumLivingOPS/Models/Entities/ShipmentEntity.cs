@@ -39,4 +39,13 @@ namespace PremiumLivingOPS.Models.Entities
         public string   ShippingAddress { get; set; }
         public string   ShipToName      { get; set; }
     }
+
+    public class ReplySlipEntity
+    {
+        public string   SlipID            { get; set; }
+        public string   DeliveryID        { get; set; }
+        public string   ActualRecipient   { get; set; }
+        public DateTime ReceivedDate      { get; set; }
+        public string   RecipientRemark   { get; set; }
+    }
 }
