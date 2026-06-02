@@ -19,9 +19,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             {
                 { "Pending",            (Color.FromArgb(254, 243, 199), Color.FromArgb(146,  64,  14)) },
                 { "Processing",         (Color.FromArgb(219, 234, 254), Color.FromArgb( 29,  78, 216)) },
-                { "Shipped",            (Color.FromArgb(224, 242, 254), Color.FromArgb(  3,  96, 170)) },
                 { "Delivered",          (Color.FromArgb(209, 250, 229), Color.FromArgb(  6,  95,  70)) },
                 { "Partially Delivered",(Color.FromArgb(237, 233, 254), Color.FromArgb( 91,  33, 182)) },
+                { "Cancelled",          (Color.FromArgb(254, 226, 226), Color.FromArgb(185,  28,  28)) },
+                { "Completed",          (Color.FromArgb(220, 252, 231), Color.FromArgb( 22, 101,  52)) },
             };
 
         public ViewOrderForm()
@@ -96,8 +97,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             int pending    = allOrders.FindAll(o => o.OrderStatus == "Pending").Count;
             int processing = allOrders.FindAll(o => o.OrderStatus == "Processing").Count;
             int delivered  = allOrders.FindAll(o => o.OrderStatus == "Delivered").Count;
-            int shipped    = allOrders.FindAll(o => o.OrderStatus == "Shipped").Count;
             int partially  = allOrders.FindAll(o => o.OrderStatus == "Partially Delivered").Count;
+            int cancelled  = allOrders.FindAll(o => o.OrderStatus == "Cancelled").Count;
+            int completed  = allOrders.FindAll(o => o.OrderStatus == "Completed").Count;
 
             var pills = new[]
             {
@@ -105,8 +107,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 ("Pending",   pending.ToString(),    Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), "Pending"),
                 ("Processing",processing.ToString(), Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254), "Processing"),
                 ("Delivered", delivered.ToString(),  Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229), "Delivered"),
-                ("Shipped",   shipped.ToString(),    Color.FromArgb(  3,  96, 170), Color.FromArgb(224, 242, 254), "Shipped"),
                 ("Partially", partially.ToString(),  Color.FromArgb( 91,  33, 182), Color.FromArgb(237, 233, 254), "Partially Delivered"),
+                ("Cancelled", cancelled.ToString(),  Color.FromArgb(185,  28,  28), Color.FromArgb(254, 226, 226), "Cancelled"),
+                ("Completed", completed.ToString(),  Color.FromArgb( 22, 101,  52), Color.FromArgb(220, 252, 231), "Completed"),
             };
 
             var flow = new FlowLayoutPanel
@@ -116,10 +119,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Padding = new Padding(0), AutoScroll = false
             };
 
-            const int PillW    = 290;
+            const int PillW    = 240;
             const int PillH    = 60;
             const int Gap      = 8;
-            const int NumColW  = 80;
+            const int NumColW  = 70;
 
             foreach (var (label, count, fg, bg, filterItem) in pills)
             {
