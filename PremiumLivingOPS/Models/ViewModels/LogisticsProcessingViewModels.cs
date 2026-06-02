@@ -3,17 +3,11 @@ using System.Collections.Generic;
 
 namespace PremiumLivingOPS.Models.ViewModels
 {
-    // ── Shared user bar ──────────────────────────────────────────────
-    public class LogisticsUserBarVM
-    {
-        public string DisplayName { get; set; }
-        public string Department  { get; set; }
-    }
-
-    // ── View Shipment ────────────────────────────────────────────────
+    // ── View Shipment ─────────────────────────────────────────────────────────────────
     public class ViewShipmentVM
     {
-        public LogisticsUserBarVM   UserBar      { get; set; }
+        /// <summary>Shared user bar — uses the same UserBarViewModel as Order Processing.</summary>
+        public UserBarViewModel     UserBar      { get; set; }
         public string[]             AllowedMenus { get; set; }
         public List<ShipmentEntity> Shipments    { get; set; }
     }
@@ -25,10 +19,11 @@ namespace PremiumLivingOPS.Models.ViewModels
         public DeliveryNoteEntity       DeliveryNote { get; set; }
     }
 
-    // ── Handling Goods Received ──────────────────────────────────────
+    // ── Handling Goods Received ─────────────────────────────────────────────────
     public class HandlingGoodsReceivedVM
     {
-        public LogisticsUserBarVM        UserBar        { get; set; }
+        /// <summary>Shared user bar — uses the same UserBarViewModel as Order Processing.</summary>
+        public UserBarViewModel          UserBar        { get; set; }
         public string[]                  AllowedMenus   { get; set; }
         public List<GoodsReceivedEntity> Receipts       { get; set; }
         public List<PurchaseOrderEntity> PurchaseOrders { get; set; }

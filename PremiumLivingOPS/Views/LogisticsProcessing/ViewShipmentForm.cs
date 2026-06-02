@@ -11,7 +11,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
     /// <summary>
     /// Logistics Processing – View Shipment page.
     /// MVC: Controller handles all DB access; this form is pure View.
-    /// Layout: UserInfoLabel (top) → TopNavBar → CardPanel three-layer nesting.
     /// </summary>
     public partial class ViewShipmentForm : Form
     {
@@ -24,20 +23,16 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             Load += ViewShipmentForm_Load;
         }
 
-        // ── Load ─────────────────────────────────────────────────────
         private void ViewShipmentForm_Load(object sender, EventArgs e) => RefreshData();
 
-        // ── RefreshData ─────────────────────────────────────────────────
         private void RefreshData(string status = null, string keyword = null, DateTime? from = null)
         {
             try
             {
                 _vm = _controller.GetViewShipmentVM(status, keyword, from);
-
                 userInfoLabel.UserName   = _vm.UserBar.DisplayName;
                 userInfoLabel.Department = _vm.UserBar.Department;
                 topNavBar.SetVisibleMenus(_vm.AllowedMenus);
-
                 BindShipmentGrid(_vm.Shipments);
                 ClearDetail();
             }
@@ -48,21 +43,15 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }
         }
 
-        // ── BindShipmentGrid ──────────────────────────────────────────
         private void BindShipmentGrid(System.Collections.Generic.List<ShipmentEntity> data)
         {
             dgvShipments.Rows.Clear();
             foreach (var s in data)
             {
                 int i = dgvShipments.Rows.Add(
-                    s.ShipmentID,
-                    s.OrderID,
-                    s.CustomerName,
-                    s.TrackingNumber,
-                    s.ShipDate.ToString("yyyy-MM-dd"),
-                    s.ShipmentStatus,
-                    s.ShipmentType,
-                    s.DeliveryMethod,
+                    s.ShipmentID, s.OrderID, s.CustomerName,
+                    s.TrackingNumber, s.ShipDate.ToString("yyyy-MM-dd"),
+                    s.ShipmentStatus, s.ShipmentType, s.DeliveryMethod,
                     s.TotalAmount.ToString("C"));
 
                 var cell = dgvShipments.Rows[i].Cells["colStatus"];
@@ -76,16 +65,12 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             lblRecordCount.Text = $"{data.Count} record(s)";
         }
 
-        // ── Row selection ───────────────────────────────────────────────
         private void dgvShipments_SelectionChanged(object sender, EventArgs e)
         {
             if (dgvShipments.SelectedRows.Count == 0) { ClearDetail(); return; }
             string id = dgvShipments.SelectedRows[0].Cells["colShipmentID"].Value?.ToString();
             if (string.IsNullOrEmpty(id)) return;
-            try
-            {
-                ShowDetail(_controller.GetShipmentDetail(id));
-            }
+            try { ShowDetail(_controller.GetShipmentDetail(id)); }
             catch (Exception ex)
             {
                 MessageBox.Show($"Error loading detail:\n{ex.Message}",
@@ -93,7 +78,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }
         }
 
-        // ── ShowDetail ───────────────────────────────────────────────────
         private void ShowDetail(ShipmentDetailVM d)
         {
             if (d.Shipment == null) { ClearDetail(); return; }
@@ -115,24 +99,20 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 lblDNShipTo.Text = d.DeliveryNote.ShipToName;
                 lblDNDate.Text   = d.DeliveryNote.DeliveryDate.ToString("yyyy-MM-dd");
                 lblDNOutQty.Text = d.DeliveryNote.OutstandingQty?.ToString() ?? "0";
-                pnlDeliveryNote.Visible = true;
+                pnlDNOuter.Visible = true;
             }
-            else
-            {
-                pnlDeliveryNote.Visible = false;
-            }
+            else { pnlDNOuter.Visible = false; }
 
             dgvLines.Rows.Clear();
             foreach (var line in d.Lines)
                 dgvLines.Rows.Add(line.ShipmentLineID, line.ItemID, line.ItemName,
                                   line.QtyShipped, line.QtyOutstanding?.ToString() ?? "0");
 
-            pnlDetail.Visible = true;
+            pnlDetailOuter.Visible = true;
         }
 
-        private void ClearDetail() => pnlDetail.Visible = false;
+        private void ClearDetail() => pnlDetailOuter.Visible = false;
 
-        // ── Filter / Search ───────────────────────────────────────────────
         private void btnSearch_Click(object sender, EventArgs e)
         {
             string status  = cmbStatusFilter.SelectedIndex > 0 ? cmbStatusFilter.SelectedItem.ToString() : null;
@@ -149,7 +129,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             RefreshData();
         }
 
-        // ── Navigation ─────────────────────────────────────────────────────
         private void TopNavBar_MenuItemClicked(string menuLabel, string subItem)
             => FormNavigator.NavigateTo(this, menuLabel, subItem);
     }

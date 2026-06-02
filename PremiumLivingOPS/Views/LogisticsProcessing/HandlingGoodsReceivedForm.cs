@@ -11,7 +11,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
     /// <summary>
     /// Logistics Processing – Handling Goods Received page.
     /// MVC: Controller handles all DB access; this form is pure View.
-    /// Layout: UserInfoLabel (top) → TopNavBar → CardPanel three-layer nesting.
     /// </summary>
     public partial class HandlingGoodsReceivedForm : Form
     {
@@ -26,17 +25,14 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
         private void HandlingGoodsReceivedForm_Load(object sender, EventArgs e) => RefreshData();
 
-        // ── RefreshData ─────────────────────────────────────────────────
         private void RefreshData(string status = null, string keyword = null, DateTime? from = null)
         {
             try
             {
                 _vm = _controller.GetHandlingGoodsReceivedVM(status, keyword, from);
-
                 userInfoLabel.UserName   = _vm.UserBar.DisplayName;
                 userInfoLabel.Department = _vm.UserBar.Department;
                 topNavBar.SetVisibleMenus(_vm.AllowedMenus);
-
                 BindReceiptsGrid(_vm.Receipts);
                 BindPurchaseOrdersGrid(_vm.PurchaseOrders);
             }
@@ -47,7 +43,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }
         }
 
-        // ── BindReceiptsGrid ──────────────────────────────────────────
         private void BindReceiptsGrid(System.Collections.Generic.List<GoodsReceivedEntity> data)
         {
             dgvReceipts.Rows.Clear();
@@ -74,7 +69,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             lblReceiptCount.Text = $"{data.Count} receipt(s)";
         }
 
-        // ── BindPurchaseOrdersGrid ────────────────────────────────────
         private void BindPurchaseOrdersGrid(System.Collections.Generic.List<PurchaseOrderEntity> data)
         {
             dgvPO.Rows.Clear();
@@ -97,7 +91,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }
         }
 
-        // ── Filter / Search ───────────────────────────────────────────────
         private void btnSearch_Click(object sender, EventArgs e)
         {
             string status  = cmbStatusFilter.SelectedIndex > 0 ? cmbStatusFilter.SelectedItem.ToString() : null;
@@ -114,7 +107,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             RefreshData();
         }
 
-        // ── Navigation ───────────────────────────────────────────────────
         private void TopNavBar_MenuItemClicked(string menuLabel, string subItem)
             => FormNavigator.NavigateTo(this, menuLabel, subItem);
     }
