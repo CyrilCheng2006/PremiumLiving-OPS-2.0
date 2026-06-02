@@ -3,19 +3,39 @@ using PremiumLivingOPS.Models.Entities;
 using PremiumLivingOPS.Models.ViewModels;
 using PremiumLivingOPS.Views.Shared;
 using System;
+using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 
 namespace PremiumLivingOPS.Views.LogisticsProcessing
 {
     /// <summary>
     /// Logistics Processing – View Shipment page.
-    /// MVC: Controller handles all DB access; this form is pure View.
+    ///
+    /// MVC contract
+    /// ─────────────────────────────────────────────────────────────────
+    /// • All DB access is delegated to LogisticsProcessingController.
+    /// • This class contains NO SQL and NO business logic.
+    /// • AppShell provides TopNavBar + UserBar (identical pattern to ViewOrderForm).
+    /// • CardPanel three-layer nesting wraps every content block.
+    /// • KPI pills mirror the ViewOrderForm design and filter the grid on click.
     /// </summary>
     public partial class ViewShipmentForm : Form
     {
-        private readonly LogisticsProcessingController _controller = new LogisticsProcessingController();
-        private ViewShipmentVM _vm;
+        private readonly LogisticsProcessingController _ctrl =
+            new LogisticsProcessingController();
+
+        private List<ShipmentEntity> _currentShipments = new List<ShipmentEntity>();
+
+        // ── Status colour map (bg, fg) ────────────────────────────────────
+        private static readonly Dictionary<string, (Color bg, Color fg)> StatusColors =
+            new Dictionary<string, (Color, Color)>
+            {
+                { "Pending",    (Color.FromArgb(254, 243, 199), Color.FromArgb(146,  64,  14)) },
+                { "In Transit", (Color.FromArgb(219, 234, 254), Color.FromArgb( 29,  78, 216)) },
+                { "Completed",  (Color.FromArgb(209, 250, 229), Color.FromArgb(  6,  95,  70)) },
+            };
 
         public ViewShipmentForm()
         {
@@ -23,17 +43,38 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             Load += ViewShipmentForm_Load;
         }
 
-        private void ViewShipmentForm_Load(object sender, EventArgs e) => RefreshData();
-
-        private void RefreshData(string status = null, string keyword = null, DateTime? from = null)
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        //  Load
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        private void ViewShipmentForm_Load(object sender, EventArgs e)
         {
+            RefreshGrid();
+        }
+
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        //  Grid + KPI refresh
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        private void RefreshGrid()
+        {
+            string statusSel = cmbStatusFilter.SelectedItem?.ToString();
+            string statusFilter = (statusSel == "All" || string.IsNullOrEmpty(statusSel))
+                                  ? null : statusSel;
+            string keyword = txtSearch.Text.Trim();
+            if (string.IsNullOrEmpty(keyword)) keyword = null;
+            DateTime? dateFrom = dtpFrom.Checked ? (DateTime?)dtpFrom.Value.Date : null;
+
             try
             {
-                _vm = _controller.GetViewShipmentVM(status, keyword, from);
-                userInfoLabel.UserName   = _vm.UserBar.DisplayName;
-                userInfoLabel.Department = _vm.UserBar.Department;
-                topNavBar.SetVisibleMenus(_vm.AllowedMenus);
-                BindShipmentGrid(_vm.Shipments);
+                var vm = _ctrl.GetViewShipmentVM(statusFilter, keyword, dateFrom);
+
+                _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
+                _shell.SetVisibleMenus(vm.AllowedMenus);
+                _shell.SetBreadcrumb("Logistics Processing  ›  View Shipment");
+
+                _currentShipments = vm.Shipments;
+
+                BindShipmentGrid(_currentShipments);
+                RefreshKpi();
                 ClearDetail();
             }
             catch (Exception ex)
@@ -43,56 +84,195 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }
         }
 
-        private void BindShipmentGrid(System.Collections.Generic.List<ShipmentEntity> data)
+        private void BindShipmentGrid(List<ShipmentEntity> data)
         {
             dgvShipments.Rows.Clear();
             foreach (var s in data)
-            {
-                int i = dgvShipments.Rows.Add(
-                    s.ShipmentID, s.OrderID, s.CustomerName,
-                    s.TrackingNumber, s.ShipDate.ToString("yyyy-MM-dd"),
-                    s.ShipmentStatus, s.ShipmentType, s.DeliveryMethod,
-                    s.TotalAmount.ToString("C"));
+                dgvShipments.Rows.Add(
+                    s.ShipmentID,
+                    s.OrderID,
+                    s.CustomerName,
+                    s.TrackingNumber,
+                    s.ShipDate.ToString("yyyy-MM-dd"),
+                    s.ShipmentStatus,
+                    s.ShipmentType,
+                    s.DeliveryMethod,
+                    $"HK$ {s.TotalAmount:N2}");
 
-                var cell = dgvShipments.Rows[i].Cells["colStatus"];
-                switch (s.ShipmentStatus)
-                {
-                    case "Completed":  cell.Style.ForeColor = Color.FromArgb(67, 122, 34);  break;
-                    case "In Transit": cell.Style.ForeColor = Color.FromArgb(0, 100, 148);  break;
-                    default:           cell.Style.ForeColor = Color.FromArgb(154, 66, 25);  break;
-                }
-            }
             lblRecordCount.Text = $"{data.Count} record(s)";
         }
 
+        // ── KPI Pill Bar (mirrors ViewOrderForm.RefreshKpi) ──────────────
+        private void RefreshKpi()
+        {
+            pnlKpi.Controls.Clear();
+
+            // Always count against ALL shipments (no filter applied)
+            var allVm = _ctrl.GetViewShipmentVM();
+            var all   = allVm.Shipments;
+
+            int total     = all.Count;
+            int pending   = all.FindAll(s => s.ShipmentStatus == "Pending").Count;
+            int inTransit = all.FindAll(s => s.ShipmentStatus == "In Transit").Count;
+            int completed = all.FindAll(s => s.ShipmentStatus == "Completed").Count;
+
+            var pills = new[]
+            {
+                ("Total",      total.ToString(),      Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254), "All"),
+                ("Pending",    pending.ToString(),    Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), "Pending"),
+                ("In Transit", inTransit.ToString(),  Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254), "In Transit"),
+                ("Completed",  completed.ToString(),  Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229), "Completed"),
+            };
+
+            var flow = new FlowLayoutPanel
+            {
+                Dock          = DockStyle.Fill,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents  = false,
+                BackColor     = Color.Transparent,
+                Padding       = new Padding(0),
+                AutoScroll    = false
+            };
+
+            const int PillW   = 260;
+            const int PillH   = 64;
+            const int Gap     = 10;
+            const int NumColW = 70;
+
+            foreach (var (label, count, fg, bg, filterVal) in pills)
+            {
+                string localFilter = filterVal;
+                var pill = new Panel
+                {
+                    BackColor = bg,
+                    Size      = new Size(PillW, PillH),
+                    Margin    = new Padding(0, 0, Gap, 0),
+                    Cursor    = Cursors.Hand
+                };
+                pill.Paint += (s, e) =>
+                {
+                    e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                    using var path  = RoundedRect(((Panel)s).ClientRectangle, 8);
+                    using var brush = new SolidBrush(((Panel)s).BackColor);
+                    e.Graphics.FillPath(brush, path);
+                };
+
+                var tlp = new TableLayoutPanel
+                {
+                    Dock            = DockStyle.Fill,
+                    ColumnCount     = 2,
+                    RowCount        = 1,
+                    BackColor       = Color.Transparent,
+                    CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                    Padding         = new Padding(10, 0, 8, 0)
+                };
+                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, NumColW));
+                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+                tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+
+                tlp.Controls.Add(new Label
+                {
+                    Text      = count,
+                    Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
+                    ForeColor = fg,
+                    BackColor = Color.Transparent,
+                    Dock      = DockStyle.Fill,
+                    TextAlign = ContentAlignment.MiddleCenter,
+                    AutoSize  = false
+                }, 0, 0);
+                tlp.Controls.Add(new Label
+                {
+                    Text      = label,
+                    Font      = new Font("Segoe UI", 11f),
+                    ForeColor = fg,
+                    BackColor = Color.Transparent,
+                    Dock      = DockStyle.Fill,
+                    TextAlign = ContentAlignment.MiddleLeft,
+                    AutoSize  = false
+                }, 1, 0);
+
+                EventHandler clickHandler = (s, e) =>
+                {
+                    int idx = cmbStatusFilter.FindStringExact(localFilter);
+                    if (idx >= 0) cmbStatusFilter.SelectedIndex = idx;
+                    RefreshGrid();
+                };
+                pill.Click += clickHandler;
+                tlp.Click  += clickHandler;
+                foreach (Control c in tlp.Controls) c.Click += clickHandler;
+
+                pill.Controls.Add(tlp);
+                flow.Controls.Add(pill);
+            }
+
+            pnlKpi.Controls.Add(flow);
+        }
+
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        //  Grid events
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void dgvShipments_SelectionChanged(object sender, EventArgs e)
         {
             if (dgvShipments.SelectedRows.Count == 0) { ClearDetail(); return; }
             string id = dgvShipments.SelectedRows[0].Cells["colShipmentID"].Value?.ToString();
             if (string.IsNullOrEmpty(id)) return;
-            try { ShowDetail(_controller.GetShipmentDetail(id)); }
+
+            try
+            {
+                ShowDetail(_ctrl.GetShipmentDetail(id));
+            }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error loading detail:\n{ex.Message}",
+                MessageBox.Show($"Error loading shipment detail:\n{ex.Message}",
                     "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
+        private void dgvShipments_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
+        {
+            if (dgvShipments.Columns[e.ColumnIndex].Name != "colStatus" || e.Value == null)
+                return;
+
+            string val = e.Value.ToString();
+            e.FormattingApplied = true;
+            if (StatusColors.TryGetValue(val, out var colors))
+            {
+                e.CellStyle.ForeColor            = colors.fg;
+                e.CellStyle.BackColor            = colors.bg;
+                e.CellStyle.SelectionForeColor   = colors.fg;
+                e.CellStyle.SelectionBackColor   = colors.bg;
+                e.CellStyle.Font                 = new Font("Segoe UI", 10f, FontStyle.Bold);
+                e.CellStyle.Alignment            = DataGridViewContentAlignment.MiddleCenter;
+            }
+        }
+
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        //  Detail panel
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void ShowDetail(ShipmentDetailVM d)
         {
-            if (d.Shipment == null) { ClearDetail(); return; }
+            if (d?.Shipment == null) { ClearDetail(); return; }
 
-            lblDetailShipmentID.Text  = d.Shipment.ShipmentID;
-            lblDetailOrderID.Text     = d.Shipment.OrderID;
-            lblDetailCustomer.Text    = d.Shipment.CustomerName;
-            lblDetailTracking.Text    = d.Shipment.TrackingNumber;
-            lblDetailStatus.Text      = d.Shipment.ShipmentStatus;
-            lblDetailType.Text        = d.Shipment.ShipmentType;
-            lblDetailMethod.Text      = d.Shipment.DeliveryMethod;
-            lblDetailShipDate.Text    = d.Shipment.ShipDate.ToString("yyyy-MM-dd");
-            lblDetailAmount.Text      = d.Shipment.TotalAmount.ToString("C");
-            lblDetailAddress.Text     = d.Shipment.ShippingAddress;
+            var s = d.Shipment;
+            lblDetailShipmentID.Text = s.ShipmentID;
+            lblDetailOrderID.Text    = s.OrderID;
+            lblDetailCustomer.Text   = s.CustomerName;
+            lblDetailTracking.Text   = s.TrackingNumber;
+            lblDetailStatus.Text     = s.ShipmentStatus;
+            lblDetailType.Text       = s.ShipmentType;
+            lblDetailMethod.Text     = s.DeliveryMethod;
+            lblDetailShipDate.Text   = s.ShipDate.ToString("yyyy-MM-dd");
+            lblDetailAmount.Text     = $"HK$ {s.TotalAmount:N2}";
+            lblDetailAddress.Text    = s.ShippingAddress ?? "—";
 
+            // Style the status value label
+            if (StatusColors.TryGetValue(s.ShipmentStatus ?? "", out var sc))
+            {
+                lblDetailStatus.ForeColor = sc.fg;
+                lblDetailStatus.BackColor = sc.bg;
+            }
+
+            // Delivery Note sub-panel
             if (d.DeliveryNote != null)
             {
                 lblDNID.Text     = d.DeliveryNote.DeliveryID;
@@ -101,35 +281,62 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 lblDNOutQty.Text = d.DeliveryNote.OutstandingQty?.ToString() ?? "0";
                 pnlDNOuter.Visible = true;
             }
-            else { pnlDNOuter.Visible = false; }
+            else
+            {
+                pnlDNOuter.Visible = false;
+            }
 
+            // Shipment lines sub-grid
             dgvLines.Rows.Clear();
             foreach (var line in d.Lines)
-                dgvLines.Rows.Add(line.ShipmentLineID, line.ItemID, line.ItemName,
-                                  line.QtyShipped, line.QtyOutstanding?.ToString() ?? "0");
+                dgvLines.Rows.Add(
+                    line.ShipmentLineID,
+                    line.ItemID,
+                    line.ItemName,
+                    line.QtyShipped,
+                    line.QtyOutstanding?.ToString() ?? "0");
 
             pnlDetailOuter.Visible = true;
         }
 
         private void ClearDetail() => pnlDetailOuter.Visible = false;
 
-        private void btnSearch_Click(object sender, EventArgs e)
-        {
-            string status  = cmbStatusFilter.SelectedIndex > 0 ? cmbStatusFilter.SelectedItem.ToString() : null;
-            string keyword = txtSearch.Text.Trim();
-            DateTime? from = dtpFrom.Checked ? dtpFrom.Value.Date : (DateTime?)null;
-            RefreshData(status, string.IsNullOrEmpty(keyword) ? null : keyword, from);
-        }
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        //  Filter buttons
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        private void btnSearch_Click(object sender, EventArgs e) => RefreshGrid();
 
         private void btnReset_Click(object sender, EventArgs e)
         {
             cmbStatusFilter.SelectedIndex = 0;
             txtSearch.Clear();
             dtpFrom.Checked = false;
-            RefreshData();
+            RefreshGrid();
         }
 
-        private void TopNavBar_MenuItemClicked(string menuLabel, string subItem)
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        //  Nav / Logout
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
             => FormNavigator.NavigateTo(this, menuLabel, subItem);
+
+        private void btnLogout_Click(object sender, EventArgs e)
+        {
+            SessionManager.Clear();
+            Application.Restart();
+        }
+
+        // ── Rounded rectangle helper (shared with KPI pills) ─────────────
+        private static GraphicsPath RoundedRect(Rectangle r, int radius)
+        {
+            int d    = radius * 2;
+            var path = new GraphicsPath();
+            path.AddArc(r.X,         r.Y,          d, d, 180, 90);
+            path.AddArc(r.Right - d, r.Y,          d, d, 270, 90);
+            path.AddArc(r.Right - d, r.Bottom - d, d, d,   0, 90);
+            path.AddArc(r.X,         r.Bottom - d, d, d,  90, 90);
+            path.CloseFigure();
+            return path;
+        }
     }
 }
