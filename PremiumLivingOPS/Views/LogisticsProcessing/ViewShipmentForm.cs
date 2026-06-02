@@ -10,7 +10,7 @@ using System.Windows.Forms;
 
 namespace PremiumLivingOPS.Views.LogisticsProcessing
 {
-    /// <summary>
+    /// &lt;summary&gt;
     /// Logistics Processing – View Shipment page.
     ///
     /// MVC contract
@@ -20,17 +20,17 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
     /// • AppShell provides TopNavBar + UserBar (identical pattern to ViewOrderForm).
     /// • CardPanel three-layer nesting wraps every content block.
     /// • KPI pills mirror the ViewOrderForm design and filter the grid on click.
-    /// </summary>
+    /// &lt;/summary&gt;
     public partial class ViewShipmentForm : Form
     {
         private readonly LogisticsProcessingController _ctrl =
             new LogisticsProcessingController();
 
-        private List<ShipmentEntity> _currentShipments = new List<ShipmentEntity>();
+        private List&lt;ShipmentEntity&gt; _currentShipments = new List&lt;ShipmentEntity&gt;();
 
         // ── Status colour map (bg, fg) ────────────────────────────────────
-        private static readonly Dictionary<string, (Color bg, Color fg)> StatusColors =
-            new Dictionary<string, (Color, Color)>
+        private static readonly Dictionary&lt;string, (Color bg, Color fg)&gt; StatusColors =
+            new Dictionary&lt;string, (Color, Color)&gt;
             {
                 { "Pending",    (Color.FromArgb(254, 243, 199), Color.FromArgb(146,  64,  14)) },
                 { "In Transit", (Color.FromArgb(219, 234, 254), Color.FromArgb( 29,  78, 216)) },
@@ -48,6 +48,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void ViewShipmentForm_Load(object sender, EventArgs e)
         {
+            _shell.MenuItemClicked += OnTopNavMenuItemClicked;
+            _shell.LogoutClicked   += btnLogout_Click;
             RefreshGrid();
         }
 
@@ -84,7 +86,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }
         }
 
-        private void BindShipmentGrid(List<ShipmentEntity> data)
+        private void BindShipmentGrid(List&lt;ShipmentEntity&gt; data)
         {
             dgvShipments.Rows.Clear();
             foreach (var s in data)
@@ -112,9 +114,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             var all   = allVm.Shipments;
 
             int total     = all.Count;
-            int pending   = all.FindAll(s => s.ShipmentStatus == "Pending").Count;
-            int inTransit = all.FindAll(s => s.ShipmentStatus == "In Transit").Count;
-            int completed = all.FindAll(s => s.ShipmentStatus == "Completed").Count;
+            int pending   = all.FindAll(s =&gt; s.ShipmentStatus == "Pending").Count;
+            int inTransit = all.FindAll(s =&gt; s.ShipmentStatus == "In Transit").Count;
+            int completed = all.FindAll(s =&gt; s.ShipmentStatus == "Completed").Count;
 
             var pills = new[]
             {
@@ -149,7 +151,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                     Margin    = new Padding(0, 0, Gap, 0),
                     Cursor    = Cursors.Hand
                 };
-                pill.Paint += (s, e) =>
+                pill.Paint += (s, e) =&gt;
                 {
                     e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
                     using var path  = RoundedRect(((Panel)s).ClientRectangle, 8);
@@ -191,10 +193,10 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                     AutoSize  = false
                 }, 1, 0);
 
-                EventHandler clickHandler = (s, e) =>
+                EventHandler clickHandler = (s, e) =&gt;
                 {
                     int idx = cmbStatusFilter.FindStringExact(localFilter);
-                    if (idx >= 0) cmbStatusFilter.SelectedIndex = idx;
+                    if (idx &gt;= 0) cmbStatusFilter.SelectedIndex = idx;
                     RefreshGrid();
                 };
                 pill.Click += clickHandler;
@@ -299,12 +301,12 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlDetailOuter.Visible = true;
         }
 
-        private void ClearDetail() => pnlDetailOuter.Visible = false;
+        private void ClearDetail() =&gt; pnlDetailOuter.Visible = false;
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         //  Filter buttons
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        private void btnSearch_Click(object sender, EventArgs e) => RefreshGrid();
+        private void btnSearch_Click(object sender, EventArgs e) =&gt; RefreshGrid();
 
         private void btnReset_Click(object sender, EventArgs e)
         {
@@ -318,7 +320,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         //  Nav / Logout
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
-            => FormNavigator.NavigateTo(this, menuLabel, subItem);
+            =&gt; FormNavigator.NavigateTo(this, menuLabel, subItem);
 
         private void btnLogout_Click(object sender, EventArgs e)
         {
