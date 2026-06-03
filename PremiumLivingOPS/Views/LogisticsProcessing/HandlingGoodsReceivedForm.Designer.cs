@@ -180,9 +180,10 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             // ── RULE 2 — AppShell built inside SuspendLayout ──────────────────
             // TopNavBar height  = AppShell.NavBarHeight  = 44 px
             // UserBar height    = AppShell.UserBarHeight = 72 px
-            // Both are const in AppShell; enforced again after PerformLayout (RULE 3).
+            // Both are enforced by AppShell.OnLayout and TopNavBar.OnLayout.
             _shell = new AppShell();
-            _shell.Height      = AppShell.TotalHeight;          // 116 px
+            _shell.Dock        = DockStyle.Top;                  // explicit — never rely on constructor default alone
+            _shell.Height      = AppShell.TotalHeight;           // 116 px
             _shell.MinimumSize = new System.Drawing.Size(0, AppShell.TotalHeight);
 
             // RULE 4 — subscribe events ONCE here; .cs Load must NOT repeat
@@ -214,7 +215,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             ResumeLayout(false);
             PerformLayout();
 
-            // RULE 3 — re-enforce after PerformLayout in case DPI scaling touched it
+            // RULE 3 — re-enforce after PerformLayout (DPI safety net)
             _shell.Height      = AppShell.TotalHeight;
             _shell.MinimumSize = new System.Drawing.Size(0, AppShell.TotalHeight);
         }
