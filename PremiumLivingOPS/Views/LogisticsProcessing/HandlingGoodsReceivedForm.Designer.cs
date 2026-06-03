@@ -14,10 +14,33 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             base.Dispose(disposing);
         }
 
+        // ══════════════════════════════════════════════════════════════════════
+        // AppShell wiring — canonical pattern (mirrors ViewOrderForm exactly)
+        // ══════════════════════════════════════════════════════════════════════
+        // RULE 1  SuspendLayout() is the FIRST statement in InitializeComponent.
+        //         Every control is built while layout is suspended.
+        // RULE 2  AppShell is constructed INSIDE SuspendLayout so AutoScaleMode
+        //         cannot touch its height during PerformLayout.
+        // RULE 3  After ResumeLayout/PerformLayout, _shell.Height is set AGAIN
+        //         to AppShell.TotalHeight as a safety net against DPI scaling.
+        // RULE 4  Events (MenuItemClicked, LogoutClicked) are subscribed HERE,
+        //         ONCE.  The .cs Load handler must NOT re-subscribe them.
+        // RULE 5  pnlMain.Controls add order:
+        //           Add(pnlPage)  first  → DockStyle.Fill  (content)
+        //           Add(_shell)   second → DockStyle.Top   (chrome, wins)
+        //
+        //   TopNavBar height = AppShell.NavBarHeight  =  44 px  (const in AppShell)
+        //   UserBar   height = AppShell.UserBarHeight =  72 px  (const in AppShell)
+        //   TotalHeight      = AppShell.TotalHeight   = 116 px
+        // ══════════════════════════════════════════════════════════════════════
+
         #region Windows Form Designer generated code
         private void InitializeComponent()
         {
-            // ── Page background ─────────────────────────────────────────────
+            // RULE 1 — suspend before touching any control
+            SuspendLayout();
+
+            // ── Page background ───────────────────────────────────────────────
             pnlPage = new Panel
             {
                 Dock      = DockStyle.Fill,
@@ -25,7 +48,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 Padding   = new Padding(0)
             };
 
-            // ── Scroll container ─────────────────────────────────────────────
+            // ── Scroll container ──────────────────────────────────────────────
             pnlScroll = new Panel
             {
                 Dock       = DockStyle.Fill,
@@ -33,9 +56,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 BackColor  = System.Drawing.Color.FromArgb(240, 244, 249)
             };
 
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            // Card 1 — KPI Bar  (CardPanel.Create, fixed height)
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // Card 1 — KPI Bar
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             var (kpiOuter, kpiInner) = CardPanel.Create(outerHeight: 102);
             kpiOuter.Dock = DockStyle.Top;
             pnlKpi = new Panel
@@ -46,20 +69,17 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             };
             kpiInner.Controls.Add(pnlKpi);
 
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            // Card 2 — Filter / Search Bar  (CardPanel.Create, fixed height)
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            var (filterOuter, filterInner) = CardPanel.Create(outerHeight: 76,
-                outerPadding: new Padding(20, 8, 20, 8));
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // Card 2 — Filter / Search Bar
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            var (filterOuter, filterInner) = CardPanel.Create(
+                outerHeight: 76, outerPadding: new Padding(20, 8, 20, 8));
             filterOuter.Dock = DockStyle.Top;
 
-            lblSearchHint   = new Label  { Text = "Search:", AutoSize = true, TextAlign = System.Drawing.ContentAlignment.MiddleLeft };
+            lblSearchHint   = new Label  { Text = "Search:",    AutoSize = true, TextAlign = System.Drawing.ContentAlignment.MiddleLeft };
             txtSearch       = new TextBox { Size = new Size(220, 28) };
             lblStatusFilter = new Label  { Text = "PO Status:", AutoSize = true, TextAlign = System.Drawing.ContentAlignment.MiddleLeft };
-            cmbStatusFilter = new ComboBox
-            {
-                Size = new Size(180, 28), DropDownStyle = ComboBoxStyle.DropDownList
-            };
+            cmbStatusFilter = new ComboBox { Size = new Size(180, 28), DropDownStyle = ComboBoxStyle.DropDownList };
             cmbStatusFilter.Items.AddRange(new object[]
             {
                 "All", "Sent", "Partially Received", "Received", "Completed", "Cancelled"
@@ -67,11 +87,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             cmbStatusFilter.SelectedIndex = 0;
 
             lblFromDate = new Label { Text = "From:", AutoSize = true, TextAlign = System.Drawing.ContentAlignment.MiddleLeft };
-            dtpFrom = new DateTimePicker
-            {
-                Size = new Size(150, 28), Format = DateTimePickerFormat.Short,
-                ShowCheckBox = true, Checked = false
-            };
+            dtpFrom = new DateTimePicker { Size = new Size(150, 28), Format = DateTimePickerFormat.Short, ShowCheckBox = true, Checked = false };
 
             btnSearch = MakeButton("Search", new Size(88, 30), primary: true);
             btnSearch.Click += btnSearch_Click;
@@ -88,11 +104,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             var filterFlow = new FlowLayoutPanel
             {
-                Dock          = DockStyle.Fill,
-                FlowDirection = FlowDirection.LeftToRight,
-                WrapContents  = false,
-                AutoSize      = false,
-                Padding       = new Padding(4, 10, 4, 0)
+                Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight,
+                WrapContents = false, AutoSize = false, Padding = new Padding(4, 10, 4, 0)
             };
             filterFlow.Controls.AddRange(new Control[]
             {
@@ -103,94 +116,94 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             });
             filterInner.Controls.Add(filterFlow);
 
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             // Card 3 — Goods Received Records Grid
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            var (rcvOuter, rcvInner) = CardPanel.Create(outerHeight: 400,
-                outerPadding: new Padding(20, 8, 20, 8));
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            var (rcvOuter, rcvInner) = CardPanel.Create(
+                outerHeight: 400, outerPadding: new Padding(20, 8, 20, 8));
             rcvOuter.Dock = DockStyle.Top;
 
             lblReceiptsTitle = new Label
             {
-                Text      = "GOODS RECEIVED RECORDS",
-                AutoSize  = true,
-                Dock      = DockStyle.Top,
-                Font      = new Font("Segoe UI", 9.5f, FontStyle.Bold),
-                Padding   = new Padding(14, 10, 0, 6),
+                Text = "GOODS RECEIVED RECORDS", AutoSize = true, Dock = DockStyle.Top,
+                Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
+                Padding = new Padding(14, 10, 0, 6),
                 ForeColor = System.Drawing.Color.FromArgb(98, 112, 135)
             };
             dgvReceipts = MakeGrid();
             dgvReceipts.CellFormatting += dgvReceipts_CellFormatting;
-            AddCol(dgvReceipts, "colRID",        "RECEIPT ID",       90);
-            AddCol(dgvReceipts, "colRPO",        "PO ID",             90);
-            AddCol(dgvReceipts, "colRSupplier",  "SUPPLIER",         140);
-            AddCol(dgvReceipts, "colRMatID",     "MATERIAL ID",      100);
-            AddCol(dgvReceipts, "colRMatName",   "MATERIAL NAME",    150);
-            AddCol(dgvReceipts, "colRQtyRcv",    "QTY RECEIVED",      90);
-            AddCol(dgvReceipts, "colROutQty",    "OUTSTANDING",       90);
-            AddCol(dgvReceipts, "colRDate",      "RECEIPT DATE",     100);
-            AddCol(dgvReceipts, "colRWarehouse", "WAREHOUSE",        140);
-            AddCol(dgvReceipts, "colRStatus",    "PO STATUS",        110);
-            AddCol(dgvReceipts, "colRUnitPrice", "UNIT PRICE",        90);
+            AddCol(dgvReceipts, "colRID",        "RECEIPT ID",      90);
+            AddCol(dgvReceipts, "colRPO",        "PO ID",            90);
+            AddCol(dgvReceipts, "colRSupplier",  "SUPPLIER",        140);
+            AddCol(dgvReceipts, "colRMatID",     "MATERIAL ID",     100);
+            AddCol(dgvReceipts, "colRMatName",   "MATERIAL NAME",   150);
+            AddCol(dgvReceipts, "colRQtyRcv",    "QTY RECEIVED",     90);
+            AddCol(dgvReceipts, "colROutQty",    "OUTSTANDING",      90);
+            AddCol(dgvReceipts, "colRDate",      "RECEIPT DATE",    100);
+            AddCol(dgvReceipts, "colRWarehouse", "WAREHOUSE",       140);
+            AddCol(dgvReceipts, "colRStatus",    "PO STATUS",       110);
+            AddCol(dgvReceipts, "colRUnitPrice", "UNIT PRICE",       90);
             rcvInner.Controls.Add(dgvReceipts);
             rcvInner.Controls.Add(lblReceiptsTitle);
 
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             // Card 4 — Purchase Orders Grid
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            var (poOuter, poInner) = CardPanel.Create(outerHeight: 300,
-                outerPadding: new Padding(20, 8, 20, 14));
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            var (poOuter, poInner) = CardPanel.Create(
+                outerHeight: 300, outerPadding: new Padding(20, 8, 20, 14));
             poOuter.Dock = DockStyle.Top;
 
             lblPOTitle = new Label
             {
-                Text      = "PURCHASE ORDERS",
-                AutoSize  = true,
-                Dock      = DockStyle.Top,
-                Font      = new Font("Segoe UI", 9.5f, FontStyle.Bold),
-                Padding   = new Padding(14, 10, 0, 6),
+                Text = "PURCHASE ORDERS", AutoSize = true, Dock = DockStyle.Top,
+                Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
+                Padding = new Padding(14, 10, 0, 6),
                 ForeColor = System.Drawing.Color.FromArgb(98, 112, 135)
             };
             dgvPO = MakeGrid();
             dgvPO.CellFormatting += dgvPO_CellFormatting;
-            AddCol(dgvPO, "colPOID",       "PO ID",          100);
-            AddCol(dgvPO, "colPOSupplier", "SUPPLIER",        180);
-            AddCol(dgvPO, "colPODate",     "ORDER DATE",      110);
-            AddCol(dgvPO, "colPOTotal",    "TOTAL AMOUNT",    120);
-            AddCol(dgvPO, "colPOStatus",   "STATUS",          120);
+            AddCol(dgvPO, "colPOID",       "PO ID",         100);
+            AddCol(dgvPO, "colPOSupplier", "SUPPLIER",       180);
+            AddCol(dgvPO, "colPODate",     "ORDER DATE",     110);
+            AddCol(dgvPO, "colPOTotal",    "TOTAL AMOUNT",   120);
+            AddCol(dgvPO, "colPOStatus",   "STATUS",         120);
             poInner.Controls.Add(dgvPO);
             poInner.Controls.Add(lblPOTitle);
 
-            // ── Assemble scroll panel (reverse Dock.Top) ──────────────────────
+            // ── Assemble scroll panel (reverse Dock.Top order) ────────────────
             pnlScroll.Controls.Add(poOuter);
             pnlScroll.Controls.Add(rcvOuter);
             pnlScroll.Controls.Add(filterOuter);
             pnlScroll.Controls.Add(kpiOuter);
             pnlPage.Controls.Add(pnlScroll);
 
-            // ── AppShell (TopNavBar + UserBar) ────────────────────────────────
-            // Height is locked to AppShell.TotalHeight (116 px = NavBar 44 + UserBar 72).
-            // MinimumSize prevents WinForms auto-scale from shrinking the shell.
+            // ── RULE 2 — AppShell built inside SuspendLayout ──────────────────
+            // TopNavBar height  = AppShell.NavBarHeight  = 44 px
+            // UserBar height    = AppShell.UserBarHeight = 72 px
+            // Both are const in AppShell; enforced again after PerformLayout (RULE 3).
             _shell = new AppShell();
-            _shell.Height      = AppShell.TotalHeight;                         // enforce 116 px
-            _shell.MinimumSize = new Size(0, AppShell.TotalHeight);            // prevent shrink
+            _shell.Height      = AppShell.TotalHeight;          // 116 px
+            _shell.MinimumSize = new System.Drawing.Size(0, AppShell.TotalHeight);
+
+            // RULE 4 — subscribe events ONCE here; .cs Load must NOT repeat
             _shell.MenuItemClicked += OnTopNavMenuItemClicked;
             _shell.LogoutClicked   += btnLogout_Click;
 
-            // ── Root panel (houses both AppShell and scroll area) ─────────────
+            // ── Root panel ────────────────────────────────────────────────────
             var pnlMain = new Panel
             {
                 Dock      = DockStyle.Fill,
                 BackColor = System.Drawing.Color.FromArgb(240, 244, 249)
             };
             _shell.SetPopupContainer(pnlMain);
-            pnlMain.Controls.Add(pnlPage);   // Fill — page content
-            pnlMain.Controls.Add(_shell);    // Top  — nav chrome
+
+            // RULE 5 — Fill first, then Top (Top always wins)
+            pnlMain.Controls.Add(pnlPage);   // DockStyle.Fill — content
+            pnlMain.Controls.Add(_shell);    // DockStyle.Top  — chrome
 
             // ── Form settings ─────────────────────────────────────────────────
-            SuspendLayout();
             Text          = "Logistics Processing – Handling Goods Received";
-            MinimumSize   = new Size(1280, 800);
+            MinimumSize   = new System.Drawing.Size(1280, 800);
             WindowState   = FormWindowState.Maximized;
             BackColor     = System.Drawing.Color.FromArgb(240, 244, 249);
             Font          = new Font("Segoe UI", 9.5f);
@@ -200,16 +213,19 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             Controls.Add(pnlMain);
             ResumeLayout(false);
             PerformLayout();
+
+            // RULE 3 — re-enforce after PerformLayout in case DPI scaling touched it
+            _shell.Height      = AppShell.TotalHeight;
+            _shell.MinimumSize = new System.Drawing.Size(0, AppShell.TotalHeight);
         }
         #endregion
 
-        // ── Helpers ─────────────────────────────────────────────────────────
+        // ── Helpers ──────────────────────────────────────────────────────────
         private static Button MakeButton(string text, Size size, bool primary)
         {
             var btn = new Button
             {
-                Text      = text,
-                Size      = size,
+                Text = text, Size = size,
                 FlatStyle = FlatStyle.Flat,
                 Font      = new Font("Segoe UI", 9.5f),
                 Cursor    = Cursors.Hand
@@ -219,14 +235,14 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             {
                 btn.BackColor = System.Drawing.Color.FromArgb(47, 111, 237);
                 btn.ForeColor = System.Drawing.Color.White;
-                btn.FlatAppearance.BorderColor = System.Drawing.Color.FromArgb(47, 111, 237);
+                btn.FlatAppearance.BorderColor        = System.Drawing.Color.FromArgb(47, 111, 237);
                 btn.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(29, 78, 216);
             }
             else
             {
                 btn.BackColor = System.Drawing.Color.White;
                 btn.ForeColor = System.Drawing.Color.FromArgb(47, 111, 237);
-                btn.FlatAppearance.BorderColor = System.Drawing.Color.FromArgb(47, 111, 237);
+                btn.FlatAppearance.BorderColor        = System.Drawing.Color.FromArgb(47, 111, 237);
                 btn.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(219, 234, 254);
             }
             return btn;
@@ -269,13 +285,12 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         private static void AddCol(DataGridView dgv, string name, string header, int weight)
             => dgv.Columns.Add(new DataGridViewTextBoxColumn
             {
-                Name       = name,
-                HeaderText = header,
+                Name = name, HeaderText = header,
                 FillWeight = weight,
                 SortMode   = DataGridViewColumnSortMode.Automatic
             });
 
-        // ── Field declarations ──────────────────────────────────────────
+        // ── Field declarations ────────────────────────────────────────────────
         private AppShell _shell;
         private Panel    pnlPage;
         private Panel    pnlScroll;
