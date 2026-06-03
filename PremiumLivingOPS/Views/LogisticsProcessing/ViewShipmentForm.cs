@@ -11,29 +11,20 @@ using System.Windows.Forms;
 namespace PremiumLivingOPS.Views.LogisticsProcessing
 {
     /// <summary>
-    /// Logistics Processing – View Shipment page.
+    /// Logistics Processing – View Shipment.
     ///
-    /// AppShell wiring contract
-    /// ─────────────────────────────────────────────────────────────────
-    ///   TopNavBar : 44 px  (enforced by AppShell.NavBarHeight / TopNavBar.OnLayout)
-    ///   UserBar   : 72 px  (enforced by AppShell.UserBarHeight / AppShell.OnLayout)
-    ///   Total     : 116 px (AppShell.TotalHeight)
+    /// AppShell wiring
+    /// ───────────────
+    /// Designer.cs creates AppShell, calls SetPopupContainer, and subscribes
+    /// MenuItemClicked + LogoutClicked ONCE.  This file must NOT re-subscribe.
     ///
-    /// Designer.cs (InitializeComponent) handles ALL construction-time wiring:
-    ///   RULE 1  SuspendLayout() first.
-    ///   RULE 2  _shell = new AppShell() inside SuspendLayout.
-    ///           _shell.Dock = DockStyle.Top; _shell.Height = AppShell.TotalHeight;
-    ///   RULE 3  After ResumeLayout/PerformLayout, _shell.Height set again.
-    ///   RULE 4  _shell.MenuItemClicked and LogoutClicked subscribed ONCE in
-    ///           Designer.cs.  This file must NOT re-subscribe them.
-    ///   RULE 5  pnlMain.Controls: Fill-content first, _shell last (Top wins).
+    /// AppShell internally composes:
+    ///   TopNavBar (44 px, TopNavBar.cs) + UserBar (72 px, UserBar.cs) = 116 px
     ///
-    /// UserBar render guarantee
-    /// ────────────────────────
-    ///   The constructor calls SetBreadcrumb + SetUser from SessionManager
-    ///   immediately after InitializeComponent() so the UserBar has real
-    ///   content before WinForms performs its first layout pass.
-    ///   RefreshGrid() then overwrites with the authoritative DB values.
+    /// Constructor calls SetBreadcrumb + SetUser from SessionManager immediately
+    /// after InitializeComponent so UserBar has real content before the first
+    /// WinForms layout pass.  RefreshGrid() (triggered by Shown) overwrites
+    /// with authoritative DB values.
     /// </summary>
     public partial class ViewShipmentForm : Form
     {
@@ -42,7 +33,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
         private List<ShipmentEntity> _currentShipments = new List<ShipmentEntity>();
 
-        // ── Status colour map (bg, fg) ──────────────────────────────────────────────
+        // Status colours (bg, fg) — must match DB schema values exactly
         private static readonly Dictionary<string, (Color bg, Color fg)> StatusColors =
             new Dictionary<string, (Color, Color)>
             {
@@ -51,63 +42,47 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 { "Completed",  (Color.FromArgb(209, 250, 229), Color.FromArgb(  6,  95,  70)) },
             };
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  Constructor
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ── Constructor ────────────────────────────────────────────────────────
         public ViewShipmentForm()
         {
-            // InitializeComponent() runs Designer.cs:
-            //   • SuspendLayout / ResumeLayout / PerformLayout (RULE 1)
-            //   • _shell constructed, Dock=Top, Height=116 (RULE 2 + 3)
-            //   • MenuItemClicked + LogoutClicked subscribed (RULE 4)
-            //   • pnlMain: pnlPage(Fill) then _shell(Top) (RULE 5)
             InitializeComponent();
 
-            // Guarantee UserBar is populated BEFORE the first layout pass
-            // that WinForms triggers when the Form is shown.  Without this,
-            // the TableLayoutPanel inside AppShell sizes the UserInfo column
-            // to 0 px (empty content) and the UserBar appears invisible.
+            // Populate UserBar before the first layout pass
             _shell.SetBreadcrumb("Logistics Processing  ›  View Shipment");
             _shell.SetUser(
-                SessionManager.CurrentUser?.StaffName ?? "",
-                SessionManager.CurrentUser?.Department ?? "");
+                SessionManager.CurrentUser?.StaffName   ?? "",
+                SessionManager.CurrentUser?.Department  ?? "");
 
-            // Wire Shown event to trigger the first DB load.
-            // Using Shown (not Load) ensures the Form handle is fully created
-            // and all layout passes have completed before any UI update.
+            // Shown fires after the handle is created and all layout passes complete
             Shown += (s, e) => RefreshGrid();
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  Grid + KPI refresh
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ── Grid + KPI refresh ─────────────────────────────────────────────────
         private void RefreshGrid()
         {
-            string statusSel = cmbStatusFilter.SelectedItem?.ToString();
-            string statusFilter = (statusSel == "All" || string.IsNullOrEmpty(statusSel))
-                                  ? null : statusSel;
-            string keyword = txtSearch.Text.Trim();
+            string statusSel    = cmbStatusFilter.SelectedItem?.ToString();
+            string statusFilter = (statusSel == "All" || string.IsNullOrEmpty(statusSel)) ? null : statusSel;
+            string keyword      = txtSearch.Text.Trim();
             if (string.IsNullOrEmpty(keyword)) keyword = null;
-            DateTime? dateFrom = dtpFrom.Checked ? (DateTime?)dtpFrom.Value.Date : null;
+            DateTime? dateFrom  = dtpFrom.Checked ? (DateTime?)dtpFrom.Value.Date : null;
 
             try
             {
                 var vm = _ctrl.GetViewShipmentVM(statusFilter, keyword, dateFrom);
 
-                // Overwrite with authoritative DB values
                 _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
                 _shell.SetVisibleMenus(vm.AllowedMenus);
                 _shell.SetBreadcrumb("Logistics Processing  ›  View Shipment");
 
                 _currentShipments = vm.Shipments;
-
                 BindShipmentGrid(_currentShipments);
                 RefreshKpi(_currentShipments);
                 ClearDetail();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error loading shipments:\n{ex.Message}",
+                MessageBox.Show(
+                    $"Error loading shipments:\n{ex.Message}",
                     "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -130,7 +105,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             lblRecordCount.Text = $"{data.Count} record(s)";
         }
 
-        // ── KPI Pill Bar ───────────────────────────────────────────────────────────────
+        // ── KPI Pill Bar ────────────────────────────────────────────────────────
         private void RefreshKpi(List<ShipmentEntity> shipments)
         {
             pnlKpi.Controls.Clear();
@@ -142,10 +117,10 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             var pills = new[]
             {
-                ("Total",      total.ToString(),      Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254), "All"),
-                ("Pending",    pending.ToString(),    Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), "Pending"),
-                ("In Transit", inTransit.ToString(),  Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254), "In Transit"),
-                ("Completed",  completed.ToString(),  Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229), "Completed"),
+                ("Total",      total.ToString(),     Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254), "All"),
+                ("Pending",    pending.ToString(),   Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), "Pending"),
+                ("In Transit", inTransit.ToString(), Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254), "In Transit"),
+                ("Completed",  completed.ToString(), Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229), "Completed"),
             };
 
             var flow = new FlowLayoutPanel
@@ -232,9 +207,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlKpi.Controls.Add(flow);
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  Grid events
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ── Grid events ────────────────────────────────────────────────────────
         private void dgvShipments_SelectionChanged(object sender, EventArgs e)
         {
             if (dgvShipments.SelectedRows.Count == 0) { ClearDetail(); return; }
@@ -247,7 +220,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error loading shipment detail:\n{ex.Message}",
+                MessageBox.Show(
+                    $"Error loading shipment detail:\n{ex.Message}",
                     "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -261,18 +235,16 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             e.FormattingApplied = true;
             if (StatusColors.TryGetValue(val, out var colors))
             {
-                e.CellStyle.ForeColor            = colors.fg;
-                e.CellStyle.BackColor            = colors.bg;
-                e.CellStyle.SelectionForeColor   = colors.fg;
-                e.CellStyle.SelectionBackColor   = colors.bg;
-                e.CellStyle.Font                 = new Font("Segoe UI", 10f, FontStyle.Bold);
-                e.CellStyle.Alignment            = DataGridViewContentAlignment.MiddleCenter;
+                e.CellStyle.ForeColor          = colors.fg;
+                e.CellStyle.BackColor          = colors.bg;
+                e.CellStyle.SelectionForeColor = colors.fg;
+                e.CellStyle.SelectionBackColor = colors.bg;
+                e.CellStyle.Font               = new Font("Segoe UI", 10f, FontStyle.Bold);
+                e.CellStyle.Alignment          = DataGridViewContentAlignment.MiddleCenter;
             }
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  Detail panel
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ── Detail panel ───────────────────────────────────────────────────────
         private void ShowDetail(ShipmentDetailVM d)
         {
             if (d?.Shipment == null) { ClearDetail(); return; }
@@ -297,10 +269,10 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             if (d.DeliveryNote != null)
             {
-                lblDNID.Text     = d.DeliveryNote.DeliveryID;
-                lblDNShipTo.Text = d.DeliveryNote.ShipToName;
-                lblDNDate.Text   = d.DeliveryNote.DeliveryDate.ToString("yyyy-MM-dd");
-                lblDNOutQty.Text = d.DeliveryNote.OutstandingQty?.ToString() ?? "0";
+                lblDNID.Text       = d.DeliveryNote.DeliveryID;
+                lblDNShipTo.Text   = d.DeliveryNote.ShipToName;
+                lblDNDate.Text     = d.DeliveryNote.DeliveryDate.ToString("yyyy-MM-dd");
+                lblDNOutQty.Text   = d.DeliveryNote.OutstandingQty?.ToString() ?? "0";
                 pnlDNOuter.Visible = true;
             }
             else
@@ -322,9 +294,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
         private void ClearDetail() => pnlDetailOuter.Visible = false;
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  Filter buttons
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ── Filter buttons ─────────────────────────────────────────────────────
         private void btnSearch_Click(object sender, EventArgs e) => RefreshGrid();
 
         private void btnReset_Click(object sender, EventArgs e)
@@ -335,9 +305,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             RefreshGrid();
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  Nav / Logout — wired ONCE in Designer.cs InitializeComponent (RULE 4)
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ── Nav / Logout — events wired ONCE in Designer.cs; do NOT re-subscribe ─
         private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
             => FormNavigator.NavigateTo(this, menuLabel, subItem);
 
@@ -347,7 +315,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             Application.Restart();
         }
 
-        // ── Rounded rectangle helper ────────────────────────────────────────────────────────────
+        // ── Helpers ────────────────────────────────────────────────────────────
         private static GraphicsPath RoundedRect(Rectangle r, int radius)
         {
             int d    = radius * 2;
