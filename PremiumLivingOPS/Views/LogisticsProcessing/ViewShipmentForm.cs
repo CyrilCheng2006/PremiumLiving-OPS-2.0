@@ -69,8 +69,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             // RefreshGrid() will overwrite these with authoritative DB values.
             _shell.SetBreadcrumb("Logistics Processing  ›  View Shipment");
             _shell.SetUser(
-                SessionManager.CurrentUser?.DisplayName ?? SessionManager.CurrentUser?.Username ?? "",
-                SessionManager.CurrentUser?.Department  ?? "");
+                SessionManager.CurrentUser?.StaffName ?? "",
+                SessionManager.CurrentUser?.Department ?? "");
 
             RefreshGrid();
         }
@@ -89,8 +89,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             try
             {
-                // Single controller call — UserBar is set before anything else;
-                // KPI pills reuse _currentShipments so no second controller call is needed.
                 var vm = _ctrl.GetViewShipmentVM(statusFilter, keyword, dateFrom);
 
                 _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
@@ -100,9 +98,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 _currentShipments = vm.Shipments;
 
                 BindShipmentGrid(_currentShipments);
-
-                // KPI pills count across the currently loaded slice.
-                // When no filter is active _currentShipments == all shipments.
                 RefreshKpi(_currentShipments);
                 ClearDetail();
             }
@@ -132,7 +127,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         }
 
         // ── KPI Pill Bar ───────────────────────────────────────────────────────────────
-        // Accepts the already-loaded shipment list — no extra controller call.
         private void RefreshKpi(List<ShipmentEntity> shipments)
         {
             pnlKpi.Controls.Clear();

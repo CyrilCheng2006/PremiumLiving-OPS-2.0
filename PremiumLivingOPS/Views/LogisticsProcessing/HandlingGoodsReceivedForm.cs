@@ -72,8 +72,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             // RefreshGrid() will overwrite these with authoritative DB values.
             _shell.SetBreadcrumb("Logistics Processing  ›  Handling Goods Received");
             _shell.SetUser(
-                SessionManager.CurrentUser?.DisplayName ?? SessionManager.CurrentUser?.Username ?? "",
-                SessionManager.CurrentUser?.Department  ?? "");
+                SessionManager.CurrentUser?.StaffName ?? "",
+                SessionManager.CurrentUser?.Department ?? "");
 
             RefreshGrid();
         }
@@ -92,7 +92,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             try
             {
-                // HandlingGoodsReceivedVM is the correct page VM type
                 HandlingGoodsReceivedVM vm =
                     _ctrl.GetHandlingGoodsReceivedVM(statusFilter, keyword, dateFrom);
 
@@ -114,10 +113,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         }
 
         // ── Grid binding ───────────────────────────────────────────────────────────────────
-        // GoodsReceivedEntity properties used:
-        //   ReceiptID, PurchaseID, SupplierName, RawMaterialItemID, ItemName,
-        //   QtyReceived, OutstandingQty, ReceiptDate, WarehouseLocation,
-        //   PurchaseStatus, UnitPrice
         private void BindReceiptsGrid(List<GoodsReceivedEntity> data)
         {
             dgvReceipts.Rows.Clear();
@@ -136,8 +131,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                     $"HK$ {r.UnitPrice:N2}");
         }
 
-        // PurchaseOrderEntity properties used:
-        //   PurchaseID, SupplierName, OrderDate, POTotalAmount, PurchaseStatus
         private void BindPOGrid(List<PurchaseOrderEntity> data)
         {
             dgvPO.Rows.Clear();
@@ -151,12 +144,11 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         }
 
         // ── KPI Pill Bar ───────────────────────────────────────────────────────────────────
-        // Counts PurchaseOrderEntity.PurchaseStatus across vm.PurchaseOrders
         private void RefreshKpi(HandlingGoodsReceivedVM vm)
         {
             pnlKpi.Controls.Clear();
 
-            var pos = vm.PurchaseOrders;        // List<PurchaseOrderEntity>
+            var pos = vm.PurchaseOrders;
             int total     = pos.Count;
             int sent      = pos.FindAll(p => p.PurchaseStatus == "Sent").Count;
             int partial   = pos.FindAll(p => p.PurchaseStatus == "Partially Received").Count;
