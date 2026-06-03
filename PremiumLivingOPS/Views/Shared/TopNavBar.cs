@@ -23,20 +23,28 @@ namespace PremiumLivingOPS.Views.Shared
     ///   NavAccessPolicy, or any department/role data directly.
     ///
     /// IMPORTANT — string contract
-    /// ────────────────────────
+    /// ──────────────────
     /// AllMenus Label strings MUST exactly match the constants defined in
     /// NavAccessPolicy.cs.  Do NOT rename a label here without updating the
     /// corresponding constant in NavAccessPolicy (and vice-versa).
+    ///
+    /// HEIGHT CONTRACT
+    /// ───────────────
+    /// TopNavBar.Height is ALWAYS 44 px, enforced by OnLayout override.
+    /// AutoScaleMode = Font and DPI scaling cannot change this value.
     /// </summary>
     public class TopNavBar : Panel
     {
-        // ── Colours ─────────────────────────────────────────────
+        // ── Height contract ─────────────────────────────────
+        public const int FixedHeight = 44;
+
+        // ── Colours ─────────────────────────────────────────
         private static readonly Color NavBg    = Color.FromArgb(29,  29,  31);
         private static readonly Color NavText  = Color.FromArgb(245, 245, 247);
         private static readonly Color DropBg   = Color.FromArgb(38,  38,  40);
         private static readonly Color DropText = Color.FromArgb(210, 210, 215);
 
-        // ── Fonts ───────────────────────────────────────────────
+        // ── Fonts ───────────────────────────────────────────
         private static readonly Font FontNav      = new Font("Segoe UI", 11f,   FontStyle.Regular);
         private static readonly Font FontDropItem = new Font("Segoe UI", 10.5f, FontStyle.Regular);
 
@@ -44,7 +52,7 @@ namespace PremiumLivingOPS.Views.Shared
         private const int RowH     = 42;
         private const int PadV     = 10;
 
-        // ── Full menu catalogue (canonical order) ─────────────────────────
+        // ── Full menu catalogue (canonical order) ────────────────────
         // Label strings must match NavAccessPolicy constants exactly.
         private static readonly (string Label, string[] Items)[] AllMenus =
         {
@@ -60,17 +68,17 @@ namespace PremiumLivingOPS.Views.Shared
             ("Statistical Reports",     new[] { "View Report" })
         };
 
-        // ── Active (filtered) menu ────────────────────────────────────
+        // ── Active (filtered) menu ────────────────────────────
         private (string Label, string[] Items)[] _menus;
 
-        // ── State ───────────────────────────────────────────────────
+        // ── State ─────────────────────────────────────────────
         private readonly List<Panel>                _navItems  = new List<Panel>();
         private readonly List<int>                  _navWidths = new List<int>();
         private          Panel                      _megaPopup;
         private          int                        _activeIdx = -1;
         private          System.Windows.Forms.Timer _pollTimer;
 
-        // ── Public Events ────────────────────────────────────────────
+        // ── Public Events ────────────────────────────────────
         /// <summary>
         /// Fired whenever a navigation item is clicked.
         /// arg1 = parent menu label (e.g. "Order Processing")
@@ -78,13 +86,15 @@ namespace PremiumLivingOPS.Views.Shared
         /// </summary>
         public event Action<string, string> MenuItemClicked;
 
-        // ── Constructor ──────────────────────────────────────────────
+        // ── Constructor ─────────────────────────────────────────
         public TopNavBar()
         {
-            Height    = 44;
+            Height    = FixedHeight;
             Dock      = DockStyle.Top;
             BackColor = NavBg;
             Padding   = new Padding(0);
+            // Prevent AutoScaleMode from shrinking below the contract height.
+            MinimumSize = new Size(0, FixedHeight);
 
             _menus = AllMenus;
 
@@ -94,7 +104,15 @@ namespace PremiumLivingOPS.Views.Shared
             HandleCreated += (s, e) => { BuildMegaPopup(); BuildNavItems(); };
         }
 
-        // ── Public API ──────────────────────────────────────────────
+        // ── Height lock: called by WinForms after every layout pass ────
+        protected override void OnLayout(LayoutEventArgs levent)
+        {
+            base.OnLayout(levent);
+            if (Height != FixedHeight)
+                Height = FixedHeight;
+        }
+
+        // ── Public API ─────────────────────────────────────────
 
         /// <summary>
         /// Restricts the visible menus to those permitted for the current user.
@@ -122,7 +140,7 @@ namespace PremiumLivingOPS.Views.Shared
         /// <summary>No-op kept for source compatibility.</summary>
         public void SetPopupContainer(Control container) { /* intentional no-op */ }
 
-        // ── Popup panel ──────────────────────────────────────────────
+        // ── Popup panel ─────────────────────────────────────────
         private void BuildMegaPopup()
         {
             _megaPopup = new OpaquePanel
@@ -146,7 +164,7 @@ namespace PremiumLivingOPS.Views.Shared
             }
         }
 
-        // ── Build nav items ────────────────────────────────────────────
+        // ── Build nav items ───────────────────────────────────────
         private void BuildNavItems()
         {
             Controls.Clear();
@@ -173,7 +191,7 @@ namespace PremiumLivingOPS.Views.Shared
                 Panel item = new Panel
                 {
                     Location  = new Point(x, 0),
-                    Size      = new Size(_navWidths[i], 44),
+                    Size      = new Size(_navWidths[i], FixedHeight),
                     BackColor = Color.Transparent,
                     Cursor    = Cursors.Hand
                 };
@@ -217,7 +235,7 @@ namespace PremiumLivingOPS.Views.Shared
             _pollTimer.Start();
         }
 
-        // ── Poll timer ───────────────────────────────────────────────
+        // ── Poll timer ──────────────────────────────────────────
         private void PollTimer_Tick(object sender, EventArgs e)
         {
             if (_megaPopup == null || !_megaPopup.Visible)
@@ -240,7 +258,7 @@ namespace PremiumLivingOPS.Views.Shared
             return ClientRectangle.Contains(PointToClient(Cursor.Position));
         }
 
-        // ── Recentre ──────────────────────────────────────────────────
+        // ── Recentre ────────────────────────────────────────────
         private void RecentreItems()
         {
             if (_navItems.Count == 0) return;
@@ -251,7 +269,7 @@ namespace PremiumLivingOPS.Views.Shared
             foreach (Panel p in _navItems) { p.Location = new Point(x, 0); x += p.Width; }
         }
 
-        // ── Highlight ─────────────────────────────────────────────────
+        // ── Highlight ───────────────────────────────────────────
         private void HighlightItem(int idx)
         {
             for (int i = 0; i < _navItems.Count; i++)
@@ -275,7 +293,7 @@ namespace PremiumLivingOPS.Views.Shared
             _activeIdx = -1;
         }
 
-        // ── Mega Menu ─────────────────────────────────────────────────
+        // ── Mega Menu ───────────────────────────────────────────
         private void ShowMegaMenu(int idx, Panel navItem)
         {
             string[] items     = _menus[idx].Items;
@@ -364,7 +382,7 @@ namespace PremiumLivingOPS.Views.Shared
             ClearHighlight();
         }
 
-        // ── Paint ────────────────────────────────────────────────────
+        // ── Paint ────────────────────────────────────────────
         protected override void OnPaint(PaintEventArgs e)
         {
             base.OnPaint(e);

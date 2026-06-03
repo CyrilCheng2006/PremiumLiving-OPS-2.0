@@ -23,7 +23,13 @@ namespace PremiumLivingOPS.Views.Shared
     ///        _shell.MenuItemClicked += OnMenuItemClicked;   // (menuLabel, subItem)
     ///        _shell.LogoutClicked   += OnLogoutClicked;
     ///
-    /// AppShell height = TopNavBar (44 px) + UserBar (72 px) = 116 px.
+    /// HEIGHT CONTRACT
+    /// ───────────────
+    /// AppShell.Height is ALWAYS TotalHeight (116 px), enforced by OnLayout.
+    /// Inner panels are also re-locked on every layout pass:
+    ///   TopNavBar  = NavBarHeight  = 44 px  (enforced inside TopNavBar.OnLayout)
+    ///   pnlUserBar = UserBarHeight = 72 px  (enforced inside AppShell.OnLayout)
+    /// AutoScaleMode = Font and DPI scaling cannot change these values.
     ///
     /// Breadcrumb auto-update
     /// ──────────────────────
@@ -97,7 +103,7 @@ namespace PremiumLivingOPS.Views.Shared
     ///          pnlMain.Controls.Add(_shell);    // DockStyle.Top  — chrome (wins)
     ///
     /// Quick reference — height constants (defined as public const int above):
-    ///   AppShell.NavBarHeight  =  44 px   (TopNavBar)
+    ///   AppShell.NavBarHeight  =  44 px   (TopNavBar — also TopNavBar.FixedHeight)
     ///   AppShell.UserBarHeight =  72 px   (UserBar)
     ///   AppShell.TotalHeight   = 116 px
     ///
@@ -146,39 +152,32 @@ namespace PremiumLivingOPS.Views.Shared
 
         // ── Child controls ───────────────────────────────────────────
         private readonly TopNavBar     _topNavBar;
+        private readonly Panel         _pnlUserBar;   // kept for OnLayout height lock
         private readonly UserInfoLabel _lblUser;
         private readonly Label         _lblBreadcrumb;
         private readonly Button        _btnLogout;
 
-        // ── Colours (mirrors DashboardForm.Palette) ──────────────────
+        // ── Colours ────────────────────────────────────────────────
         private static readonly Color TextMain    = Color.FromArgb(15,  31,  53);
         private static readonly Color TextMuted   = Color.FromArgb(98,  112, 135);
         private static readonly Color BorderColor = Color.FromArgb(221, 227, 236);
         private static readonly Color Danger      = Color.FromArgb(232, 64,  64);
 
         // ── Public events ────────────────────────────────────────────
-        /// <summary>
-        /// Raised when any nav menu item or sub-item is clicked.
-        /// arg1 = parent menu label (e.g. "Order Processing")
-        /// arg2 = sub-item label   (e.g. "View Order"; empty for top-level)
-        /// </summary>
         public event Action<string, string> MenuItemClicked;
-
-        /// <summary>Raised when the Log Out button is clicked.</summary>
-        public event EventHandler LogoutClicked;
+        public event EventHandler           LogoutClicked;
 
         // ── Constructor ──────────────────────────────────────────────
         public AppShell()
         {
-            Dock      = DockStyle.Top;
-            Height    = TotalHeight;
-            BackColor = Color.White;
-            Padding   = new Padding(0);
+            Dock        = DockStyle.Top;
+            Height      = TotalHeight;
+            MinimumSize = new Size(0, TotalHeight);
+            BackColor   = Color.White;
+            Padding     = new Padding(0);
 
-            // ── TopNavBar ─────────────────────────────────────────
+            // ── TopNavBar (height locked internally via TopNavBar.OnLayout) ───
             _topNavBar = new TopNavBar();
-
-            // Auto-update breadcrumb on every nav click.
             _topNavBar.MenuItemClicked += (menu, sub) =>
             {
                 UpdateBreadcrumb(menu, sub);
@@ -197,11 +196,7 @@ namespace PremiumLivingOPS.Views.Shared
             };
 
             // ── UserInfoLabel ─────────────────────────────────────
-            _lblUser = new UserInfoLabel
-            {
-                UserName   = "...",
-                Department = "",
-            };
+            _lblUser = new UserInfoLabel { UserName = "...", Department = "" };
 
             // ── Logout button ─────────────────────────────────────
             _btnLogout = new Button
@@ -214,37 +209,32 @@ namespace PremiumLivingOPS.Views.Shared
                 AutoSize     = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
                 Padding      = new Padding(12, 0, 12, 0),
-                Cursor       = Cursors.Hand,
+                Cursor       = Cursors.Hand
             };
             _btnLogout.FlatAppearance.BorderColor = Danger;
             _btnLogout.FlatAppearance.BorderSize  = 1;
             _btnLogout.Click += (s, e) => LogoutClicked?.Invoke(s, e);
 
-            // ── Right sub-panel: UserInfo + Logout side by side ───
+            // ── Right sub-panel ─────────────────────────────────────
             Panel pnlRight = new Panel
             {
-                AutoSize      = true,
-                AutoSizeMode  = AutoSizeMode.GrowAndShrink,
-                BackColor     = Color.Transparent,
-                Anchor        = AnchorStyles.None,
+                AutoSize     = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                BackColor    = Color.Transparent,
+                Anchor       = AnchorStyles.None
             };
             pnlRight.Controls.Add(_lblUser);
             pnlRight.Controls.Add(_btnLogout);
-
             pnlRight.Layout += (s, e) =>
             {
                 _lblUser.PerformLayout();
                 _btnLogout.PerformLayout();
-
-                int panelH = pnlRight.Height;
-
-                _lblUser.Left = 0;
-                _lblUser.Top  = (panelH - _lblUser.Height) / 2;
-
+                int h = pnlRight.Height;
+                _lblUser.Left   = 0;
+                _lblUser.Top    = (h - _lblUser.Height) / 2;
                 _btnLogout.Left = _lblUser.Right + 8;
-                _btnLogout.Top  = (panelH - _btnLogout.Height) / 2;
-
-                pnlRight.Width = _btnLogout.Right + 16;
+                _btnLogout.Top  = (h - _btnLogout.Height) / 2;
+                pnlRight.Width  = _btnLogout.Right + 16;
             };
 
             // ── Bottom border ─────────────────────────────────────
@@ -255,7 +245,7 @@ namespace PremiumLivingOPS.Views.Shared
                 BackColor = BorderColor
             };
 
-            // ── UserBar: 3-column TableLayoutPanel ────────────────
+            // ── UserBar TableLayoutPanel ─────────────────────────────
             TableLayoutPanel tlpBar = new TableLayoutPanel
             {
                 Dock        = DockStyle.Fill,
@@ -265,72 +255,75 @@ namespace PremiumLivingOPS.Views.Shared
                 Padding     = new Padding(0),
                 Margin      = new Padding(0)
             };
-            tlpBar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));        // col 0
-            tlpBar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));   // col 1
-            tlpBar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));        // col 2
+            tlpBar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            tlpBar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+            tlpBar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             tlpBar.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-
             tlpBar.Controls.Add(_lblBreadcrumb, 0, 0);
             tlpBar.Controls.Add(new Panel { BackColor = Color.Transparent }, 1, 0);
             tlpBar.Controls.Add(pnlRight, 2, 0);
 
-            Panel pnlUserBar = new Panel
+            // ── UserBar panel (height locked by OnLayout below) ────────────
+            _pnlUserBar = new Panel
             {
-                Dock      = DockStyle.Top,
-                Height    = UserBarHeight,
-                BackColor = Color.White
+                Dock        = DockStyle.Top,
+                Height      = UserBarHeight,
+                MinimumSize = new Size(0, UserBarHeight),
+                BackColor   = Color.White
             };
-            pnlUserBar.Controls.Add(tlpBar);
-            pnlUserBar.Controls.Add(border);
+            _pnlUserBar.Controls.Add(tlpBar);
+            _pnlUserBar.Controls.Add(border);
 
-            Controls.Add(pnlUserBar);
+            Controls.Add(_pnlUserBar);
             Controls.Add(_topNavBar);
         }
 
-        // ── Breadcrumb formatting ─────────────────────────────────────
+        // ── Height lock ────────────────────────────────────────────────
         /// <summary>
-        /// Called automatically when the nav fires MenuItemClicked.
-        /// Formats:
-        ///   menu="Dashboard",  sub=""           →  "Dashboard"
-        ///   menu="Order Processing", sub=""     →  "Order Processing"
-        ///   menu="Order Processing", sub="View Order"  →  "Order Processing  ›  View Order"
+        /// Called by WinForms after every layout pass.
+        /// Re-locks AppShell outer height, UserBar height, and TopNavBar height
+        /// so that AutoScaleMode = Font / DPI scaling can never shrink them.
         /// </summary>
+        protected override void OnLayout(LayoutEventArgs levent)
+        {
+            base.OnLayout(levent);
+
+            // Lock outer shell
+            if (Height != TotalHeight)
+            {
+                Height      = TotalHeight;
+                MinimumSize = new Size(0, TotalHeight);
+            }
+
+            // Lock UserBar (TopNavBar is self-locking via its own OnLayout)
+            if (_pnlUserBar != null && _pnlUserBar.Height != UserBarHeight)
+            {
+                _pnlUserBar.Height      = UserBarHeight;
+                _pnlUserBar.MinimumSize = new Size(0, UserBarHeight);
+            }
+        }
+
+        // ── Breadcrumb ────────────────────────────────────────────────
         private void UpdateBreadcrumb(string menu, string sub)
         {
-            if (string.IsNullOrEmpty(sub))
-                _lblBreadcrumb.Text = menu;
-            else
-                _lblBreadcrumb.Text = $"{menu}  ›  {sub}";
+            _lblBreadcrumb.Text = string.IsNullOrEmpty(sub) ? menu : $"{menu}  ›  {sub}";
         }
 
         // ── Public API ───────────────────────────────────────────────
-
-        /// <summary>Sets the user name and department shown in the User Bar.</summary>
         public void SetUser(string displayName, string department)
         {
             _lblUser.UserName   = displayName;
             _lblUser.Department = department;
         }
 
-        /// <summary>Restricts TopNavBar to the allowed menu labels.</summary>
         public void SetVisibleMenus(string[] allowedLabels)
             => _topNavBar.SetVisibleMenus(allowedLabels);
 
-        /// <summary>
-        /// Manually sets the breadcrumb text (e.g. on initial page load).
-        /// Use plain text for a single-level breadcrumb, or
-        /// "Module  ›  Sub-page" for a two-level breadcrumb.
-        /// </summary>
         public void SetBreadcrumb(string text)
             => _lblBreadcrumb.Text = text;
 
-        /// <summary>Returns current breadcrumb text.</summary>
         public string Breadcrumb => _lblBreadcrumb.Text;
 
-        /// <summary>
-        /// Must be called once so the mega-menu popup can escape the AppShell clip region.
-        /// Pass the form's root Panel as the container.
-        /// </summary>
         public void SetPopupContainer(Control container)
             => _topNavBar.SetPopupContainer(container);
     }
