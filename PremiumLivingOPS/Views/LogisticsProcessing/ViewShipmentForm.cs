@@ -28,8 +28,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
     /// _Load calls RefreshGrid() which calls _shell.SetUser / SetVisibleMenus /
     /// SetBreadcrumb exactly once per data load.
     ///
-    /// KPI pills use _currentShipments (already loaded by RefreshGrid) so the
-    /// controller is never called twice per refresh cycle.
+    /// KPI pills reuse _currentShipments (already loaded by RefreshGrid) so the
+    /// controller is never called twice per refresh cycle, and UserBar is always
+    /// set before RefreshKpi() is invoked.
     /// </summary>
     public partial class ViewShipmentForm : Form
     {
@@ -78,7 +79,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             try
             {
-                // Single controller call — KPI pills reuse _currentShipments
+                // Single controller call — UserBar is set before anything else;
+                // KPI pills reuse _currentShipments so no second controller call is needed.
                 var vm = _ctrl.GetViewShipmentVM(statusFilter, keyword, dateFrom);
 
                 _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
@@ -89,10 +91,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
                 BindShipmentGrid(_currentShipments);
 
-                // KPI always reflects the unfiltered all-shipments count
-                // so pills show global totals, not the current filter slice.
-                // We load all-shipments once here via a separate no-filter call.
-                RefreshKpi();
+                // KPI pills count across the currently loaded slice.
+                // When no filter is active _currentShipments == all shipments.
+                RefreshKpi(_currentShipments);
                 ClearDetail();
             }
             catch (Exception ex)
@@ -121,18 +122,15 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         }
 
         // ── KPI Pill Bar ────────────────────────────────────────────────
-        private void RefreshKpi()
+        // Accepts the already-loaded shipment list — no extra controller call.
+        private void RefreshKpi(List<ShipmentEntity> shipments)
         {
             pnlKpi.Controls.Clear();
 
-            // Load all shipments (no filter) so KPI pills always show global totals.
-            // This is the only additional controller call; the grid itself uses _currentShipments.
-            var allShipments = _ctrl.GetViewShipmentVM().Shipments;
-
-            int total     = allShipments.Count;
-            int pending   = allShipments.FindAll(s => s.ShipmentStatus == "Pending").Count;
-            int inTransit = allShipments.FindAll(s => s.ShipmentStatus == "In Transit").Count;
-            int completed = allShipments.FindAll(s => s.ShipmentStatus == "Completed").Count;
+            int total     = shipments.Count;
+            int pending   = shipments.FindAll(s => s.ShipmentStatus == "Pending").Count;
+            int inTransit = shipments.FindAll(s => s.ShipmentStatus == "In Transit").Count;
+            int completed = shipments.FindAll(s => s.ShipmentStatus == "Completed").Count;
 
             var pills = new[]
             {
