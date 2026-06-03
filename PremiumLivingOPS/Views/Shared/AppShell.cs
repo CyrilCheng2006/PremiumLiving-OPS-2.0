@@ -48,6 +48,95 @@ namespace PremiumLivingOPS.Views.Shared
     /// Anchor = AnchorStyles.None so the TableLayoutPanel centres it
     /// both horizontally and vertically inside the cell.
     /// </summary>
+    /// <remarks>
+    /// ══════════════════════════════════════════════════════════════════════
+    /// CANONICAL Designer.cs WIRING RULES  (apply to EVERY Form using AppShell)
+    /// ══════════════════════════════════════════════════════════════════════
+    ///
+    /// RULE 1 — SuspendLayout() must be the VERY FIRST statement inside
+    ///          InitializeComponent().  Every control is created while layout
+    ///          is suspended.  Violating this causes AutoScaleMode = Font to
+    ///          re-calculate control sizes on each Controls.Add() call.
+    ///
+    ///          // ✅ correct
+    ///          private void InitializeComponent()
+    ///          {
+    ///              SuspendLayout();
+    ///              // ... build all controls ...
+    ///
+    /// RULE 2 — AppShell must be constructed INSIDE the SuspendLayout scope
+    ///          (i.e. before ResumeLayout / PerformLayout).  This prevents
+    ///          AutoScaleMode = Font from resizing _shell during PerformLayout.
+    ///
+    ///          _shell = new AppShell();
+    ///          _shell.Height      = AppShell.TotalHeight;          // 116 px
+    ///          _shell.MinimumSize = new Size(0, AppShell.TotalHeight);
+    ///
+    /// RULE 3 — After ResumeLayout(false) + PerformLayout(), set _shell.Height
+    ///          AGAIN as a safety net against high-DPI scaling side-effects.
+    ///
+    ///          Controls.Add(pnlMain);
+    ///          ResumeLayout(false);
+    ///          PerformLayout();
+    ///          // ↓ mandatory post-layout re-enforcement
+    ///          _shell.Height      = AppShell.TotalHeight;
+    ///          _shell.MinimumSize = new Size(0, AppShell.TotalHeight);
+    ///
+    /// RULE 4 — Subscribe MenuItemClicked and LogoutClicked HERE in Designer.cs,
+    ///          ONCE.  The .cs Load / constructor must NOT repeat these.
+    ///          Duplicate subscriptions cause every click to fire twice.
+    ///
+    ///          _shell.MenuItemClicked += OnTopNavMenuItemClicked;  // once only
+    ///          _shell.LogoutClicked   += btnLogout_Click;          // once only
+    ///
+    /// RULE 5 — pnlMain.Controls add order: Fill first, Top second.
+    ///          DockStyle.Top controls stack in reverse add-order; adding _shell
+    ///          last guarantees it sits at the very top of pnlMain.
+    ///
+    ///          pnlMain.Controls.Add(pnlPage);   // DockStyle.Fill — content area
+    ///          pnlMain.Controls.Add(_shell);    // DockStyle.Top  — chrome (wins)
+    ///
+    /// Quick reference — height constants (defined as public const int above):
+    ///   AppShell.NavBarHeight  =  44 px   (TopNavBar)
+    ///   AppShell.UserBarHeight =  72 px   (UserBar)
+    ///   AppShell.TotalHeight   = 116 px
+    ///
+    /// ══════════════════════════════════════════════════════════════════════
+    /// TEMPLATE — paste into every new Form's Designer.cs InitializeComponent
+    /// ══════════════════════════════════════════════════════════════════════
+    ///
+    ///   private void InitializeComponent()
+    ///   {
+    ///       SuspendLayout();                                        // RULE 1
+    ///
+    ///       // ... build pnlPage, pnlScroll, cards, grids here ...
+    ///
+    ///       _shell = new AppShell();                               // RULE 2
+    ///       _shell.Height      = AppShell.TotalHeight;
+    ///       _shell.MinimumSize = new Size(0, AppShell.TotalHeight);
+    ///       _shell.MenuItemClicked += OnTopNavMenuItemClicked;     // RULE 4
+    ///       _shell.LogoutClicked   += btnLogout_Click;             // RULE 4
+    ///
+    ///       var pnlMain = new Panel { Dock = DockStyle.Fill, ... };
+    ///       _shell.SetPopupContainer(pnlMain);
+    ///       pnlMain.Controls.Add(pnlPage);                        // RULE 5 — Fill first
+    ///       pnlMain.Controls.Add(_shell);                         // RULE 5 — Top second
+    ///
+    ///       Text          = "Module – Page Title";
+    ///       MinimumSize   = new Size(1280, 800);
+    ///       WindowState   = FormWindowState.Maximized;
+    ///       AutoScaleMode = AutoScaleMode.Font;
+    ///       AutoScaleDimensions = new SizeF(7F, 15F);
+    ///
+    ///       Controls.Add(pnlMain);
+    ///       ResumeLayout(false);
+    ///       PerformLayout();
+    ///       _shell.Height      = AppShell.TotalHeight;            // RULE 3
+    ///       _shell.MinimumSize = new Size(0, AppShell.TotalHeight); // RULE 3
+    ///   }
+    ///
+    /// ══════════════════════════════════════════════════════════════════════
+    /// </remarks>
     public class AppShell : Panel
     {
         // ── Heights ──────────────────────────────────────────────────
