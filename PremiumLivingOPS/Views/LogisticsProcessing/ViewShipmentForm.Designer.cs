@@ -15,8 +15,18 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         }
 
         // ══════════════════════════════════════════════════════════════════════
-        // AppShell wiring — canonical pattern (mirrors ViewOrderForm exactly)
+        // AppShell wiring — canonical pattern
         // ══════════════════════════════════════════════════════════════════════
+        //
+        // Architecture
+        // ────────────
+        //   AppShell (Panel, DockStyle.Top, 116 px)
+        //   ├── TopNavBar  (44 px) — standalone self-locking Panel in TopNavBar.cs
+        //   └── UserBar    (72 px) — standalone self-locking Panel in UserBar.cs
+        //
+        //   Each child enforces its own fixed height via OnLayout + ScaleControl.
+        //   AppShell only locks its own outer height (116 px).
+        //
         // RULE 1  SuspendLayout() is the FIRST statement in InitializeComponent.
         //         Every control is built while layout is suspended.
         // RULE 2  AppShell is constructed INSIDE SuspendLayout so AutoScaleMode
@@ -24,14 +34,14 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         // RULE 3  After ResumeLayout/PerformLayout, _shell.Height is set AGAIN
         //         to AppShell.TotalHeight as a safety net against DPI scaling.
         // RULE 4  Events (MenuItemClicked, LogoutClicked) are subscribed HERE,
-        //         ONCE.  The .cs Load handler must NOT re-subscribe them.
+        //         ONCE.  The .cs constructor must NOT re-subscribe them.
         // RULE 5  pnlMain.Controls add order:
         //           Add(pnlPage)  first  → DockStyle.Fill  (content)
         //           Add(_shell)   second → DockStyle.Top   (chrome, wins)
         //
-        //   TopNavBar height = AppShell.NavBarHeight  =  44 px  (const in AppShell)
-        //   UserBar   height = AppShell.UserBarHeight =  72 px  (const in AppShell)
-        //   TotalHeight      = AppShell.TotalHeight   = 116 px
+        //   AppShell.NavBarHeight  = TopNavBar.FixedHeight =  44 px
+        //   AppShell.UserBarHeight = UserBar.FixedHeight   =  72 px
+        //   AppShell.TotalHeight                           = 116 px
         // ══════════════════════════════════════════════════════════════════════
 
         #region Windows Form Designer generated code
@@ -40,7 +50,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             // RULE 1 — suspend before touching any control
             SuspendLayout();
 
-            // ── Page background ───────────────────────────────────────────────
+            // ── Page background ───────────────────────────────────────────────────
             pnlPage = new Panel
             {
                 Dock      = DockStyle.Fill,
@@ -48,7 +58,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 Padding   = new Padding(0)
             };
 
-            // ── Scroll container ──────────────────────────────────────────────
+            // ── Scroll container ────────────────────────────────────────────────
             pnlScroll = new Panel
             {
                 Dock       = DockStyle.Fill,
@@ -56,9 +66,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 BackColor  = System.Drawing.Color.FromArgb(240, 244, 249)
             };
 
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             // Card 1 — KPI Bar
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             var (kpiOuter, kpiInner) = CardPanel.Create(outerHeight: 102);
             kpiOuter.Dock = DockStyle.Top;
             pnlKpi = new Panel
@@ -69,16 +79,16 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             };
             kpiInner.Controls.Add(pnlKpi);
 
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             // Card 2 — Filter / Search Bar
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             var (filterOuter, filterInner) = CardPanel.Create(
                 outerHeight: 76, outerPadding: new Padding(20, 8, 20, 8));
             filterOuter.Dock = DockStyle.Top;
 
-            lblSearchHint   = new Label  { Text = "Search:",  AutoSize = true, TextAlign = System.Drawing.ContentAlignment.MiddleLeft };
+            lblSearchHint   = new Label  { Text = "Search:", AutoSize = true, TextAlign = System.Drawing.ContentAlignment.MiddleLeft };
             txtSearch       = new TextBox { Size = new Size(220, 28) };
-            lblStatusFilter = new Label  { Text = "Status:",  AutoSize = true, TextAlign = System.Drawing.ContentAlignment.MiddleLeft };
+            lblStatusFilter = new Label  { Text = "Status:", AutoSize = true, TextAlign = System.Drawing.ContentAlignment.MiddleLeft };
             cmbStatusFilter = new ComboBox { Size = new Size(160, 28), DropDownStyle = ComboBoxStyle.DropDownList };
             cmbStatusFilter.Items.AddRange(new object[] { "All", "Pending", "In Transit", "Completed" });
             cmbStatusFilter.SelectedIndex = 0;
@@ -113,9 +123,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             });
             filterInner.Controls.Add(filterFlow);
 
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             // Card 3 — Shipments Grid
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             var (gridOuter, gridInner) = CardPanel.Create(
                 outerHeight: 380, outerPadding: new Padding(20, 8, 20, 8));
             gridOuter.Dock = DockStyle.Top;
@@ -143,9 +153,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             gridInner.Controls.Add(dgvShipments);
             gridInner.Controls.Add(lblGridTitle);
 
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             // Card 4 — Shipment Detail  (toggled visible)
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             var (detailOuter, detailInner) = CardPanel.Create(
                 outerHeight: 460, outerPadding: new Padding(20, 8, 20, 8));
             pnlDetailOuter         = detailOuter;
@@ -185,7 +195,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             AddInfoRow(tbl, 3, "Method:",       lblDetailMethod,     "Ship Date:",    lblDetailShipDate);
             AddInfoRow(tbl, 4, "Total Amount:", lblDetailAmount,     "Ship Address:", lblDetailAddress);
 
-            // ── Delivery Note sub-card ────────────────────────────────────────
+            // ── Delivery Note sub-card ──────────────────────────────────────────────
             var (dnOuter, dnInner) = CardPanel.Create(
                 outerHeight: 106, outerPadding: new Padding(12, 4, 12, 4));
             pnlDNOuter      = dnOuter;
@@ -218,7 +228,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             dnInner.Controls.Add(tblDN);
             dnInner.Controls.Add(lblDNTitle);
 
-            // ── Shipment Lines sub-grid ───────────────────────────────────────
+            // ── Shipment Lines sub-grid ─────────────────────────────────────────────
             lblLinesTitle = new Label
             {
                 Text = "SHIPMENT LINES", AutoSize = true, Dock = DockStyle.Top,
@@ -242,27 +252,34 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             detailInner.Controls.Add(tbl);
             detailInner.Controls.Add(lblDetailTitle);
 
-            // ── Assemble scroll panel (reverse Dock.Top order) ────────────────
+            // ── Assemble scroll panel (reverse Dock.Top order) ─────────────────
             pnlScroll.Controls.Add(detailOuter);
             pnlScroll.Controls.Add(gridOuter);
             pnlScroll.Controls.Add(filterOuter);
             pnlScroll.Controls.Add(kpiOuter);
             pnlPage.Controls.Add(pnlScroll);
 
-            // ── RULE 2 — AppShell built inside SuspendLayout ──────────────────
-            // TopNavBar height  = AppShell.NavBarHeight  = 44 px
-            // UserBar height    = AppShell.UserBarHeight = 72 px
-            // Both are enforced by AppShell.OnLayout and TopNavBar.OnLayout.
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // AppShell — RULE 2: constructed inside SuspendLayout
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            //
+            // AppShell internally creates:
+            //   ├── TopNavBar  (TopNavBar.cs, FixedHeight = 44 px)
+            //   └── UserBar    (UserBar.cs,   FixedHeight = 72 px)
+            // Both are standalone self-locking Panels.
+            // AppShell exposes: MenuItemClicked, LogoutClicked,
+            //                   SetUser(), SetVisibleMenus(), SetBreadcrumb(),
+            //                   SetPopupContainer().
             _shell = new AppShell();
-            _shell.Dock        = DockStyle.Top;                  // explicit — never rely on constructor default alone
-            _shell.Height      = AppShell.TotalHeight;           // 116 px
+            _shell.Dock        = DockStyle.Top;                           // RULE 2 — explicit
+            _shell.Height      = AppShell.TotalHeight;                    // 116 px
             _shell.MinimumSize = new System.Drawing.Size(0, AppShell.TotalHeight);
 
-            // RULE 4 — subscribe events ONCE here; .cs Load must NOT repeat
+            // RULE 4 — subscribe ONCE here; Form.cs constructor must NOT repeat
             _shell.MenuItemClicked += OnTopNavMenuItemClicked;
             _shell.LogoutClicked   += btnLogout_Click;
 
-            // ── Root panel ────────────────────────────────────────────────────
+            // ── Root panel ───────────────────────────────────────────────────
             var pnlMain = new Panel
             {
                 Dock      = DockStyle.Fill,
@@ -270,9 +287,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             };
             _shell.SetPopupContainer(pnlMain);
 
-            // RULE 5 — Fill first, then Top (Top always wins)
-            pnlMain.Controls.Add(pnlPage);   // DockStyle.Fill — content
-            pnlMain.Controls.Add(_shell);    // DockStyle.Top  — chrome
+            // RULE 5 — Fill first, Top second (Top always wins)
+            pnlMain.Controls.Add(pnlPage);  // DockStyle.Fill — content
+            pnlMain.Controls.Add(_shell);   // DockStyle.Top  — chrome
 
             // ── Form settings ─────────────────────────────────────────────────
             Text          = "Logistics Processing – View Shipment";
@@ -293,12 +310,13 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         }
         #endregion
 
-        // ── Helpers ──────────────────────────────────────────────────────────
+        // ── Helpers ───────────────────────────────────────────────────────────────
         private static Button MakeButton(string text, Size size, bool primary)
         {
             var btn = new Button
             {
-                Text = text, Size = size,
+                Text      = text,
+                Size      = size,
                 FlatStyle = FlatStyle.Flat,
                 Font      = new Font("Segoe UI", 9.5f),
                 Cursor    = Cursors.Hand
@@ -343,7 +361,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             };
             dgv.ColumnHeadersHeight = 38;
             dgv.ColumnHeadersDefaultCellStyle.BackColor = System.Drawing.Color.FromArgb(246, 249, 255);
-            dgv.ColumnHeadersDefaultCellStyle.ForeColor = System.Drawing.Color.FromArgb(98, 112, 135);
+            dgv.ColumnHeadersDefaultCellStyle.ForeColor = System.Drawing.Color.FromArgb(98,  112, 135);
             dgv.ColumnHeadersDefaultCellStyle.Font      = new Font("Segoe UI", 9f, FontStyle.Bold);
             dgv.ColumnHeadersDefaultCellStyle.Padding   = new Padding(10, 0, 0, 0);
             dgv.DefaultCellStyle.BackColor              = System.Drawing.Color.White;
@@ -358,7 +376,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         private static void AddCol(DataGridView dgv, string name, string header, int weight)
             => dgv.Columns.Add(new DataGridViewTextBoxColumn
             {
-                Name = name, HeaderText = header,
+                Name       = name,
+                HeaderText = header,
                 FillWeight = weight,
                 SortMode   = DataGridViewColumnSortMode.Automatic
             });
@@ -389,14 +408,18 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             Padding   = new Padding(0, 2, 0, 2)
         };
 
-        // ── Field declarations ────────────────────────────────────────────────
+        // ── Field declarations ───────────────────────────────────────────────────────
+        // AppShell (composes TopNavBar + UserBar — see AppShell.cs)
         private AppShell _shell;
-        private Panel    pnlPage;
-        private Panel    pnlScroll;
-        private Panel    pnlKpi;
-        private Panel    pnlDetailOuter;
-        private Panel    pnlDNOuter;
 
+        // Page layout
+        private Panel pnlPage;
+        private Panel pnlScroll;
+        private Panel pnlKpi;
+        private Panel pnlDetailOuter;
+        private Panel pnlDNOuter;
+
+        // Filter bar
         private Label          lblSearchHint;
         private TextBox        txtSearch;
         private Label          lblStatusFilter;
@@ -407,9 +430,11 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         private Button         btnReset;
         private Label          lblRecordCount;
 
+        // Shipments grid
         private Label        lblGridTitle;
         private DataGridView dgvShipments;
 
+        // Detail panel
         private Label lblDetailTitle;
         private Label lblDetailShipmentID;
         private Label lblDetailOrderID;
@@ -422,12 +447,14 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         private Label lblDetailAmount;
         private Label lblDetailAddress;
 
+        // Delivery Note sub-card
         private Label lblDNTitle;
         private Label lblDNID;
         private Label lblDNShipTo;
         private Label lblDNDate;
         private Label lblDNOutQty;
 
+        // Shipment Lines sub-grid
         private Label        lblLinesTitle;
         private DataGridView dgvLines;
     }
