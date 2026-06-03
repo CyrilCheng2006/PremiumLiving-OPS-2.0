@@ -1,4 +1,5 @@
 using PremiumLivingOPS.Controllers;
+using PremiumLivingOPS.Models.Entities;
 using PremiumLivingOPS.Models.ViewModels;
 using PremiumLivingOPS.Views.Shared;
 using System;
@@ -26,13 +27,19 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
     /// This file must NOT re-subscribe those events in _Load.
     /// _Load calls RefreshGrid() which calls _shell.SetUser / SetVisibleMenus /
     /// SetBreadcrumb exactly once per data load.
+    ///
+    /// Entity types used (all in PremiumLivingOPS.Models.Entities):
+    ///   GoodsReceivedEntity  — receipt rows  (vm.Receipts)
+    ///   PurchaseOrderEntity  — PO rows       (vm.PurchaseOrders)
+    /// Page VM (PremiumLivingOPS.Models.ViewModels):
+    ///   HandlingGoodsReceivedVM
     /// </summary>
     public partial class HandlingGoodsReceivedForm : Form
     {
         private readonly LogisticsProcessingController _ctrl =
             new LogisticsProcessingController();
 
-        // ── PO status colour map (bg, fg) ────────────────────────────────
+        // ── PO status colour map (bg, fg) ────────────────────────────────────
         private static readonly Dictionary<string, (Color bg, Color fg)> POStatusColors =
             new Dictionary<string, (Color, Color)>
             {
@@ -52,17 +59,17 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             Load += HandlingGoodsReceivedForm_Load;
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         //  Load — populate data only; AppShell already wired in Designer.cs
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void HandlingGoodsReceivedForm_Load(object sender, EventArgs e)
         {
             RefreshGrid();
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         //  Grid refresh
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void RefreshGrid()
         {
             string statusSel = cmbStatusFilter.SelectedItem?.ToString();
@@ -74,17 +81,19 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             try
             {
-                var vm = _ctrl.GetHandlingGoodsReceivedVM(statusFilter, keyword, dateFrom);
+                // HandlingGoodsReceivedVM is the correct page VM type
+                HandlingGoodsReceivedVM vm =
+                    _ctrl.GetHandlingGoodsReceivedVM(statusFilter, keyword, dateFrom);
 
                 _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
                 _shell.SetVisibleMenus(vm.AllowedMenus);
                 _shell.SetBreadcrumb("Logistics Processing  ›  Handling Goods Received");
 
-                BindReceiptsGrid(vm.GoodsReceipts);
+                BindReceiptsGrid(vm.Receipts);
                 BindPOGrid(vm.PurchaseOrders);
                 RefreshKpi(vm);
 
-                lblReceiptCount.Text = $"{vm.GoodsReceipts.Count} record(s)";
+                lblReceiptCount.Text = $"{vm.Receipts.Count} record(s)";
             }
             catch (Exception ex)
             {
@@ -93,49 +102,56 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }
         }
 
-        // ── Grid binding ───────────────────────────────────────────────────
-        private void BindReceiptsGrid(List<GoodsReceiptVM> data)
+        // ── Grid binding ─────────────────────────────────────────────────────
+        // GoodsReceivedEntity properties used:
+        //   ReceiptID, PurchaseID, SupplierName, RawMaterialItemID, ItemName,
+        //   QtyReceived, OutstandingQty, ReceiptDate, WarehouseLocation,
+        //   PurchaseStatus, UnitPrice
+        private void BindReceiptsGrid(List<GoodsReceivedEntity> data)
         {
             dgvReceipts.Rows.Clear();
             foreach (var r in data)
                 dgvReceipts.Rows.Add(
                     r.ReceiptID,
-                    r.POID,
+                    r.PurchaseID,
                     r.SupplierName,
-                    r.MaterialID,
-                    r.MaterialName,
+                    r.RawMaterialItemID,
+                    r.ItemName,
                     r.QtyReceived,
-                    r.OutstandingQty,
+                    r.OutstandingQty?.ToString() ?? "0",
                     r.ReceiptDate.ToString("yyyy-MM-dd"),
-                    r.WarehouseName,
-                    r.POStatus,
+                    r.WarehouseLocation,
+                    r.PurchaseStatus,
                     $"HK$ {r.UnitPrice:N2}");
         }
 
-        private void BindPOGrid(List<PurchaseOrderVM> data)
+        // PurchaseOrderEntity properties used:
+        //   PurchaseID, SupplierName, OrderDate, POTotalAmount, PurchaseStatus
+        private void BindPOGrid(List<PurchaseOrderEntity> data)
         {
             dgvPO.Rows.Clear();
             foreach (var p in data)
                 dgvPO.Rows.Add(
-                    p.POID,
+                    p.PurchaseID,
                     p.SupplierName,
                     p.OrderDate.ToString("yyyy-MM-dd"),
-                    $"HK$ {p.TotalAmount:N2}",
-                    p.POStatus);
+                    $"HK$ {p.POTotalAmount:N2}",
+                    p.PurchaseStatus);
         }
 
-        // ── KPI Pill Bar ────────────────────────────────────────────────
-        private void RefreshKpi(HandlingGoodsReceivedPageVM vm)
+        // ── KPI Pill Bar ──────────────────────────────────────────────────────
+        // Counts PurchaseOrderEntity.PurchaseStatus across vm.PurchaseOrders
+        private void RefreshKpi(HandlingGoodsReceivedVM vm)
         {
             pnlKpi.Controls.Clear();
 
-            var pos = vm.PurchaseOrders;
-            int total      = pos.Count;
-            int sent       = pos.FindAll(p => p.POStatus == "Sent").Count;
-            int partial    = pos.FindAll(p => p.POStatus == "Partially Received").Count;
-            int received   = pos.FindAll(p => p.POStatus == "Received").Count;
-            int completed  = pos.FindAll(p => p.POStatus == "Completed").Count;
-            int cancelled  = pos.FindAll(p => p.POStatus == "Cancelled").Count;
+            var pos = vm.PurchaseOrders;        // List<PurchaseOrderEntity>
+            int total     = pos.Count;
+            int sent      = pos.FindAll(p => p.PurchaseStatus == "Sent").Count;
+            int partial   = pos.FindAll(p => p.PurchaseStatus == "Partially Received").Count;
+            int received  = pos.FindAll(p => p.PurchaseStatus == "Received").Count;
+            int completed = pos.FindAll(p => p.PurchaseStatus == "Completed").Count;
+            int cancelled = pos.FindAll(p => p.PurchaseStatus == "Cancelled").Count;
 
             var pills = new[]
             {
@@ -231,9 +247,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlKpi.Controls.Add(flow);
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         //  CellFormatting — colour PO status cells
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void dgvReceipts_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
             if (dgvReceipts.Columns[e.ColumnIndex].Name != "colRStatus" || e.Value == null)
@@ -253,18 +269,18 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             Dictionary<string, (Color bg, Color fg)> map)
         {
             if (!map.TryGetValue(e.Value.ToString(), out var colors)) return;
-            e.FormattingApplied                  = true;
-            e.CellStyle.ForeColor                = colors.fg;
-            e.CellStyle.BackColor                = colors.bg;
-            e.CellStyle.SelectionForeColor       = colors.fg;
-            e.CellStyle.SelectionBackColor       = colors.bg;
-            e.CellStyle.Font                     = new Font("Segoe UI", 10f, FontStyle.Bold);
-            e.CellStyle.Alignment                = DataGridViewContentAlignment.MiddleCenter;
+            e.FormattingApplied                = true;
+            e.CellStyle.ForeColor              = colors.fg;
+            e.CellStyle.BackColor              = colors.bg;
+            e.CellStyle.SelectionForeColor     = colors.fg;
+            e.CellStyle.SelectionBackColor     = colors.bg;
+            e.CellStyle.Font                   = new Font("Segoe UI", 10f, FontStyle.Bold);
+            e.CellStyle.Alignment              = DataGridViewContentAlignment.MiddleCenter;
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         //  Filter buttons
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void btnSearch_Click(object sender, EventArgs e) => RefreshGrid();
 
         private void btnReset_Click(object sender, EventArgs e)
@@ -275,9 +291,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             RefreshGrid();
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         //  Nav / Logout — handlers wired in Designer.cs InitializeComponent()
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
             => FormNavigator.NavigateTo(this, menuLabel, subItem);
 
@@ -287,7 +303,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             Application.Restart();
         }
 
-        // ── Rounded rectangle helper ────────────────────────────────────────────────
+        // ── Rounded rectangle helper ───────────────────────────────────────────
         private static GraphicsPath RoundedRect(Rectangle r, int radius)
         {
             int d    = radius * 2;
