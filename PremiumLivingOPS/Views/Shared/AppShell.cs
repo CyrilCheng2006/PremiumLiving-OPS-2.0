@@ -25,7 +25,10 @@ namespace PremiumLivingOPS.Views.Shared
     ///
     /// HEIGHT CONTRACT
     /// ───────────────
-    /// AppShell.Height is ALWAYS TotalHeight (116 px), enforced by OnLayout.
+    /// AppShell.Height is ALWAYS TotalHeight (116 px), enforced by:
+    ///   1. OnLayout   — re-locks after every layout pass
+    ///   2. ScaleControl override — vetoes AutoScaleMode=Font from shrinking
+    ///                              MinimumSize/Height during PerformLayout
     /// Inner panels are also re-locked on every layout pass:
     ///   TopNavBar  = NavBarHeight  = 44 px  (enforced inside TopNavBar.OnLayout)
     ///   pnlUserBar = UserBarHeight = 72 px  (enforced inside AppShell.OnLayout)
@@ -75,6 +78,7 @@ namespace PremiumLivingOPS.Views.Shared
     ///          AutoScaleMode = Font from resizing _shell during PerformLayout.
     ///
     ///          _shell = new AppShell();
+    ///          _shell.Dock        = DockStyle.Top;                  // explicit
     ///          _shell.Height      = AppShell.TotalHeight;          // 116 px
     ///          _shell.MinimumSize = new Size(0, AppShell.TotalHeight);
     ///
@@ -118,6 +122,7 @@ namespace PremiumLivingOPS.Views.Shared
     ///       // ... build pnlPage, pnlScroll, cards, grids here ...
     ///
     ///       _shell = new AppShell();                               // RULE 2
+    ///       _shell.Dock        = DockStyle.Top;                    // RULE 2 — explicit
     ///       _shell.Height      = AppShell.TotalHeight;
     ///       _shell.MinimumSize = new Size(0, AppShell.TotalHeight);
     ///       _shell.MenuItemClicked += OnTopNavMenuItemClicked;     // RULE 4
@@ -263,7 +268,7 @@ namespace PremiumLivingOPS.Views.Shared
             tlpBar.Controls.Add(new Panel { BackColor = Color.Transparent }, 1, 0);
             tlpBar.Controls.Add(pnlRight, 2, 0);
 
-            // ── UserBar panel (height locked by OnLayout below) ────────────
+            // ── UserBar panel (height locked by OnLayout + ScaleControl below) ──
             _pnlUserBar = new Panel
             {
                 Dock        = DockStyle.Top,
@@ -276,6 +281,26 @@ namespace PremiumLivingOPS.Views.Shared
 
             Controls.Add(_pnlUserBar);
             Controls.Add(_topNavBar);
+        }
+
+        // ── ScaleControl override ──────────────────────────────────────
+        /// <summary>
+        /// Vetoes WinForms AutoScaleMode=Font from scaling AppShell's own
+        /// MinimumSize or Height.  Child controls (TopNavBar, _pnlUserBar)
+        /// are also protected: TopNavBar via its own OnLayout; _pnlUserBar
+        /// via AppShell.OnLayout below.  Rendering is never touched.
+        /// </summary>
+        protected override void ScaleControl(SizeF factor, BoundsSpecified specified)
+        {
+            // Allow width scaling (horizontal layout is flexible).
+            // Block height scaling entirely — the height contract is pixel-exact.
+            base.ScaleControl(
+                new SizeF(factor.Width, 1.0f),
+                specified & ~BoundsSpecified.Height);
+
+            // Re-enforce absolute values after base may have touched MinimumSize.
+            MinimumSize = new Size(0, TotalHeight);
+            if (Height != TotalHeight) Height = TotalHeight;
         }
 
         // ── Height lock ────────────────────────────────────────────────
