@@ -13,27 +13,27 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
     /// <summary>
     /// Logistics Processing – View Shipment page.
     ///
-    /// AppShell wiring summary
+    /// AppShell wiring contract
     /// ─────────────────────────────────────────────────────────────────
-    /// Designer.cs InitializeComponent() handles ALL construction-time wiring:
-    ///   _shell = new AppShell();
-    ///   _shell.Dock        = DockStyle.Top;
-    ///   _shell.Height      = AppShell.TotalHeight;          // 44 + 72 = 116 px
-    ///   _shell.MinimumSize = new Size(0, AppShell.TotalHeight);
-    ///   _shell.SetPopupContainer(pnlMain);
-    ///   _shell.MenuItemClicked += OnTopNavMenuItemClicked;  // wired ONCE here
-    ///   _shell.LogoutClicked   += btnLogout_Click;          // wired ONCE here
+    ///   TopNavBar : 44 px  (enforced by AppShell.NavBarHeight / TopNavBar.OnLayout)
+    ///   UserBar   : 72 px  (enforced by AppShell.UserBarHeight / AppShell.OnLayout)
+    ///   Total     : 116 px (AppShell.TotalHeight)
     ///
-    /// This file must NOT re-subscribe those events in _Load.
+    /// Designer.cs (InitializeComponent) handles ALL construction-time wiring:
+    ///   RULE 1  SuspendLayout() first.
+    ///   RULE 2  _shell = new AppShell() inside SuspendLayout.
+    ///           _shell.Dock = DockStyle.Top; _shell.Height = AppShell.TotalHeight;
+    ///   RULE 3  After ResumeLayout/PerformLayout, _shell.Height set again.
+    ///   RULE 4  _shell.MenuItemClicked and LogoutClicked subscribed ONCE in
+    ///           Designer.cs.  This file must NOT re-subscribe them.
+    ///   RULE 5  pnlMain.Controls: Fill-content first, _shell last (Top wins).
     ///
     /// UserBar render guarantee
     /// ────────────────────────
-    /// _Load sets breadcrumb + user from SessionManager FIRST (before any DB
-    /// call) so the UserBar always renders even if RefreshGrid() throws.
-    /// RefreshGrid() then overwrites with the authoritative DB values.
-    ///
-    /// KPI pills reuse _currentShipments (already loaded by RefreshGrid) so the
-    /// controller is never called twice per refresh cycle.
+    ///   The constructor calls SetBreadcrumb + SetUser from SessionManager
+    ///   immediately after InitializeComponent() so the UserBar has real
+    ///   content before WinForms performs its first layout pass.
+    ///   RefreshGrid() then overwrites with the authoritative DB values.
     /// </summary>
     public partial class ViewShipmentForm : Form
     {
@@ -51,28 +51,31 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 { "Completed",  (Color.FromArgb(209, 250, 229), Color.FromArgb(  6,  95,  70)) },
             };
 
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        //  Constructor
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         public ViewShipmentForm()
         {
+            // InitializeComponent() runs Designer.cs:
+            //   • SuspendLayout / ResumeLayout / PerformLayout (RULE 1)
+            //   • _shell constructed, Dock=Top, Height=116 (RULE 2 + 3)
+            //   • MenuItemClicked + LogoutClicked subscribed (RULE 4)
+            //   • pnlMain: pnlPage(Fill) then _shell(Top) (RULE 5)
             InitializeComponent();
-            // NOTE: AppShell events (MenuItemClicked, LogoutClicked) are already
-            // subscribed inside InitializeComponent() in Designer.cs.
-            // Do NOT subscribe them again here.
-            Load += ViewShipmentForm_Load;
-        }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  Load — set UserBar immediately from session, then load data
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        private void ViewShipmentForm_Load(object sender, EventArgs e)
-        {
-            // Guarantee UserBar renders before any DB call.
-            // RefreshGrid() will overwrite these with authoritative DB values.
+            // Guarantee UserBar is populated BEFORE the first layout pass
+            // that WinForms triggers when the Form is shown.  Without this,
+            // the TableLayoutPanel inside AppShell sizes the UserInfo column
+            // to 0 px (empty content) and the UserBar appears invisible.
             _shell.SetBreadcrumb("Logistics Processing  ›  View Shipment");
             _shell.SetUser(
                 SessionManager.CurrentUser?.StaffName ?? "",
                 SessionManager.CurrentUser?.Department ?? "");
 
-            RefreshGrid();
+            // Wire Shown event to trigger the first DB load.
+            // Using Shown (not Load) ensures the Form handle is fully created
+            // and all layout passes have completed before any UI update.
+            Shown += (s, e) => RefreshGrid();
         }
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -91,6 +94,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             {
                 var vm = _ctrl.GetViewShipmentVM(statusFilter, keyword, dateFrom);
 
+                // Overwrite with authoritative DB values
                 _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
                 _shell.SetVisibleMenus(vm.AllowedMenus);
                 _shell.SetBreadcrumb("Logistics Processing  ›  View Shipment");
@@ -332,7 +336,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         }
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  Nav / Logout — handlers wired in Designer.cs InitializeComponent()
+        //  Nav / Logout — wired ONCE in Designer.cs InitializeComponent (RULE 4)
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
             => FormNavigator.NavigateTo(this, menuLabel, subItem);
