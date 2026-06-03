@@ -1,6 +1,5 @@
 using PremiumLivingOPS.Views.Shared;
 using System.Drawing;
-using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 
 namespace PremiumLivingOPS.Views.LogisticsProcessing
@@ -8,53 +7,64 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
     partial class HandlingGoodsReceivedForm
     {
         private System.ComponentModel.IContainer components = null;
+
+        // ── Field declarations ────────────────────────────────────────────────
+        private AppShell _shell;
+        private Panel    pnlPage;
+        private Panel    pnlScroll;
+        private Panel    pnlKpi;
+
+        private Label          lblSearchHint;
+        private TextBox        txtSearch;
+        private Label          lblStatusFilter;
+        private ComboBox       cmbStatusFilter;
+        private Label          lblFromDate;
+        private DateTimePicker dtpFrom;
+        private Button         btnSearch;
+        private Button         btnReset;
+        private Label          lblReceiptCount;
+
+        private Label        lblReceiptsTitle;
+        private DataGridView dgvReceipts;
+
+        private Label        lblPOTitle;
+        private DataGridView dgvPO;
+
         protected override void Dispose(bool disposing)
         {
             if (disposing && components != null) components.Dispose();
             base.Dispose(disposing);
         }
 
-        // ══════════════════════════════════════════════════════════════════════
-        // AppShell wiring — canonical pattern (mirrors ViewOrderForm exactly)
-        // ══════════════════════════════════════════════════════════════════════
-        // RULE 1  SuspendLayout() is the FIRST statement in InitializeComponent.
-        //         Every control is built while layout is suspended.
-        // RULE 2  AppShell is constructed INSIDE SuspendLayout so AutoScaleMode
-        //         cannot touch its height during PerformLayout.
-        // RULE 3  After ResumeLayout/PerformLayout, _shell.Height is set AGAIN
-        //         to AppShell.TotalHeight as a safety net against DPI scaling.
-        // RULE 4  Events (MenuItemClicked, LogoutClicked) are subscribed HERE,
-        //         ONCE.  The .cs Load handler must NOT re-subscribe them.
-        // RULE 5  pnlMain.Controls add order:
-        //           Add(pnlPage)  first  → DockStyle.Fill  (content)
-        //           Add(_shell)   second → DockStyle.Top   (chrome, wins)
-        //
-        //   TopNavBar height = AppShell.NavBarHeight  =  44 px  (const in AppShell)
-        //   UserBar   height = AppShell.UserBarHeight =  72 px  (const in AppShell)
-        //   TotalHeight      = AppShell.TotalHeight   = 116 px
-        // ══════════════════════════════════════════════════════════════════════
-
-        #region Windows Form Designer generated code
         private void InitializeComponent()
         {
-            // RULE 1 — suspend before touching any control
-            SuspendLayout();
+            // ── Form settings ─────────────────────────────────────────────────
+            this.Text                = "Logistics Processing – Handling Goods Received";
+            this.Size                = new Size(1440, 900);
+            this.MinimumSize         = new Size(1280, 800);
+            this.StartPosition       = FormStartPosition.CenterScreen;
+            this.BackColor           = Color.FromArgb(240, 244, 249);
+            this.WindowState         = FormWindowState.Maximized;
+            this.Font                = new Font("Segoe UI", 9.5f);
+            this.AutoScaleMode       = AutoScaleMode.Font;
+            this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
 
-            // ── Page background ───────────────────────────────────────────────
-            pnlPage = new Panel
-            {
-                Dock      = DockStyle.Fill,
-                BackColor = System.Drawing.Color.FromArgb(240, 244, 249),
-                Padding   = new Padding(0)
-            };
+            // ── Root panel ───────────────────────────────────────────────────
+            var pnlMain = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(240, 244, 249) };
 
-            // ── Scroll container ──────────────────────────────────────────────
-            pnlScroll = new Panel
-            {
-                Dock       = DockStyle.Fill,
-                AutoScroll = true,
-                BackColor  = System.Drawing.Color.FromArgb(240, 244, 249)
-            };
+            // ── AppShell ─────────────────────────────────────────────────────
+            // AppShell composes TopNavBar (44 px) + UserBar (72 px) = 116 px.
+            // Both children self-lock their heights via their own OnLayout.
+            // SetPopupContainer must be called before adding to pnlMain so
+            // dropdown menus render inside pnlMain rather than the Form root.
+            _shell = new AppShell();
+            _shell.SetPopupContainer(pnlMain);
+            _shell.MenuItemClicked += OnTopNavMenuItemClicked;
+            _shell.LogoutClicked   += btnLogout_Click;
+
+            // ── Page area ───────────────────────────────────────────────────
+            pnlPage   = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(240, 244, 249) };
+            pnlScroll = new Panel { Dock = DockStyle.Fill, AutoScroll = true, BackColor = Color.FromArgb(240, 244, 249) };
 
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             // Card 1 — KPI Bar
@@ -64,7 +74,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlKpi = new Panel
             {
                 Dock      = DockStyle.Fill,
-                BackColor = System.Drawing.Color.White,
+                BackColor = Color.White,
                 Padding   = new Padding(12, 10, 12, 10)
             };
             kpiInner.Controls.Add(pnlKpi);
@@ -87,7 +97,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             cmbStatusFilter.SelectedIndex = 0;
 
             lblFromDate = new Label { Text = "From:", AutoSize = true, TextAlign = System.Drawing.ContentAlignment.MiddleLeft };
-            dtpFrom = new DateTimePicker { Size = new Size(150, 28), Format = DateTimePickerFormat.Short, ShowCheckBox = true, Checked = false };
+            dtpFrom     = new DateTimePicker { Size = new Size(150, 28), Format = DateTimePickerFormat.Short, ShowCheckBox = true, Checked = false };
 
             btnSearch = MakeButton("Search", new Size(88, 30), primary: true);
             btnSearch.Click += btnSearch_Click;
@@ -97,7 +107,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             lblReceiptCount = new Label
             {
                 AutoSize  = true,
-                ForeColor = System.Drawing.Color.FromArgb(98, 112, 135),
+                ForeColor = Color.FromArgb(98, 112, 135),
                 Font      = new Font("Segoe UI", 9.5f),
                 TextAlign = System.Drawing.ContentAlignment.MiddleLeft
             };
@@ -125,10 +135,12 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             lblReceiptsTitle = new Label
             {
-                Text = "GOODS RECEIVED RECORDS", AutoSize = true, Dock = DockStyle.Top,
-                Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
-                Padding = new Padding(14, 10, 0, 6),
-                ForeColor = System.Drawing.Color.FromArgb(98, 112, 135)
+                Text      = "GOODS RECEIVED RECORDS",
+                AutoSize  = true,
+                Dock      = DockStyle.Top,
+                Font      = new Font("Segoe UI", 9.5f, FontStyle.Bold),
+                Padding   = new Padding(14, 10, 0, 6),
+                ForeColor = Color.FromArgb(98, 112, 135)
             };
             dgvReceipts = MakeGrid();
             dgvReceipts.CellFormatting += dgvReceipts_CellFormatting;
@@ -155,10 +167,12 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             lblPOTitle = new Label
             {
-                Text = "PURCHASE ORDERS", AutoSize = true, Dock = DockStyle.Top,
-                Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
-                Padding = new Padding(14, 10, 0, 6),
-                ForeColor = System.Drawing.Color.FromArgb(98, 112, 135)
+                Text      = "PURCHASE ORDERS",
+                AutoSize  = true,
+                Dock      = DockStyle.Top,
+                Font      = new Font("Segoe UI", 9.5f, FontStyle.Bold),
+                Padding   = new Padding(14, 10, 0, 6),
+                ForeColor = Color.FromArgb(98, 112, 135)
             };
             dgvPO = MakeGrid();
             dgvPO.CellFormatting += dgvPO_CellFormatting;
@@ -170,63 +184,30 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             poInner.Controls.Add(dgvPO);
             poInner.Controls.Add(lblPOTitle);
 
-            // ── Assemble scroll panel (reverse Dock.Top order) ────────────────
+            // ── Assemble scroll panel (reverse Dock.Top order) ─────────────────
             pnlScroll.Controls.Add(poOuter);
             pnlScroll.Controls.Add(rcvOuter);
             pnlScroll.Controls.Add(filterOuter);
             pnlScroll.Controls.Add(kpiOuter);
             pnlPage.Controls.Add(pnlScroll);
 
-            // ── RULE 2 — AppShell built inside SuspendLayout ──────────────────
-            // TopNavBar height  = AppShell.NavBarHeight  = 44 px
-            // UserBar height    = AppShell.UserBarHeight = 72 px
-            // Both are enforced by AppShell.OnLayout and TopNavBar.OnLayout.
-            _shell = new AppShell();
-            _shell.Dock        = DockStyle.Top;                  // explicit — never rely on constructor default alone
-            _shell.Height      = AppShell.TotalHeight;           // 116 px
-            _shell.MinimumSize = new System.Drawing.Size(0, AppShell.TotalHeight);
-
-            // RULE 4 — subscribe events ONCE here; .cs Load must NOT repeat
-            _shell.MenuItemClicked += OnTopNavMenuItemClicked;
-            _shell.LogoutClicked   += btnLogout_Click;
-
-            // ── Root panel ────────────────────────────────────────────────────
-            var pnlMain = new Panel
-            {
-                Dock      = DockStyle.Fill,
-                BackColor = System.Drawing.Color.FromArgb(240, 244, 249)
-            };
-            _shell.SetPopupContainer(pnlMain);
-
-            // RULE 5 — Fill first, then Top (Top always wins)
+            // ── Wire pnlMain ────────────────────────────────────────────────────
+            // DockStyle.Top controls stack in add-order; _shell added last sits
+            // at the very top (same pattern as ViewOrderForm).
             pnlMain.Controls.Add(pnlPage);   // DockStyle.Fill — content
-            pnlMain.Controls.Add(_shell);    // DockStyle.Top  — chrome
+            pnlMain.Controls.Add(_shell);    // DockStyle.Top  — chrome (wins)
 
-            // ── Form settings ─────────────────────────────────────────────────
-            Text          = "Logistics Processing – Handling Goods Received";
-            MinimumSize   = new System.Drawing.Size(1280, 800);
-            WindowState   = FormWindowState.Maximized;
-            BackColor     = System.Drawing.Color.FromArgb(240, 244, 249);
-            Font          = new Font("Segoe UI", 9.5f);
-            AutoScaleMode = AutoScaleMode.Font;
-            AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
-
-            Controls.Add(pnlMain);
-            ResumeLayout(false);
-            PerformLayout();
-
-            // RULE 3 — re-enforce after PerformLayout (DPI safety net)
-            _shell.Height      = AppShell.TotalHeight;
-            _shell.MinimumSize = new System.Drawing.Size(0, AppShell.TotalHeight);
+            this.Controls.Add(pnlMain);
+            this.ResumeLayout(false);
         }
-        #endregion
 
-        // ── Helpers ──────────────────────────────────────────────────────────
+        // ── Helpers ────────────────────────────────────────────────────────────
         private static Button MakeButton(string text, Size size, bool primary)
         {
             var btn = new Button
             {
-                Text = text, Size = size,
+                Text      = text,
+                Size      = size,
                 FlatStyle = FlatStyle.Flat,
                 Font      = new Font("Segoe UI", 9.5f),
                 Cursor    = Cursors.Hand
@@ -234,23 +215,23 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             btn.FlatAppearance.BorderSize = 1;
             if (primary)
             {
-                btn.BackColor = System.Drawing.Color.FromArgb(47, 111, 237);
-                btn.ForeColor = System.Drawing.Color.White;
-                btn.FlatAppearance.BorderColor        = System.Drawing.Color.FromArgb(47, 111, 237);
-                btn.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(29, 78, 216);
+                btn.BackColor                         = Color.FromArgb(47, 111, 237);
+                btn.ForeColor                         = Color.White;
+                btn.FlatAppearance.BorderColor        = Color.FromArgb(47, 111, 237);
+                btn.FlatAppearance.MouseOverBackColor = Color.FromArgb(29,  78, 216);
             }
             else
             {
-                btn.BackColor = System.Drawing.Color.White;
-                btn.ForeColor = System.Drawing.Color.FromArgb(47, 111, 237);
-                btn.FlatAppearance.BorderColor        = System.Drawing.Color.FromArgb(47, 111, 237);
-                btn.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(219, 234, 254);
+                btn.BackColor                         = Color.White;
+                btn.ForeColor                         = Color.FromArgb(47, 111, 237);
+                btn.FlatAppearance.BorderColor        = Color.FromArgb(47, 111, 237);
+                btn.FlatAppearance.MouseOverBackColor = Color.FromArgb(219, 234, 254);
             }
             return btn;
         }
 
         private static Panel Spacer(int w) =>
-            new Panel { Width = w, Height = 1, BackColor = System.Drawing.Color.Transparent };
+            new Panel { Width = w, Height = 1, BackColor = Color.Transparent };
 
         private static DataGridView MakeGrid()
         {
@@ -261,23 +242,23 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 AllowUserToAddRows        = false,
                 RowHeadersVisible         = false,
                 AutoSizeColumnsMode       = DataGridViewAutoSizeColumnsMode.Fill,
-                BackgroundColor           = System.Drawing.Color.White,
+                BackgroundColor           = Color.White,
                 BorderStyle               = BorderStyle.None,
-                GridColor                 = System.Drawing.Color.FromArgb(221, 227, 236),
+                GridColor                 = Color.FromArgb(221, 227, 236),
                 EnableHeadersVisualStyles = false,
                 CellBorderStyle           = DataGridViewCellBorderStyle.SingleHorizontal,
                 SelectionMode             = DataGridViewSelectionMode.FullRowSelect,
                 RowTemplate               = { Height = 42 }
             };
             dgv.ColumnHeadersHeight = 38;
-            dgv.ColumnHeadersDefaultCellStyle.BackColor = System.Drawing.Color.FromArgb(246, 249, 255);
-            dgv.ColumnHeadersDefaultCellStyle.ForeColor = System.Drawing.Color.FromArgb(98, 112, 135);
+            dgv.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(246, 249, 255);
+            dgv.ColumnHeadersDefaultCellStyle.ForeColor = Color.FromArgb(98,  112, 135);
             dgv.ColumnHeadersDefaultCellStyle.Font      = new Font("Segoe UI", 9f, FontStyle.Bold);
             dgv.ColumnHeadersDefaultCellStyle.Padding   = new Padding(10, 0, 0, 0);
-            dgv.DefaultCellStyle.BackColor              = System.Drawing.Color.White;
-            dgv.DefaultCellStyle.ForeColor              = System.Drawing.Color.FromArgb(15, 31, 53);
-            dgv.DefaultCellStyle.SelectionBackColor     = System.Drawing.Color.FromArgb(219, 234, 254);
-            dgv.DefaultCellStyle.SelectionForeColor     = System.Drawing.Color.FromArgb(15, 31, 53);
+            dgv.DefaultCellStyle.BackColor              = Color.White;
+            dgv.DefaultCellStyle.ForeColor              = Color.FromArgb(15, 31, 53);
+            dgv.DefaultCellStyle.SelectionBackColor     = Color.FromArgb(219, 234, 254);
+            dgv.DefaultCellStyle.SelectionForeColor     = Color.FromArgb(15, 31, 53);
             dgv.DefaultCellStyle.Padding                = new Padding(10, 4, 10, 4);
             dgv.DefaultCellStyle.Font                   = new Font("Segoe UI", 10f);
             return dgv;
@@ -286,31 +267,10 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         private static void AddCol(DataGridView dgv, string name, string header, int weight)
             => dgv.Columns.Add(new DataGridViewTextBoxColumn
             {
-                Name = name, HeaderText = header,
+                Name       = name,
+                HeaderText = header,
                 FillWeight = weight,
                 SortMode   = DataGridViewColumnSortMode.Automatic
             });
-
-        // ── Field declarations ────────────────────────────────────────────────
-        private AppShell _shell;
-        private Panel    pnlPage;
-        private Panel    pnlScroll;
-        private Panel    pnlKpi;
-
-        private Label          lblSearchHint;
-        private TextBox        txtSearch;
-        private Label          lblStatusFilter;
-        private ComboBox       cmbStatusFilter;
-        private Label          lblFromDate;
-        private DateTimePicker dtpFrom;
-        private Button         btnSearch;
-        private Button         btnReset;
-        private Label          lblReceiptCount;
-
-        private Label        lblReceiptsTitle;
-        private DataGridView dgvReceipts;
-
-        private Label        lblPOTitle;
-        private DataGridView dgvPO;
     }
 }

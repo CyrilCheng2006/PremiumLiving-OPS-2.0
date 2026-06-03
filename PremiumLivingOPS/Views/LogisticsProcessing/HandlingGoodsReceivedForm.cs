@@ -11,34 +11,26 @@ using System.Windows.Forms;
 namespace PremiumLivingOPS.Views.LogisticsProcessing
 {
     /// <summary>
-    /// Logistics Processing – Handling Goods Received page.
+    /// Logistics Processing – Handling Goods Received.
     ///
-    /// AppShell wiring contract
-    /// ─────────────────────────────────────────────────────────────────
-    ///   TopNavBar : 44 px  (enforced by AppShell.NavBarHeight / TopNavBar.OnLayout)
-    ///   UserBar   : 72 px  (enforced by AppShell.UserBarHeight / AppShell.OnLayout)
-    ///   Total     : 116 px (AppShell.TotalHeight)
+    /// AppShell wiring
+    /// ───────────────
+    /// Designer.cs creates AppShell, calls SetPopupContainer(pnlMain), and
+    /// subscribes MenuItemClicked + LogoutClicked ONCE.  This file must NOT
+    /// re-subscribe.
     ///
-    /// Designer.cs (InitializeComponent) handles ALL construction-time wiring:
-    ///   RULE 1  SuspendLayout() first.
-    ///   RULE 2  _shell = new AppShell() inside SuspendLayout.
-    ///           _shell.Dock = DockStyle.Top; _shell.Height = AppShell.TotalHeight;
-    ///   RULE 3  After ResumeLayout/PerformLayout, _shell.Height set again.
-    ///   RULE 4  _shell.MenuItemClicked and LogoutClicked subscribed ONCE in
-    ///           Designer.cs.  This file must NOT re-subscribe them.
-    ///   RULE 5  pnlMain.Controls: Fill-content first, _shell last (Top wins).
+    /// AppShell internally composes:
+    ///   TopNavBar (44 px, TopNavBar.cs) + UserBar (72 px, UserBar.cs) = 116 px
     ///
-    /// UserBar render guarantee
-    /// ────────────────────────
-    ///   The constructor calls SetBreadcrumb + SetUser from SessionManager
-    ///   immediately after InitializeComponent() so the UserBar has real
-    ///   content before WinForms performs its first layout pass.
-    ///   RefreshGrid() then overwrites with the authoritative DB values.
+    /// Constructor calls SetBreadcrumb + SetUser from SessionManager immediately
+    /// after InitializeComponent so UserBar has real content before the first
+    /// WinForms layout pass.  RefreshGrid() (triggered by Shown) overwrites
+    /// with authoritative DB values.
     ///
-    /// Entity types used (all in PremiumLivingOPS.Models.Entities):
-    ///   GoodsReceivedEntity  — receipt rows  (vm.Receipts)
-    ///   PurchaseOrderEntity  — PO rows       (vm.PurchaseOrders)
-    /// Page VM (PremiumLivingOPS.Models.ViewModels):
+    /// Entity types used:
+    ///   GoodsReceivedEntity  (vm.Receipts)
+    ///   PurchaseOrderEntity  (vm.PurchaseOrders)
+    /// Page VM:
     ///   HandlingGoodsReceivedVM
     /// </summary>
     public partial class HandlingGoodsReceivedForm : Form
@@ -46,7 +38,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         private readonly LogisticsProcessingController _ctrl =
             new LogisticsProcessingController();
 
-        // ── PO status colour map (bg, fg) ──────────────────────────────────────────────
+        // PO status colour map (bg, fg) — must match DB schema values exactly
         private static readonly Dictionary<string, (Color bg, Color fg)> POStatusColors =
             new Dictionary<string, (Color, Color)>
             {
@@ -57,39 +49,25 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 { "Cancelled",          (Color.FromArgb(254, 226, 226), Color.FromArgb(185,  28,  28)) },
             };
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  Constructor
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ── Constructor ────────────────────────────────────────────────────────
         public HandlingGoodsReceivedForm()
         {
-            // InitializeComponent() runs Designer.cs:
-            //   • SuspendLayout / ResumeLayout / PerformLayout (RULE 1)
-            //   • _shell constructed, Dock=Top, Height=116 (RULE 2 + 3)
-            //   • MenuItemClicked + LogoutClicked subscribed (RULE 4)
-            //   • pnlMain: pnlPage(Fill) then _shell(Top) (RULE 5)
             InitializeComponent();
 
-            // Guarantee UserBar is populated BEFORE the first layout pass
-            // that WinForms triggers when the Form is shown.  Without this,
-            // the TableLayoutPanel inside AppShell sizes the UserInfo column
-            // to 0 px (empty content) and the UserBar appears invisible.
+            // Populate UserBar before the first layout pass
             _shell.SetBreadcrumb("Logistics Processing  ›  Handling Goods Received");
             _shell.SetUser(
-                SessionManager.CurrentUser?.StaffName ?? "",
+                SessionManager.CurrentUser?.StaffName  ?? "",
                 SessionManager.CurrentUser?.Department ?? "");
 
-            // Wire Shown event to trigger the first DB load.
-            // Using Shown (not Load) ensures the Form handle is fully created
-            // and all layout passes have completed before any UI update.
+            // Shown fires after the handle is created and all layout passes complete
             Shown += (s, e) => RefreshGrid();
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  Grid refresh
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ── Grid + KPI refresh ─────────────────────────────────────────────────
         private void RefreshGrid()
         {
-            string statusSel = cmbStatusFilter.SelectedItem?.ToString();
+            string statusSel    = cmbStatusFilter.SelectedItem?.ToString();
             string statusFilter = (statusSel == "All" || string.IsNullOrEmpty(statusSel))
                                   ? null : statusSel;
             string keyword = txtSearch.Text.Trim();
@@ -101,7 +79,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 HandlingGoodsReceivedVM vm =
                     _ctrl.GetHandlingGoodsReceivedVM(statusFilter, keyword, dateFrom);
 
-                // Overwrite with authoritative DB values
                 _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
                 _shell.SetVisibleMenus(vm.AllowedMenus);
                 _shell.SetBreadcrumb("Logistics Processing  ›  Handling Goods Received");
@@ -114,12 +91,13 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error loading goods received data:\n{ex.Message}",
+                MessageBox.Show(
+                    $"Error loading goods received data:\n{ex.Message}",
                     "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
-        // ── Grid binding ───────────────────────────────────────────────────────────────────
+        // ── Grid binding ─────────────────────────────────────────────────────
         private void BindReceiptsGrid(List<GoodsReceivedEntity> data)
         {
             dgvReceipts.Rows.Clear();
@@ -150,12 +128,12 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                     p.PurchaseStatus);
         }
 
-        // ── KPI Pill Bar ───────────────────────────────────────────────────────────────────
+        // ── KPI Pill Bar ────────────────────────────────────────────────────────
         private void RefreshKpi(HandlingGoodsReceivedVM vm)
         {
             pnlKpi.Controls.Clear();
 
-            var pos = vm.PurchaseOrders;
+            var pos       = vm.PurchaseOrders;
             int total     = pos.Count;
             int sent      = pos.FindAll(p => p.PurchaseStatus == "Sent").Count;
             int partial   = pos.FindAll(p => p.PurchaseStatus == "Partially Received").Count;
@@ -257,9 +235,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlKpi.Controls.Add(flow);
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  CellFormatting — colour PO status cells
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ── CellFormatting ─────────────────────────────────────────────────────
         private void dgvReceipts_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
             if (dgvReceipts.Columns[e.ColumnIndex].Name != "colRStatus" || e.Value == null)
@@ -288,9 +264,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             e.CellStyle.Alignment              = DataGridViewContentAlignment.MiddleCenter;
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  Filter buttons
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ── Filter buttons ─────────────────────────────────────────────────────
         private void btnSearch_Click(object sender, EventArgs e) => RefreshGrid();
 
         private void btnReset_Click(object sender, EventArgs e)
@@ -301,9 +275,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             RefreshGrid();
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  Nav / Logout — wired ONCE in Designer.cs InitializeComponent (RULE 4)
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ── Nav / Logout — events wired ONCE in Designer.cs; do NOT re-subscribe ─
         private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
             => FormNavigator.NavigateTo(this, menuLabel, subItem);
 
@@ -313,7 +285,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             Application.Restart();
         }
 
-        // ── Rounded rectangle helper ────────────────────────────────────────────────────────────
+        // ── Helpers ────────────────────────────────────────────────────────────
         private static GraphicsPath RoundedRect(Rectangle r, int radius)
         {
             int d    = radius * 2;
