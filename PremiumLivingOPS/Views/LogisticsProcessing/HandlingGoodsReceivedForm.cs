@@ -25,8 +25,12 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
     ///   _shell.LogoutClicked   += btnLogout_Click;          // wired ONCE here
     ///
     /// This file must NOT re-subscribe those events in _Load.
-    /// _Load calls RefreshGrid() which calls _shell.SetUser / SetVisibleMenus /
-    /// SetBreadcrumb exactly once per data load.
+    ///
+    /// UserBar render guarantee
+    /// ────────────────────────
+    /// _Load sets breadcrumb + user from SessionManager FIRST (before any DB
+    /// call) so the UserBar always renders even if RefreshGrid() throws.
+    /// RefreshGrid() then overwrites with the authoritative DB values.
     ///
     /// Entity types used (all in PremiumLivingOPS.Models.Entities):
     ///   GoodsReceivedEntity  — receipt rows  (vm.Receipts)
@@ -39,7 +43,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         private readonly LogisticsProcessingController _ctrl =
             new LogisticsProcessingController();
 
-        // ── PO status colour map (bg, fg) ────────────────────────────────────
+        // ── PO status colour map (bg, fg) ──────────────────────────────────────────────
         private static readonly Dictionary<string, (Color bg, Color fg)> POStatusColors =
             new Dictionary<string, (Color, Color)>
             {
@@ -59,17 +63,24 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             Load += HandlingGoodsReceivedForm_Load;
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  Load — populate data only; AppShell already wired in Designer.cs
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        //  Load — set UserBar immediately from session, then load data
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void HandlingGoodsReceivedForm_Load(object sender, EventArgs e)
         {
+            // Guarantee UserBar renders before any DB call.
+            // RefreshGrid() will overwrite these with authoritative DB values.
+            _shell.SetBreadcrumb("Logistics Processing  ›  Handling Goods Received");
+            _shell.SetUser(
+                SessionManager.CurrentUser?.DisplayName ?? SessionManager.CurrentUser?.Username ?? "",
+                SessionManager.CurrentUser?.Department  ?? "");
+
             RefreshGrid();
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         //  Grid refresh
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void RefreshGrid()
         {
             string statusSel = cmbStatusFilter.SelectedItem?.ToString();
@@ -102,7 +113,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }
         }
 
-        // ── Grid binding ─────────────────────────────────────────────────────
+        // ── Grid binding ───────────────────────────────────────────────────────────────────
         // GoodsReceivedEntity properties used:
         //   ReceiptID, PurchaseID, SupplierName, RawMaterialItemID, ItemName,
         //   QtyReceived, OutstandingQty, ReceiptDate, WarehouseLocation,
@@ -139,7 +150,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                     p.PurchaseStatus);
         }
 
-        // ── KPI Pill Bar ──────────────────────────────────────────────────────
+        // ── KPI Pill Bar ───────────────────────────────────────────────────────────────────
         // Counts PurchaseOrderEntity.PurchaseStatus across vm.PurchaseOrders
         private void RefreshKpi(HandlingGoodsReceivedVM vm)
         {
@@ -247,9 +258,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlKpi.Controls.Add(flow);
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         //  CellFormatting — colour PO status cells
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void dgvReceipts_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
             if (dgvReceipts.Columns[e.ColumnIndex].Name != "colRStatus" || e.Value == null)
@@ -278,9 +289,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             e.CellStyle.Alignment              = DataGridViewContentAlignment.MiddleCenter;
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         //  Filter buttons
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void btnSearch_Click(object sender, EventArgs e) => RefreshGrid();
 
         private void btnReset_Click(object sender, EventArgs e)
@@ -291,9 +302,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             RefreshGrid();
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         //  Nav / Logout — handlers wired in Designer.cs InitializeComponent()
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
             => FormNavigator.NavigateTo(this, menuLabel, subItem);
 
@@ -303,7 +314,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             Application.Restart();
         }
 
-        // ── Rounded rectangle helper ───────────────────────────────────────────
+        // ── Rounded rectangle helper ────────────────────────────────────────────────────────────
         private static GraphicsPath RoundedRect(Rectangle r, int radius)
         {
             int d    = radius * 2;

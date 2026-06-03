@@ -25,12 +25,15 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
     ///   _shell.LogoutClicked   += btnLogout_Click;          // wired ONCE here
     ///
     /// This file must NOT re-subscribe those events in _Load.
-    /// _Load calls RefreshGrid() which calls _shell.SetUser / SetVisibleMenus /
-    /// SetBreadcrumb exactly once per data load.
+    ///
+    /// UserBar render guarantee
+    /// ────────────────────────
+    /// _Load sets breadcrumb + user from SessionManager FIRST (before any DB
+    /// call) so the UserBar always renders even if RefreshGrid() throws.
+    /// RefreshGrid() then overwrites with the authoritative DB values.
     ///
     /// KPI pills reuse _currentShipments (already loaded by RefreshGrid) so the
-    /// controller is never called twice per refresh cycle, and UserBar is always
-    /// set before RefreshKpi() is invoked.
+    /// controller is never called twice per refresh cycle.
     /// </summary>
     public partial class ViewShipmentForm : Form
     {
@@ -39,7 +42,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
         private List<ShipmentEntity> _currentShipments = new List<ShipmentEntity>();
 
-        // ── Status colour map (bg, fg) ──────────────────────────────────
+        // ── Status colour map (bg, fg) ──────────────────────────────────────────────
         private static readonly Dictionary<string, (Color bg, Color fg)> StatusColors =
             new Dictionary<string, (Color, Color)>
             {
@@ -57,17 +60,24 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             Load += ViewShipmentForm_Load;
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  Load — populate data only; AppShell already wired in Designer.cs
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        //  Load — set UserBar immediately from session, then load data
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void ViewShipmentForm_Load(object sender, EventArgs e)
         {
+            // Guarantee UserBar renders before any DB call.
+            // RefreshGrid() will overwrite these with authoritative DB values.
+            _shell.SetBreadcrumb("Logistics Processing  ›  View Shipment");
+            _shell.SetUser(
+                SessionManager.CurrentUser?.DisplayName ?? SessionManager.CurrentUser?.Username ?? "",
+                SessionManager.CurrentUser?.Department  ?? "");
+
             RefreshGrid();
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         //  Grid + KPI refresh
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void RefreshGrid()
         {
             string statusSel = cmbStatusFilter.SelectedItem?.ToString();
@@ -121,7 +131,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             lblRecordCount.Text = $"{data.Count} record(s)";
         }
 
-        // ── KPI Pill Bar ────────────────────────────────────────────────
+        // ── KPI Pill Bar ───────────────────────────────────────────────────────────────
         // Accepts the already-loaded shipment list — no extra controller call.
         private void RefreshKpi(List<ShipmentEntity> shipments)
         {
@@ -224,9 +234,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlKpi.Controls.Add(flow);
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         //  Grid events
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void dgvShipments_SelectionChanged(object sender, EventArgs e)
         {
             if (dgvShipments.SelectedRows.Count == 0) { ClearDetail(); return; }
@@ -262,9 +272,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         //  Detail panel
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void ShowDetail(ShipmentDetailVM d)
         {
             if (d?.Shipment == null) { ClearDetail(); return; }
@@ -314,9 +324,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
         private void ClearDetail() => pnlDetailOuter.Visible = false;
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         //  Filter buttons
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void btnSearch_Click(object sender, EventArgs e) => RefreshGrid();
 
         private void btnReset_Click(object sender, EventArgs e)
@@ -327,9 +337,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             RefreshGrid();
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         //  Nav / Logout — handlers wired in Designer.cs InitializeComponent()
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
             => FormNavigator.NavigateTo(this, menuLabel, subItem);
 
@@ -339,7 +349,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             Application.Restart();
         }
 
-        // ── Rounded rectangle helper ────────────────────────────────────────────────
+        // ── Rounded rectangle helper ────────────────────────────────────────────────────────────
         private static GraphicsPath RoundedRect(Rectangle r, int radius)
         {
             int d    = radius * 2;
