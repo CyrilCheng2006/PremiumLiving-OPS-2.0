@@ -41,16 +41,26 @@ namespace PremiumLivingOPS.Views.AfterService
 
         private void InitializeComponent()
         {
-            this.SuspendLayout();
+            this.SuspendLayout();                                           // RULE 1
 
             // ── Form properties ───────────────────────────────────────────
-            this.Text          = "Premium Living OPS — After-Service  ›  Create Invoice";
-            this.Size          = new Size(1440, 900);
-            this.MinimumSize   = new Size(1280, 800);
-            this.StartPosition = FormStartPosition.CenterScreen;
-            this.BackColor     = Color.FromArgb(240, 244, 249);
-            this.WindowState   = FormWindowState.Maximized;
-            this.Font          = new Font("Segoe UI", 13f);
+            this.Text               = "Premium Living OPS — After-Service  ›  Create Invoice";
+            this.Size               = new Size(1440, 900);
+            this.MinimumSize        = new Size(1280, 800);
+            this.StartPosition      = FormStartPosition.CenterScreen;
+            this.BackColor          = Color.FromArgb(240, 244, 249);
+            this.WindowState        = FormWindowState.Maximized;
+            this.Font               = new Font("Segoe UI", 13f);
+            this.AutoScaleMode      = AutoScaleMode.Font;                   // RULE 2 (form)
+            this.AutoScaleDimensions = new SizeF(7F, 15F);                 // RULE 2 (form)
+
+            // ── AppShell — RULE 2 ─────────────────────────────────────────
+            _shell             = new AppShell();
+            _shell.Dock        = DockStyle.Top;                             // RULE 2
+            _shell.Height      = AppShell.TotalHeight;                     // RULE 2
+            _shell.MinimumSize = new Size(0, AppShell.TotalHeight);        // RULE 2
+            _shell.MenuItemClicked += OnTopNavMenuItemClicked;              // RULE 4
+            _shell.LogoutClicked   += OnLogoutClicked;                     // RULE 4
 
             // ── Root panel ────────────────────────────────────────────────
             var pnlMain = new Panel
@@ -58,14 +68,7 @@ namespace PremiumLivingOPS.Views.AfterService
                 Dock      = DockStyle.Fill,
                 BackColor = Color.FromArgb(240, 244, 249)
             };
-
-            // ── AppShell — follow ViewOrderForm pattern exactly ───────────
-            // Do NOT set Height / MinimumSize / AutoScaleMode externally.
-            // AppShell self-locks via its own OnLayout + ScaleControl.
-            _shell = new AppShell();
             _shell.SetPopupContainer(pnlMain);
-            _shell.MenuItemClicked += OnTopNavMenuItemClicked;
-            _shell.LogoutClicked   += OnLogoutClicked;
 
             // ═════════════════════════════════════════════════════════════
             //  SEARCH CARD  (DockStyle.Top, height 300)
@@ -89,7 +92,7 @@ namespace PremiumLivingOPS.Views.AfterService
             };
             txtSearchCustomer.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) RefreshGrid(); };
 
-            // Status values from schema ENUM only — no Shipped
+            // Status values from schema ENUM only — Pending/Processing/Partially Delivered/Delivered/Completed/Cancelled
             cboStatusFilter = new ComboBox
             {
                 DropDownStyle = ComboBoxStyle.DropDownList,
@@ -384,7 +387,7 @@ namespace PremiumLivingOPS.Views.AfterService
             };
             pnlGridCard.Controls.Add(pnlGridInner);
 
-            // ── Assemble: Fill first, then Top (bottom → top), _shell last ─
+            // ── Assemble: RULE 5 — Fill first, Top controls in reverse, _shell last ──
             pnlMain.Controls.Add(pnlGridCard);    // Fill  — grid
             pnlMain.Controls.Add(pnlFormOuter);   // Top   — invoice form card
             pnlMain.Controls.Add(pnlSearchOuter); // Top   — search card
@@ -392,18 +395,21 @@ namespace PremiumLivingOPS.Views.AfterService
 
             this.Controls.Add(pnlMain);
             this.ResumeLayout(false);
+            this.PerformLayout();                                            // RULE 3
+            _shell.Height      = AppShell.TotalHeight;                     // RULE 3
+            _shell.MinimumSize = new Size(0, AppShell.TotalHeight);        // RULE 3
         }
 
         // ── Control factory helpers ───────────────────────────────────────
 
         private static Label MakeValueLbl(string text) => new Label
         {
-            Text      = text,
-            Font      = new Font("Segoe UI", 12f),
-            ForeColor = Color.FromArgb(15, 31, 53),
-            Dock      = DockStyle.Fill,
-            TextAlign = ContentAlignment.MiddleLeft,
-            AutoSize  = false,
+            Text         = text,
+            Font         = new Font("Segoe UI", 12f),
+            ForeColor    = Color.FromArgb(15, 31, 53),
+            Dock         = DockStyle.Fill,
+            TextAlign    = ContentAlignment.MiddleLeft,
+            AutoSize     = false,
             AutoEllipsis = true
         };
 
