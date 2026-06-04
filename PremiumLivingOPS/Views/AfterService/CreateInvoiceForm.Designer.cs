@@ -41,45 +41,63 @@ namespace PremiumLivingOPS.Views.AfterService
 
         private void InitializeComponent()
         {
+            // ── RULE 1: SuspendLayout() MUST be the very first statement ──
             this.SuspendLayout();
 
-            this.Text          = "Premium Living OPS — After-Service  ›  Create Invoice";
-            this.Size          = new Size(1440, 900);
-            this.MinimumSize   = new Size(1280, 800);
-            this.StartPosition = FormStartPosition.CenterScreen;
-            this.BackColor     = Color.FromArgb(240, 244, 249);
-            this.WindowState   = FormWindowState.Maximized;
-            this.Font          = new Font("Segoe UI", 13f);
-            this.AutoScaleMode = AutoScaleMode.Font;
+            // ── Form properties ───────────────────────────────────────────
+            this.Text                = "Premium Living OPS — After-Service  ›  Create Invoice";
+            this.Size                = new Size(1440, 900);
+            this.MinimumSize         = new Size(1280, 800);
+            this.StartPosition       = FormStartPosition.CenterScreen;
+            this.BackColor           = Color.FromArgb(240, 244, 249);
+            this.WindowState         = FormWindowState.Maximized;
+            this.Font                = new Font("Segoe UI", 13f);
+            this.AutoScaleMode       = AutoScaleMode.Font;
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
 
             // ── Root panel ────────────────────────────────────────────────
-            var pnlMain = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(240, 244, 249) };
+            var pnlMain = new Panel
+            {
+                Dock      = DockStyle.Fill,
+                BackColor = Color.FromArgb(240, 244, 249)
+            };
 
-            // ── AppShell — identical pattern to ViewOrderForm ─────────────
-            _shell = new AppShell();
+            // ── RULE 2: AppShell constructed INSIDE SuspendLayout scope ───
+            _shell             = new AppShell();
+            _shell.Dock        = DockStyle.Top;
+            _shell.Height      = AppShell.TotalHeight;
+            _shell.MinimumSize = new Size(0, AppShell.TotalHeight);
+
+            // ── RULE 4: Subscribe events ONCE here in Designer.cs ─────────
+            _shell.MenuItemClicked += OnTopNavMenuItemClicked;
+            _shell.LogoutClicked   += OnLogoutClicked;
+
+            // SetPopupContainer wires the nav-bar dropdown to pnlMain
             _shell.SetPopupContainer(pnlMain);
 
             // ═════════════════════════════════════════════════════════════
-            //  SEARCH CARD (DockStyle.Top, height 300)
+            //  SEARCH CARD  (DockStyle.Top, height 300)
             // ═════════════════════════════════════════════════════════════
 
-            // Input controls
             txtSearchOrder = new TextBox
             {
-                Font = new Font("Segoe UI", 12f), BorderStyle = BorderStyle.FixedSingle,
-                Dock = DockStyle.Fill, PlaceholderText = "ORD-XXXX"
+                Font = new Font("Segoe UI", 12f),
+                BorderStyle = BorderStyle.FixedSingle,
+                Dock = DockStyle.Fill,
+                PlaceholderText = "ORD-XXXX"
             };
             txtSearchOrder.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) RefreshGrid(); };
 
             txtSearchCustomer = new TextBox
             {
-                Font = new Font("Segoe UI", 12f), BorderStyle = BorderStyle.FixedSingle,
-                Dock = DockStyle.Fill, PlaceholderText = "Customer name"
+                Font = new Font("Segoe UI", 12f),
+                BorderStyle = BorderStyle.FixedSingle,
+                Dock = DockStyle.Fill,
+                PlaceholderText = "Customer name"
             };
             txtSearchCustomer.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) RefreshGrid(); };
 
-            // Status filter — values from schema ENUM only
+            // Status filter — values from schema ENUM only (no Shipped)
             cboStatusFilter = new ComboBox
             {
                 DropDownStyle = ComboBoxStyle.DropDownList,
@@ -98,7 +116,6 @@ namespace PremiumLivingOPS.Views.AfterService
             });
             cboStatusFilter.SelectedIndex = 0;
 
-            // Buttons
             btnSearch = MakePrimaryBtn("🔍  Search", new Point(0,   0), 210, 60);
             btnReset  = MakeOutlineBtn("↺  Reset",  new Point(218, 0), 210, 60);
             btnSearch.Click += (s, e) => RefreshGrid();
@@ -110,31 +127,30 @@ namespace PremiumLivingOPS.Views.AfterService
                 RefreshGrid();
             };
 
-            // Field-cell helper
+            // Field-cell helper (local)
             TableLayoutPanel MakeCell(string caption, Control ctrl)
             {
                 var tlp = new TableLayoutPanel
                 {
                     Dock = DockStyle.Fill, RowCount = 2, ColumnCount = 1,
-                    BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                    BackColor = Color.Transparent,
+                    CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
                     Padding = new Padding(0, 0, 12, 0)
                 };
                 tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-                tlp.RowStyles.Add(new RowStyle(SizeType.Absolute, 40f));
+                tlp.RowStyles.Add(new RowStyle(SizeType.Absolute,  40f));
                 tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 70f));
-                var lbl = new Label
+                tlp.Controls.Add(new Label
                 {
                     Text = caption, Font = new Font("Segoe UI", 10f, FontStyle.Bold),
                     ForeColor = Color.FromArgb(98, 112, 135), Dock = DockStyle.Fill,
                     TextAlign = ContentAlignment.BottomLeft, Padding = new Padding(0, 0, 0, 2)
-                };
+                }, 0, 0);
                 ctrl.Dock = DockStyle.Fill;
-                tlp.Controls.Add(lbl,  0, 0);
                 tlp.Controls.Add(ctrl, 0, 1);
                 return tlp;
             }
 
-            // 3-column fields row
             var tblFields = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 1,
@@ -148,12 +164,10 @@ namespace PremiumLivingOPS.Views.AfterService
             tblFields.Controls.Add(MakeCell("Customer",  txtSearchCustomer), 1, 0);
             tblFields.Controls.Add(MakeCell("Status",    cboStatusFilter),   2, 0);
 
-            // Buttons row
             var pnlBtns = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             pnlBtns.Controls.Add(btnSearch);
             pnlBtns.Controls.Add(btnReset);
 
-            // Card inner TLP
             var tblSearchCard = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill, RowCount = 3, ColumnCount = 1,
@@ -166,20 +180,23 @@ namespace PremiumLivingOPS.Views.AfterService
             tblSearchCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  65f));
 
             var pnlSearchTitle = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            var lblSearchTitle = new Label
+            pnlSearchTitle.Controls.Add(new Label
             {
-                Text = "Search Orders (Without Invoice)", Font = new Font("Segoe UI", 13f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(15, 31, 53), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft
-            };
-            var dividerSearch = new Panel { Dock = DockStyle.Bottom, Height = 1, BackColor = Color.FromArgb(221, 227, 236) };
-            pnlSearchTitle.Controls.Add(lblSearchTitle);
-            pnlSearchTitle.Controls.Add(dividerSearch);
+                Text = "Search Orders (Without Invoice)",
+                Font = new Font("Segoe UI", 13f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(15, 31, 53),
+                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft
+            });
+            pnlSearchTitle.Controls.Add(new Panel
+            {
+                Dock = DockStyle.Bottom, Height = 1,
+                BackColor = Color.FromArgb(221, 227, 236)
+            });
 
             tblSearchCard.Controls.Add(pnlSearchTitle, 0, 0);
             tblSearchCard.Controls.Add(tblFields,      0, 1);
             tblSearchCard.Controls.Add(pnlBtns,        0, 2);
 
-            // White card + border
             var pnlSearchCard = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
             pnlSearchCard.Paint += PaintCardBorder;
             pnlSearchCard.Controls.Add(tblSearchCard);
@@ -193,7 +210,7 @@ namespace PremiumLivingOPS.Views.AfterService
             pnlSearchOuter.Controls.Add(pnlSearchCard);
 
             // ═════════════════════════════════════════════════════════════
-            //  FORM CARD (DockStyle.Top, height 340)
+            //  FORM CARD  (DockStyle.Top, height 340)
             // ═════════════════════════════════════════════════════════════
 
             lblSelectedOrder = MakeValueLbl("—");
@@ -203,37 +220,45 @@ namespace PremiumLivingOPS.Views.AfterService
             nudDepositAmount = new NumericUpDown
             {
                 Minimum = 0, Maximum = 9999999, DecimalPlaces = 2,
-                Font = new Font("Segoe UI", 12f), Dock = DockStyle.Fill, ThousandsSeparator = true
+                Font = new Font("Segoe UI", 12f),
+                Dock = DockStyle.Fill, ThousandsSeparator = true
             };
             nudPaidAmount = new NumericUpDown
             {
                 Minimum = 0, Maximum = 9999999, DecimalPlaces = 2,
-                Font = new Font("Segoe UI", 12f), Dock = DockStyle.Fill, ThousandsSeparator = true
+                Font = new Font("Segoe UI", 12f),
+                Dock = DockStyle.Fill, ThousandsSeparator = true
             };
             dtpDueDate = new DateTimePicker
             {
-                Format = DateTimePickerFormat.Short, Value = DateTime.Today.AddMonths(1),
-                Font = new Font("Segoe UI", 12f), Dock = DockStyle.Fill
+                Format = DateTimePickerFormat.Short,
+                Value  = DateTime.Today.AddMonths(1),
+                Font   = new Font("Segoe UI", 12f),
+                Dock   = DockStyle.Fill
             };
             cboPaymentStatus = new ComboBox
             {
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                Font = new Font("Segoe UI", 12f), Dock = DockStyle.Fill
+                Font = new Font("Segoe UI", 12f),
+                Dock = DockStyle.Fill
             };
             cboPaymentStatus.Items.AddRange(new object[] { "Partial", "Full" });
             cboPaymentStatus.SelectedIndex = 0;
 
             lblRemainingBalance = new Label
             {
-                Text = "HK$ 0.00", Font = new Font("Segoe UI", 13f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(47, 111, 237), Dock = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
+                Text = "HK$ 0.00",
+                Font = new Font("Segoe UI", 13f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(47, 111, 237),
+                Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft,
+                AutoSize = false
             };
 
             nudDepositAmount.ValueChanged += (s, e) => RecalcBalance();
             nudPaidAmount.ValueChanged    += (s, e) => RecalcBalance();
 
-            btnCreateInvoice = MakePrimaryBtn("Create Invoice", Point.Empty, 220, 52);
+            btnCreateInvoice        = MakePrimaryBtn("Create Invoice", Point.Empty, 220, 52);
             btnCreateInvoice.Click += btnCreateInvoice_Click;
 
             var tblForm = new TableLayoutPanel
@@ -250,7 +275,6 @@ namespace PremiumLivingOPS.Views.AfterService
             tblForm.RowStyles.Add(new RowStyle(SizeType.Absolute,  60f));
             tblForm.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
-            // Row 0: section header
             var lblFormHdr = new Label
             {
                 Text = "Selected Order  /  Invoice Details",
@@ -261,21 +285,17 @@ namespace PremiumLivingOPS.Views.AfterService
             tblForm.SetColumnSpan(lblFormHdr, 6);
             tblForm.Controls.Add(lblFormHdr, 0, 0);
 
-            // Row 1: Order No. / Customer / Grand Total (spans 2 cols each)
             tblForm.Controls.Add(MakeFormCell("Order No.",   lblSelectedOrder), 0, 1);
             tblForm.Controls.Add(MakeFormCell("Customer",    lblCustomer),      2, 1);
             tblForm.Controls.Add(MakeFormCell("Grand Total", lblGrandTotal),    4, 1);
 
-            // Row 2: Deposit / Paid / Due Date
             tblForm.Controls.Add(MakeFormCell("Deposit Amount", nudDepositAmount), 0, 2);
             tblForm.Controls.Add(MakeFormCell("Paid Amount",    nudPaidAmount),    2, 2);
             tblForm.Controls.Add(MakeFormCell("Due Date",       dtpDueDate),       4, 2);
 
-            // Row 3: Payment Status / Remaining Balance
             tblForm.Controls.Add(MakeFormCell("Payment Status",    cboPaymentStatus),   0, 3);
             tblForm.Controls.Add(MakeFormCell("Remaining Balance", lblRemainingBalance), 2, 3);
 
-            // Row 4: Create Invoice button
             var pnlBtnRow = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             btnCreateInvoice.Location = new Point(0, 4);
             pnlBtnRow.Controls.Add(btnCreateInvoice);
@@ -295,26 +315,31 @@ namespace PremiumLivingOPS.Views.AfterService
             pnlFormOuter.Controls.Add(pnlFormCard);
 
             // ═════════════════════════════════════════════════════════════
-            //  GRID CARD (DockStyle.Fill — takes remaining space)
+            //  GRID CARD  (DockStyle.Fill — takes remaining space)
             // ═════════════════════════════════════════════════════════════
 
             dgvOrders = new DataGridView
             {
                 ReadOnly = true, AllowUserToAddRows = false, AllowUserToDeleteRows = false,
-                RowHeadersVisible = false, SelectionMode = DataGridViewSelectionMode.FullRowSelect,
-                MultiSelect = false, BackgroundColor = Color.White, BorderStyle = BorderStyle.None,
-                GridColor = Color.FromArgb(221, 227, 236), Font = new Font("Segoe UI", 13f),
+                RowHeadersVisible = false,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                MultiSelect = false, BackgroundColor = Color.White,
+                BorderStyle = BorderStyle.None,
+                GridColor = Color.FromArgb(221, 227, 236),
+                Font = new Font("Segoe UI", 13f),
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
                 CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal,
-                RowTemplate = { Height = 48 }, Dock = DockStyle.Fill,
-                ColumnHeadersHeight = 46, EnableHeadersVisualStyles = false,
+                RowTemplate  = { Height = 48 },
+                Dock = DockStyle.Fill,
+                ColumnHeadersHeight = 46,
+                EnableHeadersVisualStyles = false,
                 ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
                 {
-                    BackColor  = Color.FromArgb(246, 249, 255),
-                    ForeColor  = Color.FromArgb(98, 112, 135),
-                    Font       = new Font("Segoe UI", 11f, FontStyle.Bold),
-                    Padding    = new Padding(12, 0, 0, 0),
-                    Alignment  = DataGridViewContentAlignment.MiddleLeft
+                    BackColor = Color.FromArgb(246, 249, 255),
+                    ForeColor = Color.FromArgb(98, 112, 135),
+                    Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
+                    Padding   = new Padding(12, 0, 0, 0),
+                    Alignment = DataGridViewContentAlignment.MiddleLeft
                 },
                 DefaultCellStyle = new DataGridViewCellStyle
                 {
@@ -333,41 +358,47 @@ namespace PremiumLivingOPS.Views.AfterService
             dgvOrders.SelectionChanged += dgvOrders_SelectionChanged;
             dgvOrders.CellFormatting   += dgvOrders_CellFormatting;
 
+            var pnlGridInner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
+            pnlGridInner.Paint += PaintCardBorder;
+            pnlGridInner.Controls.Add(dgvOrders);
+
             var pnlGridCard = new Panel
             {
                 Dock = DockStyle.Fill,
                 Padding = new Padding(20, 8, 20, 0),
                 BackColor = Color.FromArgb(240, 244, 249)
             };
-            var pnlGridInner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
-            pnlGridInner.Paint += PaintCardBorder;
-            pnlGridInner.Controls.Add(dgvOrders);
             pnlGridCard.Controls.Add(pnlGridInner);
 
             // ═════════════════════════════════════════════════════════════
-            //  ASSEMBLE pnlMain
-            //  Rule: Fill first, then Top panels from bottom to top
+            //  RULE 5 — Controls.Add order: Fill first, then Top (bottom → top)
             // ═════════════════════════════════════════════════════════════
-            pnlMain.Controls.Add(pnlGridCard);    // Fill  — grid (remaining space)
-            pnlMain.Controls.Add(pnlFormOuter);   // Top   — invoice form card
-            pnlMain.Controls.Add(pnlSearchOuter); // Top   — search card
-            pnlMain.Controls.Add(_shell);          // Top   — AppShell chrome
+            pnlMain.Controls.Add(pnlGridCard);    // 1. Fill  — grid (remaining space)
+            pnlMain.Controls.Add(pnlFormOuter);   // 2. Top   — invoice form card
+            pnlMain.Controls.Add(pnlSearchOuter); // 3. Top   — search card
+            pnlMain.Controls.Add(_shell);          // 4. Top   — AppShell chrome (topmost)
 
             this.Controls.Add(pnlMain);
+
+            // ── RULE 3: ResumeLayout + PerformLayout, then re-enforce AppShell height ──
             this.ResumeLayout(false);
+            this.PerformLayout();
+            _shell.Height      = AppShell.TotalHeight;
+            _shell.MinimumSize = new Size(0, AppShell.TotalHeight);
         }
 
         // ── Control factory helpers ───────────────────────────────────────
 
         private static Label MakeValueLbl(string text) => new Label
         {
-            Text = text, Font = new Font("Segoe UI", 12f),
+            Text = text,
+            Font = new Font("Segoe UI", 12f),
             ForeColor = Color.FromArgb(15, 31, 53),
-            Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft,
+            Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleLeft,
             AutoSize = false, AutoEllipsis = true
         };
 
-        /// <summary>2-row TLP: caption label on top, control below. Spans 2 columns.</summary>
         private static TableLayoutPanel MakeFormCell(string caption, Control ctrl)
         {
             var tlp = new TableLayoutPanel
@@ -397,11 +428,12 @@ namespace PremiumLivingOPS.Views.AfterService
             {
                 Text = text, Font = new Font("Segoe UI", 12f, FontStyle.Bold),
                 ForeColor = Color.White, BackColor = Color.FromArgb(47, 111, 237),
-                FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand
+                FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h,
+                Cursor = Cursors.Hand
             };
             b.FlatAppearance.BorderSize = 0;
-            b.FlatAppearance.MouseOverBackColor = Color.FromArgb(26, 77, 192);
-            b.FlatAppearance.MouseDownBackColor = Color.FromArgb(21, 60, 155);
+            b.FlatAppearance.MouseOverBackColor = Color.FromArgb(26,  77, 192);
+            b.FlatAppearance.MouseDownBackColor = Color.FromArgb(21,  60, 155);
             return b;
         }
 
@@ -411,7 +443,8 @@ namespace PremiumLivingOPS.Views.AfterService
             {
                 Text = text, Font = new Font("Segoe UI", 12f),
                 ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White,
-                FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand
+                FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h,
+                Cursor = Cursors.Hand
             };
             b.FlatAppearance.BorderColor = Color.FromArgb(221, 227, 236);
             b.FlatAppearance.BorderSize  = 1;
