@@ -1,5 +1,6 @@
 using MySql.Data.MySqlClient;
 using PremiumLivingOPS.Models.Entities;
+using PremiumLivingOPS.Models.ViewModels;
 using System;
 using System.Collections.Generic;
 
@@ -217,6 +218,81 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
+        // ── Purchase Invoices ────────────────────────────────────────────
+
+        /// <summary>Returns all PurchaseInvoice rows joined to Supplier for display.</summary>
+        public List<PurchaseInvoiceEntity> GetAllPurchaseInvoices()
+        {
+            var list = new List<PurchaseInvoiceEntity>();
+            using (var conn = OpenConnection())
+            {
+                const string sql = @"
+                    SELECT pi.PurInvoiceID, pi.PurchaseID, pi.TotalAmount,
+                           pi.PaymentStatus, pi.ExpectedDate,
+                           sup.SupplierName
+                    FROM PurchaseInvoice pi
+                    JOIN PurchaseOrder po  ON pi.PurchaseID = po.PurchaseID
+                    JOIN Supplier sup      ON po.SupplierID = sup.SupplierID
+                    ORDER BY pi.ExpectedDate DESC";
+                using (var cmd = new MySqlCommand(sql, conn))
+                using (var r = cmd.ExecuteReader())
+                    while (r.Read()) list.Add(MapPurchaseInvoice(r));
+            }
+            return list;
+        }
+
+        /// <summary>Returns the PurchaseInvoice (if any) linked to a specific PurchaseOrder.</summary>
+        public PurchaseInvoiceEntity GetPurchaseInvoiceByPO(string purchaseId)
+        {
+            if (string.IsNullOrEmpty(purchaseId)) return null;
+            using (var conn = OpenConnection())
+            {
+                const string sql = @"
+                    SELECT pi.PurInvoiceID, pi.PurchaseID, pi.TotalAmount,
+                           pi.PaymentStatus, pi.ExpectedDate,
+                           sup.SupplierName
+                    FROM PurchaseInvoice pi
+                    JOIN PurchaseOrder po  ON pi.PurchaseID = po.PurchaseID
+                    JOIN Supplier sup      ON po.SupplierID = sup.SupplierID
+                    WHERE pi.PurchaseID = @pid
+                    LIMIT 1";
+                using (var cmd = new MySqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@pid", purchaseId);
+                    using (var r = cmd.ExecuteReader())
+                        return r.Read() ? MapPurchaseInvoice(r) : null;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Inserts a new PurchaseInvoice row.
+        /// Returns the generated PurInvoiceID on success, or throws on failure.
+        /// </summary>
+        public string InsertPurchaseInvoice(RecordPurchaseInvoiceVM vm)
+        {
+            // Auto-generate ID: PURINV-yyyyMMdd-NNNN
+            string newId = $"PURINV-{DateTime.Today:yyyyMMdd}-{Guid.NewGuid().ToString("N").Substring(0, 4).ToUpper()}";
+            using (var conn = OpenConnection())
+            {
+                const string sql = @"
+                    INSERT INTO PurchaseInvoice
+                        (PurInvoiceID, PurchaseID, TotalAmount, PaymentStatus, ExpectedDate)
+                    VALUES
+                        (@id, @po, @total, @status, @expected)";
+                using (var cmd = new MySqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@id",       newId);
+                    cmd.Parameters.AddWithValue("@po",       vm.PurchaseID);
+                    cmd.Parameters.AddWithValue("@total",    vm.TotalAmount);
+                    cmd.Parameters.AddWithValue("@status",   vm.PaymentStatus);
+                    cmd.Parameters.AddWithValue("@expected", vm.ExpectedDate.Date);
+                    cmd.ExecuteNonQuery();
+                }
+            }
+            return newId;
+        }
+
         // ── Private mappers ─────────────────────────────────────────────
         private static ShipmentEntity MapShipment(MySqlDataReader r) => new ShipmentEntity
         {
@@ -288,6 +364,16 @@ namespace PremiumLivingOPS.Models.DAL
             WarehouseLocation = r["WarehouseLocation"].ToString(),
             PurchaseStatus    = r["PurchaseStatus"].ToString(),
             UnitPrice         = Convert.ToDouble(r["UnitPrice"])
+        };
+
+        private static PurchaseInvoiceEntity MapPurchaseInvoice(MySqlDataReader r) => new PurchaseInvoiceEntity
+        {
+            PurInvoiceID  = r["PurInvoiceID"].ToString(),
+            PurchaseID    = r["PurchaseID"].ToString(),
+            TotalAmount   = Convert.ToDouble(r["TotalAmount"]),
+            PaymentStatus = r["PaymentStatus"].ToString(),
+            ExpectedDate  = Convert.ToDateTime(r["ExpectedDate"]),
+            SupplierName  = r["SupplierName"].ToString()
         };
     }
 }

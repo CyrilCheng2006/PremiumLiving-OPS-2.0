@@ -62,8 +62,40 @@ namespace PremiumLivingOPS.Controllers
                 },
                 AllowedMenus   = NavAccessPolicy.GetAllowedMenus(user?.Department ?? ""),
                 Receipts       = _repo.SearchReceipts(statusFilter, keyword, dateFrom),
-                PurchaseOrders = _repo.GetAllPurchaseOrders()
+                PurchaseOrders = _repo.GetAllPurchaseOrders(),
+                Invoices       = _repo.GetAllPurchaseInvoices()
             };
+        }
+
+        /// <summary>
+        /// Returns a pre-filled RecordPurchaseInvoiceVM for the given PO,
+        /// including the existing invoice if one already exists.
+        /// </summary>
+        public RecordPurchaseInvoiceVM GetRecordPurchaseInvoiceVM(PurchaseOrderEntity po)
+        {
+            var existing = _repo.GetPurchaseInvoiceByPO(po?.PurchaseID);
+            return new RecordPurchaseInvoiceVM
+            {
+                PurchaseID      = po?.PurchaseID    ?? "",
+                SupplierName    = po?.SupplierName  ?? "",
+                TotalAmount     = po?.POTotalAmount ?? 0,
+                PaymentStatus   = "Full",
+                ExpectedDate    = DateTime.Today.AddDays(30),
+                ExistingInvoice = existing
+            };
+        }
+
+        /// <summary>
+        /// Saves a new PurchaseInvoice row to the database.
+        /// Returns the generated PurInvoiceID.
+        /// </summary>
+        public string SavePurchaseInvoice(RecordPurchaseInvoiceVM vm)
+        {
+            if (string.IsNullOrWhiteSpace(vm.PurchaseID))
+                throw new ArgumentException("PurchaseID is required.");
+            if (vm.TotalAmount <= 0)
+                throw new ArgumentException("Total Amount must be greater than zero.");
+            return _repo.InsertPurchaseInvoice(vm);
         }
     }
 }
