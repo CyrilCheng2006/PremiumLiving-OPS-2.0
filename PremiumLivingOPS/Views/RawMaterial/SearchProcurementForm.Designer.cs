@@ -112,8 +112,9 @@ namespace PremiumLivingOPS.Views.RawMaterial
             tblFields.Controls.Add(MakeCell("Date To",   dtpDateTo,      false), 4, 0);
 
             // Buttons row
-            btnSearch = MakePrimaryBtn("\uD83D\uDD0D  Search", Point.Empty,       210, 52);
-            btnReset  = MakeOutlineBtn("\u21BA  Reset",        new Point(218, 0), 210, 52);
+            // NOTE: btnSearch / btnReset Click handlers wired here (UI-only, no named methods needed)
+            btnSearch = MakePrimaryBtn("🔍  Search", Point.Empty,       210, 52);
+            btnReset  = MakeOutlineBtn("↺  Reset",        new Point(218, 0), 210, 52);
             btnSearch.Click += (s, e) => RefreshGrid();
             btnReset.Click  += (s, e) => ResetFilters();
             var pnlSearchBtns = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
@@ -164,11 +165,11 @@ namespace PremiumLivingOPS.Views.RawMaterial
             const int BtnGap = 8;
             const int BtnPad = 12;
 
-            btnViewDetail = MakePrimaryBtn("\uD83D\uDD0D View Detail", Point.Empty, BtnW, BtnH);
-            btnCreateNew  = MakeGreenBtn  ("\uFF0B Create New",        Point.Empty, BtnW, BtnH);
+            // NOTE: btnViewDetail / btnCreateNew Click+SelectionChanged / CellFormatting / CellDoubleClick
+            //       are ALL wired in SearchProcurementForm_Load via lambda — do NOT re-wire here.
+            btnViewDetail = MakePrimaryBtn("🔍 View Detail", Point.Empty, BtnW, BtnH);
+            btnCreateNew  = MakeGreenBtn  ("＋ Create New",  Point.Empty, BtnW, BtnH);
             btnViewDetail.Enabled = false;
-            btnViewDetail.Click += btnViewDetail_Click;
-            btnCreateNew.Click  += btnCreateNew_Click;
 
             var pnlActionBtns = new Panel
             {
@@ -240,6 +241,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
             };
             dgvOrders.RowTemplate.Height = 48;
 
+            // Column definitions — event handlers are wired in SearchProcurementForm_Load
             dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPurchaseID", HeaderText = "PURCHASE ID",  FillWeight = 16 });
             dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colSupplier",   HeaderText = "SUPPLIER",     FillWeight = 20 });
             dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colMaterial",   HeaderText = "RAW MATERIAL", FillWeight = 20 });
@@ -248,10 +250,6 @@ namespace PremiumLivingOPS.Views.RawMaterial
             dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPOTotal",    HeaderText = "PO TOTAL",     FillWeight = 12 });
             dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",     HeaderText = "STATUS",       FillWeight = 14 });
             dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colUrgency",    HeaderText = "URGENCY",      FillWeight = 10 });
-
-            dgvOrders.SelectionChanged += dgvOrders_SelectionChanged;
-            dgvOrders.CellFormatting   += dgvOrders_CellFormatting;
-            dgvOrders.CellDoubleClick  += dgvOrders_CellDoubleClick;
 
             var pnlGridCard = new Panel
             {
@@ -358,7 +356,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
                 ForeColor = Color.White, BackColor = Color.FromArgb(47, 111, 237),
                 FlatStyle = FlatStyle.Flat, Location = loc, Size = new Size(w, h), Cursor = Cursors.Hand
             };
-            b.FlatAppearance.BorderSize             = 0;
+            b.FlatAppearance.BorderSize         = 0;
             b.FlatAppearance.MouseOverBackColor = Color.FromArgb(26, 77, 192);
             b.FlatAppearance.MouseDownBackColor = Color.FromArgb(21, 60, 155);
             return b;
@@ -371,7 +369,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
                 ForeColor = Color.White, BackColor = Color.FromArgb(22, 163, 74),
                 FlatStyle = FlatStyle.Flat, Location = loc, Size = new Size(w, h), Cursor = Cursors.Hand
             };
-            b.FlatAppearance.BorderSize             = 0;
+            b.FlatAppearance.BorderSize         = 0;
             b.FlatAppearance.MouseOverBackColor = Color.FromArgb(16, 131, 58);
             b.FlatAppearance.MouseDownBackColor = Color.FromArgb(10, 100, 40);
             return b;
