@@ -19,7 +19,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
         {
             SuspendLayout();   // RULE 1
 
-            // ── Form properties ────────────────────────────────────────────
+            // ── Form properties ──────────────────────────────────────────────
             Name          = "CreateProcurementForm";
             Text          = "Premium Living OPS — Raw Material";
             Size          = new Size(1440, 900);
@@ -47,7 +47,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
             _shell.LogoutClicked   += BtnLogout_Click;           // RULE 4
             _shell.SetPopupContainer(pnlRoot);
 
-            // ── Scroll panel ──────────────────────────────────────────────
+            // ── Scroll panel ────────────────────────────────────────────────
             pnlScroll = new Panel
             {
                 Dock       = DockStyle.Fill,
@@ -56,8 +56,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
             };
 
             // ════════════════════════════════════════════════════════════════
-            // CARD 1 — Page Header / Purchase Order Info (auto-generated ID)
-            //   Row 1 : Purchase ID (read-only auto), Order Date, Status
+            // CARD 1 — Page Header / Purchase Order Info
             // ════════════════════════════════════════════════════════════════
             var (hdrOuter, hdrInner) = CardPanel.Create(outerHeight: 148,
                 outerPadding: new Padding(20, 14, 20, 0));
@@ -73,7 +72,6 @@ namespace PremiumLivingOPS.Views.RawMaterial
             tblHdr.RowStyles.Add(new RowStyle(SizeType.Absolute, 48f));
             tblHdr.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
-            // Title
             var pnlHdrTitle = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             pnlHdrTitle.Controls.Add(new Label
             {
@@ -89,7 +87,6 @@ namespace PremiumLivingOPS.Views.RawMaterial
                 BackColor = Color.FromArgb(221, 227, 236)
             });
 
-            // Three fields: Purchase ID | Order Date | Status
             var tblHdrFields = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 1,
@@ -134,8 +131,6 @@ namespace PremiumLivingOPS.Views.RawMaterial
 
             // ════════════════════════════════════════════════════════════════
             // CARD 2 — Material Request & Supplier
-            //   Row 1 : Material Request (dropdown), Supplier (dropdown)
-            //   Row 2 : Raw Material ID (read-only auto-fill), Requested Qty (read-only)
             // ════════════════════════════════════════════════════════════════
             var (reqOuter, reqInner) = CardPanel.Create(outerHeight: 240,
                 outerPadding: new Padding(20, 12, 20, 0));
@@ -224,8 +219,6 @@ namespace PremiumLivingOPS.Views.RawMaterial
 
             // ════════════════════════════════════════════════════════════════
             // CARD 3 — Order Line Details
-            //   Row 1 : Warehouse, Order Qty, Unit Price
-            //   Row 2 : Line Total (read-only computed)
             // ════════════════════════════════════════════════════════════════
             var (lineOuter, lineInner) = CardPanel.Create(outerHeight: 240,
                 outerPadding: new Padding(20, 12, 20, 0));
@@ -262,15 +255,25 @@ namespace PremiumLivingOPS.Views.RawMaterial
                 Font = new Font("Segoe UI", 12f),
                 DropDownStyle = ComboBoxStyle.DropDownList
             };
+
+            // nudOrderQty: Minimum=1 so Value=1 is safe
             nudOrderQty = new NumericUpDown
             {
-                Font = new Font("Segoe UI", 12f),
-                Minimum = 1, Maximum = 99999, Value = 1, DecimalPlaces = 0
+                Font          = new Font("Segoe UI", 12f),
+                Minimum       = 1,
+                Maximum       = 99999,
+                Value         = 1,
+                DecimalPlaces = 0
             };
+
+            // nudUnitPrice: Minimum MUST be 0 so that Value=0 (blank state) is valid.
+            // Validation that price > 0 is enforced in ProcurementController.SubmitCreateProcurement().
             nudUnitPrice = new NumericUpDown
             {
-                Font = new Font("Segoe UI", 12f),
-                Minimum = 0.01m, Maximum = 9999999m, Value = 0m,
+                Font          = new Font("Segoe UI", 12f),
+                Minimum       = 0m,        // ✔ was 0.01m — caused ArgumentOutOfRangeException
+                Maximum       = 9_999_999m,
+                Value         = 0m,        // valid: 0 ≥ Minimum(0)
                 DecimalPlaces = 2
             };
 
@@ -305,7 +308,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
             };
             tblLineRow2.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40f));
             tblLineRow2.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 60f));
-            tblLineRow2.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 0f));
+            tblLineRow2.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  0f));
             tblLineRow2.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
             tblLineRow2.Controls.Add(MakeCell("PO Total Amount (HK$)", txtLineTotal, false), 0, 0);
 
@@ -325,8 +328,8 @@ namespace PremiumLivingOPS.Views.RawMaterial
                 Dock      = DockStyle.Fill,
                 BackColor = Color.Transparent
             };
-            btnSubmit = MakePrimaryBtn("✔  Submit Purchase Order", Point.Empty, 320, 60);
-            btnReset  = MakeOutlineBtn("↺  Reset Form",            Point.Empty, 220, 60);
+            btnSubmit = MakePrimaryBtn("\u2714  Submit Purchase Order", Point.Empty, 320, 60);
+            btnReset  = MakeOutlineBtn("\u21ba  Reset Form",            Point.Empty, 220, 60);
 
             pnlActBtns.Layout += (s, ev) =>
             {
@@ -359,7 +362,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
             _shell.MinimumSize = new Size(0, AppShell.TotalHeight);
         }
 
-        // ── Button factories ──────────────────────────────────────────────
+        // ── Button factories ────────────────────────────────────────────────
         private static Button MakePrimaryBtn(string text, Point loc, int w, int h)
         {
             var b = new Button
@@ -385,7 +388,6 @@ namespace PremiumLivingOPS.Views.RawMaterial
             return b;
         }
 
-        // ── Labelled-cell helper (same pattern as ViewRawMaterialForm) ─────
         private static TableLayoutPanel MakeCell(string caption, Control ctrl, bool rightPad)
         {
             var tlp = new TableLayoutPanel
@@ -412,7 +414,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
             return tlp;
         }
 
-        // ── Field declarations ─────────────────────────────────────────────
+        // ── Field declarations ─────────────────────────────────────────────────
         private Panel           pnlRoot;
         private AppShell        _shell;
         private Panel           pnlScroll;
