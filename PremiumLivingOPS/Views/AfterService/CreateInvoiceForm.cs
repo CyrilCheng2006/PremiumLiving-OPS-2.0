@@ -24,13 +24,13 @@ namespace PremiumLivingOPS.Views.AfterService
             this.Load += CreateInvoiceForm_Load;
         }
 
-        // ── Load ──────────────────────────────────────────────────────────
+        // ── Load ─────────────────────────────────────────────────────────
         private void CreateInvoiceForm_Load(object sender, EventArgs e)
         {
             RefreshGrid();
         }
 
-        // ── Bind shell (called after VM is loaded) ─────────────────────────
+        // ── Bind shell (called after VM is loaded) ────────────────────────
         private void BindShell(CreateInvoiceViewModel vm)
         {
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
@@ -38,7 +38,7 @@ namespace PremiumLivingOPS.Views.AfterService
             _shell.SetBreadcrumb("After-Service  ›  Create Invoice");
         }
 
-        // ── Refresh grid ───────────────────────────────────────────────────
+        // ── Refresh grid ──────────────────────────────────────────────────
         private void RefreshGrid()
         {
             string orderKw    = txtSearchOrder.Text.Trim();
@@ -115,7 +115,7 @@ namespace PremiumLivingOPS.Views.AfterService
             }
         }
 
-        // ── Grid selection → populate form ─────────────────────────────────
+        // ── Grid selection → populate form ───────────────────────────────
         private void dgvOrders_SelectionChanged(object sender, EventArgs e)
         {
             if (dgvOrders.SelectedRows.Count == 0) return;
@@ -137,7 +137,7 @@ namespace PremiumLivingOPS.Views.AfterService
             RecalcBalance();
         }
 
-        // ── Auto-calculate remaining balance ──────────────────────────────
+        // ── Auto-calculate remaining balance ─────────────────────────────
         private void RecalcBalance()
         {
             double total   = _selectedOrder != null ? _selectedOrder.GrandTotal : 0;
@@ -165,6 +165,7 @@ namespace PremiumLivingOPS.Views.AfterService
             double paid    = (double)nudPaidAmount.Value;
             double deposit = (double)nudDepositAmount.Value;
             double total   = _selectedOrder.GrandTotal;
+            double balance = Math.Max(0, total - paid);
 
             if (paid < 0 || paid > total)
             {
@@ -174,14 +175,22 @@ namespace PremiumLivingOPS.Views.AfterService
             }
 
             string payStatus = cboPaymentStatus.SelectedItem?.ToString() ?? "Partial";
-            DateTime dueDate = dtpDueDate.Value;
 
-            bool ok = _ctrl.CreateInvoice(
-                _selectedOrder.OrderID,
-                paid,
-                deposit,
-                dueDate,
-                payStatus);
+            // Build InvoiceEntity and call controller.SaveInvoice() — the correct method
+            var inv = new InvoiceEntity
+            {
+                OrderID          = _selectedOrder.OrderID,
+                InvoiceDate      = DateTime.Today,
+                PaidAmount       = paid,
+                DepositAmount    = deposit,
+                TotalAmount      = total,
+                RemainingBalance = balance,
+                PaymentStatus    = payStatus,
+                DueDate          = dtpDueDate.Value
+                // InvoiceID intentionally omitted: SaveInvoice() auto-generates INV-YYYYMMDD-NNNN
+            };
+
+            bool ok = _ctrl.SaveInvoice(inv);
 
             if (ok)
             {
@@ -190,11 +199,11 @@ namespace PremiumLivingOPS.Views.AfterService
                     "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
                 _selectedOrder = null;
-                lblSelectedOrder.Text = "—";
-                lblCustomer.Text      = "—";
-                lblGrandTotal.Text    = "—";
-                nudPaidAmount.Value   = 0;
-                nudDepositAmount.Value = 0;
+                lblSelectedOrder.Text    = "—";
+                lblCustomer.Text         = "—";
+                lblGrandTotal.Text       = "—";
+                nudPaidAmount.Value      = 0;
+                nudDepositAmount.Value   = 0;
                 lblRemainingBalance.Text = "HK$ 0.00";
                 cboPaymentStatus.SelectedIndex = 0;
 
@@ -208,14 +217,13 @@ namespace PremiumLivingOPS.Views.AfterService
             }
         }
 
-        // ── AppShell navigation handler ───────────────────────────────────
+        // ── AppShell navigation handler ──────────────────────────────────
         private void OnTopNavMenuItemClicked(string menu, string sub)
         {
-            // Navigation is handled at the MainForm level via the shared AppShell event.
-            // Individual forms do not need to implement routing logic here.
+            // Navigation handled at MainForm level via shared AppShell event.
         }
 
-        // ── Logout handler ────────────────────────────────────────────────
+        // ── Logout handler ───────────────────────────────────────────────
         private void btnLogout_Click(object sender, EventArgs e)
         {
             if (MessageBox.Show("Are you sure you want to log out?",
