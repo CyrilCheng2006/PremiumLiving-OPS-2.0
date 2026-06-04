@@ -19,16 +19,14 @@ namespace PremiumLivingOPS.Models.DAL
         /// <summary>
         /// Returns a flat list of PurchaseOrders joined with Supplier and
         /// MaterialRequest for display in the Search Procurement grid.
-        /// Optional filters: keyword (PurchaseID / SupplierName),
-        /// status, date range.
         /// </summary>
-        public List<PurchaseOrderEntity> SearchPurchaseOrders(
+        public List<ProcurementOrderEntity> SearchPurchaseOrders(
             string keyword    = null,
             string status     = null,
             DateTime? dateFrom = null,
             DateTime? dateTo   = null)
         {
-            var list = new List<PurchaseOrderEntity>();
+            var list = new List<ProcurementOrderEntity>();
             using (var conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
@@ -70,14 +68,14 @@ namespace PremiumLivingOPS.Models.DAL
 
                     using (var r = cmd.ExecuteReader())
                         while (r.Read())
-                            list.Add(MapPurchaseOrder(r));
+                            list.Add(MapProcurementOrder(r));
                 }
             }
             return list;
         }
 
         /// <summary>Get a single PurchaseOrder by PurchaseID.</summary>
-        public PurchaseOrderEntity GetPurchaseOrderById(string purchaseId)
+        public ProcurementOrderEntity GetPurchaseOrderById(string purchaseId)
         {
             using (var conn = DatabaseHelper.GetConnection())
             {
@@ -99,7 +97,7 @@ namespace PremiumLivingOPS.Models.DAL
                 {
                     cmd.Parameters.AddWithValue("@id", purchaseId);
                     using (var r = cmd.ExecuteReader())
-                        if (r.Read()) return MapPurchaseOrder(r);
+                        if (r.Read()) return MapProcurementOrder(r);
                 }
             }
             return null;
@@ -140,10 +138,6 @@ namespace PremiumLivingOPS.Models.DAL
         //  CREATE PROCUREMENT — lookups
         // ════════════════════════════════════════════════════════════════
 
-        /// <summary>
-        /// Returns MaterialRequests that have NOT yet been linked to a PurchaseOrder.
-        /// Used to populate the Request ID dropdown in Create Procurement.
-        /// </summary>
         public List<MaterialRequestLookup> GetUnlinkedMaterialRequests()
         {
             var list = new List<MaterialRequestLookup>();
@@ -177,7 +171,6 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
-        /// <summary>Returns all Suppliers for the dropdown.</summary>
         public List<SupplierLookup> GetAllSuppliers()
         {
             var list = new List<SupplierLookup>();
@@ -206,23 +199,11 @@ namespace PremiumLivingOPS.Models.DAL
         //  CREATE PROCUREMENT — write
         // ════════════════════════════════════════════════════════════════
 
-        /// <summary>
-        /// Inserts one PurchaseOrder header + one PurchaseOrderLine in a
-        /// single transaction.
-        /// </summary>
         public void CreatePurchaseOrder(
-            string purchaseId,
-            string requestId,
-            string supplierId,
-            double poTotalAmount,
-            DateTime orderDate,
-            string purchaseStatus,
-            // Line item fields
-            string rawMaterialItemId,
-            string warehouseId,
-            int    orderQty,
-            double unitPrice,
-            string staffId)
+            string purchaseId, string requestId, string supplierId,
+            double poTotalAmount, DateTime orderDate, string purchaseStatus,
+            string rawMaterialItemId, string warehouseId,
+            int orderQty, double unitPrice, string staffId)
         {
             using (var conn = DatabaseHelper.GetConnection())
             {
@@ -231,10 +212,8 @@ namespace PremiumLivingOPS.Models.DAL
                 {
                     try
                     {
-                        // ── 1. Generate POLine ID ──────────────────────────────────
                         string poLineId = GenerateNextPoLineId(conn, trx);
 
-                        // ── 2. Insert PurchaseOrder header ─────────────────────────
                         const string insertPO =
                             @"INSERT INTO PurchaseOrder
                                 (PurchaseID, RequestID, SupplierID, POTotalAmount, OrderDate, PurchaseStatus)
@@ -251,7 +230,6 @@ namespace PremiumLivingOPS.Models.DAL
                             cmd.ExecuteNonQuery();
                         }
 
-                        // ── 3. Insert PurchaseOrderLine ────────────────────────────
                         const string insertLine =
                             @"INSERT INTO PurchaseOrderLine
                                 (POLineID, RawMaterialItemID, PurchaseID, WarehouseID, OrderQty, UnitPrice)
@@ -268,7 +246,6 @@ namespace PremiumLivingOPS.Models.DAL
                             cmd.ExecuteNonQuery();
                         }
 
-                        // ── 4. Audit log ───────────────────────────────────────────
                         const string insertLog =
                             @"INSERT INTO Log (LogID, StaffID, LogType, TargetTable, NewValue)
                               VALUES (@logId, @staffId, 'Create', 'PurchaseOrder', @newVal)";
@@ -282,11 +259,7 @@ namespace PremiumLivingOPS.Models.DAL
 
                         trx.Commit();
                     }
-                    catch
-                    {
-                        trx.Rollback();
-                        throw;
-                    }
+                    catch { trx.Rollback(); throw; }
                 }
             }
         }
@@ -295,10 +268,6 @@ namespace PremiumLivingOPS.Models.DAL
         //  ID GENERATORS
         // ════════════════════════════════════════════════════════════════
 
-        /// <summary>
-        /// Generates the next PurchaseID in format PO-yyyyMMdd-NNNN.
-        /// Finds the max sequence number for today and increments by 1.
-        /// </summary>
         public string GenerateNextPurchaseId()
         {
             string prefix = $"PO-{DateTime.Today:yyyyMMdd}-";
@@ -337,21 +306,21 @@ namespace PremiumLivingOPS.Models.DAL
         //  MAPPERS
         // ════════════════════════════════════════════════════════════════
 
-        private static PurchaseOrderEntity MapPurchaseOrder(MySqlDataReader r)
-            => new PurchaseOrderEntity
+        private static ProcurementOrderEntity MapProcurementOrder(MySqlDataReader r)
+            => new ProcurementOrderEntity
             {
-                PurchaseID      = r["PurchaseID"].ToString(),
-                RequestID       = r["RequestID"].ToString(),
-                SupplierID      = r["SupplierID"].ToString(),
-                SupplierName    = r["SupplierName"].ToString(),
-                POTotalAmount   = Convert.ToDouble(r["POTotalAmount"]),
-                OrderDate       = Convert.ToDateTime(r["OrderDate"]),
-                PurchaseStatus  = r["PurchaseStatus"].ToString(),
+                PurchaseID        = r["PurchaseID"].ToString(),
+                RequestID         = r["RequestID"].ToString(),
+                SupplierID        = r["SupplierID"].ToString(),
+                SupplierName      = r["SupplierName"].ToString(),
+                POTotalAmount     = Convert.ToDouble(r["POTotalAmount"]),
+                OrderDate         = Convert.ToDateTime(r["OrderDate"]),
+                PurchaseStatus    = r["PurchaseStatus"].ToString(),
                 RawMaterialItemID = r["RawMaterialItemID"].ToString(),
-                RawMaterialName = r["RawMaterialName"].ToString(),
-                RequestedQty    = Convert.ToInt32(r["RequestedQty"]),
-                UrgencyLevel    = r["UrgencyLevel"].ToString(),
-                TriggerType     = r["TriggerType"].ToString()
+                RawMaterialName   = r["RawMaterialName"].ToString(),
+                RequestedQty      = Convert.ToInt32(r["RequestedQty"]),
+                UrgencyLevel      = r["UrgencyLevel"].ToString(),
+                TriggerType       = r["TriggerType"].ToString()
             };
 
         private static PurchaseOrderLineEntity MapPOLine(MySqlDataReader r)

@@ -1,5 +1,6 @@
 using PremiumLivingOPS.Controllers;
 using PremiumLivingOPS.Models.Entities;
+using PremiumLivingOPS.Models.ViewModels;   // SearchProcurementViewModel, ProcurementDetailViewModel
 using PremiumLivingOPS.Views.Shared;
 using System;
 using System.Collections.Generic;
@@ -26,8 +27,8 @@ namespace PremiumLivingOPS.Views.RawMaterial
     /// </summary>
     public partial class SearchProcurementForm : Form
     {
-        private readonly ProcurementController _ctrl = new ProcurementController();
-        private List<PurchaseOrderEntity> _currentOrders = new List<PurchaseOrderEntity>();
+        private readonly ProcurementController  _ctrl          = new ProcurementController();
+        private List<ProcurementOrderEntity>    _currentOrders = new List<ProcurementOrderEntity>();
 
         // ── Status colour map ────────────────────────────────────────────
         private static readonly Dictionary<string, (Color bg, Color fg)> StatusColors =
@@ -49,7 +50,6 @@ namespace PremiumLivingOPS.Views.RawMaterial
                 { "Medium",   (Color.FromArgb(209, 250, 229), Color.FromArgb(  6,  95,  70)) }
             };
 
-        // Detail dialog layout constants
         private const int D_RowH   = 60;
         private const int D_LabelW = 260;
         private const int D_BtnW   = 200;
@@ -67,7 +67,6 @@ namespace PremiumLivingOPS.Views.RawMaterial
 
         private void SearchProcurementForm_Load(object sender, EventArgs e)
         {
-            // Navigation wired in Designer (RULE 4).
             dgvOrders.SelectionChanged += (s, _) => UpdateActionButtons();
             dgvOrders.CellDoubleClick  += (s, ce) => { if (ce.RowIndex >= 0) OpenDetailDialog(); };
             dgvOrders.CellFormatting   += DgvOrders_CellFormatting;
@@ -84,16 +83,15 @@ namespace PremiumLivingOPS.Views.RawMaterial
 
         internal void RefreshGrid()
         {
-            string   keyword  = txtKeyword.Text.Trim();
-            string   status   = cboStatus.SelectedItem?.ToString();
+            string    keyword  = txtKeyword.Text.Trim();
+            string    status   = cboStatus.SelectedItem?.ToString();
             DateTime? dateFrom = chkUseDateRange.Checked ? (DateTime?)dtpDateFrom.Value.Date : null;
             DateTime? dateTo   = chkUseDateRange.Checked ? (DateTime?)dtpDateTo.Value.Date   : null;
 
             var vm = _ctrl.GetSearchProcurementVM(
                 string.IsNullOrEmpty(keyword) ? null : keyword,
                 status == "All" ? null : status,
-                dateFrom,
-                dateTo);
+                dateFrom, dateTo);
 
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
@@ -121,7 +119,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
 
         internal void ResetFilters()
         {
-            txtKeyword.Text  = string.Empty;
+            txtKeyword.Text = string.Empty;
             cboStatus.SelectedIndex = 0;
             chkUseDateRange.Checked = false;
             dtpDateFrom.Value = DateTime.Today.AddMonths(-3);
@@ -132,23 +130,24 @@ namespace PremiumLivingOPS.Views.RawMaterial
         // ════════════════════════════════════════════════════════════════
         //  KPI Pills
         // ════════════════════════════════════════════════════════════════
+
         private void RefreshKpi()
         {
             pnlKpi.Controls.Clear();
 
             var allOrders = _ctrl.GetSearchProcurementVM().Orders;
 
-            int total       = allOrders.Count;
-            int sent        = allOrders.FindAll(o => o.PurchaseStatus == "Sent").Count;
-            int inProgress  = allOrders.FindAll(o => o.PurchaseStatus == "Partially Received").Count;
-            int completed   = allOrders.FindAll(o => o.PurchaseStatus == "Completed" || o.PurchaseStatus == "Received").Count;
+            int total      = allOrders.Count;
+            int sent       = allOrders.FindAll(o => o.PurchaseStatus == "Sent").Count;
+            int inProgress = allOrders.FindAll(o => o.PurchaseStatus == "Partially Received").Count;
+            int completed  = allOrders.FindAll(o => o.PurchaseStatus == "Completed" || o.PurchaseStatus == "Received").Count;
 
             var pills = new[]
             {
-                ("Total",             total.ToString(),      Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254)),
-                ("Sent",              sent.ToString(),       Color.FromArgb( 30,  64, 175), Color.FromArgb(219, 234, 254)),
-                ("Partial / Received",inProgress.ToString(), Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199)),
-                ("Completed",         completed.ToString(),  Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229)),
+                ("Total",              total.ToString(),      Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254)),
+                ("Sent",               sent.ToString(),       Color.FromArgb( 30,  64, 175), Color.FromArgb(219, 234, 254)),
+                ("Partial / Received", inProgress.ToString(), Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199)),
+                ("Completed",          completed.ToString(),  Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229)),
             };
 
             const int PillW   = 280;
@@ -198,22 +197,15 @@ namespace PremiumLivingOPS.Views.RawMaterial
 
                 tlp.Controls.Add(new Label
                 {
-                    Text      = count,
-                    Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
+                    Text = count, Font = new Font("Segoe UI", 14f, FontStyle.Bold),
                     ForeColor = fg, BackColor = Color.Transparent,
-                    Dock      = DockStyle.Fill,
-                    TextAlign = ContentAlignment.MiddleCenter,
-                    AutoSize  = false
+                    Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, AutoSize = false
                 }, 0, 0);
-
                 tlp.Controls.Add(new Label
                 {
-                    Text      = label,
-                    Font      = new Font("Segoe UI", 11f),
+                    Text = label, Font = new Font("Segoe UI", 11f),
                     ForeColor = fg, BackColor = Color.Transparent,
-                    Dock      = DockStyle.Fill,
-                    TextAlign = ContentAlignment.MiddleLeft,
-                    AutoSize  = false
+                    Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
                 }, 1, 0);
 
                 pill.Controls.Add(tlp);
@@ -233,36 +225,30 @@ namespace PremiumLivingOPS.Views.RawMaterial
 
         private void UpdateActionButtons()
         {
-            bool hasSelection = dgvOrders.SelectedRows.Count > 0;
-            btnViewDetail.Enabled = hasSelection;
+            btnViewDetail.Enabled = dgvOrders.SelectedRows.Count > 0;
         }
 
         private void DgvOrders_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
             if (e.Value == null) return;
-            string val = e.Value.ToString();
-
+            string val     = e.Value.ToString();
             string colName = dgvOrders.Columns[e.ColumnIndex].Name;
 
             if (colName == "colStatus" && StatusColors.TryGetValue(val, out var sc))
             {
-                e.CellStyle.ForeColor          = sc.fg;
-                e.CellStyle.BackColor          = sc.bg;
-                e.CellStyle.SelectionForeColor = sc.fg;
-                e.CellStyle.SelectionBackColor = sc.bg;
-                e.CellStyle.Font               = new Font("Segoe UI", 11f, FontStyle.Bold);
-                e.CellStyle.Alignment          = DataGridViewContentAlignment.MiddleCenter;
-                e.FormattingApplied            = true;
+                e.CellStyle.ForeColor = sc.fg; e.CellStyle.BackColor = sc.bg;
+                e.CellStyle.SelectionForeColor = sc.fg; e.CellStyle.SelectionBackColor = sc.bg;
+                e.CellStyle.Font = new Font("Segoe UI", 11f, FontStyle.Bold);
+                e.CellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                e.FormattingApplied = true;
             }
             else if (colName == "colUrgency" && UrgencyColors.TryGetValue(val, out var uc))
             {
-                e.CellStyle.ForeColor          = uc.fg;
-                e.CellStyle.BackColor          = uc.bg;
-                e.CellStyle.SelectionForeColor = uc.fg;
-                e.CellStyle.SelectionBackColor = uc.bg;
-                e.CellStyle.Font               = new Font("Segoe UI", 11f, FontStyle.Bold);
-                e.CellStyle.Alignment          = DataGridViewContentAlignment.MiddleCenter;
-                e.FormattingApplied            = true;
+                e.CellStyle.ForeColor = uc.fg; e.CellStyle.BackColor = uc.bg;
+                e.CellStyle.SelectionForeColor = uc.fg; e.CellStyle.SelectionBackColor = uc.bg;
+                e.CellStyle.Font = new Font("Segoe UI", 11f, FontStyle.Bold);
+                e.CellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                e.FormattingApplied = true;
             }
         }
 
@@ -271,13 +257,12 @@ namespace PremiumLivingOPS.Views.RawMaterial
         // ════════════════════════════════════════════════════════════════
 
         private void BtnCreateNew_Click(object sender, EventArgs e)
-        {
-            FormNavigator.NavigateTo(this, "Raw Material", "Create Procurement");
-        }
+            => FormNavigator.NavigateTo(this, "Raw Material", "Create Procurement");
 
         // ════════════════════════════════════════════════════════════════
         //  Detail Dialog
         // ════════════════════════════════════════════════════════════════
+
         private void OpenDetailDialog()
         {
             if (dgvOrders.SelectedRows.Count == 0) return;
@@ -294,12 +279,9 @@ namespace PremiumLivingOPS.Views.RawMaterial
             // ── Local helpers ────────────────────────────────────────────
             Label ReadLabel(string text) => new Label
             {
-                Text      = text ?? "\u2014",
-                Font      = new Font("Segoe UI", 12f),
-                ForeColor = Color.FromArgb(15, 31, 53),
-                Dock      = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleLeft,
-                BackColor = Color.White
+                Text = text ?? "\u2014", Font = new Font("Segoe UI", 12f),
+                ForeColor = Color.FromArgb(15, 31, 53), Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft, BackColor = Color.White
             };
 
             Panel FieldRow(string labelText, Control input, bool lastRow = false)
@@ -341,28 +323,27 @@ namespace PremiumLivingOPS.Views.RawMaterial
             // ── CARD 1 – Purchase Order Header ───────────────────────────
             var c1Rows = new Panel[]
             {
-                FieldRow("Purchase ID",   ReadLabel(o.PurchaseID)),
-                FieldRow("Order Date",    ReadLabel(o.OrderDateStr)),
-                FieldRow("Status",        ReadLabel(o.PurchaseStatus)),
-                FieldRow("PO Total",      ReadLabel($"HK$ {o.POTotalAmount:N2}"), lastRow: true)
+                FieldRow("Purchase ID", ReadLabel(o.PurchaseID)),
+                FieldRow("Order Date",  ReadLabel(o.OrderDateStr)),
+                FieldRow("Status",      ReadLabel(o.PurchaseStatus)),
+                FieldRow("PO Total",    ReadLabel($"HK$ {o.POTotalAmount:N2}"), lastRow: true)
             };
             var (c1Outer, c1Inner) = CardPanel.Create(
                 outerHeight: c1Rows.Length * D_RowH + 22,
                 outerPadding: new Padding(20, 14, 20, 8));
             c1Inner.Padding = new Padding(0);
-            var c1Stack = BuildStack(c1Rows);
-            c1Inner.Controls.Add(c1Stack);
+            c1Inner.Controls.Add(BuildStack(c1Rows));
 
             // ── CARD 2 – Supplier & Request ──────────────────────────────
             var c2Rows = new Panel[]
             {
-                FieldRow("Supplier ID",      ReadLabel(o.SupplierID)),
-                FieldRow("Supplier Name",    ReadLabel(o.SupplierName)),
-                FieldRow("Request ID",       ReadLabel(o.RequestID)),
-                FieldRow("Raw Material",     ReadLabel($"{o.RawMaterialItemID}  —  {o.RawMaterialName}")),
-                FieldRow("Requested Qty",    ReadLabel(o.RequestedQty.ToString())),
-                FieldRow("Trigger Type",     ReadLabel(o.TriggerType)),
-                FieldRow("Urgency Level",    ReadLabel(o.UrgencyLevel), lastRow: true)
+                FieldRow("Supplier ID",   ReadLabel(o.SupplierID)),
+                FieldRow("Supplier Name", ReadLabel(o.SupplierName)),
+                FieldRow("Request ID",    ReadLabel(o.RequestID)),
+                FieldRow("Raw Material",  ReadLabel($"{o.RawMaterialItemID}  \u2014  {o.RawMaterialName}")),
+                FieldRow("Requested Qty", ReadLabel(o.RequestedQty.ToString())),
+                FieldRow("Trigger Type",  ReadLabel(o.TriggerType)),
+                FieldRow("Urgency Level", ReadLabel(o.UrgencyLevel), lastRow: true)
             };
             var (c2Outer, c2Inner) = CardPanel.Create(
                 outerHeight: c2Rows.Length * D_RowH + 30,
@@ -401,24 +382,21 @@ namespace PremiumLivingOPS.Views.RawMaterial
                     }
                 };
                 lineDgv.RowTemplate.Height = 44;
-                lineDgv.Columns.Add("cPOLine",    "PO LINE ID");
-                lineDgv.Columns.Add("cMat",       "RAW MATERIAL");
-                lineDgv.Columns.Add("cType",      "TYPE");
-                lineDgv.Columns.Add("cWH",        "WAREHOUSE");
-                lineDgv.Columns.Add("cQty",       "ORDER QTY");
-                lineDgv.Columns.Add("cPrice",     "UNIT PRICE");
-                lineDgv.Columns.Add("cTotal",     "LINE TOTAL");
+                lineDgv.Columns.Add("cPOLine", "PO LINE ID");
+                lineDgv.Columns.Add("cMat",    "RAW MATERIAL");
+                lineDgv.Columns.Add("cType",   "TYPE");
+                lineDgv.Columns.Add("cWH",     "WAREHOUSE");
+                lineDgv.Columns.Add("cQty",    "ORDER QTY");
+                lineDgv.Columns.Add("cPrice",  "UNIT PRICE");
+                lineDgv.Columns.Add("cTotal",  "LINE TOTAL");
 
                 foreach (var ln in lines)
                     lineDgv.Rows.Add(
                         ln.POLineID, ln.MaterialName, ln.MaterialType,
                         ln.WarehouseLocation, ln.OrderQty,
-                        $"HK$ {ln.UnitPrice:N2}",
-                        $"HK$ {ln.LineTotal:N2}");
+                        $"HK$ {ln.UnitPrice:N2}", $"HK$ {ln.LineTotal:N2}");
 
-                const int LineSecH = 46;
-                const int LineHdrH = 42;
-                const int LineRowH = 44;
+                const int LineSecH = 46, LineHdrH = 42, LineRowH = 44;
                 int c3H = LineSecH + LineHdrH + lines.Count * LineRowH + 16 + 22;
 
                 var lineHeader = new Panel
@@ -439,8 +417,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
                 };
 
                 var (c3o, c3i) = CardPanel.Create(
-                    outerHeight:  c3H,
-                    outerPadding: new Padding(20, 8, 20, 16));
+                    outerHeight: c3H, outerPadding: new Padding(20, 8, 20, 16));
                 c3i.Padding = new Padding(0);
                 c3i.Controls.Add(lineDgv);
                 c3i.Controls.Add(lineHeader);
@@ -460,13 +437,11 @@ namespace PremiumLivingOPS.Views.RawMaterial
                 Font            = new Font("Segoe UI", 12f)
             };
 
-            // ── Status pill colour ────────────────────────────────────────
             Color pillBg = Color.FromArgb(229, 231, 235);
             Color pillFg = Color.FromArgb(55, 65, 81);
             if (StatusColors.TryGetValue(o.PurchaseStatus ?? "", out var hsc))
             { pillBg = hsc.bg; pillFg = hsc.fg; }
 
-            // ── Header bar ────────────────────────────────────────────────
             var statusFont = new Font("Segoe UI", 13f, FontStyle.Bold);
             int textW      = TextRenderer.MeasureText(o.PurchaseStatus ?? "\u2014", statusFont).Width;
             int statusColW = textW + 80;
@@ -510,7 +485,6 @@ namespace PremiumLivingOPS.Views.RawMaterial
             };
             pnlHeader.Controls.Add(headerTlp);
 
-            // ── Footer ────────────────────────────────────────────────────
             var pnlFoot = new Panel
             {
                 Dock = DockStyle.Bottom, Height = 96,
@@ -538,10 +512,11 @@ namespace PremiumLivingOPS.Views.RawMaterial
             footFlow.Controls.Add(btnClose);
             pnlFoot.Controls.Add(footFlow);
 
-            // ── Scroll ────────────────────────────────────────────────────
             var scroll = new Panel
             {
-                Dock = DockStyle.Fill, BackColor = Color.FromArgb(240, 244, 249), AutoScroll = true
+                Dock = DockStyle.Fill,
+                BackColor = Color.FromArgb(240, 244, 249),
+                AutoScroll = true
             };
             if (c3Outer != null) scroll.Controls.Add(c3Outer);
             scroll.Controls.Add(c2Outer);
@@ -570,9 +545,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
             content.Resize += (s, _) =>
             {
                 var p = (Panel)s;
-                stack.Width = p.Width;
-                stack.Left  = 0;
-                stack.Top   = 0;
+                stack.Width = p.Width; stack.Left = 0; stack.Top = 0;
                 foreach (Panel r in stack.Controls) r.Width = p.Width;
             };
             return content;
@@ -591,9 +564,6 @@ namespace PremiumLivingOPS.Views.RawMaterial
             Application.Restart();
         }
 
-        // ────────────────────────────────────────────────────────────────
-        //  Utility
-        // ────────────────────────────────────────────────────────────────
         private static GraphicsPath RoundedRect(System.Drawing.Rectangle r, int radius)
         {
             var path = new GraphicsPath(); int d = radius * 2;

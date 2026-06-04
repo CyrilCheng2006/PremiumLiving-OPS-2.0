@@ -19,12 +19,9 @@ namespace PremiumLivingOPS.Controllers
         //  SEARCH PROCUREMENT
         // ════════════════════════════════════════════════════════════════
 
-        /// <summary>
-        /// Returns a ViewModel for Search Procurement with optional filters.
-        /// </summary>
         public SearchProcurementViewModel GetSearchProcurementVM(
-            string keyword    = null,
-            string status     = null,
+            string keyword     = null,
+            string status      = null,
             DateTime? dateFrom = null,
             DateTime? dateTo   = null)
         {
@@ -41,9 +38,6 @@ namespace PremiumLivingOPS.Controllers
             };
         }
 
-        /// <summary>
-        /// Returns a detail ViewModel for viewing a single PurchaseOrder + its lines.
-        /// </summary>
         public ProcurementDetailViewModel GetProcurementDetailVM(string purchaseId)
         {
             var user = SessionManager.CurrentUser;
@@ -64,9 +58,6 @@ namespace PremiumLivingOPS.Controllers
         //  CREATE PROCUREMENT
         // ════════════════════════════════════════════════════════════════
 
-        /// <summary>
-        /// Returns a ViewModel for Create Procurement (with all dropdown data).
-        /// </summary>
         public CreateProcurementViewModel GetCreateProcurementVM()
         {
             var user = SessionManager.CurrentUser;
@@ -85,22 +76,12 @@ namespace PremiumLivingOPS.Controllers
             };
         }
 
-        /// <summary>
-        /// Validates and submits a new PurchaseOrder.
-        /// Throws ArgumentException on validation failure.
-        /// </summary>
         public void SubmitCreateProcurement(
-            string purchaseId,
-            string requestId,
-            string supplierId,
-            DateTime orderDate,
-            string status,
-            string rawMaterialItemId,
-            string warehouseId,
-            int    orderQty,
-            double unitPrice)
+            string purchaseId, string requestId, string supplierId,
+            DateTime orderDate, string status,
+            string rawMaterialItemId, string warehouseId,
+            int orderQty, double unitPrice)
         {
-            // ── Validation ────────────────────────────────────────────
             if (string.IsNullOrWhiteSpace(requestId))
                 throw new ArgumentException("Please select a Material Request.");
             if (string.IsNullOrWhiteSpace(supplierId))
@@ -118,33 +99,16 @@ namespace PremiumLivingOPS.Controllers
             string staffId = SessionManager.CurrentUser?.StaffID ?? "SYSTEM";
 
             _repo.CreatePurchaseOrder(
-                purchaseId,
-                requestId,
-                supplierId,
-                poTotal,
-                orderDate,
-                status,
-                rawMaterialItemId,
-                warehouseId,
-                orderQty,
-                unitPrice,
-                staffId);
+                purchaseId, requestId, supplierId, poTotal, orderDate, status,
+                rawMaterialItemId, warehouseId, orderQty, unitPrice, staffId);
         }
 
         // ════════════════════════════════════════════════════════════════
         //  HELPERS
         // ════════════════════════════════════════════════════════════════
 
-        /// <summary>Returns all Warehouses (used by dropdowns).</summary>
-        public List<WarehouseEntity> GetAllWarehouses()
-            => _invRepo.GetAllWarehouses();
-
-        /// <summary>Returns all Suppliers.</summary>
-        public List<SupplierLookup> GetAllSuppliers()
-            => _repo.GetAllSuppliers();
-
-        /// <summary>Generates a fresh PurchaseID (used after a successful save).</summary>
-        public string GenerateNextPurchaseId()
-            => _repo.GenerateNextPurchaseId();
+        public List<WarehouseEntity>  GetAllWarehouses()    => _invRepo.GetAllWarehouses();
+        public List<SupplierLookup>   GetAllSuppliers()     => _repo.GetAllSuppliers();
+        public string                 GenerateNextPurchaseId() => _repo.GenerateNextPurchaseId();
     }
 }
