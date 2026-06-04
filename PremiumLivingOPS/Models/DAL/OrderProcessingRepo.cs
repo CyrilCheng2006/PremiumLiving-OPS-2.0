@@ -146,8 +146,6 @@ namespace PremiumLivingOPS.Models.DAL
                                 ItemID   = rdr.GetString("ItemID"),
                                 ItemName = rdr.GetString("ItemName"),
                                 Quantity = rdr.GetInt32("Quantity"),
-                                // Use Convert.ToDouble to correctly read MySQL DECIMAL columns.
-                                // rdr.GetDouble() silently returns 0 for DECIMAL types in MySql.Data.
                                 Price    = Convert.ToDouble(rdr["Price"])
                             });
                 }
@@ -175,16 +173,16 @@ namespace PremiumLivingOPS.Models.DAL
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
                     cmd.Parameters.AddWithValue("@OrderID",          order.OrderID);
-                    cmd.Parameters.AddWithValue("@QuotationID",      string.IsNullOrEmpty(order.QuotationID)  ? (object)DBNull.Value : order.QuotationID);
+                    cmd.Parameters.AddWithValue("@QuotationID",      string.IsNullOrEmpty(order.QuotationID)      ? (object)DBNull.Value : order.QuotationID);
                     cmd.Parameters.AddWithValue("@CustomerID",       order.CustomerID);
-                    cmd.Parameters.AddWithValue("@AddressID",        string.IsNullOrEmpty(order.AddressID)    ? (object)DBNull.Value : order.AddressID);
+                    cmd.Parameters.AddWithValue("@AddressID",        string.IsNullOrEmpty(order.AddressID)        ? (object)DBNull.Value : order.AddressID);
                     cmd.Parameters.AddWithValue("@SalesID",          order.SalesID);
                     cmd.Parameters.AddWithValue("@IssuedTime",       order.IssuedTime);
                     cmd.Parameters.AddWithValue("@DeliveryDate",     order.DeliveryDate);
                     cmd.Parameters.AddWithValue("@ShippingAddress",  order.ShippingAddress);
                     cmd.Parameters.AddWithValue("@BillingAddress",   order.BillingAddress);
                     cmd.Parameters.AddWithValue("@SubTotal",         order.SubTotal);
-                    cmd.Parameters.AddWithValue("@DiscountType",     string.IsNullOrEmpty(order.DiscountType) ? (object)DBNull.Value : order.DiscountType);
+                    cmd.Parameters.AddWithValue("@DiscountType",     string.IsNullOrEmpty(order.DiscountType)     ? (object)DBNull.Value : order.DiscountType);
                     cmd.Parameters.AddWithValue("@DiscountValue",    order.DiscountValue);
                     cmd.Parameters.AddWithValue("@DiscountAmount",   order.DiscountAmount);
                     cmd.Parameters.AddWithValue("@GrandTotal",       order.GrandTotal);
@@ -380,24 +378,22 @@ namespace PremiumLivingOPS.Models.DAL
                     while (rdr.Read())
                         list.Add(new CustomerEntity
                         {
-                            CustomerID   = rdr.GetString("CustomerID"),
-                            CustomerName = rdr.GetString("CustomerName"),
-                            Email        = rdr.GetString("EmailAddress"),
-                            Phone        = rdr.GetString("PhoneNumber")
+                            CustomerID    = rdr.GetString("CustomerID"),
+                            CustomerName  = rdr.GetString("CustomerName"),
+                            EmailAddress  = rdr.GetString("EmailAddress"),  // fixed: was .Email
+                            PhoneNumber   = rdr.GetString("PhoneNumber")    // fixed: was .Phone
                         });
             }
             return list;
         }
 
         // ════════════════════════════════════════════════════════════════
-        //  ADDRESS queries   (reads from the Address table)
+        //  ADDRESS queries
         // ════════════════════════════════════════════════════════════════
 
         /// <summary>
         /// Returns all address records from the Address table.
         /// Schema: Address (AddressID, CustomerID, AddressName, AddressType, isDefault)
-        /// AddressName is mapped to AddressLookup.FullAddress.
-        /// AddressType is mapped to AddressLookup.Label for ComboBox display.
         /// </summary>
         public List<AddressLookup> GetAllAddresses()
         {
@@ -446,8 +442,6 @@ namespace PremiumLivingOPS.Models.DAL
                         {
                             ItemID     = rdr.GetString("ItemID"),
                             ItemName   = rdr.GetString("ItemName"),
-                            // Use Convert.ToDouble to correctly read MySQL DECIMAL columns.
-                            // rdr.GetDouble() silently returns 0 for DECIMAL types in MySql.Data.
                             SalesPrice = Convert.ToDouble(rdr["SalesPrice"]),
                             Category   = rdr.GetString("Category")
                         });
