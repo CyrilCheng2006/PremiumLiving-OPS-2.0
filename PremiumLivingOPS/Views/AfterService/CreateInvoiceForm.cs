@@ -1,6 +1,6 @@
 using PremiumLivingOPS.Controllers;
 using PremiumLivingOPS.Models.Entities;
-using PremiumLivingOPS.Models.DAL;
+using PremiumLivingOPS.Views.Shared;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -24,13 +24,16 @@ namespace PremiumLivingOPS.Views.AfterService
             this.Load += CreateInvoiceForm_Load;
         }
 
-        // ── Load ────────────────────────────────────────────────────────
+        // ── Load ──────────────────────────────────────────────
         private void CreateInvoiceForm_Load(object sender, EventArgs e)
         {
+            // Wire AppShell events here (same pattern as ViewOrderForm.cs)
+            _shell.MenuItemClicked += OnTopNavMenuItemClicked;
+            _shell.LogoutClicked   += OnLogoutClicked;
             RefreshGrid();
         }
 
-        // ── Refresh grid ────────────────────────────────────────────────
+        // ── Refresh grid ────────────────────────────────────────
         private void RefreshGrid()
         {
             string orderKw    = txtSearchOrder.Text.Trim();
@@ -41,12 +44,10 @@ namespace PremiumLivingOPS.Views.AfterService
 
             var vm = _ctrl.GetCreateInvoiceVM();
 
-            // ── Bind AppShell via its public API ──────────────────────────
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
             _shell.SetBreadcrumb("After-Service  ›  Create Invoice");
 
-            // ── Local filters ─────────────────────────────────────────────
             _currentOrders = vm.Orders ?? new List<OrderEntity>();
 
             if (!string.IsNullOrEmpty(orderKw))
@@ -71,7 +72,7 @@ namespace PremiumLivingOPS.Views.AfterService
                     o.IssuedTime.ToString("yyyy-MM-dd"));
         }
 
-        // ── Grid cell formatting — status chip colours ────────────────────
+        // ── Grid cell formatting ───────────────────────────────────
         private void dgvOrders_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
             if (e.RowIndex < 0) return;
@@ -81,27 +82,27 @@ namespace PremiumLivingOPS.Views.AfterService
             switch (status)
             {
                 case "Pending":
-                    e.CellStyle.ForeColor = Color.FromArgb(180, 120,   0);
-                    e.CellStyle.BackColor = Color.FromArgb(255, 248, 220);
+                    e.CellStyle.ForeColor = Color.FromArgb(146,  64,  14);
+                    e.CellStyle.BackColor = Color.FromArgb(254, 243, 199);
                     break;
                 case "Processing":
-                    e.CellStyle.ForeColor = Color.FromArgb( 47, 111, 237);
+                    e.CellStyle.ForeColor = Color.FromArgb( 29,  78, 216);
                     e.CellStyle.BackColor = Color.FromArgb(219, 234, 254);
                     break;
                 case "Partially Delivered":
-                    e.CellStyle.ForeColor = Color.FromArgb(100,  60, 180);
-                    e.CellStyle.BackColor = Color.FromArgb(237, 230, 255);
+                    e.CellStyle.ForeColor = Color.FromArgb( 91,  33, 182);
+                    e.CellStyle.BackColor = Color.FromArgb(237, 233, 254);
                     break;
                 case "Delivered":
-                    e.CellStyle.ForeColor = Color.FromArgb( 22, 130,  80);
+                    e.CellStyle.ForeColor = Color.FromArgb(  6,  95,  70);
                     e.CellStyle.BackColor = Color.FromArgb(209, 250, 229);
                     break;
                 case "Completed":
-                    e.CellStyle.ForeColor = Color.FromArgb( 15,  90,  60);
-                    e.CellStyle.BackColor = Color.FromArgb(167, 243, 208);
+                    e.CellStyle.ForeColor = Color.FromArgb( 22, 101,  52);
+                    e.CellStyle.BackColor = Color.FromArgb(220, 252, 231);
                     break;
                 case "Cancelled":
-                    e.CellStyle.ForeColor = Color.FromArgb(180,  30,  30);
+                    e.CellStyle.ForeColor = Color.FromArgb(185,  28,  28);
                     e.CellStyle.BackColor = Color.FromArgb(254, 226, 226);
                     break;
                 default:
@@ -111,7 +112,7 @@ namespace PremiumLivingOPS.Views.AfterService
             }
         }
 
-        // ── Grid selection → populate form fields ────────────────────────────
+        // ── Grid selection → populate form fields ─────────────────────
         private void dgvOrders_SelectionChanged(object sender, EventArgs e)
         {
             if (dgvOrders.SelectedRows.Count == 0) return;
@@ -133,7 +134,7 @@ namespace PremiumLivingOPS.Views.AfterService
             RecalcBalance();
         }
 
-        // ── Auto-calculate remaining balance ────────────────────────────
+        // ── Auto-calculate remaining balance ──────────────────────
         private void RecalcBalance()
         {
             double total   = _selectedOrder != null ? _selectedOrder.GrandTotal : 0;
@@ -148,7 +149,7 @@ namespace PremiumLivingOPS.Views.AfterService
                 cboPaymentStatus.SelectedIndex = 0; // Partial
         }
 
-        // ── Create Invoice ──────────────────────────────────────────────
+        // ── Create Invoice ───────────────────────────────────────
         private void btnCreateInvoice_Click(object sender, EventArgs e)
         {
             if (_selectedOrder == null)
@@ -172,7 +173,6 @@ namespace PremiumLivingOPS.Views.AfterService
 
             string payStatus = cboPaymentStatus.SelectedItem?.ToString() ?? "Partial";
 
-            // Build InvoiceEntity; InvoiceID left empty — SaveInvoice() auto-generates it
             var inv = new InvoiceEntity
             {
                 OrderID          = _selectedOrder.OrderID,
@@ -193,7 +193,6 @@ namespace PremiumLivingOPS.Views.AfterService
                     $"Invoice created successfully for Order {_selectedOrder.OrderID}.",
                     "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
-                // Reset selection and form fields
                 _selectedOrder = null;
                 lblSelectedOrder.Text    = "—";
                 lblCustomer.Text         = "—";
@@ -212,30 +211,16 @@ namespace PremiumLivingOPS.Views.AfterService
             }
         }
 
-        // ── AppShell event handlers (wired ONCE in Designer.cs — RULE 4) ─────────
+        // ── AppShell event handlers ─────────────────────────────────
 
-        /// <summary>
-        /// Handles top-nav menu clicks forwarded by AppShell.
-        /// Navigation is delegated to the host MainForm via event propagation.
-        /// </summary>
-        private void OnTopNavMenuItemClicked(string menu, string sub)
-        {
-            // Intentionally empty: routing is handled by the host MainForm
-            // which subscribes to this form's AppShell events at the app level.
-        }
+        /// <summary>Tap Nav Bar click → delegate to FormNavigator (same as ViewOrderForm).</summary>
+        private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
+            => FormNavigator.NavigateTo(this, menuLabel, subItem);
 
-        /// <summary>
-        /// Handles the logout button click forwarded by AppShell.LogoutClicked.
-        /// Wired in Designer.cs (RULE 4). Do NOT subscribe again in Load/constructor.
-        /// </summary>
         private void OnLogoutClicked(object sender, EventArgs e)
         {
-            if (MessageBox.Show("Are you sure you want to log out?",
-                    "Log Out", MessageBoxButtons.YesNo, MessageBoxIcon.Question)
-                == DialogResult.Yes)
-            {
-                Application.Restart();
-            }
+            SessionManager.Clear();
+            Application.Restart();
         }
     }
 }
