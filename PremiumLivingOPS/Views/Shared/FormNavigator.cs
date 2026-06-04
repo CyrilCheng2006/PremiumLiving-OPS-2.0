@@ -5,6 +5,7 @@ using PremiumLivingOPS.Views.MasterData;
 using PremiumLivingOPS.Views.OrderProcessing;
 using PremiumLivingOPS.Views.ProductionProcessing;
 using PremiumLivingOPS.Views.RawMaterial;
+using PremiumLivingOPS.Views.StatisticalReports;
 using PremiumLivingOPS.Views.SystemControl;
 using System;
 using System.Windows.Forms;
@@ -151,6 +152,14 @@ namespace PremiumLivingOPS.Views.Shared
                         case "Supplier List": return new SupplierListForm();
                         case "Customer List": return new CustomerListForm();
                         default:              return new SupplierListForm();
+                    }
+
+                // ── Statistical Reports ─────────────────────────────────────────────
+                case "Statistical Reports":
+                    switch (sub)
+                    {
+                        case "View Report":
+                        default: return new ViewReportForm();
                     }
 
                 // ── System Control ──────────────────────────────────────────────────
