@@ -60,17 +60,17 @@ PremiumLiving-OPS-2.0/                          ← Repository Root
     │   │   ├── InventoryControlViewModel.cs    ✅  ProductEntity, RawMaterialEntity,
     │   │   │                                       ViewProductViewModel,
     │   │   │                                       ViewRawMaterialViewModel
+    │   │   ├── ShipmentEntity.cs               ✅  ShipmentEntity, ShipmentLineEntity,
+    │   │   │                                       DeliveryNoteEntity, ReplySlipEntity
+    │   │   ├── GoodsReceivedEntity.cs          ✅  GoodsReceivedEntity,
+    │   │   │                                       PurchaseOrderEntity
     │   │   ├── Customer.cs                     🔲
     │   │   ├── Product.cs                      🔲
     │   │   ├── RawMaterial.cs                  🔲
     │   │   ├── Invoice.cs                      🔲
-    │   │   ├── Shipment.cs                     🔲
-    │   │   ├── DeliveryNote.cs                 🔲
-    │   │   ├── ReplySlip.cs                    🔲
     │   │   ├── Complaint.cs                    🔲
     │   │   ├── ReturnOrder.cs                  🔲
     │   │   ├── Supplier.cs                     🔲
-    │   │   ├── SupplierReceipt.cs              🔲
     │   │   ├── PurchaseInvoice.cs              🔲
     │   │   ├── WarehouseTransfer.cs            🔲
     │   │   └── AuditLog.cs                     🔲
@@ -88,6 +88,12 @@ PremiumLiving-OPS-2.0/                          ← Repository Root
     │   │   ├── InventoryControlRepo.cs         ✅  GetAllProducts, GetProductCategories,
     │   │   │                                       GetAllRawMaterials,
     │   │   │                                       GetRawMaterialCategories
+    │   │   ├── LogisticsProcessingRepo.cs      ✅  SearchShipments, GetShipmentById,
+    │   │   │                                       GetShipmentLines,
+    │   │   │                                       GetDeliveryNoteByShipment,
+    │   │   │                                       GetReplySlipByDelivery,
+    │   │   │                                       SearchReceipts,
+    │   │   │                                       GetAllPurchaseOrders
     │   │   ├── StaffRepo.cs                    ✅  Login auth, staff lookup
     │   │   ├── CustomerRepo.cs                 🔲
     │   │   ├── ProductRepo.cs                  🔲
@@ -112,10 +118,12 @@ PremiumLiving-OPS-2.0/                          ← Repository Root
     │   │                                           GetCreateOrderVM, SubmitCreateOrder,
     │   │                                           GetModifyOrderVM, SubmitModifyOrder,
     │   │                                           CancelOrder, GetOrderDetail
-    │   └── InventoryControlController.cs       ✅  GetViewProductVM,
-    │                                               GetProductCategories,
-    │                                               GetViewRawMaterialVM,
-    │                                               GetRawMaterialCategories
+    │   ├── InventoryControlController.cs       ✅  GetViewProductVM,
+    │   │                                           GetProductCategories,
+    │   │                                           GetViewRawMaterialVM,
+    │   │                                           GetRawMaterialCategories
+    │   └── LogisticsProcessingController.cs    ✅  GetViewShipmentVM, GetShipmentDetail,
+    │                                               GetHandlingGoodsReceivedVM
     │
     └── Views/                                      Windows Forms (UI only, no business logic)
         │
@@ -173,12 +181,15 @@ PremiumLiving-OPS-2.0/                          ← Repository Root
         │                                             Raw Material Detail dialog
         │                                             View Detail button in KPI bar (right-aligned)
         │
-        ├── Logistics/                          🔲
-        │   ├── ShipmentListForm.cs             🔲
-        │   ├── ScheduleShipmentForm.cs         🔲
-        │   ├── DeliveryNoteForm.cs             🔲
-        │   ├── SupplierReceiptForm.cs          🔲
-        │   └── PurchaseInvoiceForm.cs          🔲
+        ├── LogisticsProcessing/                ✅  2 pages complete
+        │   ├── ViewShipmentForm.cs             ✅  Search & filter shipments,
+        │   ├── ViewShipmentForm.Designer.cs    ✅    Status filter / keyword / date range,
+        │   │                                         DataGridView + Shipment Detail dialog
+        │   │                                         (Lines, Delivery Note, Reply Slip)
+        │   ├── HandlingGoodsReceivedForm.cs    ✅  Search & filter goods receipts,
+        │   └── HandlingGoodsReceivedForm.Designer.cs ✅
+        │                                             KPI bar (Total PO / Pending / Completed),
+        │                                             DataGridView + Receipt Detail dialog
         │
         ├── AfterService/                       🔲
         │   ├── CreateInvoiceForm.cs            🔲
@@ -298,14 +309,12 @@ Dashboard
 │   │   └── Modify Request (Edit / Delete)
 │   └── Create Raw Material Request
 │
-├── 3. Logistics Processing Management        🔲
-│   ├── View & Search Shipment
-│   │   ├── Schedule Shipment
-│   │   ├── Modify Shipment (Edit / Delete)
-│   │   └── Generate Delivery Notes & Reply Slip
-│   └── Handling Goods Received
-│       ├── Upload Supplier Receipt
-│       └── Record Purchase Invoice
+├── 3. Logistics Processing Management        ✅ Partial (View only)
+│   ├── View & Search Shipment                ✅  (ViewShipmentForm)
+│   │   └── Shipment Detail (popup dialog)    ✅    Lines / Delivery Note / Reply Slip
+│   └── Handling Goods Received               ✅  (HandlingGoodsReceivedForm)
+│       ├── KPI bar                           ✅    Total PO / Pending / Completed
+│       └── Receipt Detail (popup dialog)     ✅
 │
 ├── 4. Inventory Control Management           ✅ Partial (View only)
 │   ├── View & Search Product                 ✅  (ViewProductForm)
@@ -429,8 +438,8 @@ The `sample_data.sql` file includes **13 realistic business scenarios** for test
 - [x] **Phase 2** — Dashboard
 - [x] **Phase 3** — Order Processing Management (all 4 tabs: View Order, Quotation, Create Order, Modify Order)
 - [x] **Phase 4** — Inventory Control — View Product & View Raw Material (read-only + detail dialog)
-- [ ] **Phase 5** — Inventory Control — Add / Edit / Delete Item, Inward Goods, Warehouse Transfer
-- [ ] **Phase 6** — Logistics Module (Shipment, Delivery, Return)
+- [x] **Phase 5** — Logistics Processing — View Shipment & Handling Goods Received (read-only + detail dialog)
+- [ ] **Phase 6** — Inventory Control — Add / Edit / Delete Item, Inward Goods, Warehouse Transfer
 - [ ] **Phase 7** — After-service Module (Invoice, Complaint, Return Order, Finance)
 - [ ] **Phase 8** — Master Data & System Security
 
@@ -441,4 +450,4 @@ The `sample_data.sql` file includes **13 realistic business scenarios** for test
 
 ---
 
-*Last updated: 2026-06-01*
+*Last updated: 2026-06-04*
