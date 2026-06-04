@@ -1,6 +1,6 @@
 using PremiumLivingOPS.Models.DAL;
 using PremiumLivingOPS.Models.Entities;
-using PremiumLivingOPS.Models.ViewModels;   // SearchProcurementViewModel, CreateProcurementViewModel, ProcurementDetailViewModel
+using PremiumLivingOPS.Models.ViewModels;
 using System;
 using System.Collections.Generic;
 
@@ -96,7 +96,9 @@ namespace PremiumLivingOPS.Controllers
                 throw new ArgumentException("Unit Price must be greater than 0.");
 
             double poTotal = orderQty * unitPrice;
-            string staffId = SessionManager.CurrentUser?.StaffID ?? "SYSTEM";
+
+            // ✔ Staff.StaffId (lowercase 'd') — matches Staff.cs property definition
+            string staffId = SessionManager.CurrentUser?.StaffId ?? "SYSTEM";
 
             _repo.CreatePurchaseOrder(
                 purchaseId, requestId, supplierId, poTotal, orderDate, status,
@@ -107,8 +109,8 @@ namespace PremiumLivingOPS.Controllers
         //  HELPERS
         // ════════════════════════════════════════════════════════════════
 
-        public List<WarehouseEntity>  GetAllWarehouses()    => _invRepo.GetAllWarehouses();
-        public List<SupplierLookup>   GetAllSuppliers()     => _repo.GetAllSuppliers();
+        public List<WarehouseEntity>  GetAllWarehouses()       => _invRepo.GetAllWarehouses();
+        public List<SupplierLookup>   GetAllSuppliers()        => _repo.GetAllSuppliers();
         public string                 GenerateNextPurchaseId() => _repo.GenerateNextPurchaseId();
     }
 }
