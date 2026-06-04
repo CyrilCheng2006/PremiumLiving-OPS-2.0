@@ -1,5 +1,6 @@
 using PremiumLivingOPS.Models.DAL;
 using PremiumLivingOPS.Models.Entities;
+using PremiumLivingOPS.Models.ViewModels;   // SearchProcurementViewModel, CreateProcurementViewModel, ProcurementDetailViewModel
 using System;
 using System.Collections.Generic;
 
@@ -99,7 +100,7 @@ namespace PremiumLivingOPS.Controllers
             int    orderQty,
             double unitPrice)
         {
-            // ── Validation ───────────────────────────────────────────────
+            // ── Validation ────────────────────────────────────────────
             if (string.IsNullOrWhiteSpace(requestId))
                 throw new ArgumentException("Please select a Material Request.");
             if (string.IsNullOrWhiteSpace(supplierId))
