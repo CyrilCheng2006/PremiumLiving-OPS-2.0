@@ -11,6 +11,7 @@
 |---|---|---|
 | `AppShell.cs` | UserControl | TopNavBar + UserBar navigation chrome — **required on every Form** |
 | `TopNavBar.cs` | UserControl | Apple-style top navigation bar with mega-menu |
+| `UserBar.cs` | UserControl | 72 px breadcrumb + user info + logout strip below TopNavBar |
 | `UserInfoLabel.cs` | UserControl | User display name + department chip |
 | `FormNavigator.cs` | static class | Router: (menuLabel, subItem) → target Form |
 | `Palette.cs` | static class | Global colour constants |
@@ -22,19 +23,42 @@
 
 Every Form must embed `AppShell` at the top to provide a consistent TopNavBar + UserBar.
 
+### Correct Wiring Pattern (follow ViewOrderForm exactly)
+
 ```csharp
-// Designer.cs
+// Designer.cs — InitializeComponent()
 private AppShell _shell;
 
-// InitializeComponent()
-_shell = new AppShell();
-_shell.SetPopupContainer(pnlMain);   // MUST pass the root panel so mega-menu can escape clipping
-pnlMain.Controls.Add(pnlContent);   // Add content panel first (Fill)
-pnlMain.Controls.Add(_shell);       // Add AppShell last (Top) → renders at the very top
+private void InitializeComponent()
+{
+    this.SuspendLayout();
 
-// Form_Load / BindViewModel
-_shell.MenuItemClicked += (menu, sub) => FormNavigator.NavigateTo(this, menu, sub);
-_shell.LogoutClicked   += (s, e) => { SessionManager.Clear(); Application.Restart(); };
+    // ... form properties (Text, Size, MinimumSize, StartPosition, BackColor, WindowState, Font) ...
+
+    var pnlMain = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(240, 244, 249) };
+
+    // ✅ Correct — let AppShell self-manage its height entirely
+    _shell = new AppShell();
+    _shell.SetPopupContainer(pnlMain);       // must pass root panel for mega-menu
+    _shell.MenuItemClicked += OnTopNavMenuItemClicked;
+    _shell.LogoutClicked   += OnLogoutClicked;
+
+    // ... build other panels (pnlSearchOuter, pnlFormOuter, pnlGridCard) ...
+
+    // Add order: Fill first, Top panels second (bottom → top), _shell last
+    pnlMain.Controls.Add(pnlGridCard);    // Fill
+    pnlMain.Controls.Add(pnlFormOuter);   // Top
+    pnlMain.Controls.Add(pnlSearchOuter); // Top
+    pnlMain.Controls.Add(_shell);          // Top — topmost
+
+    this.Controls.Add(pnlMain);
+    this.ResumeLayout(false);              // ← no PerformLayout(), no post-layout height re-lock
+}
+```
+
+### API (Form.cs — called once after ViewModel binding)
+
+```csharp
 _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
 _shell.SetVisibleMenus(vm.AllowedMenus);
 _shell.SetBreadcrumb("Module  ›  Page Title");
@@ -171,13 +195,86 @@ All buttons must be created via the factory methods defined in each Form's Desig
 Before creating any new Form, verify all of the following:
 
 - [ ] `AppShell` embedded at top; `SetPopupContainer` called with root panel
-- [ ] `MenuItemClicked` and `LogoutClicked` events subscribed
+- [ ] `MenuItemClicked` and `LogoutClicked` events subscribed in Designer.cs (once only)
 - [ ] `SetUser` / `SetVisibleMenus` / `SetBreadcrumb` called after ViewModel binding
 - [ ] All content sections wrapped with `CardPanel.Create()` or `CardPanel.CreateFill()`
 - [ ] Root panel `BackColor = Color.FromArgb(240, 244, 249)` (`Palette.BgPage`)
 - [ ] All colours reference `Palette.cs` — no hardcoded `Color.FromArgb(...)` in Form files
 - [ ] All buttons created via `MakePrimaryBtn` / `MakeOutlineBtn` / `MakeWarningBtn`
+- [ ] No `_shell.Height`, `_shell.MinimumSize`, `AutoScaleMode`, `AutoScaleDimensions` set externally
+- [ ] `ResumeLayout(false)` only — no `PerformLayout()`, no post-layout height re-lock on `_shell`
 
 ---
 
-*Last updated: 2026-05-31*
+## 7. Debug Guide — AppShell / UserBar Disappears
+
+> **Symptom**: TopNavBar renders correctly but UserBar (breadcrumb + user info + logout) is
+> invisible or collapsed to 0 px at runtime.
+
+### Root Cause
+
+AppShell, TopNavBar and UserBar each self-lock their own height via internal `OnLayout` +
+`ScaleControl` overrides. Any **external** attempt to set or re-lock `_shell.Height` /
+`_shell.MinimumSize`, or any activation of `AutoScaleMode = Font`, interferes with these
+internal locks and causes WinForms layout to collapse UserBar to 0 px during `PerformLayout()`.
+
+### Diagnostic Checklist — scan Designer.cs for these anti-patterns
+
+| # | Anti-pattern to look for | Why it breaks UserBar |
+|---|---|---|
+| 1 | `_shell.Height = AppShell.TotalHeight;` anywhere | Triggers an extra layout pass; internal `OnLayout` and external set fight each other, net result = UserBar crushed |
+| 2 | `_shell.MinimumSize = new Size(0, AppShell.TotalHeight);` anywhere | Same: WinForms redistributes remaining height across children during the forced re-layout |
+| 3 | `this.AutoScaleMode = AutoScaleMode.Font;` | Activates DPI scaling path → calls `ScaleControl` on every child, passes a height scale factor that compresses UserBar |
+| 4 | `this.AutoScaleDimensions = new SizeF(7F, 15F);` | Works in tandem with AutoScaleMode; feeding a non-1.0 height factor into `ScaleControl` collapses UserBar |
+| 5 | `this.PerformLayout();` after `ResumeLayout(false)` | Forces a second full layout pass; height lock overrides on child controls lose the race |
+| 6 | Duplicate event subscription (`_shell.MenuItemClicked +=` in both Designer.cs AND Form_Load) | Does not cause disappearance but causes every click to fire twice — remove the duplicate |
+
+### Fix — the single correct pattern (verified against ViewOrderForm)
+
+```csharp
+private void InitializeComponent()
+{
+    this.SuspendLayout();
+
+    // Form properties: Text, Size, MinimumSize, StartPosition, BackColor, WindowState, Font
+    // Do NOT set AutoScaleMode or AutoScaleDimensions here.
+
+    var pnlMain = new Panel { Dock = DockStyle.Fill, ... };
+
+    // ✅ Only these three lines for AppShell — nothing more
+    _shell = new AppShell();
+    _shell.SetPopupContainer(pnlMain);
+    _shell.MenuItemClicked += OnTopNavMenuItemClicked;  // once only
+    _shell.LogoutClicked   += OnLogoutClicked;          // once only
+
+    // ... build all other controls ...
+
+    pnlMain.Controls.Add(/* Fill panel */);   // DockStyle.Fill first
+    pnlMain.Controls.Add(/* Top panels */);   // DockStyle.Top next
+    pnlMain.Controls.Add(_shell);              // _shell added LAST → renders topmost
+
+    this.Controls.Add(pnlMain);
+    this.ResumeLayout(false);   // ← Stop here. No PerformLayout(). No re-lock.
+}
+```
+
+### Quick Reference — what each self-lock does
+
+| Component | Lock mechanism | Height |
+|---|---|---|
+| `AppShell` | `OnLayout` + `ScaleControl` override | 116 px (`TotalHeight`) |
+| `TopNavBar` | `OnLayout` + `ScaleControl` override | 44 px (`FixedHeight`) |
+| `UserBar` | `OnLayout` + `ScaleControl` override | 72 px (`FixedHeight`) |
+
+Because all three layers self-lock, the Form's Designer.cs must treat AppShell as a
+**black box**: construct it, wire its container and events, add it to the panel, and stop.
+Any external size management is not only unnecessary — it is actively harmful.
+
+### Reference Form
+
+When in doubt, diff against `ViewOrderForm.Designer.cs` — it is the canonical baseline
+for correct AppShell wiring and has been verified to display all three chrome layers correctly.
+
+---
+
+*Last updated: 2026-06-04*
