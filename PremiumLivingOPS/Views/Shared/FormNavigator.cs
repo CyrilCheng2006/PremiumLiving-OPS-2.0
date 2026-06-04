@@ -3,6 +3,7 @@ using PremiumLivingOPS.Views.InventoryControl;
 using PremiumLivingOPS.Views.LogisticsProcessing;
 using PremiumLivingOPS.Views.MasterData;
 using PremiumLivingOPS.Views.OrderProcessing;
+using PremiumLivingOPS.Views.RawMaterial;
 using PremiumLivingOPS.Views.SystemControl;
 using System;
 using System.Windows.Forms;
@@ -98,6 +99,15 @@ namespace PremiumLivingOPS.Views.Shared
                                 : (Form) new ViewProductForm();
                         default:
                             return new ViewProductForm();
+                    }
+
+                // ── Raw Material (Procurement) ─────────────────────────────────────
+                case "Raw Material":
+                    switch (sub)
+                    {
+                        case "Create Procurement": return new CreateProcurementForm();
+                        case "Search Procurement": return new SearchProcurementForm();
+                        default:                   return new SearchProcurementForm();
                     }
 
                 // ── Logistics Processing ────────────────────────────────────────────
