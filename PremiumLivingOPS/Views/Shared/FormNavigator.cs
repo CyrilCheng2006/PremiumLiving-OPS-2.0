@@ -1,6 +1,7 @@
 using PremiumLivingOPS.Views.AfterService;
 using PremiumLivingOPS.Views.InventoryControl;
 using PremiumLivingOPS.Views.LogisticsProcessing;
+using PremiumLivingOPS.Views.MasterData;
 using PremiumLivingOPS.Views.OrderProcessing;
 using System;
 using System.Windows.Forms;
@@ -120,6 +121,15 @@ namespace PremiumLivingOPS.Views.Shared
                         case "Account Receivable":   return new AccountReceivableForm();
                         case "Account Payable":      return new AccountPayableForm();
                         default:                     return new CreateInvoiceForm();
+                    }
+
+                // ── Master Data Maintenance ─────────────────────────────────────────
+                case "Master Data Maintenance":
+                    switch (sub)
+                    {
+                        case "Supplier List": return new SupplierListForm();
+                        case "Customer List": return new CustomerListForm();
+                        default:              return new SupplierListForm();
                     }
 
                 default:
