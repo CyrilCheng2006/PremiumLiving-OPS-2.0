@@ -26,7 +26,6 @@ namespace PremiumLivingOPS.Views.RawMaterial
     {
         private readonly ProcurementController _ctrl = new ProcurementController();
 
-        // Populated by LoadForm(); used when creating the PO line
         private List<MaterialRequestLookup> _requests;
         private List<SupplierLookup>        _suppliers;
         private List<WarehouseEntity>       _warehouses;
@@ -43,7 +42,6 @@ namespace PremiumLivingOPS.Views.RawMaterial
 
         private void CreateProcurementForm_Load(object sender, EventArgs e)
         {
-            // Navigation and logout are wired in Designer.cs (RULE 4).
             nudOrderQty.ValueChanged   += RecalcTotal;
             nudUnitPrice.ValueChanged  += RecalcTotal;
             cboMaterialRequest.SelectedIndexChanged += CboMaterialRequest_Changed;
@@ -93,13 +91,25 @@ namespace PremiumLivingOPS.Views.RawMaterial
                 cboWarehouse.Items.Add($"{w.WarehouseID}  —  {w.WarehouseLocation}");
             cboWarehouse.SelectedIndex = 0;
 
-            // Reset line fields
-            txtRawMaterialID.Text = string.Empty;
-            txtRequestedQty.Text  = string.Empty;
-            nudOrderQty.Value     = 1;
-            nudUnitPrice.Value    = 0m;
-            txtLineTotal.Text     = "HK$ 0.00";
-            dtpOrderDate.Value    = DateTime.Today;
+            // ── Reset line fields ────────────────────────────────────────
+            // IMPORTANT: always set Minimum BEFORE Value to avoid
+            // ArgumentOutOfRangeException when the designer has Minimum > 0.
+
+            // Order Qty — valid range 1..9999
+            nudOrderQty.Minimum = 1;
+            nudOrderQty.Maximum = 9999;
+            nudOrderQty.Value   = 1;
+
+            // Unit Price — valid range 0..9,999,999  (0 = blank / not yet entered)
+            nudUnitPrice.Minimum       = 0m;
+            nudUnitPrice.Maximum       = 9_999_999m;
+            nudUnitPrice.DecimalPlaces = 2;
+            nudUnitPrice.Value         = 0m;
+
+            txtRawMaterialID.Text  = string.Empty;
+            txtRequestedQty.Text   = string.Empty;
+            txtLineTotal.Text      = "HK$ 0.00";
+            dtpOrderDate.Value     = DateTime.Today;
             cboStatus.SelectedIndex = 0;
         }
 
@@ -107,10 +117,6 @@ namespace PremiumLivingOPS.Views.RawMaterial
         //  Event handlers
         // ════════════════════════════════════════════════════════════════
 
-        /// <summary>
-        /// When a Material Request is selected, auto-fill the Raw Material ID
-        /// and the Requested Qty (reference) fields.
-        /// </summary>
         private void CboMaterialRequest_Changed(object sender, EventArgs e)
         {
             if (cboMaterialRequest.SelectedItem is MaterialRequestLookup req)
@@ -125,7 +131,6 @@ namespace PremiumLivingOPS.Views.RawMaterial
             }
         }
 
-        /// <summary>Recalculates PO Total = Order Qty × Unit Price.</summary>
         private void RecalcTotal(object sender, EventArgs e)
         {
             double total = (double)nudOrderQty.Value * (double)nudUnitPrice.Value;
@@ -134,15 +139,13 @@ namespace PremiumLivingOPS.Views.RawMaterial
 
         private void BtnSubmit_Click(object sender, EventArgs e)
         {
-            // ── Resolve selected items ──────────────────────────────────
-            string purchaseId      = txtPurchaseID.Text.Trim();
-            string requestId       = (cboMaterialRequest.SelectedItem as MaterialRequestLookup)?.RequestID;
-            string supplierId      = (cboSupplier.SelectedItem as SupplierLookup)?.SupplierID;
-            string rawMaterialId   = txtRawMaterialID.Text.Trim();
-            string status          = cboStatus.SelectedItem?.ToString() ?? "Sent";
-            DateTime orderDate     = dtpOrderDate.Value.Date;
+            string purchaseId    = txtPurchaseID.Text.Trim();
+            string requestId     = (cboMaterialRequest.SelectedItem as MaterialRequestLookup)?.RequestID;
+            string supplierId    = (cboSupplier.SelectedItem as SupplierLookup)?.SupplierID;
+            string rawMaterialId = txtRawMaterialID.Text.Trim();
+            string status        = cboStatus.SelectedItem?.ToString() ?? "Sent";
+            DateTime orderDate   = dtpOrderDate.Value.Date;
 
-            // Resolve warehouse ID
             string warehouseId = null;
             if (cboWarehouse.SelectedIndex > 0 && cboWarehouse.SelectedIndex <= _warehouses.Count)
                 warehouseId = _warehouses[cboWarehouse.SelectedIndex - 1].WarehouseID;
@@ -162,7 +165,6 @@ namespace PremiumLivingOPS.Views.RawMaterial
                     $"Purchase Order  {purchaseId}  has been created successfully.",
                     "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
-                // Reload with fresh auto-generated ID
                 LoadForm();
             }
             catch (ArgumentException ex)
