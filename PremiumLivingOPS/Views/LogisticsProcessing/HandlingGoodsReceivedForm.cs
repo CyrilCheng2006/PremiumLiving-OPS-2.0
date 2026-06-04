@@ -13,15 +13,13 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 {
     public partial class HandlingGoodsReceivedForm : Form
     {
-        // ── Dependencies ──────────────────────────────────────────────────
+        // ── Dependencies ───────────────────────────────────────────────
         private readonly LogisticsProcessingController _ctrl;
 
-        // ── ViewModel snapshot ────────────────────────────────────────────
+        // ── ViewModel snapshot ────────────────────────────────────────
         private HandlingGoodsReceivedVM _vm;
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  KPI status → visual theme mapping
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ── KPI status → visual theme mapping ──────────────────────────
         private static readonly Dictionary<string, (Color bg, Color fg)> StatusTheme
             = new(StringComparer.OrdinalIgnoreCase)
         {
@@ -32,9 +30,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             ["Cancelled"]          = (ColorFromHex("#F3F4F6"), ColorFromHex("#6B7280"))
         };
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  Constructor
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ── Constructor ────────────────────────────────────────────────
         public HandlingGoodsReceivedForm()
         {
             InitializeComponent();
@@ -42,7 +38,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             this.Load += HandlingGoodsReceivedForm_Load;
         }
 
-        // ── Colour helper ─────────────────────────────────────────────────
+        // ── Colour helper ────────────────────────────────────────────
         private static Color ColorFromHex(string hex)
         {
             hex = hex.TrimStart('#');
@@ -52,16 +48,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 Convert.ToInt32(hex.Substring(4, 2), 16));
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  Form Load  — wire shell, load first data
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ── Form Load ────────────────────────────────────────────────
         private void HandlingGoodsReceivedForm_Load(object sender, EventArgs e)
         {
-            // ── Wire AppShell navigation ───────────────────────────────────
-            _shell.MenuItemClicked += OnTopNavMenuItemClicked;
-            _shell.LogoutClicked   += btnLogout_Click;
-
-            // ── Populate UserBar ───────────────────────────────────────────
             var vm = _ctrl.GetHandlingGoodsReceivedVM(null, null, null);
             if (vm?.UserBar != null)
                 _shell.SetUserInfo(vm.UserBar.DisplayName, vm.UserBar.Department);
@@ -69,16 +58,14 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             if (vm?.AllowedMenus != null)
                 _shell.SetMenuItems(vm.AllowedMenus);
 
-            // ── Initial data load ──────────────────────────────────────────
             RefreshGrids();
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  AppShell navigation
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        private void OnTopNavMenuItemClicked(object sender, MenuItemClickedEventArgs e)
+        // ── AppShell navigation ───────────────────────────────────────
+        private void OnTopNavMenuItemClicked(object sender, EventArgs e)
         {
-            FormNavigator.Navigate(this, e.ModuleName, e.ItemName);
+            if (_shell.LastClickedModule != null)
+                FormNavigator.Navigate(this, _shell.LastClickedModule, _shell.LastClickedItem);
         }
 
         private void btnLogout_Click(object sender, EventArgs e)
@@ -86,9 +73,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             FormNavigator.Logout(this);
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  Data refresh helpers
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ── Data refresh helpers ──────────────────────────────────────
         private void RefreshGrids()
         {
             string keyword    = txtSearchKeyword.Text.Trim();
@@ -103,7 +88,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             PopulatePOGrid(_vm.PurchaseOrders);
             RefreshKpi(_vm.PurchaseOrders);
 
-            // Disable action buttons until a row is selected
             btnViewPODetail.Enabled     = false;
             btnViewReceiptLines.Enabled = false;
         }
@@ -117,9 +101,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             RefreshGrids();
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  Grid population
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ── Grid population ─────────────────────────────────────────────
         private void PopulateReceiptsGrid(List<GoodsReceivedEntity> rows)
         {
             dgvReceipts.Rows.Clear();
@@ -162,23 +144,19 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  KPI pill bar
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ── KPI pill bar ───────────────────────────────────────────────
         private void RefreshKpi(List<PurchaseOrderEntity> pos)
         {
             pnlKpi.Controls.Clear();
 
             if (pos == null || pos.Count == 0) return;
 
-            // Count by status (case-insensitive)
             var counts = pos
                 .GroupBy(p => p.PurchaseStatus ?? "Unknown", StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(g => g.Key, g => g.Count(), StringComparer.OrdinalIgnoreCase);
 
             int total = pos.Count;
 
-            // Pill specs: (label, filter value, count, bg, fg)
             var pills = new[]
             {
                 ("All POs",            (string)null,        total,
@@ -213,7 +191,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                     BackColor = bg, Cursor = Cursors.Hand
                 };
 
-                // Rounded rectangle via Paint
                 pill.Paint += (s, pe) =>
                 {
                     pe.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
@@ -231,8 +208,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                     Padding = new Padding(10, 6, 10, 6)
                 };
                 tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-                tbl.RowStyles.Add(new RowStyle(SizeType.Percent, 55f));  // count
-                tbl.RowStyles.Add(new RowStyle(SizeType.Percent, 45f));  // label
+                tbl.RowStyles.Add(new RowStyle(SizeType.Percent, 55f));
+                tbl.RowStyles.Add(new RowStyle(SizeType.Percent, 45f));
 
                 var lblCount = new Label
                 {
@@ -251,7 +228,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 tbl.Controls.Add(lblCount, 0, 0);
                 tbl.Controls.Add(lblName,  0, 1);
 
-                // Propagate mouse events through TLP labels to pill
                 foreach (Control c in new Control[] { tbl, lblCount, lblName })
                     c.Click += (s, ev) => FilterByKpiStatus(capturedFilter);
 
@@ -272,7 +248,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             RefreshGrids();
         }
 
-        // ── Rounded rectangle helper ───────────────────────────────────────
+        // ── Rounded rectangle helper ───────────────────────────────────
         private static GraphicsPath RoundedRect(Rectangle bounds, int radius)
         {
             int d = radius * 2;
@@ -285,21 +261,17 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             return path;
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  DataGridView events — Receipts grid
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ── DataGridView events — Receipts ──────────────────────────────
         private void dgvReceipts_SelectionChanged(object sender, EventArgs e)
         {
             bool hasRow = dgvReceipts.SelectedRows.Count > 0;
             btnViewReceiptLines.Enabled = hasRow;
 
-            // If a receipt row is selected, also enable PO Detail using its PurchaseID
             if (hasRow)
             {
                 var entity = dgvReceipts.SelectedRows[0].Tag as GoodsReceivedEntity;
                 btnViewPODetail.Enabled = entity?.PurchaseID != null;
 
-                // Cross-highlight the corresponding PO row
                 if (entity?.PurchaseID != null)
                     HighlightPORow(entity.PurchaseID);
             }
@@ -330,14 +302,11 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             ShowReceiptLinesDetail(dgvReceipts.Rows[e.RowIndex].Tag as GoodsReceivedEntity);
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  DataGridView events — PO grid
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ── DataGridView events — PO grid ───────────────────────────────
         private void dgvPO_SelectionChanged(object sender, EventArgs e)
         {
             bool hasRow = dgvPO.SelectedRows.Count > 0;
             btnViewPODetail.Enabled = hasRow;
-            // Receipt Lines button requires a receipt row — no change here
         }
 
         private void dgvPO_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
@@ -361,7 +330,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             ShowPODetail(dgvPO.Rows[e.RowIndex].Tag as PurchaseOrderEntity);
         }
 
-        // ── Cross-highlight helper ─────────────────────────────────────────
+        // ── Cross-highlight helper ───────────────────────────────────────
         private void HighlightPORow(string purchaseId)
         {
             foreach (DataGridViewRow row in dgvPO.Rows)
@@ -377,12 +346,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  Action buttons
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ── Action buttons ─────────────────────────────────────────────
         private void btnViewPODetail_Click(object sender, EventArgs e)
         {
-            // Priority: selected PO grid row first, else derive from receipt row
             PurchaseOrderEntity po = null;
 
             if (dgvPO.SelectedRows.Count > 0)
@@ -405,11 +371,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             ShowReceiptLinesDetail(dgvReceipts.SelectedRows[0].Tag as GoodsReceivedEntity);
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  Detail dialogs
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-        // ── PO Detail popup ────────────────────────────────────────────────
+        // ── PO Detail popup ──────────────────────────────────────────────
         private void ShowPODetail(PurchaseOrderEntity po)
         {
             if (po == null) return;
@@ -481,19 +443,13 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }
 
             card.Controls.Add(tbl);
-
-            var outer = new Panel
-            {
-                Dock = DockStyle.Fill,
-                Padding = new Padding(20),
-                BackColor = Color.FromArgb(240, 244, 249)
-            };
+            var outer = new Panel { Dock = DockStyle.Fill, Padding = new Padding(20), BackColor = Color.FromArgb(240, 244, 249) };
             outer.Controls.Add(card);
             dlg.Controls.Add(outer);
             dlg.ShowDialog(this);
         }
 
-        // ── Receipt Lines popup ────────────────────────────────────────────
+        // ── Receipt Lines popup ──────────────────────────────────────────
         private void ShowReceiptLinesDetail(GoodsReceivedEntity receipt)
         {
             if (receipt == null) return;
@@ -570,19 +526,13 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }
 
             card.Controls.Add(tbl);
-
-            var outer = new Panel
-            {
-                Dock = DockStyle.Fill,
-                Padding = new Padding(20),
-                BackColor = Color.FromArgb(240, 244, 249)
-            };
+            var outer = new Panel { Dock = DockStyle.Fill, Padding = new Padding(20), BackColor = Color.FromArgb(240, 244, 249) };
             outer.Controls.Add(card);
             dlg.Controls.Add(outer);
             dlg.ShowDialog(this);
         }
 
-        // ── CardBorder painter (shared) ────────────────────────────────────
+        // ── CardBorder painter (used by both popups and card panels) ────────
         private static void PaintCardBorder(object s, PaintEventArgs e)
         {
             var p = (Panel)s;

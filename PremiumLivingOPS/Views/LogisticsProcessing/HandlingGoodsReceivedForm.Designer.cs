@@ -12,7 +12,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         // ── Shared shell (TopNavBar 44 px + UserBar 72 px = 116 px total) ──
         private AppShell _shell;
 
-        // ── Filter bar controls ───────────────────────────────────────────
+        // ── Filter bar controls ─────────────────────────────────────
         private TextBox        txtSearchKeyword;
         private ComboBox       cboStatus;
         private DateTimePicker dtpDateFrom;
@@ -20,15 +20,15 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         private Button         btnSearch;
         private Button         btnRefresh;
 
-        // ── KPI bar + action buttons ──────────────────────────────────────
+        // ── KPI bar + action buttons ────────────────────────────
         private Panel  pnlKpi;
         private Button btnViewPODetail;
         private Button btnViewReceiptLines;
 
-        // ── Grid 1: Receipts ──────────────────────────────────────────────
+        // ── Grid 1: Receipts ────────────────────────────────────────
         private DataGridView dgvReceipts;
 
-        // ── Grid 2: Purchase Orders ───────────────────────────────────────
+        // ── Grid 2: Purchase Orders ────────────────────────────────
         private DataGridView dgvPO;
 
         protected override void Dispose(bool disposing)
@@ -41,7 +41,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         {
             this.SuspendLayout();
 
-            // ── Form settings ──────────────────────────────────────────────
+            // ── Form settings ──────────────────────────────────────────
             this.Text          = "Premium Living OPS — Handling Goods Received";
             this.Size          = new Size(1440, 900);
             this.MinimumSize   = new Size(1200, 720);
@@ -50,24 +50,22 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             this.WindowState   = FormWindowState.Maximized;
             this.Font          = new Font("Segoe UI", 13f);
 
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            //  Root panel (identical to ViewShipmentForm / ViewOrderForm)
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // ── Root panel ──────────────────────────────────────────────
             var pnlMain = new Panel
             {
                 Dock      = DockStyle.Fill,
                 BackColor = Color.FromArgb(240, 244, 249)
             };
 
-            // ── AppShell (TopNavBar 44 px + UserBar 72 px) ─────────────────
+            // ── AppShell — wire events BEFORE adding to Controls ────────────
             _shell = new AppShell();
-            _shell.SetPopupContainer(pnlMain);   // must be called before adding to controls
+            _shell.SetPopupContainer(pnlMain);
+            _shell.MenuItemClicked += OnTopNavMenuItemClicked;  // ✔ nav fix
+            _shell.LogoutClicked   += btnLogout_Click;          // ✔ logout fix
 
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // ════════════════════════════════════════════════════════════
             //  Search card  (DockStyle.Top, height 265)
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-            // ── Input controls ─────────────────────────────────────────────
+            // ════════════════════════════════════════════════════════════
             txtSearchKeyword = new TextBox
             {
                 Font = new Font("Segoe UI", 12f), BorderStyle = BorderStyle.FixedSingle,
@@ -95,7 +93,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             };
             chkDateFrom.CheckedChanged += (s, e) => { dtpDateFrom.Enabled = chkDateFrom.Checked; };
 
-            // ── MakeCell helper (identical to ViewShipmentForm) ────────────
+            // ── MakeCell helper ─────────────────────────────────────────
             TableLayoutPanel MakeCell(string caption, Control ctrl, bool rightPad = true)
             {
                 var tlp = new TableLayoutPanel
@@ -121,7 +119,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 return tlp;
             }
 
-            // ── Date-From cell (identical to ViewShipmentForm) ─────────────
+            // ── Date-From cell ───────────────────────────────────────────
             var cellDate = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill, RowCount = 2, ColumnCount = 2,
@@ -145,7 +143,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             cellDate.Controls.Add(chkDateFrom, 0, 1);
             cellDate.Controls.Add(dtpDateFrom, 1, 1);
 
-            // ── 3-column fields TLP ────────────────────────────────────────
+            // ── 3-column fields TLP ─────────────────────────────────────
             var tblFields = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 1,
@@ -159,7 +157,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             tblFields.Controls.Add(MakeCell("PO Status",  cboStatus),  1, 0);
             tblFields.Controls.Add(cellDate,               2, 0);
 
-            // ── Search / Reset buttons ─────────────────────────────────────
+            // ── Search / Reset buttons ─────────────────────────────────
             var pnlBtns = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             btnSearch  = MakePrimaryBtn("🔍  Search", new Point(0,   0), 210, 60);
             btnRefresh = MakeOutlineBtn("↺  Reset",   new Point(218, 0), 210, 60);
@@ -168,7 +166,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlBtns.Controls.Add(btnSearch);
             pnlBtns.Controls.Add(btnRefresh);
 
-            // ── Search card TLP ────────────────────────────────────────────
+            // ── Search card TLP ─────────────────────────────────────────
             var tblCard = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill, RowCount = 3, ColumnCount = 1,
@@ -210,9 +208,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             };
             pnlSearchOuter.Controls.Add(pnlSearchCard);
 
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // ════════════════════════════════════════════════════════════
             //  KPI bar + action buttons  (DockStyle.Top, height 90)
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // ════════════════════════════════════════════════════════════
             pnlKpi = new Panel
             {
                 Dock = DockStyle.Fill, BackColor = Color.Transparent,
@@ -234,7 +232,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             var pnlActionBtns = new Panel
             {
                 Dock      = DockStyle.Right,
-                Width     = BtnPad + BtnW + BtnGap + BtnW + BtnPad,   // 12+270+8+270+12 = 572
+                Width     = BtnPad + BtnW + BtnGap + BtnW + BtnPad,
                 BackColor = Color.Transparent
             };
 
@@ -250,8 +248,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlActionBtns.Resize += (s, e) => CentreActionBtns();
 
             var pnlKpiRow = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            pnlKpiRow.Controls.Add(pnlKpi);        // Fill — pills (added first)
-            pnlKpiRow.Controls.Add(pnlActionBtns); // Right — buttons (added after Fill)
+            pnlKpiRow.Controls.Add(pnlKpi);        // Fill — pills
+            pnlKpiRow.Controls.Add(pnlActionBtns); // Right — buttons
 
             var pnlKpiInner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
             pnlKpiInner.Paint += PaintCardBorder;
@@ -265,11 +263,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             };
             pnlKpiOuter.Controls.Add(pnlKpiInner);
 
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            //  Dual Grid area via SplitContainer
-            //  top panel  = Receipts grid card
-            //  bottom panel = Purchase Orders grid card
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // ════════════════════════════════════════════════════════════
+            //  Dual Grid via SplitContainer
+            // ════════════════════════════════════════════════════════════
             dgvReceipts = BuildDataGrid();
             dgvReceipts.Name = "dgvReceipts";
             dgvReceipts.Columns.Add(new DataGridViewTextBoxColumn { Name = "colReceiptID",   HeaderText = "RECEIPT ID",   FillWeight = 10 });
@@ -298,7 +294,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             dgvPO.CellFormatting   += dgvPO_CellFormatting;
             dgvPO.CellDoubleClick  += dgvPO_CellDoubleClick;
 
-            // ── Grid section header labels ─────────────────────────────────
+            // ── Grid section header labels ──────────────────────────────────
             Label MakeSectionLabel(string text) => new Label
             {
                 Text      = text,
@@ -338,7 +334,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             };
             pnlPOOuter.Controls.Add(pnlPOInner);
 
-            // ── SplitContainer: top = Receipts, bottom = PO ────────────────
+            // ── SplitContainer: top = Receipts, bottom = PO ─────────────────
             var split = new SplitContainer
             {
                 Dock        = DockStyle.Fill,
@@ -352,7 +348,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             split.Panel1.Controls.Add(pnlReceiptsOuter);
             split.Panel2.Controls.Add(pnlPOOuter);
 
-            // ── Wrap SplitContainer in fill panel ─────────────────────────
             var pnlGridCard = new Panel
             {
                 Dock      = DockStyle.Fill,
@@ -360,20 +355,19 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             };
             pnlGridCard.Controls.Add(split);
 
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            //  Assemble — exactly mirrors ViewShipmentForm / ViewOrderForm
-            //  Order: Fill → Top (reverse stack) → AppShell on top
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            pnlMain.Controls.Add(pnlGridCard);     // DockStyle.Fill  — grids
-            pnlMain.Controls.Add(pnlKpiOuter);     // DockStyle.Top   — KPI bar + action buttons
-            pnlMain.Controls.Add(pnlSearchOuter);  // DockStyle.Top   — Search card
-            pnlMain.Controls.Add(_shell);          // DockStyle.Top   — nav chrome (44+72 = 116 px)
+            // ════════════════════════════════════════════════════════════
+            //  Assemble pnlMain
+            // ════════════════════════════════════════════════════════════
+            pnlMain.Controls.Add(pnlGridCard);     // Fill  — grids
+            pnlMain.Controls.Add(pnlKpiOuter);     // Top   — KPI bar + action buttons
+            pnlMain.Controls.Add(pnlSearchOuter);  // Top   — Search card
+            pnlMain.Controls.Add(_shell);          // Top   — nav chrome (last = topmost)
 
             this.Controls.Add(pnlMain);
             this.ResumeLayout(false);
         }
 
-        // ── DataGrid factory (shared style) ───────────────────────────────
+        // ── DataGrid factory ────────────────────────────────────────────
         private static DataGridView BuildDataGrid() => new DataGridView
         {
             ReadOnly = true, AllowUserToAddRows = false, AllowUserToDeleteRows = false,
@@ -407,7 +401,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }
         };
 
-        // ── Button factories (identical to ViewShipmentForm) ──────────────
+        // ── Button factories ─────────────────────────────────────────
         private Button MakePrimaryBtn(string text, Point loc, int w, int h)
         {
             var b = new Button
@@ -421,7 +415,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             b.FlatAppearance.MouseDownBackColor = Color.FromArgb(21, 60, 155);
             return b;
         }
-
         private Button MakeSuccessBtn(string text, Point loc, int w, int h)
         {
             var b = new Button
@@ -435,7 +428,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             b.FlatAppearance.MouseDownBackColor = Color.FromArgb(3, 100, 70);
             return b;
         }
-
         private Button MakeOutlineBtn(string text, Point loc, int w, int h)
         {
             var b = new Button
@@ -449,13 +441,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             b.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
             return b;
         }
-
-        // ── Border painter (identical to ViewShipmentForm) ────────────────
-        private static void PaintCardBorder(object s, PaintEventArgs e)
-        {
-            var p = (Panel)s;
-            using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
-            e.Graphics.DrawRectangle(pen, 0, 0, p.Width - 1, p.Height - 1);
-        }
+        // NOTE: PaintCardBorder is defined in HandlingGoodsReceivedForm.cs (static)
+        //       Do NOT redeclare it here — that caused CS0111.
     }
 }
