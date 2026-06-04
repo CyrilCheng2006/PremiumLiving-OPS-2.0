@@ -3,6 +3,7 @@ using PremiumLivingOPS.Views.InventoryControl;
 using PremiumLivingOPS.Views.LogisticsProcessing;
 using PremiumLivingOPS.Views.MasterData;
 using PremiumLivingOPS.Views.OrderProcessing;
+using PremiumLivingOPS.Views.SystemControl;
 using System;
 using System.Windows.Forms;
 
@@ -130,6 +131,15 @@ namespace PremiumLivingOPS.Views.Shared
                         case "Supplier List": return new SupplierListForm();
                         case "Customer List": return new CustomerListForm();
                         default:              return new SupplierListForm();
+                    }
+
+                // ── System Control ──────────────────────────────────────────────────
+                case "System Control":
+                    switch (sub)
+                    {
+                        case "Staff List": return new StaffListForm();
+                        case "Log List":   return new LogListForm();
+                        default:           return new StaffListForm();
                     }
 
                 default:
