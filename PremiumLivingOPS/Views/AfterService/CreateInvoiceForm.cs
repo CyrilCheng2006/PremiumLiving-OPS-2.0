@@ -24,13 +24,13 @@ namespace PremiumLivingOPS.Views.AfterService
             this.Load += CreateInvoiceForm_Load;
         }
 
-        // ── Load ─────────────────────────────────────────────────────────
+        // ── Load ──────────────────────────────────────────────────────────
         private void CreateInvoiceForm_Load(object sender, EventArgs e)
         {
             RefreshGrid();
         }
 
-        // ── Bind shell (called after VM is loaded) ────────────────────────
+        // ── Bind shell (called after VM is loaded) ─────────────────────────
         private void BindShell(CreateInvoiceViewModel vm)
         {
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
@@ -38,23 +38,32 @@ namespace PremiumLivingOPS.Views.AfterService
             _shell.SetBreadcrumb("After-Service  ›  Create Invoice");
         }
 
-        // ── Refresh grid ──────────────────────────────────────────────────
+        // ── Refresh grid ───────────────────────────────────────────────────
         private void RefreshGrid()
         {
             string orderKw    = txtSearchOrder.Text.Trim();
             string customerKw = txtSearchCustomer.Text.Trim();
+            string statusKw   = cboStatusFilter.SelectedIndex > 0
+                                    ? cboStatusFilter.SelectedItem.ToString()
+                                    : string.Empty;
 
             var vm = _ctrl.GetCreateInvoiceVM();
             BindShell(vm);
 
-            // Local filter by keyword (repo returns all without invoice)
+            // Local filter
             _currentOrders = vm.Orders;
+
             if (!string.IsNullOrEmpty(orderKw))
                 _currentOrders = _currentOrders.FindAll(o =>
-                    (o.OrderID      ?? "").IndexOf(orderKw,    StringComparison.OrdinalIgnoreCase) >= 0);
+                    (o.OrderID ?? "").IndexOf(orderKw, StringComparison.OrdinalIgnoreCase) >= 0);
+
             if (!string.IsNullOrEmpty(customerKw))
                 _currentOrders = _currentOrders.FindAll(o =>
                     (o.CustomerName ?? "").IndexOf(customerKw, StringComparison.OrdinalIgnoreCase) >= 0);
+
+            if (!string.IsNullOrEmpty(statusKw))
+                _currentOrders = _currentOrders.FindAll(o =>
+                    string.Equals(o.OrderStatus, statusKw, StringComparison.OrdinalIgnoreCase));
 
             dgvOrders.Rows.Clear();
             foreach (var o in _currentOrders)
@@ -66,7 +75,47 @@ namespace PremiumLivingOPS.Views.AfterService
                     o.IssuedTime.ToString("yyyy-MM-dd"));
         }
 
-        // ── Grid selection → populate form ───────────────────────────────
+        // ── Grid cell formatting — status chip colours ─────────────────────
+        private void dgvOrders_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
+        {
+            if (e.RowIndex < 0) return;
+            if (dgvOrders.Columns[e.ColumnIndex].Name != "colStatus") return;
+
+            string status = e.Value as string ?? "";
+            switch (status)
+            {
+                case "Pending":
+                    e.CellStyle.ForeColor = Color.FromArgb(180, 120, 0);
+                    e.CellStyle.BackColor = Color.FromArgb(255, 248, 220);
+                    break;
+                case "Processing":
+                    e.CellStyle.ForeColor = Color.FromArgb(47, 111, 237);
+                    e.CellStyle.BackColor = Color.FromArgb(219, 234, 254);
+                    break;
+                case "Partially Delivered":
+                    e.CellStyle.ForeColor = Color.FromArgb(100, 60, 180);
+                    e.CellStyle.BackColor = Color.FromArgb(237, 230, 255);
+                    break;
+                case "Delivered":
+                    e.CellStyle.ForeColor = Color.FromArgb(22, 130, 80);
+                    e.CellStyle.BackColor = Color.FromArgb(209, 250, 229);
+                    break;
+                case "Completed":
+                    e.CellStyle.ForeColor = Color.FromArgb(15, 90, 60);
+                    e.CellStyle.BackColor = Color.FromArgb(167, 243, 208);
+                    break;
+                case "Cancelled":
+                    e.CellStyle.ForeColor = Color.FromArgb(180, 30, 30);
+                    e.CellStyle.BackColor = Color.FromArgb(254, 226, 226);
+                    break;
+                default:
+                    e.CellStyle.ForeColor = Color.FromArgb(98, 112, 135);
+                    e.CellStyle.BackColor = Color.FromArgb(240, 244, 249);
+                    break;
+            }
+        }
+
+        // ── Grid selection → populate form ─────────────────────────────────
         private void dgvOrders_SelectionChanged(object sender, EventArgs e)
         {
             if (dgvOrders.SelectedRows.Count == 0) return;
@@ -88,7 +137,7 @@ namespace PremiumLivingOPS.Views.AfterService
             RecalcBalance();
         }
 
-        // ── Auto-calculate remaining balance ─────────────────────────────
+        // ── Auto-calculate remaining balance ──────────────────────────────
         private void RecalcBalance()
         {
             double total   = _selectedOrder != null ? _selectedOrder.GrandTotal : 0;
@@ -97,7 +146,6 @@ namespace PremiumLivingOPS.Views.AfterService
 
             lblRemainingBalance.Text = $"HK$ {balance:N2}";
 
-            // Suggest PaymentStatus
             if (total > 0 && balance <= 0)
                 cboPaymentStatus.SelectedIndex = 1; // Full
             else
@@ -117,63 +165,64 @@ namespace PremiumLivingOPS.Views.AfterService
             double paid    = (double)nudPaidAmount.Value;
             double deposit = (double)nudDepositAmount.Value;
             double total   = _selectedOrder.GrandTotal;
-            double balance = Math.Max(0, total - paid);
 
             if (paid < 0 || paid > total)
             {
-                MessageBox.Show("Paid Amount must be between 0 and the Grand Total.",
-                    "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("Paid Amount cannot exceed the Grand Total.",
+                    "Invalid Amount", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
-            var inv = new InvoiceEntity
-            {
-                InvoiceID        = string.Empty,          // auto-generated by controller
-                OrderID          = _selectedOrder.OrderID,
-                CustomerName     = _selectedOrder.CustomerName,
-                InvoiceDate      = DateTime.Today,
-                DepositAmount    = deposit,
-                PaidAmount       = paid,
-                RemainingBalance = balance,
-                TotalAmount      = total,
-                PaymentStatus    = cboPaymentStatus.SelectedItem?.ToString() ?? "Partial",
-                DueDate          = dtpDueDate.Value.Date
-            };
+            string payStatus = cboPaymentStatus.SelectedItem?.ToString() ?? "Partial";
+            DateTime dueDate = dtpDueDate.Value;
 
-            bool ok = _ctrl.SaveInvoice(inv);
+            bool ok = _ctrl.CreateInvoice(
+                _selectedOrder.OrderID,
+                paid,
+                deposit,
+                dueDate,
+                payStatus);
+
             if (ok)
             {
-                MessageBox.Show($"Invoice created successfully for Order {inv.OrderID}.",
+                MessageBox.Show(
+                    $"Invoice created successfully for Order {_selectedOrder.OrderID}.",
                     "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
-                // Reset form
-                _selectedOrder        = null;
+                _selectedOrder = null;
                 lblSelectedOrder.Text = "—";
                 lblCustomer.Text      = "—";
                 lblGrandTotal.Text    = "—";
+                nudPaidAmount.Value   = 0;
                 nudDepositAmount.Value = 0;
-                nudPaidAmount.Value    = 0;
                 lblRemainingBalance.Text = "HK$ 0.00";
                 cboPaymentStatus.SelectedIndex = 0;
-                dtpDueDate.Value = DateTime.Today.AddMonths(1);
 
                 RefreshGrid();
             }
             else
             {
-                MessageBox.Show("Failed to create invoice. Please try again.",
+                MessageBox.Show(
+                    "Failed to create invoice. Please try again.",
                     "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
-        // ── Navigation / Logout ──────────────────────────────────────────
-        private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
-            => FormNavigator.NavigateTo(this, menuLabel, subItem);
+        // ── AppShell navigation handler ───────────────────────────────────
+        private void OnTopNavMenuItemClicked(string menu, string sub)
+        {
+            // Navigation is handled at the MainForm level via the shared AppShell event.
+            // Individual forms do not need to implement routing logic here.
+        }
 
+        // ── Logout handler ────────────────────────────────────────────────
         private void btnLogout_Click(object sender, EventArgs e)
         {
-            SessionManager.Clear();
-            Application.Restart();
+            if (MessageBox.Show("Are you sure you want to log out?",
+                    "Log Out", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+            {
+                Application.Restart();
+            }
         }
     }
 }
