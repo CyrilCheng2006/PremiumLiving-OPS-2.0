@@ -1,146 +1,168 @@
 using PremiumLivingOPS.Models.DAL;
 using PremiumLivingOPS.Models.Entities;
 using System;
+using System.Collections.Generic;
 
 namespace PremiumLivingOPS.Controllers
 {
     /// <summary>
-    /// Controller (MVC middle layer) for After-Service module.
-    /// Accepts requests from the View layer, delegates to AfterServiceRepo,
-    /// and returns typed ViewModels.  Contains NO UI code.
+    /// Controller (MVC middle layer) for the After-Service module.
+    /// Accepts requests from View layer, delegates to AfterServiceRepo,
+    /// and returns ViewModels. Contains NO UI code.
     /// </summary>
     public class AfterServiceController
     {
         private readonly AfterServiceRepo _repo = new AfterServiceRepo();
 
-        // ════════════════════════════════════════════════════════════════
-        //  Shared helper — current user shortcut
-        // ════════════════════════════════════════════════════════════════
-        private static UserBarViewModel BuildUserBar()
+        // ── Helper: current user ──────────────────────────────────────────────────
+        private static UserBarViewModel CurrentUserBar()
         {
-            var user = SessionManager.CurrentUser;
+            var u = SessionManager.CurrentUser;
             return new UserBarViewModel
             {
-                DisplayName = user?.StaffName  ?? "Unknown",
-                Department  = user?.Department ?? ""
+                DisplayName = u?.StaffName  ?? "Unknown",
+                Department  = u?.Department ?? ""
             };
         }
 
-        private static string[] GetMenus()
-        {
-            var dept = SessionManager.CurrentUser?.Department ?? "";
-            return NavAccessPolicy.GetAllowedMenus(dept);
-        }
+        private static string[] CurrentMenus()
+            => NavAccessPolicy.GetAllowedMenus(SessionManager.CurrentUser?.Department ?? "");
 
-        // ════════════════════════════════════════════════════════════════
-        //  CREATE INVOICE
-        // ════════════════════════════════════════════════════════════════
+        // ════════════════════════════════════════════════════════════════════════
+        //  Create Invoice
+        // ════════════════════════════════════════════════════════════════════════
 
         /// <summary>
-        /// Builds the ViewModel for the Create Invoice page.
-        /// Includes all orders that do not yet have an invoice.
+        /// Returns ViewModel for the Create Invoice page.
+        /// Orders list contains only orders that have no Invoice yet.
         /// </summary>
         public CreateInvoiceViewModel GetCreateInvoiceVM()
         {
             return new CreateInvoiceViewModel
             {
-                AllowedMenus = GetMenus(),
-                UserBar      = BuildUserBar(),
+                UserBar      = CurrentUserBar(),
+                AllowedMenus = CurrentMenus(),
                 Orders       = _repo.GetOrdersWithoutInvoice()
             };
         }
 
         /// <summary>
-        /// Persists a new invoice.
-        /// If InvoiceID is empty, one is auto-generated (INV-YYYYMMDD-NNNN).
+        /// Generates the next Invoice ID in the format INV-YYYYMMDD-NNNN.
+        /// Queries the DB for the highest sequence number used today and increments it.
+        /// </summary>
+        public string GenerateInvoiceId()
+        {
+            string prefix   = "INV-" + DateTime.Today.ToString("yyyyMMdd") + "-";
+            var    existing = _repo.GetInvoiceIdsByPrefix(prefix);
+            int    next     = 1;
+            foreach (var id in existing)
+            {
+                if (id.Length >= prefix.Length + 4 &&
+                    int.TryParse(id.Substring(prefix.Length, 4), out int seq) &&
+                    seq >= next)
+                {
+                    next = seq + 1;
+                }
+            }
+            return $"{prefix}{next:D4}";
+        }
+
+        /// <summary>
+        /// Saves a new invoice. Auto-generates InvoiceID if blank.
+        /// Returns true on success.
         /// </summary>
         public bool SaveInvoice(InvoiceEntity inv)
         {
             if (string.IsNullOrWhiteSpace(inv.InvoiceID))
-                inv.InvoiceID = _repo.GenerateInvoiceId();
+                inv.InvoiceID = GenerateInvoiceId();
 
-            if (inv.InvoiceDate == DateTime.MinValue)
-                inv.InvoiceDate = DateTime.Today;
+            // Derive RemainingBalance and PaymentStatus from the amounts
+            inv.RemainingBalance = Math.Max(0, inv.TotalAmount - inv.PaidAmount);
+            inv.PaymentStatus    = inv.RemainingBalance <= 0 ? "Full" : "Partial";
 
             return _repo.CreateInvoice(inv);
         }
 
-        // ════════════════════════════════════════════════════════════════
-        //  COMPLAINT LIST
-        // ════════════════════════════════════════════════════════════════
+        // ════════════════════════════════════════════════════════════════════════
+        //  Complaint List
+        // ════════════════════════════════════════════════════════════════════════
 
         /// <summary>
-        /// Returns the ViewModel for the Complaint List page.
-        /// Optional filters: status (Pending|Processing|Escalated|Completed) and keyword.
+        /// Returns ViewModel for the Complaint List page.
+        /// Supports optional status filter and keyword search.
         /// </summary>
-        public ComplaintListViewModel GetComplaintListVM(string status = null, string keyword = null)
+        public ComplaintListViewModel GetComplaintListVM(
+            string status  = null,
+            string keyword = null)
         {
             return new ComplaintListViewModel
             {
-                AllowedMenus = GetMenus(),
-                UserBar      = BuildUserBar(),
+                UserBar      = CurrentUserBar(),
+                AllowedMenus = CurrentMenus(),
                 Complaints   = _repo.SearchComplaints(status, keyword)
             };
         }
 
-        /// <summary>Updates the status of a complaint. Returns true on success.</summary>
-        public bool UpdateComplaintStatus(string id, string status)
-            => _repo.UpdateComplaintStatus(id, status);
+        /// <summary>Updates the status of a single complaint.</summary>
+        public bool UpdateComplaintStatus(string complaintId, string newStatus)
+            => _repo.UpdateComplaintStatus(complaintId, newStatus);
 
-        // ════════════════════════════════════════════════════════════════
-        //  RETURN ORDER LIST
-        // ════════════════════════════════════════════════════════════════
+        // ════════════════════════════════════════════════════════════════════════
+        //  Return Order List
+        // ════════════════════════════════════════════════════════════════════════
 
         /// <summary>
-        /// Returns the ViewModel for the Return Order List page.
-        /// Optional filters: status (Pending|Approved|Processing|Rejected|Completed) and keyword.
+        /// Returns ViewModel for the Return Order List page.
+        /// Supports optional status filter and keyword search.
         /// </summary>
-        public ReturnOrderListViewModel GetReturnOrderListVM(string status = null, string keyword = null)
+        public ReturnOrderListViewModel GetReturnOrderListVM(
+            string status  = null,
+            string keyword = null)
         {
             return new ReturnOrderListViewModel
             {
-                AllowedMenus = GetMenus(),
-                UserBar      = BuildUserBar(),
+                UserBar      = CurrentUserBar(),
+                AllowedMenus = CurrentMenus(),
                 ReturnOrders = _repo.SearchReturnOrders(status, keyword)
             };
         }
 
-        /// <summary>Updates the status of a return order. Returns true on success.</summary>
-        public bool UpdateReturnOrderStatus(string id, string status)
-            => _repo.UpdateReturnOrderStatus(id, status);
+        /// <summary>Updates the status of a single return order.</summary>
+        public bool UpdateReturnOrderStatus(string returnId, string newStatus)
+            => _repo.UpdateReturnOrderStatus(returnId, newStatus);
 
-        // ════════════════════════════════════════════════════════════════
-        //  ACCOUNTS RECEIVABLE
-        // ════════════════════════════════════════════════════════════════
+        // ════════════════════════════════════════════════════════════════════════
+        //  Account Receivable
+        // ════════════════════════════════════════════════════════════════════════
 
         /// <summary>
-        /// Returns the ViewModel for the Accounts Receivable page.
-        /// Optional status filter: "Partial" | "Full" | "Overdue" (null = all).
+        /// Returns ViewModel for the Accounts Receivable page.
+        /// status: null = All | 'Partial' | 'Full' | 'Overdue'
         /// </summary>
         public AccountReceivableViewModel GetAccountReceivableVM(string status = null)
         {
             return new AccountReceivableViewModel
             {
-                AllowedMenus = GetMenus(),
-                UserBar      = BuildUserBar(),
+                UserBar      = CurrentUserBar(),
+                AllowedMenus = CurrentMenus(),
                 Items        = _repo.GetAccountReceivables(status)
             };
         }
 
-        // ════════════════════════════════════════════════════════════════
-        //  ACCOUNTS PAYABLE
-        // ════════════════════════════════════════════════════════════════
+        // ════════════════════════════════════════════════════════════════════════
+        //  Account Payable
+        // ════════════════════════════════════════════════════════════════════════
 
         /// <summary>
-        /// Returns the ViewModel for the Accounts Payable page.
-        /// Optional status filter: "Partial" | "Full" | "Overdue" (null = all).
+        /// Returns ViewModel for the Accounts Payable page.
+        /// status: null = All | 'Partial' | 'Full' | 'Overdue'
         /// </summary>
         public AccountPayableViewModel GetAccountPayableVM(string status = null)
         {
             return new AccountPayableViewModel
             {
-                AllowedMenus = GetMenus(),
-                UserBar      = BuildUserBar(),
+                UserBar      = CurrentUserBar(),
+                AllowedMenus = CurrentMenus(),
                 Items        = _repo.GetAccountPayables(status)
             };
         }

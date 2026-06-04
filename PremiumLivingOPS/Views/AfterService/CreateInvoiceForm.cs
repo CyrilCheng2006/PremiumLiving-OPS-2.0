@@ -11,12 +11,19 @@ namespace PremiumLivingOPS.Views.AfterService
     public partial class CreateInvoiceForm : Form
     {
         private readonly AfterServiceController _ctrl = new AfterServiceController();
-
-        /// <summary>Cached list matching current grid rows.</summary>
         private List<OrderEntity> _currentOrders = new List<OrderEntity>();
+        private OrderEntity       _selectedOrder;
 
-        /// <summary>The order currently selected for invoice creation.</summary>
-        private OrderEntity _selectedOrder;
+        private static readonly Dictionary<string, (Color bg, Color fg)> OrderStatusColors =
+            new Dictionary<string, (Color, Color)>
+            {
+                { "Pending",             (Color.FromArgb(254, 243, 199), Color.FromArgb(146,  64,  14)) },
+                { "Processing",          (Color.FromArgb(219, 234, 254), Color.FromArgb( 29,  78, 216)) },
+                { "Delivered",           (Color.FromArgb(209, 250, 229), Color.FromArgb(  6,  95,  70)) },
+                { "Partially Delivered", (Color.FromArgb(237, 233, 254), Color.FromArgb( 91,  33, 182)) },
+                { "Cancelled",           (Color.FromArgb(254, 226, 226), Color.FromArgb(185,  28,  28)) },
+                { "Completed",           (Color.FromArgb(220, 252, 231), Color.FromArgb( 22, 101,  52)) },
+            };
 
         public CreateInvoiceForm()
         {
@@ -24,23 +31,16 @@ namespace PremiumLivingOPS.Views.AfterService
             this.Load += CreateInvoiceForm_Load;
         }
 
-        // ── Load ──────────────────────────────────────────────
         private void CreateInvoiceForm_Load(object sender, EventArgs e)
         {
-            // Wire AppShell events here (same pattern as ViewOrderForm.cs)
-            _shell.MenuItemClicked += OnTopNavMenuItemClicked;
-            _shell.LogoutClicked   += OnLogoutClicked;
             RefreshGrid();
         }
 
-        // ── Refresh grid ────────────────────────────────────────
+        // ── Refresh grid from DB ───────────────────────────────────────────────
         private void RefreshGrid()
         {
-            string orderKw    = txtSearchOrder.Text.Trim();
-            string customerKw = txtSearchCustomer.Text.Trim();
-            string statusKw   = cboStatusFilter.SelectedIndex > 0
-                                    ? cboStatusFilter.SelectedItem.ToString()
-                                    : string.Empty;
+            string orderNo   = txtSearchOrderNo.Text.Trim();
+            string customer  = txtSearchCustomer.Text.Trim();
 
             var vm = _ctrl.GetCreateInvoiceVM();
 
@@ -48,108 +48,110 @@ namespace PremiumLivingOPS.Views.AfterService
             _shell.SetVisibleMenus(vm.AllowedMenus);
             _shell.SetBreadcrumb("After-Service  ›  Create Invoice");
 
-            _currentOrders = vm.Orders ?? new List<OrderEntity>();
+            _currentOrders = vm.Orders;
 
-            if (!string.IsNullOrEmpty(orderKw))
-                _currentOrders = _currentOrders.FindAll(o =>
-                    (o.OrderID ?? "").IndexOf(orderKw, StringComparison.OrdinalIgnoreCase) >= 0);
-
-            if (!string.IsNullOrEmpty(customerKw))
-                _currentOrders = _currentOrders.FindAll(o =>
-                    (o.CustomerName ?? "").IndexOf(customerKw, StringComparison.OrdinalIgnoreCase) >= 0);
-
-            if (!string.IsNullOrEmpty(statusKw))
-                _currentOrders = _currentOrders.FindAll(o =>
-                    string.Equals(o.OrderStatus, statusKw, StringComparison.OrdinalIgnoreCase));
+            // Apply local keyword filter (order no / customer)
+            var displayed = _currentOrders.FindAll(o =>
+            {
+                bool matchOrder    = string.IsNullOrEmpty(orderNo)   || o.OrderID.Contains(orderNo, StringComparison.OrdinalIgnoreCase);
+                bool matchCustomer = string.IsNullOrEmpty(customer)  || o.CustomerName.Contains(customer, StringComparison.OrdinalIgnoreCase);
+                return matchOrder && matchCustomer;
+            });
 
             dgvOrders.Rows.Clear();
-            foreach (var o in _currentOrders)
+            foreach (var o in displayed)
                 dgvOrders.Rows.Add(
                     o.OrderID,
                     o.CustomerName,
+                    o.OrderContactName,
+                    o.IssuedTime.ToString("yyyy-MM-dd"),
+                    o.DeliveryDate.ToString("yyyy-MM-dd"),
                     $"HK$ {o.GrandTotal:N2}",
-                    o.OrderStatus,
-                    o.IssuedTime.ToString("yyyy-MM-dd"));
+                    o.OrderStatus);
+
+            ClearForm();
         }
 
-        // ── Grid cell formatting ───────────────────────────────────
+        private void ResetSearch()
+        {
+            txtSearchOrderNo.Text  = string.Empty;
+            txtSearchCustomer.Text = string.Empty;
+            RefreshGrid();
+        }
+
+        // ── CellFormatting — colour OrderStatus badge ──────────────────────────
         private void dgvOrders_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
-            if (e.RowIndex < 0) return;
-            if (dgvOrders.Columns[e.ColumnIndex].Name != "colStatus") return;
-
-            string status = e.Value as string ?? "";
-            switch (status)
-            {
-                case "Pending":
-                    e.CellStyle.ForeColor = Color.FromArgb(146,  64,  14);
-                    e.CellStyle.BackColor = Color.FromArgb(254, 243, 199);
-                    break;
-                case "Processing":
-                    e.CellStyle.ForeColor = Color.FromArgb( 29,  78, 216);
-                    e.CellStyle.BackColor = Color.FromArgb(219, 234, 254);
-                    break;
-                case "Partially Delivered":
-                    e.CellStyle.ForeColor = Color.FromArgb( 91,  33, 182);
-                    e.CellStyle.BackColor = Color.FromArgb(237, 233, 254);
-                    break;
-                case "Delivered":
-                    e.CellStyle.ForeColor = Color.FromArgb(  6,  95,  70);
-                    e.CellStyle.BackColor = Color.FromArgb(209, 250, 229);
-                    break;
-                case "Completed":
-                    e.CellStyle.ForeColor = Color.FromArgb( 22, 101,  52);
-                    e.CellStyle.BackColor = Color.FromArgb(220, 252, 231);
-                    break;
-                case "Cancelled":
-                    e.CellStyle.ForeColor = Color.FromArgb(185,  28,  28);
-                    e.CellStyle.BackColor = Color.FromArgb(254, 226, 226);
-                    break;
-                default:
-                    e.CellStyle.ForeColor = Color.FromArgb( 98, 112, 135);
-                    e.CellStyle.BackColor = Color.FromArgb(240, 244, 249);
-                    break;
-            }
+            if (dgvOrders.Columns[e.ColumnIndex].Name != "colStatus" || e.Value == null) return;
+            if (!OrderStatusColors.TryGetValue(e.Value.ToString(), out var c)) return;
+            e.CellStyle.BackColor          = c.bg;
+            e.CellStyle.ForeColor          = c.fg;
+            e.CellStyle.SelectionBackColor = c.bg;
+            e.CellStyle.SelectionForeColor = c.fg;
+            e.CellStyle.Font               = new Font("Segoe UI", 11f, FontStyle.Bold);
+            e.CellStyle.Alignment          = DataGridViewContentAlignment.MiddleCenter;
+            e.FormattingApplied            = true;
         }
 
-        // ── Grid selection → populate form fields ─────────────────────
+        // ── Grid selection → fill form fields ─────────────────────────────────
         private void dgvOrders_SelectionChanged(object sender, EventArgs e)
         {
-            if (dgvOrders.SelectedRows.Count == 0) return;
+            if (dgvOrders.SelectedRows.Count == 0) { ClearForm(); return; }
+            string orderId = dgvOrders.SelectedRows[0].Cells["colOrderID"].Value?.ToString();
+            _selectedOrder = _currentOrders.Find(o => o.OrderID == orderId);
+            FillFormFromGrid();
+        }
 
-            int idx = dgvOrders.SelectedRows[0].Index;
-            if (idx < 0 || idx >= _currentOrders.Count) return;
+        private void FillFormFromGrid()
+        {
+            if (_selectedOrder == null) return;
 
-            _selectedOrder = _currentOrders[idx];
+            lblSelectedOrderID.Text = _selectedOrder.OrderID;
+            lblCustomer.Text        = _selectedOrder.CustomerName;
+            lblGrandTotal.Text      = $"HK$ {_selectedOrder.GrandTotal:N2}";
 
-            lblSelectedOrder.Text = _selectedOrder.OrderID;
-            lblCustomer.Text      = _selectedOrder.CustomerName;
-            lblGrandTotal.Text    = $"HK$ {_selectedOrder.GrandTotal:N2}";
-
-            nudPaidAmount.Maximum    = (decimal)_selectedOrder.GrandTotal;
-            nudDepositAmount.Maximum = (decimal)_selectedOrder.GrandTotal;
-            nudPaidAmount.Value      = 0;
-            nudDepositAmount.Value   = 0;
+            // Pre-fill amounts
+            nudDeposit.Maximum = (decimal)_selectedOrder.GrandTotal;
+            nudPaid.Maximum    = (decimal)_selectedOrder.GrandTotal;
+            nudDeposit.Value   = 0;
+            nudPaid.Value      = (decimal)_selectedOrder.GrandTotal;
+            dtpDueDate.Value   = DateTime.Today.AddDays(30);
 
             RecalcBalance();
+            btnCreateInvoice.Enabled = true;
         }
 
-        // ── Auto-calculate remaining balance ──────────────────────
+        private void ClearForm()
+        {
+            _selectedOrder             = null;
+            lblSelectedOrderID.Text    = "—";
+            lblCustomer.Text           = "—";
+            lblGrandTotal.Text         = "—";
+            nudDeposit.Value           = 0;
+            nudPaid.Value              = 0;
+            lblRemaining.Text          = "HK$ 0.00";
+            lblRemaining.ForeColor     = Palette.TextMuted;
+            cboPaymentStatus.SelectedIndex = 0;
+            btnCreateInvoice.Enabled   = false;
+        }
+
+        // ── Auto-calculate remaining balance ──────────────────────────────────
         private void RecalcBalance()
         {
-            double total   = _selectedOrder != null ? _selectedOrder.GrandTotal : 0;
-            double paid    = (double)nudPaidAmount.Value;
-            double balance = Math.Max(0, total - paid);
+            if (_selectedOrder == null) return;
 
-            lblRemainingBalance.Text = $"HK$ {balance:N2}";
+            double paid      = (double)nudPaid.Value;
+            double total     = _selectedOrder.GrandTotal;
+            double remaining = Math.Max(0, total - paid);
 
-            if (total > 0 && balance <= 0)
-                cboPaymentStatus.SelectedIndex = 1; // Full
-            else
-                cboPaymentStatus.SelectedIndex = 0; // Partial
+            lblRemaining.Text      = $"HK$ {remaining:N2}";
+            lblRemaining.ForeColor = remaining > 0 ? Palette.Danger : Palette.Success;
+
+            // Auto-suggest payment status
+            cboPaymentStatus.SelectedItem = remaining <= 0 ? "Full" : "Partial";
         }
 
-        // ── Create Invoice ───────────────────────────────────────
+        // ── Create Invoice button ──────────────────────────────────────────────
         private void btnCreateInvoice_Click(object sender, EventArgs e)
         {
             if (_selectedOrder == null)
@@ -159,49 +161,28 @@ namespace PremiumLivingOPS.Views.AfterService
                 return;
             }
 
-            double paid    = (double)nudPaidAmount.Value;
-            double deposit = (double)nudDepositAmount.Value;
-            double total   = _selectedOrder.GrandTotal;
-            double balance = Math.Max(0, total - paid);
-
-            if (paid < 0 || paid > total)
-            {
-                MessageBox.Show("Paid Amount cannot exceed the Grand Total.",
-                    "Invalid Amount", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-
-            string payStatus = cboPaymentStatus.SelectedItem?.ToString() ?? "Partial";
+            double paid      = (double)nudPaid.Value;
+            double total     = _selectedOrder.GrandTotal;
+            double remaining = Math.Max(0, total - paid);
 
             var inv = new InvoiceEntity
             {
-                OrderID          = _selectedOrder.OrderID,
-                InvoiceDate      = DateTime.Today,
-                PaidAmount       = paid,
-                DepositAmount    = deposit,
-                TotalAmount      = total,
-                RemainingBalance = balance,
-                PaymentStatus    = payStatus,
-                DueDate          = dtpDueDate.Value
+                OrderID       = _selectedOrder.OrderID,
+                InvoiceDate   = DateTime.Today,
+                DepositAmount = (double)nudDeposit.Value,
+                PaidAmount    = paid,
+                RemainingBalance = remaining,
+                TotalAmount   = total,
+                PaymentStatus = cboPaymentStatus.SelectedItem?.ToString() ?? "Partial",
+                DueDate       = dtpDueDate.Value.Date
             };
 
             bool ok = _ctrl.SaveInvoice(inv);
-
             if (ok)
             {
                 MessageBox.Show(
-                    $"Invoice created successfully for Order {_selectedOrder.OrderID}.",
+                    $"Invoice created successfully.\nInvoice ID: {inv.InvoiceID}",
                     "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
-
-                _selectedOrder = null;
-                lblSelectedOrder.Text    = "—";
-                lblCustomer.Text         = "—";
-                lblGrandTotal.Text       = "—";
-                nudPaidAmount.Value      = 0;
-                nudDepositAmount.Value   = 0;
-                lblRemainingBalance.Text = "HK$ 0.00";
-                cboPaymentStatus.SelectedIndex = 0;
-
                 RefreshGrid();
             }
             else
@@ -211,13 +192,11 @@ namespace PremiumLivingOPS.Views.AfterService
             }
         }
 
-        // ── AppShell event handlers ─────────────────────────────────
-
-        /// <summary>Tap Nav Bar click → delegate to FormNavigator (same as ViewOrderForm).</summary>
+        // ── Navigation / logout ───────────────────────────────────────────────
         private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
             => FormNavigator.NavigateTo(this, menuLabel, subItem);
 
-        private void OnLogoutClicked(object sender, EventArgs e)
+        private void btnLogout_Click(object sender, EventArgs e)
         {
             SessionManager.Clear();
             Application.Restart();

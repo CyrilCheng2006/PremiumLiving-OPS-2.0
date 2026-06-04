@@ -4,6 +4,7 @@ using PremiumLivingOPS.Views.Shared;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 
 namespace PremiumLivingOPS.Views.AfterService
@@ -16,9 +17,12 @@ namespace PremiumLivingOPS.Views.AfterService
         private static readonly Dictionary<string, (Color bg, Color fg)> StatusColors =
             new Dictionary<string, (Color, Color)>
             {
-                { "Partial", (Color.FromArgb(254, 243, 199), Color.FromArgb(146,  64,  14)) },
-                { "Full",    (Color.FromArgb(220, 252, 231), Color.FromArgb( 22, 101,  52)) }
+                { "Partial",  (Color.FromArgb(254, 243, 199), Color.FromArgb(146,  64,  14)) },
+                { "Full",     (Color.FromArgb(220, 252, 231), Color.FromArgb( 22, 101,  52)) },
+                { "Overdue",  (Color.FromArgb(254, 226, 226), Color.FromArgb(185,  28,  28)) },
             };
+
+        private static readonly Color OverdueBg = Color.FromArgb(255, 242, 242);
 
         public AccountPayableForm()
         {
@@ -26,22 +30,18 @@ namespace PremiumLivingOPS.Views.AfterService
             this.Load += AccountPayableForm_Load;
         }
 
-        private void AccountPayableForm_Load(object sender, EventArgs e)
-        {
-            RefreshGrid();
-        }
+        private void AccountPayableForm_Load(object sender, EventArgs e) => RefreshGrid();
 
-        // ── Refresh ────────────────────────────────────────────────────────
         private void RefreshGrid()
         {
-            string status = cboStatus.SelectedItem?.ToString();
-            if (status == "All" || string.IsNullOrEmpty(status)) status = null;
+            string statusSel = cboStatus.SelectedItem?.ToString();
+            string statusFilter = (statusSel == "All" || string.IsNullOrEmpty(statusSel)) ? null : statusSel;
 
-            var vm = _ctrl.GetAccountPayableVM(status);
+            var vm = _ctrl.GetAccountPayableVM(statusFilter);
 
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
-            _shell.SetBreadcrumb("After-Service  ›  Accounts Payable");
+            _shell.SetBreadcrumb("After-Service  ›  Account Payable");
 
             _currentItems = vm.Items;
 
@@ -52,75 +52,109 @@ namespace PremiumLivingOPS.Views.AfterService
                     item.PurchaseID,
                     item.SupplierName,
                     $"HK$ {item.TotalAmount:N2}",
-                    item.PaymentStatus,
+                    item.IsOverdue ? "Overdue" : item.PaymentStatus,
                     item.ExpectedDate.ToString("yyyy-MM-dd"));
 
-            RefreshKpi(vm.Items);
+            RefreshKpi();
         }
 
-        // ── KPI labels ────────────────────────────────────────────────────
-        private void RefreshKpi(List<AccountPayableEntity> items)
+        // ── KPI Summary ────────────────────────────────────────────────────────
+        private void RefreshKpi()
         {
+            pnlKpi.Controls.Clear();
+
             var all = _ctrl.GetAccountPayableVM().Items;
 
-            int total          = all.Count;
-            double outstanding = 0;
-            int overdueCount   = 0;
+            int    totalCount   = all.Count;
+            double outstanding  = 0;
+            int    overdueCount = 0;
+            int    partialCount = 0;
+            int    fullCount    = 0;
+
             foreach (var i in all)
             {
                 if (i.PaymentStatus != "Full") outstanding += i.TotalAmount;
-                if (i.IsOverdue) overdueCount++;
+                if (i.IsOverdue)                overdueCount++;
+                if (i.PaymentStatus == "Partial") partialCount++;
+                if (i.PaymentStatus == "Full")    fullCount++;
             }
 
-            lblTotalAP.Text      = total.ToString();
-            lblOutstanding.Text  = $"HK$ {outstanding:N2}";
-            lblOverdueCount.Text = overdueCount.ToString();
+            var kpiItems = new[]
+            {
+                ("Total PO Invoices", totalCount.ToString(),   Palette.Primary,     Palette.TagBlueBg),
+                ("Outstanding (HK$)", $"{outstanding:N0}",     Palette.TagYellowFg, Palette.TagYellowBg),
+                ("Partial",           partialCount.ToString(), Palette.TagBlueFg,   Palette.TagBlueBg),
+                ("Fully Paid",        fullCount.ToString(),    Palette.TagGreenFg,  Palette.TagGreenBg),
+                ("Overdue",           overdueCount.ToString(), Palette.TagRedFg,    Palette.TagRedBg),
+            };
+
+            var flow = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight,
+                WrapContents = false, BackColor = Color.Transparent
+            };
+
+            const int PillW = 220; const int PillH = 62; const int Gap = 8;
+            foreach (var (label, value, fg, bg) in kpiItems)
+            {
+                var pill = new Panel { BackColor = bg, Size = new Size(PillW, PillH), Margin = new Padding(0, 0, Gap, 0) };
+                pill.Paint += (s, e) =>
+                {
+                    e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                    using var path  = RoundedRect(((Panel)s).ClientRectangle, 8);
+                    using var brush = new SolidBrush(((Panel)s).BackColor);
+                    e.Graphics.FillPath(brush, path);
+                };
+                var tlp = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None, Padding = new Padding(10, 0, 8, 0) };
+                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 80f));
+                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+                tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+                tlp.Controls.Add(new Label { Text = value, Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = fg, BackColor = Color.Transparent, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, AutoSize = false }, 0, 0);
+                tlp.Controls.Add(new Label { Text = label, Font = new Font("Segoe UI", 10f), ForeColor = fg, BackColor = Color.Transparent, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false }, 1, 0);
+                pill.Controls.Add(tlp);
+                flow.Controls.Add(pill);
+            }
+            pnlKpi.Controls.Add(flow);
         }
 
-        // ── CellFormatting: status badge + overdue row highlight ──────────
+        // ── CellFormatting — status badge + overdue row highlight ──────────────
         private void dgvAP_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
             if (e.RowIndex < 0 || e.RowIndex >= _currentItems.Count) return;
             var item = _currentItems[e.RowIndex];
 
-            // Overdue row: light red background
             if (item.IsOverdue)
             {
-                e.CellStyle.BackColor          = Color.FromArgb(255, 235, 235);
-                e.CellStyle.SelectionBackColor = Color.FromArgb(254, 202, 202);
+                e.CellStyle.BackColor          = OverdueBg;
+                e.CellStyle.SelectionBackColor = Color.FromArgb(255, 220, 220);
             }
 
-            // Status column badge
-            string colName = dgvAP.Columns[e.ColumnIndex].Name;
-            if (colName == "colStatus" && e.Value != null)
+            if (dgvAP.Columns[e.ColumnIndex].Name == "colStatus" && e.Value != null)
             {
-                if (item.IsOverdue)
+                string val = e.Value.ToString();
+                if (StatusColors.TryGetValue(val, out var c))
                 {
-                    e.CellStyle.BackColor = Color.FromArgb(232, 64, 64);
-                    e.CellStyle.ForeColor = Color.White;
-                    e.CellStyle.SelectionBackColor = Color.FromArgb(185, 28, 28);
-                    e.CellStyle.SelectionForeColor = Color.White;
-                    e.Value = "Overdue";
+                    e.CellStyle.BackColor = c.bg; e.CellStyle.ForeColor = c.fg;
+                    e.CellStyle.SelectionBackColor = c.bg; e.CellStyle.SelectionForeColor = c.fg;
+                    e.CellStyle.Font = new Font("Segoe UI", 11f, FontStyle.Bold);
+                    e.CellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                 }
-                else if (StatusColors.TryGetValue(e.Value.ToString(), out var colors))
-                {
-                    e.CellStyle.BackColor = colors.bg; e.CellStyle.ForeColor = colors.fg;
-                    e.CellStyle.SelectionBackColor = colors.bg; e.CellStyle.SelectionForeColor = colors.fg;
-                }
-                e.CellStyle.Font = new Font("Segoe UI", 11f, FontStyle.Bold);
-                e.CellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                 e.FormattingApplied = true;
             }
         }
 
-        // ── Navigation / Logout ───────────────────────────────────────────
         private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
             => FormNavigator.NavigateTo(this, menuLabel, subItem);
 
         private void btnLogout_Click(object sender, EventArgs e)
+        { SessionManager.Clear(); Application.Restart(); }
+
+        private static GraphicsPath RoundedRect(Rectangle r, int radius)
         {
-            SessionManager.Clear();
-            Application.Restart();
+            var path = new GraphicsPath(); int d = radius * 2;
+            path.AddArc(r.X, r.Y, d, d, 180, 90); path.AddArc(r.Right - d, r.Y, d, d, 270, 90);
+            path.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90); path.AddArc(r.X, r.Bottom - d, d, d, 90, 90);
+            path.CloseFigure(); return path;
         }
     }
 }

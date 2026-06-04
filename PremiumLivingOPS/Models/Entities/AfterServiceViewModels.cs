@@ -48,7 +48,7 @@ namespace PremiumLivingOPS.Models.Entities
     }
 
     /// <summary>
-    /// Accounts Receivable view: Invoice JOIN Order+Customer.
+    /// Accounts Receivable view: Invoice JOIN Order + Customer.
     /// IsOverdue = RemainingBalance > 0 AND DueDate &lt; TODAY.
     /// </summary>
     public class AccountReceivableEntity
@@ -65,7 +65,7 @@ namespace PremiumLivingOPS.Models.Entities
     }
 
     /// <summary>
-    /// Accounts Payable view: PurchaseInvoice JOIN PurchaseOrder+Supplier.
+    /// Accounts Payable view: PurchaseInvoice JOIN PurchaseOrder + Supplier.
     /// IsOverdue = PaymentStatus != 'Full' AND ExpectedDate &lt; TODAY.
     /// </summary>
     public class AccountPayableEntity
@@ -88,10 +88,9 @@ namespace PremiumLivingOPS.Models.Entities
     {
         public string[]          AllowedMenus { get; set; }
         public UserBarViewModel  UserBar      { get; set; }
-
         /// <summary>
-        /// Orders that do NOT yet have an Invoice row (LEFT JOIN Invoice WHERE InvoiceID IS NULL).
-        /// Returned by AfterServiceRepo.GetOrdersWithoutInvoice().
+        /// Orders that do NOT yet have an Invoice row
+        /// (LEFT JOIN Invoice WHERE InvoiceID IS NULL).
         /// </summary>
         public List<OrderEntity> Orders       { get; set; }
     }
@@ -99,32 +98,32 @@ namespace PremiumLivingOPS.Models.Entities
     /// <summary>ViewModel for the Complaint List page.</summary>
     public class ComplaintListViewModel
     {
-        public string[]               AllowedMenus { get; set; }
-        public UserBarViewModel       UserBar      { get; set; }
-        public List<ComplaintEntity>  Complaints   { get; set; }
+        public string[]              AllowedMenus { get; set; }
+        public UserBarViewModel      UserBar      { get; set; }
+        public List<ComplaintEntity> Complaints   { get; set; }
     }
 
     /// <summary>ViewModel for the Return Order List page.</summary>
     public class ReturnOrderListViewModel
     {
-        public string[]                  AllowedMenus  { get; set; }
-        public UserBarViewModel          UserBar       { get; set; }
-        public List<ReturnOrderEntity>   ReturnOrders  { get; set; }
+        public string[]                AllowedMenus { get; set; }
+        public UserBarViewModel        UserBar      { get; set; }
+        public List<ReturnOrderEntity> ReturnOrders { get; set; }
     }
 
     /// <summary>ViewModel for the Accounts Receivable page.</summary>
     public class AccountReceivableViewModel
     {
-        public string[]                       AllowedMenus { get; set; }
-        public UserBarViewModel               UserBar      { get; set; }
-        public List<AccountReceivableEntity>  Items        { get; set; }
+        public string[]                      AllowedMenus { get; set; }
+        public UserBarViewModel              UserBar      { get; set; }
+        public List<AccountReceivableEntity> Items        { get; set; }
     }
 
     /// <summary>ViewModel for the Accounts Payable page.</summary>
     public class AccountPayableViewModel
     {
-        public string[]                     AllowedMenus { get; set; }
-        public UserBarViewModel             UserBar      { get; set; }
-        public List<AccountPayableEntity>   Items        { get; set; }
+        public string[]                    AllowedMenus { get; set; }
+        public UserBarViewModel            UserBar      { get; set; }
+        public List<AccountPayableEntity>  Items        { get; set; }
     }
 }

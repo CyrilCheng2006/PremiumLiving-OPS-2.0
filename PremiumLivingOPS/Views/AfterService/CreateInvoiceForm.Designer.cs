@@ -9,22 +9,22 @@ namespace PremiumLivingOPS.Views.AfterService
     {
         private System.ComponentModel.IContainer components = null;
 
-        private AppShell       _shell;
-        private TextBox        txtSearchOrder;
-        private TextBox        txtSearchCustomer;
-        private ComboBox       cboStatusFilter;
-        private Button         btnSearch;
-        private Button         btnReset;
-        private Label          lblSelectedOrder;
-        private Label          lblCustomer;
-        private Label          lblGrandTotal;
-        private NumericUpDown  nudDepositAmount;
-        private NumericUpDown  nudPaidAmount;
-        private DateTimePicker dtpDueDate;
-        private ComboBox       cboPaymentStatus;
-        private Label          lblRemainingBalance;
-        private Button         btnCreateInvoice;
-        private DataGridView   dgvOrders;
+        // ── Field declarations ─────────────────────────────────────────────────
+        private AppShell        _shell;
+        private TextBox         txtSearchOrderNo;
+        private TextBox         txtSearchCustomer;
+        private Button          btnSearch;
+        private Button          btnReset;
+        private DataGridView    dgvOrders;
+        private Label           lblSelectedOrderID;
+        private Label           lblCustomer;
+        private Label           lblGrandTotal;
+        private NumericUpDown   nudDeposit;
+        private NumericUpDown   nudPaid;
+        private Label           lblRemaining;
+        private DateTimePicker  dtpDueDate;
+        private ComboBox        cboPaymentStatus;
+        private Button          btnCreateInvoice;
 
         protected override void Dispose(bool disposing)
         {
@@ -34,334 +34,325 @@ namespace PremiumLivingOPS.Views.AfterService
 
         private void InitializeComponent()
         {
-            // ── Form ───────────────────────────────────────────────────────
-            this.Text          = "Premium Living OPS — After-Service  ›  Create Invoice";
+            this.SuspendLayout();
+
+            this.Text          = "Premium Living OPS — Create Invoice";
             this.Size          = new Size(1440, 900);
             this.MinimumSize   = new Size(1200, 720);
             this.StartPosition = FormStartPosition.CenterScreen;
-            this.BackColor     = Color.FromArgb(240, 244, 249);
+            this.BackColor     = Palette.BgPage;
             this.WindowState   = FormWindowState.Maximized;
             this.Font          = new Font("Segoe UI", 13f);
 
             // ── Root panel
-            var pnlMain = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(240, 244, 249) };
+            var pnlMain = new Panel { Dock = DockStyle.Fill, BackColor = Palette.BgPage };
             _shell = new AppShell();
             _shell.SetPopupContainer(pnlMain);
+            _shell.MenuItemClicked += OnTopNavMenuItemClicked;
+            _shell.LogoutClicked   += btnLogout_Click;
 
-            // ── Input controls
-            txtSearchOrder = new TextBox
+            // ══════════════════════════════════════════════════════════════════
+            // CARD 1 — Search Bar  (outerHeight 160)
+            // ══════════════════════════════════════════════════════════════════
+            var (searchOuter, searchInner) = CardPanel.Create(outerHeight: 160);
+
+            txtSearchOrderNo = new TextBox
             {
                 Font = new Font("Segoe UI", 12f), BorderStyle = BorderStyle.FixedSingle,
-                Dock = DockStyle.Fill, PlaceholderText = "ORD-XXXX"
+                PlaceholderText = "Order No. (e.g. ORD-20260301-0033)"
             };
-            txtSearchOrder.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) RefreshGrid(); };
+            txtSearchOrderNo.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) RefreshGrid(); };
 
             txtSearchCustomer = new TextBox
             {
                 Font = new Font("Segoe UI", 12f), BorderStyle = BorderStyle.FixedSingle,
-                Dock = DockStyle.Fill, PlaceholderText = "Customer name"
+                PlaceholderText = "Customer name"
             };
             txtSearchCustomer.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) RefreshGrid(); };
 
-            cboStatusFilter = new ComboBox
+            btnSearch = MakePrimaryBtn("🔍  Search", Point.Empty, 190, 52);
+            btnReset  = MakeOutlineBtn("↺  Reset",  Point.Empty, 190, 52);
+            btnSearch.Click += (s, e) => RefreshGrid();
+            btnReset.Click  += (s, e) => ResetSearch();
+
+            var tblSearch = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 2,
+                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                Padding = new Padding(18, 12, 18, 12)
+            };
+            tblSearch.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
+            tblSearch.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
+            tblSearch.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 210f));
+            tblSearch.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 210f));
+            tblSearch.RowStyles.Add(new RowStyle(SizeType.Absolute, 44f));
+            tblSearch.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+
+            // Row 0: labels
+            tblSearch.Controls.Add(MakeFieldLabel("Order No."),  0, 0);
+            tblSearch.Controls.Add(MakeFieldLabel("Customer"),   1, 0);
+            // Row 1: inputs + buttons
+            txtSearchOrderNo.Dock  = DockStyle.Fill;
+            txtSearchCustomer.Dock = DockStyle.Fill;
+            tblSearch.Controls.Add(txtSearchOrderNo,  0, 1);
+            tblSearch.Controls.Add(txtSearchCustomer, 1, 1);
+
+            var pnlBtn1 = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
+            btnSearch.Location = new Point(0, 0); btnSearch.Width = 190;
+            btnReset.Location  = new Point(198, 0); btnReset.Width = 190;
+            pnlBtn1.Controls.Add(btnSearch);
+            pnlBtn1.Controls.Add(btnReset);
+            tblSearch.SetColumnSpan(pnlBtn1, 2);
+            tblSearch.Controls.Add(pnlBtn1, 2, 1);
+
+            searchInner.Controls.Add(tblSearch);
+
+            // ══════════════════════════════════════════════════════════════════
+            // CARD 2 — Invoice Form  (outerHeight 360)
+            // ══════════════════════════════════════════════════════════════════
+            var (formOuter, formInner) = CardPanel.Create(outerHeight: 360);
+
+            // Section title bar
+            var pnlFormTitle = new Panel { Dock = DockStyle.Top, Height = 52, BackColor = Color.Transparent };
+            var lblFormTitle = new Label
+            {
+                Text = "Invoice Details",
+                Font = new Font("Segoe UI", 13f, FontStyle.Bold),
+                ForeColor = Palette.TextMain, Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(18, 0, 0, 0)
+            };
+            var divForm = new Panel { Dock = DockStyle.Bottom, Height = 1, BackColor = Palette.BorderColor };
+            pnlFormTitle.Controls.Add(lblFormTitle);
+            pnlFormTitle.Controls.Add(divForm);
+
+            // Selected order summary strip
+            var pnlOrderSummary = new Panel
+            {
+                Dock = DockStyle.Top, Height = 60, BackColor = Color.FromArgb(246, 249, 255),
+                Padding = new Padding(18, 0, 18, 0)
+            };
+            pnlOrderSummary.Paint += PaintBottomBorderStatic;
+            var tblSummary = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill, ColumnCount = 6, RowCount = 1,
+                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+            };
+            for (int i = 0; i < 6; i++)
+                tblSummary.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f / 6));
+            tblSummary.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+
+            lblSelectedOrderID = MakeDetailLabel("—");
+            lblCustomer        = MakeDetailLabel("—");
+            lblGrandTotal      = MakeDetailLabel("—");
+
+            tblSummary.Controls.Add(MakeLabelKey("Order No."),    0, 0);
+            tblSummary.Controls.Add(lblSelectedOrderID,           1, 0);
+            tblSummary.Controls.Add(MakeLabelKey("Customer"),     2, 0);
+            tblSummary.Controls.Add(lblCustomer,                  3, 0);
+            tblSummary.Controls.Add(MakeLabelKey("Grand Total"),  4, 0);
+            tblSummary.Controls.Add(lblGrandTotal,                5, 0);
+            pnlOrderSummary.Controls.Add(tblSummary);
+
+            // Input fields TLP
+            var tblInputs = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 2,
+                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                Padding = new Padding(18, 14, 18, 14)
+            };
+            for (int i = 0; i < 4; i++)
+                tblInputs.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
+            tblInputs.RowStyles.Add(new RowStyle(SizeType.Absolute, 44f));
+            tblInputs.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+
+            nudDeposit = new NumericUpDown
+            {
+                Minimum = 0, Maximum = 9999999, DecimalPlaces = 2,
+                Font = new Font("Segoe UI", 12f), Dock = DockStyle.Fill
+            };
+            nudPaid = new NumericUpDown
+            {
+                Minimum = 0, Maximum = 9999999, DecimalPlaces = 2,
+                Font = new Font("Segoe UI", 12f), Dock = DockStyle.Fill
+            };
+            nudDeposit.ValueChanged += (s, e) => RecalcBalance();
+            nudPaid.ValueChanged    += (s, e) => RecalcBalance();
+
+            dtpDueDate = new DateTimePicker
+            {
+                Format = DateTimePickerFormat.Short,
+                Value  = DateTime.Today.AddDays(30),
+                Font   = new Font("Segoe UI", 12f), Dock = DockStyle.Fill
+            };
+
+            cboPaymentStatus = new ComboBox
             {
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 Font = new Font("Segoe UI", 12f), Dock = DockStyle.Fill
             };
-            cboStatusFilter.Items.AddRange(new object[]
-            {
-                "All", "Pending", "Processing",
-                "Delivered", "Partially Delivered", "Cancelled", "Completed"
-            });
-            cboStatusFilter.SelectedIndex = 0;
+            cboPaymentStatus.Items.AddRange(new object[] { "Partial", "Full" });
+            cboPaymentStatus.SelectedIndex = 0;
 
-            // ── MakeCell helper (identical to ViewOrderForm)
-            TableLayoutPanel MakeCell(string caption, Control ctrl, bool rightPad = true)
+            lblRemaining = new Label
             {
-                var tlp = new TableLayoutPanel
-                {
-                    Dock = DockStyle.Fill, RowCount = 2, ColumnCount = 1,
-                    BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                    Padding = rightPad ? new Padding(0, 0, 12, 0) : Padding.Empty
-                };
-                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-                tlp.RowStyles.Add(new RowStyle(SizeType.Absolute, 40f));
-                tlp.RowStyles.Add(new RowStyle(SizeType.Percent,  70f));
-                tlp.Controls.Add(new Label
-                {
-                    Text = caption, Font = new Font("Segoe UI", 10f, FontStyle.Bold),
-                    ForeColor = Color.FromArgb(98, 112, 135), Dock = DockStyle.Fill,
-                    TextAlign = ContentAlignment.BottomLeft, Padding = new Padding(0, 0, 0, 2)
-                }, 0, 0);
-                ctrl.Dock = DockStyle.Fill;
-                tlp.Controls.Add(ctrl, 0, 1);
-                return tlp;
-            }
+                Text = "HK$ 0.00", Dock = DockStyle.Fill,
+                Font = new Font("Segoe UI", 13f, FontStyle.Bold),
+                ForeColor = Palette.Danger, TextAlign = ContentAlignment.MiddleLeft
+            };
 
-            var tblFields = new TableLayoutPanel
+            // Row 0 labels
+            tblInputs.Controls.Add(MakeFieldLabel("Deposit Amount (HK$)"), 0, 0);
+            tblInputs.Controls.Add(MakeFieldLabel("Paid Amount (HK$)"),    1, 0);
+            tblInputs.Controls.Add(MakeFieldLabel("Due Date"),             2, 0);
+            tblInputs.Controls.Add(MakeFieldLabel("Payment Status"),       3, 0);
+            // Row 1 inputs
+            tblInputs.Controls.Add(nudDeposit,      0, 1);
+            tblInputs.Controls.Add(nudPaid,         1, 1);
+            tblInputs.Controls.Add(dtpDueDate,      2, 1);
+            tblInputs.Controls.Add(cboPaymentStatus,3, 1);
+
+            // Remaining balance + Create button row
+            var pnlActionRow = new Panel
+            {
+                Dock = DockStyle.Bottom, Height = 72, BackColor = Color.Transparent,
+                Padding = new Padding(18, 8, 18, 12)
+            };
+            pnlActionRow.Paint += PaintTopBorderStatic;
+
+            var tblAction = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 1,
                 BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
-            tblFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.33f));
-            tblFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.33f));
-            tblFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.34f));
-            tblFields.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-            tblFields.Controls.Add(MakeCell("Order No.", txtSearchOrder),    0, 0);
-            tblFields.Controls.Add(MakeCell("Customer",  txtSearchCustomer), 1, 0);
-            tblFields.Controls.Add(MakeCell("Status",    cboStatusFilter),   2, 0);
+            tblAction.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 160f));
+            tblAction.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+            tblAction.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 240f));
+            tblAction.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
-            var pnlBtns = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            btnSearch = MakePrimaryBtn("\U0001F50D  Search", new Point(0,   0), 210, 60);
-            btnReset  = MakeOutlineBtn("\u21BA  Reset",     new Point(218, 0), 210, 60);
-            btnSearch.Click += (s, e) => RefreshGrid();
-            btnReset.Click  += (s, e) =>
+            btnCreateInvoice = MakePrimaryBtn("✔  Create Invoice", Point.Empty, 230, 52);
+            btnCreateInvoice.Dock    = DockStyle.Right;
+            btnCreateInvoice.Enabled = false;
+            btnCreateInvoice.Click  += btnCreateInvoice_Click;
+
+            tblAction.Controls.Add(MakeLabelKey("Remaining Balance"), 0, 0);
+            tblAction.Controls.Add(lblRemaining,                       1, 0);
+            tblAction.Controls.Add(btnCreateInvoice,                   2, 0);
+
+            pnlActionRow.Controls.Add(tblAction);
+
+            // Assemble form card
+            formInner.Controls.Add(tblInputs);
+            formInner.Controls.Add(pnlActionRow);
+            formInner.Controls.Add(pnlOrderSummary);
+            formInner.Controls.Add(pnlFormTitle);
+
+            // ══════════════════════════════════════════════════════════════════
+            // CARD 3 — Orders Grid  (Fill)
+            // ══════════════════════════════════════════════════════════════════
+            var (gridOuter, gridInner) = CardPanel.CreateFill();
+
+            // Grid title
+            var pnlGridTitle = new Panel { Dock = DockStyle.Top, Height = 48, BackColor = Color.Transparent };
+            var lblGridTitle = new Label
             {
-                txtSearchOrder.Clear(); txtSearchCustomer.Clear();
-                cboStatusFilter.SelectedIndex = 0; RefreshGrid();
+                Text = "Orders Without Invoice",
+                Font = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Palette.TextMain, Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(16, 0, 0, 0)
             };
-            pnlBtns.Controls.Add(btnSearch);
-            pnlBtns.Controls.Add(btnReset);
+            var divGrid = new Panel { Dock = DockStyle.Bottom, Height = 1, BackColor = Palette.BorderColor };
+            pnlGridTitle.Controls.Add(lblGridTitle);
+            pnlGridTitle.Controls.Add(divGrid);
 
-            var tblCard = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill, RowCount = 3, ColumnCount = 1,
-                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                Padding = new Padding(18, 14, 18, 14)
-            };
-            tblCard.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  60f));
-            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute, 125f));
-            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  65f));
-
-            var pnlTitle = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            pnlTitle.Controls.Add(new Label
-            {
-                Text = "Search Orders (Without Invoice)",
-                Font = new Font("Segoe UI", 13f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(15, 31, 53), Dock = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleLeft
-            });
-            pnlTitle.Controls.Add(new Panel
-            { Dock = DockStyle.Bottom, Height = 1, BackColor = Color.FromArgb(221, 227, 236) });
-            tblCard.Controls.Add(pnlTitle,  0, 0);
-            tblCard.Controls.Add(tblFields, 0, 1);
-            tblCard.Controls.Add(pnlBtns,   0, 2);
-
-            var pnlSearchCard = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
-            pnlSearchCard.Paint += PaintCardBorder;
-            pnlSearchCard.Controls.Add(tblCard);
-
-            var pnlSearchOuter = new Panel
-            {
-                Dock = DockStyle.Top, Height = 300,
-                BackColor = Color.FromArgb(240, 244, 249), Padding = new Padding(20, 14, 20, 8)
-            };
-            pnlSearchOuter.Controls.Add(pnlSearchCard);
-
-            // ── Invoice form card ───────────────────────────────────────
-            lblSelectedOrder = MakeValueLbl("\u2014");
-            lblCustomer      = MakeValueLbl("\u2014");
-            lblGrandTotal    = MakeValueLbl("\u2014");
-
-            nudDepositAmount = new NumericUpDown
-            {
-                Minimum = 0, Maximum = 9999999, DecimalPlaces = 2,
-                Font = new Font("Segoe UI", 12f), ThousandsSeparator = true
-            };
-            nudPaidAmount = new NumericUpDown
-            {
-                Minimum = 0, Maximum = 9999999, DecimalPlaces = 2,
-                Font = new Font("Segoe UI", 12f), ThousandsSeparator = true
-            };
-            dtpDueDate = new DateTimePicker
-            {
-                Format = DateTimePickerFormat.Short, Value = DateTime.Today.AddMonths(1),
-                Font = new Font("Segoe UI", 12f)
-            };
-            cboPaymentStatus = new ComboBox
-            {
-                DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 12f)
-            };
-            cboPaymentStatus.Items.AddRange(new object[] { "Partial", "Full" });
-            cboPaymentStatus.SelectedIndex = 0;
-
-            lblRemainingBalance = new Label
-            {
-                Text = "HK$ 0.00", Font = new Font("Segoe UI", 13f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(47, 111, 237), AutoSize = false, AutoEllipsis = true,
-                TextAlign = ContentAlignment.MiddleLeft
-            };
-
-            nudDepositAmount.ValueChanged += (s, e) => RecalcBalance();
-            nudPaidAmount.ValueChanged    += (s, e) => RecalcBalance();
-
-            btnCreateInvoice        = MakePrimaryBtn("Create Invoice", Point.Empty, 220, 52);
-            btnCreateInvoice.Click += btnCreateInvoice_Click;
-
-            // ── MakeFormCell helper
-            TableLayoutPanel MakeFormCell(string caption, Control ctrl)
-            {
-                var tlp = new TableLayoutPanel
-                {
-                    Dock = DockStyle.Fill, RowCount = 2, ColumnCount = 1,
-                    BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                    Padding = new Padding(0, 0, 12, 0)
-                };
-                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-                tlp.RowStyles.Add(new RowStyle(SizeType.Absolute, 26f));
-                tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-                tlp.Controls.Add(new Label
-                {
-                    Text = caption, Font = new Font("Segoe UI", 9f, FontStyle.Bold),
-                    ForeColor = Color.FromArgb(98, 112, 135), Dock = DockStyle.Fill,
-                    TextAlign = ContentAlignment.BottomLeft, Padding = new Padding(0, 0, 0, 2)
-                }, 0, 0);
-                ctrl.Dock = DockStyle.Fill;
-                tlp.Controls.Add(ctrl, 0, 1);
-                return tlp;
-            }
-
-            var tblForm = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill, ColumnCount = 6, RowCount = 5,
-                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                Padding = new Padding(18, 12, 18, 12)
-            };
-            for (int i = 0; i < 6; i++)
-                tblForm.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f / 6));
-            tblForm.RowStyles.Add(new RowStyle(SizeType.Absolute,  36f));
-            tblForm.RowStyles.Add(new RowStyle(SizeType.Absolute,  60f));
-            tblForm.RowStyles.Add(new RowStyle(SizeType.Absolute,  60f));
-            tblForm.RowStyles.Add(new RowStyle(SizeType.Absolute,  60f));
-            tblForm.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-
-            var lblFormHdr = new Label
-            {
-                Text = "Selected Order  /  Invoice Details",
-                Font = new Font("Segoe UI", 11f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(15, 31, 53), Dock = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleLeft
-            };
-            tblForm.SetColumnSpan(lblFormHdr, 6);
-            tblForm.Controls.Add(lblFormHdr, 0, 0);
-
-            tblForm.Controls.Add(MakeFormCell("Order No.",        lblSelectedOrder),   0, 1);
-            tblForm.Controls.Add(MakeFormCell("Customer",         lblCustomer),        2, 1);
-            tblForm.Controls.Add(MakeFormCell("Grand Total",      lblGrandTotal),      4, 1);
-            tblForm.Controls.Add(MakeFormCell("Deposit Amount",   nudDepositAmount),   0, 2);
-            tblForm.Controls.Add(MakeFormCell("Paid Amount",      nudPaidAmount),      2, 2);
-            tblForm.Controls.Add(MakeFormCell("Due Date",         dtpDueDate),         4, 2);
-            tblForm.Controls.Add(MakeFormCell("Payment Status",   cboPaymentStatus),   0, 3);
-            tblForm.Controls.Add(MakeFormCell("Remaining Balance",lblRemainingBalance),2, 3);
-
-            var pnlBtnRow = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            btnCreateInvoice.Location = new Point(0, 4);
-            pnlBtnRow.Controls.Add(btnCreateInvoice);
-            tblForm.SetColumnSpan(pnlBtnRow, 6);
-            tblForm.Controls.Add(pnlBtnRow, 0, 4);
-
-            var pnlFormCard = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
-            pnlFormCard.Paint += PaintCardBorder;
-            pnlFormCard.Controls.Add(tblForm);
-
-            var pnlFormOuter = new Panel
-            {
-                Dock = DockStyle.Top, Height = 340,
-                BackColor = Color.FromArgb(240, 244, 249), Padding = new Padding(20, 8, 20, 8)
-            };
-            pnlFormOuter.Controls.Add(pnlFormCard);
-
-            // ── Orders grid ───────────────────────────────────────────
             dgvOrders = new DataGridView
             {
                 ReadOnly = true, AllowUserToAddRows = false, AllowUserToDeleteRows = false,
                 RowHeadersVisible = false, SelectionMode = DataGridViewSelectionMode.FullRowSelect,
                 MultiSelect = false, BackgroundColor = Color.White, BorderStyle = BorderStyle.None,
-                GridColor = Color.FromArgb(221, 227, 236), Font = new Font("Segoe UI", 13f),
+                GridColor = Palette.BorderColor, Font = new Font("Segoe UI", 13f),
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
                 CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal,
                 RowTemplate = { Height = 48 }, Dock = DockStyle.Fill,
                 ColumnHeadersHeight = 46, EnableHeadersVisualStyles = false,
                 ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
                 {
-                    BackColor = Color.FromArgb(246, 249, 255), ForeColor = Color.FromArgb(98, 112, 135),
+                    BackColor = Color.FromArgb(246, 249, 255), ForeColor = Palette.TextMuted,
                     Font = new Font("Segoe UI", 11f, FontStyle.Bold),
                     Padding = new Padding(12, 0, 0, 0), Alignment = DataGridViewContentAlignment.MiddleLeft
                 },
                 DefaultCellStyle = new DataGridViewCellStyle
                 {
-                    BackColor = Color.White, ForeColor = Color.FromArgb(15, 31, 53),
-                    SelectionBackColor = Color.FromArgb(219, 234, 254), SelectionForeColor = Color.FromArgb(15, 31, 53),
+                    BackColor = Color.White, ForeColor = Palette.TextMain,
+                    SelectionBackColor = Color.FromArgb(219, 234, 254), SelectionForeColor = Palette.TextMain,
                     Padding = new Padding(12, 6, 12, 6)
                 }
             };
-            dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colOrderID",  HeaderText = "ORDER NO.",    FillWeight = 18 });
-            dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCustomer", HeaderText = "CUSTOMER",     FillWeight = 30 });
-            dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTotal",    HeaderText = "GRAND TOTAL",  FillWeight = 18 });
-            dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",   HeaderText = "ORDER STATUS", FillWeight = 18 });
-            dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colIssued",   HeaderText = "ISSUED DATE",  FillWeight = 16 });
+            dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colOrderID",   HeaderText = "ORDER NO.",     FillWeight = 18 });
+            dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCustomer",  HeaderText = "CUSTOMER",      FillWeight = 22 });
+            dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colContact",   HeaderText = "CONTACT NAME",  FillWeight = 18 });
+            dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colIssued",    HeaderText = "ISSUED DATE",   FillWeight = 14 });
+            dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDelivery",  HeaderText = "DELIVERY DATE", FillWeight = 14 });
+            dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTotal",     HeaderText = "GRAND TOTAL",   FillWeight = 14 });
+            dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",    HeaderText = "ORDER STATUS",  FillWeight = 12 });
             dgvOrders.SelectionChanged += dgvOrders_SelectionChanged;
             dgvOrders.CellFormatting   += dgvOrders_CellFormatting;
+            dgvOrders.CellDoubleClick  += (s, e) => { if (e.RowIndex >= 0) FillFormFromGrid(); };
 
-            var pnlGridCard  = new Panel { Dock = DockStyle.Fill, Padding = new Padding(20, 12, 20, 0), BackColor = Color.FromArgb(240, 244, 249) };
-            var pnlGridInner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
-            pnlGridInner.Paint += PaintCardBorder;
-            pnlGridInner.Controls.Add(dgvOrders);
-            pnlGridCard.Controls.Add(pnlGridInner);
+            gridInner.Controls.Add(dgvOrders);
+            gridInner.Controls.Add(pnlGridTitle);
 
-            // ── Assemble (identical pattern to ViewOrderForm)
-            pnlMain.Controls.Add(pnlGridCard);    // Fill  — grid
-            pnlMain.Controls.Add(pnlFormOuter);   // Top   — invoice form card
-            pnlMain.Controls.Add(pnlSearchOuter); // Top   — search card
-            pnlMain.Controls.Add(_shell);         // Top   — nav chrome (last = topmost)
-
-            // AppShell event wiring (after Controls.Add, same as ViewOrderForm)
-            _shell.MenuItemClicked += OnTopNavMenuItemClicked;
-            _shell.LogoutClicked   += OnLogoutClicked;
+            // ── Assemble (Fill first, then Top, _shell last)
+            pnlMain.Controls.Add(gridOuter);   // Fill
+            pnlMain.Controls.Add(formOuter);   // Top
+            pnlMain.Controls.Add(searchOuter); // Top
+            pnlMain.Controls.Add(_shell);      // Top — topmost
 
             this.Controls.Add(pnlMain);
             this.ResumeLayout(false);
         }
 
-        // ── Button factories (identical to ViewOrderForm)
-        private Button MakePrimaryBtn(string text, Point loc, int w, int h)
+        // ── Button / label factories ───────────────────────────────────────────
+        private static Button MakePrimaryBtn(string text, Point loc, int w, int h)
         {
-            var b = new Button
-            {
-                Text = text, Font = new Font("Segoe UI", 12f, FontStyle.Bold),
-                ForeColor = Color.White, BackColor = Color.FromArgb(47, 111, 237),
-                FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand
-            };
+            var b = new Button { Text = text, Font = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.White, BackColor = Palette.Primary, FlatStyle = FlatStyle.Flat,
+                Location = loc, Width = w, Height = h, Cursor = Cursors.Hand };
             b.FlatAppearance.BorderSize = 0;
-            b.FlatAppearance.MouseOverBackColor = Color.FromArgb(26, 77, 192);
+            b.FlatAppearance.MouseOverBackColor = Palette.PrimaryDark;
             b.FlatAppearance.MouseDownBackColor = Color.FromArgb(21, 60, 155);
             return b;
         }
-        private Button MakeOutlineBtn(string text, Point loc, int w, int h)
+        private static Button MakeOutlineBtn(string text, Point loc, int w, int h)
         {
-            var b = new Button
-            {
-                Text = text, Font = new Font("Segoe UI", 12f), ForeColor = Color.FromArgb(15, 31, 53),
-                BackColor = Color.White, FlatStyle = FlatStyle.Flat,
-                Location = loc, Width = w, Height = h, Cursor = Cursors.Hand
-            };
-            b.FlatAppearance.BorderColor = Color.FromArgb(221, 227, 236);
+            var b = new Button { Text = text, Font = new Font("Segoe UI", 12f),
+                ForeColor = Palette.TextMain, BackColor = Color.White, FlatStyle = FlatStyle.Flat,
+                Location = loc, Width = w, Height = h, Cursor = Cursors.Hand };
+            b.FlatAppearance.BorderColor = Palette.BorderColor;
             b.FlatAppearance.BorderSize  = 1;
-            b.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
+            b.FlatAppearance.MouseOverBackColor = Palette.BgPage;
             return b;
         }
-        private static void PaintCardBorder(object s, PaintEventArgs e)
+        private static Label MakeFieldLabel(string text) => new Label
         {
-            var p = (Panel)s;
-            using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
-            e.Graphics.DrawRectangle(pen, 0, 0, p.Width - 1, p.Height - 1);
-        }
-        private static Label MakeValueLbl(string text) => new Label
+            Text = text, Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+            ForeColor = Palette.TextMuted, Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.BottomLeft, Padding = new Padding(0, 0, 0, 2)
+        };
+        private static Label MakeLabelKey(string text) => new Label
         {
-            Text = text, Font = new Font("Segoe UI", 12f),
-            ForeColor = Color.FromArgb(15, 31, 53), AutoSize = false, AutoEllipsis = true,
+            Text = text, Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+            ForeColor = Palette.TextMuted, Dock = DockStyle.Fill,
             TextAlign = ContentAlignment.MiddleLeft
         };
+        private static Label MakeDetailLabel(string text) => new Label
+        {
+            Text = text, Font = new Font("Segoe UI", 12f),
+            ForeColor = Palette.TextMain, Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleLeft, AutoEllipsis = true
+        };
+        private static void PaintBottomBorderStatic(object s, PaintEventArgs e)
+        { var p = (Panel)s; using var pen = new Pen(Palette.BorderColor, 1); e.Graphics.DrawLine(pen, 0, p.Height - 1, p.Width, p.Height - 1); }
+        private static void PaintTopBorderStatic(object s, PaintEventArgs e)
+        { var p = (Panel)s; using var pen = new Pen(Palette.BorderColor, 1); e.Graphics.DrawLine(pen, 0, 0, p.Width, 0); }
     }
 }

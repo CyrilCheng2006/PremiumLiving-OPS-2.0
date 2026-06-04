@@ -6,25 +6,20 @@ using System.Collections.Generic;
 namespace PremiumLivingOPS.Models.DAL
 {
     /// <summary>
-    /// Repository (DAL layer) for After-Service module.
-    /// All methods use parameterised queries via DatabaseHelper.GetConnection().
-    /// Contains NO business logic — pure SQL access only.
+    /// Repository (DAL layer) for the After-Service module.
+    /// All methods use parameterised queries via DatabaseHelper.
+    /// Contains NO business logic and NO UI code.
     /// </summary>
     public class AfterServiceRepo
     {
-        // ════════════════════════════════════════════════════════════════════════
+        // ════════════════════════════════════════════════════════════════════
         //  INVOICE queries
-        // ════════════════════════════════════════════════════════════════════════
+        // ════════════════════════════════════════════════════════════════════
 
-        /// <summary>Returns all invoices, JOINed with Order and Customer.</summary>
-        public List<InvoiceEntity> GetAllInvoices()
-            => SearchInvoices();
-
-        /// <summary>
-        /// Returns invoices filtered by optional PaymentStatus and/or keyword
-        /// (matches InvoiceID or CustomerName).
-        /// </summary>
-        public List<InvoiceEntity> SearchInvoices(string status = null, string keyword = null)
+        /// <summary>Returns all invoices, with optional status / keyword filter.</summary>
+        public List<InvoiceEntity> SearchInvoices(
+            string status  = null,
+            string keyword = null)
         {
             var list = new List<InvoiceEntity>();
             using (var conn = DatabaseHelper.GetConnection())
@@ -33,29 +28,65 @@ namespace PremiumLivingOPS.Models.DAL
                 var sql =
                     @"SELECT i.InvoiceID, i.OrderID, c.CustomerName,
                              i.InvoiceDate, i.DepositAmount, i.PaidAmount,
-                             i.RemainingBalance, i.TotalAmount, i.PaymentStatus, i.DueDate
+                             i.RemainingBalance, i.TotalAmount,
+                             i.PaymentStatus, i.DueDate
                       FROM Invoice i
-                      JOIN `Order`   o ON i.OrderID    = o.OrderID
-                      JOIN Customer  c ON o.CustomerID = c.CustomerID
+                      JOIN `Order`  o ON i.OrderID    = o.OrderID
+                      JOIN Customer c ON o.CustomerID = c.CustomerID
                       WHERE 1=1";
 
                 if (!string.IsNullOrEmpty(status))
                     sql += " AND i.PaymentStatus = @status";
                 if (!string.IsNullOrEmpty(keyword))
-                    sql += " AND (i.InvoiceID LIKE @kw OR c.CustomerName LIKE @kw)";
+                    sql += @" AND (i.InvoiceID    LIKE @kw
+                               OR c.CustomerName  LIKE @kw
+                               OR i.OrderID       LIKE @kw)";
+
                 sql += " ORDER BY i.InvoiceDate DESC";
 
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
-                    if (!string.IsNullOrEmpty(status))
-                        cmd.Parameters.AddWithValue("@status", status);
-                    if (!string.IsNullOrEmpty(keyword))
-                        cmd.Parameters.AddWithValue("@kw", "%" + keyword + "%");
+                    if (!string.IsNullOrEmpty(status))  cmd.Parameters.AddWithValue("@status", status);
+                    if (!string.IsNullOrEmpty(keyword)) cmd.Parameters.AddWithValue("@kw", "%" + keyword + "%");
 
                     using (var rdr = cmd.ExecuteReader())
-                        while (rdr.Read())
-                            list.Add(MapInvoice(rdr));
+                        while (rdr.Read()) list.Add(MapInvoice(rdr));
                 }
+            }
+            return list;
+        }
+
+        /// <summary>Returns all invoices (no filter).</summary>
+        public List<InvoiceEntity> GetAllInvoices() => SearchInvoices();
+
+        /// <summary>
+        /// Returns orders that have NO Invoice row yet (LEFT JOIN WHERE InvoiceID IS NULL),
+        /// ordered by IssuedTime DESC.
+        /// </summary>
+        public List<OrderEntity> GetOrdersWithoutInvoice()
+        {
+            var list = new List<OrderEntity>();
+            using (var conn = DatabaseHelper.GetConnection())
+            {
+                conn.Open();
+                const string sql =
+                    @"SELECT o.OrderID, o.CustomerID, c.CustomerName,
+                             o.IssuedTime, o.DeliveryDate, o.GrandTotal,
+                             o.OrderStatus, o.OrderContactName,
+                             o.SalesID, s.StaffName AS SalesName,
+                             o.QuotationID, o.AddressID,
+                             o.ShippingAddress, o.BillingAddress,
+                             o.SubTotal, o.DiscountType, o.DiscountValue, o.DiscountAmount
+                      FROM `Order` o
+                      JOIN Customer c ON o.CustomerID = c.CustomerID
+                      JOIN Staff    s ON o.SalesID    = s.StaffID
+                      LEFT JOIN Invoice i ON o.OrderID = i.OrderID
+                      WHERE i.InvoiceID IS NULL
+                      ORDER BY o.IssuedTime DESC";
+
+                using (var cmd = new MySqlCommand(sql, conn))
+                using (var rdr = cmd.ExecuteReader())
+                    while (rdr.Read()) list.Add(MapOrder(rdr));
             }
             return list;
         }
@@ -68,130 +99,62 @@ namespace PremiumLivingOPS.Models.DAL
                 conn.Open();
                 const string sql =
                     @"INSERT INTO Invoice
-                        (InvoiceID, OrderID, InvoiceDate, DepositAmount, PaidAmount,
-                         RemainingBalance, TotalAmount, PaymentStatus, DueDate)
+                        (InvoiceID, OrderID, InvoiceDate, DepositAmount,
+                         PaidAmount, RemainingBalance, TotalAmount, PaymentStatus, DueDate)
                       VALUES
-                        (@invoiceId, @orderId, @invoiceDate, @depositAmount, @paidAmount,
-                         @remainingBalance, @totalAmount, @paymentStatus, @dueDate)";
+                        (@id, @orderID, @date, @deposit,
+                         @paid, @remaining, @total, @status, @due)";
+
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
-                    cmd.Parameters.AddWithValue("@invoiceId",        inv.InvoiceID);
-                    cmd.Parameters.AddWithValue("@orderId",          inv.OrderID);
-                    cmd.Parameters.AddWithValue("@invoiceDate",      inv.InvoiceDate.ToString("yyyy-MM-dd"));
-                    cmd.Parameters.AddWithValue("@depositAmount",    inv.DepositAmount);
-                    cmd.Parameters.AddWithValue("@paidAmount",       inv.PaidAmount);
-                    cmd.Parameters.AddWithValue("@remainingBalance", inv.RemainingBalance);
-                    cmd.Parameters.AddWithValue("@totalAmount",      inv.TotalAmount);
-                    cmd.Parameters.AddWithValue("@paymentStatus",    inv.PaymentStatus);
-                    cmd.Parameters.AddWithValue("@dueDate",          inv.DueDate.ToString("yyyy-MM-dd"));
+                    cmd.Parameters.AddWithValue("@id",        inv.InvoiceID);
+                    cmd.Parameters.AddWithValue("@orderID",   inv.OrderID);
+                    cmd.Parameters.AddWithValue("@date",      inv.InvoiceDate.ToString("yyyy-MM-dd"));
+                    cmd.Parameters.AddWithValue("@deposit",   inv.DepositAmount);
+                    cmd.Parameters.AddWithValue("@paid",      inv.PaidAmount);
+                    cmd.Parameters.AddWithValue("@remaining", inv.RemainingBalance);
+                    cmd.Parameters.AddWithValue("@total",     inv.TotalAmount);
+                    cmd.Parameters.AddWithValue("@status",    inv.PaymentStatus);
+                    cmd.Parameters.AddWithValue("@due",       inv.DueDate.ToString("yyyy-MM-dd"));
                     return cmd.ExecuteNonQuery() > 0;
                 }
             }
         }
 
-        /// <summary>
-        /// Returns orders that have NO Invoice row yet (candidates for invoice creation).
-        /// Columns: OrderID, CustomerName, GrandTotal.
-        /// </summary>
-        public List<OrderEntity> GetOrdersWithoutInvoice()
+        /// <summary>Returns existing InvoiceIDs that start with the given date prefix.</summary>
+        public List<string> GetInvoiceIdsByPrefix(string prefix)
         {
-            var list = new List<OrderEntity>();
+            var list = new List<string>();
             using (var conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
-                const string sql =
-                    @"SELECT o.OrderID, c.CustomerName, o.GrandTotal, o.OrderStatus, o.IssuedTime
-                      FROM `Order` o
-                      JOIN Customer c ON o.CustomerID = c.CustomerID
-                      LEFT JOIN Invoice i ON o.OrderID = i.OrderID
-                      WHERE i.InvoiceID IS NULL
-                      ORDER BY o.IssuedTime DESC";
+                const string sql = "SELECT InvoiceID FROM Invoice WHERE InvoiceID LIKE @prefix";
                 using (var cmd = new MySqlCommand(sql, conn))
-                using (var rdr = cmd.ExecuteReader())
-                    while (rdr.Read())
-                        list.Add(new OrderEntity
-                        {
-                            OrderID      = rdr.GetString("OrderID"),
-                            CustomerName = rdr.GetString("CustomerName"),
-                            GrandTotal   = rdr.IsDBNull(rdr.GetOrdinal("GrandTotal"))   ? 0 : rdr.GetDouble("GrandTotal"),
-                            OrderStatus  = rdr.IsDBNull(rdr.GetOrdinal("OrderStatus"))  ? "" : rdr.GetString("OrderStatus"),
-                            IssuedTime   = rdr.IsDBNull(rdr.GetOrdinal("IssuedTime"))   ? DateTime.MinValue : rdr.GetDateTime("IssuedTime")
-                        });
+                {
+                    cmd.Parameters.AddWithValue("@prefix", prefix + "%");
+                    using (var rdr = cmd.ExecuteReader())
+                        while (rdr.Read()) list.Add(rdr.GetString(0));
+                }
             }
             return list;
         }
 
-        /// <summary>Returns a single Invoice by ID (with CustomerName from JOIN).</summary>
-        public InvoiceEntity GetInvoiceById(string invoiceId)
-        {
-            using (var conn = DatabaseHelper.GetConnection())
-            {
-                conn.Open();
-                const string sql =
-                    @"SELECT i.InvoiceID, i.OrderID, c.CustomerName,
-                             i.InvoiceDate, i.DepositAmount, i.PaidAmount,
-                             i.RemainingBalance, i.TotalAmount, i.PaymentStatus, i.DueDate
-                      FROM Invoice i
-                      JOIN `Order`   o ON i.OrderID    = o.OrderID
-                      JOIN Customer  c ON o.CustomerID = c.CustomerID
-                      WHERE i.InvoiceID = @invoiceId";
-                using (var cmd = new MySqlCommand(sql, conn))
-                {
-                    cmd.Parameters.AddWithValue("@invoiceId", invoiceId);
-                    using (var rdr = cmd.ExecuteReader())
-                        if (rdr.Read()) return MapInvoice(rdr);
-                }
-            }
-            return null;
-        }
-
-        /// <summary>
-        /// Generates the next InvoiceID in format INV-YYYYMMDD-NNNN.
-        /// Thread-safe within a single call (reads MAX from DB).
-        /// </summary>
-        public string GenerateInvoiceId()
-        {
-            string today  = DateTime.Today.ToString("yyyyMMdd");
-            string prefix = $"INV-{today}-";
-            using (var conn = DatabaseHelper.GetConnection())
-            {
-                conn.Open();
-                var sql = "SELECT MAX(InvoiceID) FROM Invoice WHERE InvoiceID LIKE @prefix";
-                using (var cmd = new MySqlCommand(sql, conn))
-                {
-                    cmd.Parameters.AddWithValue("@prefix", prefix + "%");
-                    var result = cmd.ExecuteScalar();
-                    if (result == DBNull.Value || result == null)
-                        return prefix + "0001";
-                    string last = result.ToString();
-                    if (int.TryParse(last.Substring(last.Length - 4), out int seq))
-                        return prefix + (seq + 1).ToString("D4");
-                    return prefix + "0001";
-                }
-            }
-        }
-
-        // ════════════════════════════════════════════════════════════════════════
+        // ════════════════════════════════════════════════════════════════════
         //  COMPLAINT queries
-        // ════════════════════════════════════════════════════════════════════════
+        // ════════════════════════════════════════════════════════════════════
 
-        /// <summary>Returns all complaints, JOINed with Order and Staff.</summary>
-        public List<ComplaintEntity> GetAllComplaints()
-            => SearchComplaints();
-
-        /// <summary>
-        /// Returns complaints filtered by optional ComplaintStatus and/or keyword
-        /// (matches ComplaintID or OrderID).
-        /// </summary>
-        public List<ComplaintEntity> SearchComplaints(string status = null, string keyword = null)
+        /// <summary>Returns complaints with optional status / keyword filter.</summary>
+        public List<ComplaintEntity> SearchComplaints(
+            string status  = null,
+            string keyword = null)
         {
             var list = new List<ComplaintEntity>();
             using (var conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
                 var sql =
-                    @"SELECT c.ComplaintID, c.OrderID, s.StaffName,
-                             c.ComplaintDescription, c.ComplaintStatus
+                    @"SELECT c.ComplaintID, c.OrderID,
+                             s.StaffName, c.ComplaintDescription, c.ComplaintStatus
                       FROM Complaint c
                       JOIN Staff s ON c.StaffID = s.StaffID
                       WHERE 1=1";
@@ -199,25 +162,29 @@ namespace PremiumLivingOPS.Models.DAL
                 if (!string.IsNullOrEmpty(status))
                     sql += " AND c.ComplaintStatus = @status";
                 if (!string.IsNullOrEmpty(keyword))
-                    sql += " AND (c.ComplaintID LIKE @kw OR c.OrderID LIKE @kw OR s.StaffName LIKE @kw)";
+                    sql += @" AND (c.ComplaintID          LIKE @kw
+                               OR c.OrderID              LIKE @kw
+                               OR s.StaffName            LIKE @kw
+                               OR c.ComplaintDescription LIKE @kw)";
+
                 sql += " ORDER BY c.ComplaintID DESC";
 
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
-                    if (!string.IsNullOrEmpty(status))
-                        cmd.Parameters.AddWithValue("@status", status);
-                    if (!string.IsNullOrEmpty(keyword))
-                        cmd.Parameters.AddWithValue("@kw", "%" + keyword + "%");
+                    if (!string.IsNullOrEmpty(status))  cmd.Parameters.AddWithValue("@status", status);
+                    if (!string.IsNullOrEmpty(keyword)) cmd.Parameters.AddWithValue("@kw", "%" + keyword + "%");
 
                     using (var rdr = cmd.ExecuteReader())
-                        while (rdr.Read())
-                            list.Add(MapComplaint(rdr));
+                        while (rdr.Read()) list.Add(MapComplaint(rdr));
                 }
             }
             return list;
         }
 
-        /// <summary>Updates ComplaintStatus for the given ComplaintID. Returns true on success.</summary>
+        /// <summary>Returns all complaints (no filter).</summary>
+        public List<ComplaintEntity> GetAllComplaints() => SearchComplaints();
+
+        /// <summary>Updates the ComplaintStatus of a single complaint.</summary>
         public bool UpdateComplaintStatus(string complaintId, string newStatus)
         {
             using (var conn = DatabaseHelper.GetConnection())
@@ -234,19 +201,14 @@ namespace PremiumLivingOPS.Models.DAL
             }
         }
 
-        // ════════════════════════════════════════════════════════════════════════
+        // ════════════════════════════════════════════════════════════════════
         //  RETURN ORDER queries
-        // ════════════════════════════════════════════════════════════════════════
+        // ════════════════════════════════════════════════════════════════════
 
-        /// <summary>Returns all return orders, JOINed with Order and Customer.</summary>
-        public List<ReturnOrderEntity> GetAllReturnOrders()
-            => SearchReturnOrders();
-
-        /// <summary>
-        /// Returns return orders filtered by optional ReturnStatus and/or keyword
-        /// (matches ReturnID, OrderID, or CustomerName).
-        /// </summary>
-        public List<ReturnOrderEntity> SearchReturnOrders(string status = null, string keyword = null)
+        /// <summary>Returns return orders with optional status / keyword filter.</summary>
+        public List<ReturnOrderEntity> SearchReturnOrders(
+            string status  = null,
+            string keyword = null)
         {
             var list = new List<ReturnOrderEntity>();
             using (var conn = DatabaseHelper.GetConnection())
@@ -256,32 +218,36 @@ namespace PremiumLivingOPS.Models.DAL
                     @"SELECT r.ReturnID, r.OrderID, c.CustomerName,
                              r.ReturnDate, r.Reason, r.RefundAmount, r.ReturnStatus
                       FROM ReturnOrder r
-                      JOIN `Order`   o ON r.OrderID    = o.OrderID
-                      JOIN Customer  c ON o.CustomerID = c.CustomerID
+                      JOIN `Order`  o ON r.OrderID    = o.OrderID
+                      JOIN Customer c ON o.CustomerID = c.CustomerID
                       WHERE 1=1";
 
                 if (!string.IsNullOrEmpty(status))
                     sql += " AND r.ReturnStatus = @status";
                 if (!string.IsNullOrEmpty(keyword))
-                    sql += " AND (r.ReturnID LIKE @kw OR r.OrderID LIKE @kw OR c.CustomerName LIKE @kw)";
+                    sql += @" AND (r.ReturnID      LIKE @kw
+                               OR r.OrderID        LIKE @kw
+                               OR c.CustomerName   LIKE @kw
+                               OR r.Reason         LIKE @kw)";
+
                 sql += " ORDER BY r.ReturnDate DESC";
 
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
-                    if (!string.IsNullOrEmpty(status))
-                        cmd.Parameters.AddWithValue("@status", status);
-                    if (!string.IsNullOrEmpty(keyword))
-                        cmd.Parameters.AddWithValue("@kw", "%" + keyword + "%");
+                    if (!string.IsNullOrEmpty(status))  cmd.Parameters.AddWithValue("@status", status);
+                    if (!string.IsNullOrEmpty(keyword)) cmd.Parameters.AddWithValue("@kw", "%" + keyword + "%");
 
                     using (var rdr = cmd.ExecuteReader())
-                        while (rdr.Read())
-                            list.Add(MapReturnOrder(rdr));
+                        while (rdr.Read()) list.Add(MapReturnOrder(rdr));
                 }
             }
             return list;
         }
 
-        /// <summary>Updates ReturnStatus for the given ReturnID. Returns true on success.</summary>
+        /// <summary>Returns all return orders (no filter).</summary>
+        public List<ReturnOrderEntity> GetAllReturnOrders() => SearchReturnOrders();
+
+        /// <summary>Updates the ReturnStatus of a single return order.</summary>
         public bool UpdateReturnOrderStatus(string returnId, string newStatus)
         {
             using (var conn = DatabaseHelper.GetConnection())
@@ -298,14 +264,14 @@ namespace PremiumLivingOPS.Models.DAL
             }
         }
 
-        // ════════════════════════════════════════════════════════════════════════
+        // ════════════════════════════════════════════════════════════════════
         //  ACCOUNTS RECEIVABLE queries
-        // ════════════════════════════════════════════════════════════════════════
+        // ════════════════════════════════════════════════════════════════════
 
         /// <summary>
-        /// Returns Accounts Receivable items from Invoice JOIN Order+Customer.
-        /// Optional status filter: "Partial" | "Full" | "Overdue".
-        /// IsOverdue = RemainingBalance &gt; 0 AND DueDate &lt; TODAY.
+        /// Returns Account Receivable records.
+        /// IsOverdue = RemainingBalance > 0 AND DueDate &lt; CURDATE().
+        /// status filter: 'Partial' | 'Full' | 'Overdue' (computed).
         /// </summary>
         public List<AccountReceivableEntity> GetAccountReceivables(string status = null)
         {
@@ -319,14 +285,15 @@ namespace PremiumLivingOPS.Models.DAL
                              i.PaymentStatus, i.DueDate,
                              (i.RemainingBalance > 0 AND i.DueDate < CURDATE()) AS IsOverdue
                       FROM Invoice i
-                      JOIN `Order`   o ON i.OrderID    = o.OrderID
-                      JOIN Customer  c ON o.CustomerID = c.CustomerID
+                      JOIN `Order`  o ON i.OrderID    = o.OrderID
+                      JOIN Customer c ON o.CustomerID = c.CustomerID
                       WHERE 1=1";
 
                 if (status == "Overdue")
                     sql += " AND i.RemainingBalance > 0 AND i.DueDate < CURDATE()";
                 else if (!string.IsNullOrEmpty(status))
                     sql += " AND i.PaymentStatus = @status";
+
                 sql += " ORDER BY i.DueDate ASC";
 
                 using (var cmd = new MySqlCommand(sql, conn))
@@ -335,35 +302,36 @@ namespace PremiumLivingOPS.Models.DAL
                         cmd.Parameters.AddWithValue("@status", status);
 
                     using (var rdr = cmd.ExecuteReader())
+                    {
                         while (rdr.Read())
                         {
-                            int overdueOrd = rdr.GetOrdinal("IsOverdue");
                             list.Add(new AccountReceivableEntity
                             {
                                 InvoiceID        = rdr.GetString("InvoiceID"),
                                 OrderID          = rdr.GetString("OrderID"),
                                 CustomerName     = rdr.GetString("CustomerName"),
-                                TotalAmount      = rdr.IsDBNull(rdr.GetOrdinal("TotalAmount"))      ? 0 : rdr.GetDouble("TotalAmount"),
-                                PaidAmount       = rdr.IsDBNull(rdr.GetOrdinal("PaidAmount"))       ? 0 : rdr.GetDouble("PaidAmount"),
-                                RemainingBalance = rdr.IsDBNull(rdr.GetOrdinal("RemainingBalance")) ? 0 : rdr.GetDouble("RemainingBalance"),
-                                PaymentStatus    = rdr.IsDBNull(rdr.GetOrdinal("PaymentStatus"))    ? "" : rdr.GetString("PaymentStatus"),
-                                DueDate          = rdr.IsDBNull(rdr.GetOrdinal("DueDate"))          ? DateTime.MinValue : rdr.GetDateTime("DueDate"),
-                                IsOverdue        = !rdr.IsDBNull(overdueOrd) && rdr.GetBoolean(overdueOrd)
+                                TotalAmount      = rdr.GetDouble("TotalAmount"),
+                                PaidAmount       = rdr.GetDouble("PaidAmount"),
+                                RemainingBalance = rdr.GetDouble("RemainingBalance"),
+                                PaymentStatus    = rdr.GetString("PaymentStatus"),
+                                DueDate          = rdr.GetDateTime("DueDate"),
+                                IsOverdue        = rdr.GetBoolean("IsOverdue")
                             });
                         }
+                    }
                 }
             }
             return list;
         }
 
-        // ════════════════════════════════════════════════════════════════════════
+        // ════════════════════════════════════════════════════════════════════
         //  ACCOUNTS PAYABLE queries
-        // ════════════════════════════════════════════════════════════════════════
+        // ════════════════════════════════════════════════════════════════════
 
         /// <summary>
-        /// Returns Accounts Payable items from PurchaseInvoice JOIN PurchaseOrder+Supplier.
-        /// Optional status filter: "Partial" | "Full" | "Overdue".
-        /// IsOverdue = PaymentStatus != 'Full' AND ExpectedDate &lt; TODAY.
+        /// Returns Account Payable records.
+        /// IsOverdue = PaymentStatus != 'Full' AND ExpectedDate &lt; CURDATE().
+        /// status filter: 'Partial' | 'Full' | 'Overdue' (computed).
         /// </summary>
         public List<AccountPayableEntity> GetAccountPayables(string status = null)
         {
@@ -372,18 +340,19 @@ namespace PremiumLivingOPS.Models.DAL
             {
                 conn.Open();
                 var sql =
-                    @"SELECT pi.PurInvoiceID, pi.PurchaseID, s.SupplierName,
+                    @"SELECT pi.PurInvoiceID, pi.PurchaseID, sup.SupplierName,
                              pi.TotalAmount, pi.PaymentStatus, pi.ExpectedDate,
                              (pi.PaymentStatus != 'Full' AND pi.ExpectedDate < CURDATE()) AS IsOverdue
                       FROM PurchaseInvoice pi
-                      JOIN PurchaseOrder  po ON pi.PurchaseID = po.PurchaseID
-                      JOIN Supplier        s ON po.SupplierID = s.SupplierID
+                      JOIN PurchaseOrder po  ON pi.PurchaseID = po.PurchaseID
+                      JOIN Supplier     sup  ON po.SupplierID = sup.SupplierID
                       WHERE 1=1";
 
                 if (status == "Overdue")
                     sql += " AND pi.PaymentStatus != 'Full' AND pi.ExpectedDate < CURDATE()";
                 else if (!string.IsNullOrEmpty(status))
                     sql += " AND pi.PaymentStatus = @status";
+
                 sql += " ORDER BY pi.ExpectedDate ASC";
 
                 using (var cmd = new MySqlCommand(sql, conn))
@@ -392,64 +361,88 @@ namespace PremiumLivingOPS.Models.DAL
                         cmd.Parameters.AddWithValue("@status", status);
 
                     using (var rdr = cmd.ExecuteReader())
+                    {
                         while (rdr.Read())
                         {
-                            int overdueOrd = rdr.GetOrdinal("IsOverdue");
                             list.Add(new AccountPayableEntity
                             {
                                 PurInvoiceID  = rdr.GetString("PurInvoiceID"),
                                 PurchaseID    = rdr.GetString("PurchaseID"),
                                 SupplierName  = rdr.GetString("SupplierName"),
-                                TotalAmount   = rdr.IsDBNull(rdr.GetOrdinal("TotalAmount"))   ? 0 : rdr.GetDouble("TotalAmount"),
-                                PaymentStatus = rdr.IsDBNull(rdr.GetOrdinal("PaymentStatus")) ? "" : rdr.GetString("PaymentStatus"),
-                                ExpectedDate  = rdr.IsDBNull(rdr.GetOrdinal("ExpectedDate"))  ? DateTime.MinValue : rdr.GetDateTime("ExpectedDate"),
-                                IsOverdue     = !rdr.IsDBNull(overdueOrd) && rdr.GetBoolean(overdueOrd)
+                                TotalAmount   = rdr.GetDouble("TotalAmount"),
+                                PaymentStatus = rdr.GetString("PaymentStatus"),
+                                ExpectedDate  = rdr.GetDateTime("ExpectedDate"),
+                                IsOverdue     = rdr.GetBoolean("IsOverdue")
                             });
                         }
+                    }
                 }
             }
             return list;
         }
 
-        // ════════════════════════════════════════════════════════════════════════
-        //  Private mapping helpers
-        // ════════════════════════════════════════════════════════════════════════
+        // ════════════════════════════════════════════════════════════════════
+        //  Mapping helpers (private)
+        // ════════════════════════════════════════════════════════════════════
 
-        private static InvoiceEntity MapInvoice(MySqlDataReader rdr)
-            => new InvoiceEntity
+        private static InvoiceEntity MapInvoice(MySqlDataReader rdr) =>
+            new InvoiceEntity
             {
                 InvoiceID        = rdr.GetString("InvoiceID"),
                 OrderID          = rdr.GetString("OrderID"),
-                CustomerName     = rdr.IsDBNull(rdr.GetOrdinal("CustomerName"))     ? "" : rdr.GetString("CustomerName"),
-                InvoiceDate      = rdr.IsDBNull(rdr.GetOrdinal("InvoiceDate"))      ? DateTime.MinValue : rdr.GetDateTime("InvoiceDate"),
-                DepositAmount    = rdr.IsDBNull(rdr.GetOrdinal("DepositAmount"))    ? 0 : rdr.GetDouble("DepositAmount"),
-                PaidAmount       = rdr.IsDBNull(rdr.GetOrdinal("PaidAmount"))       ? 0 : rdr.GetDouble("PaidAmount"),
-                RemainingBalance = rdr.IsDBNull(rdr.GetOrdinal("RemainingBalance")) ? 0 : rdr.GetDouble("RemainingBalance"),
-                TotalAmount      = rdr.IsDBNull(rdr.GetOrdinal("TotalAmount"))      ? 0 : rdr.GetDouble("TotalAmount"),
-                PaymentStatus    = rdr.IsDBNull(rdr.GetOrdinal("PaymentStatus"))    ? "" : rdr.GetString("PaymentStatus"),
-                DueDate          = rdr.IsDBNull(rdr.GetOrdinal("DueDate"))          ? DateTime.MinValue : rdr.GetDateTime("DueDate")
+                CustomerName     = rdr.GetString("CustomerName"),
+                InvoiceDate      = rdr.GetDateTime("InvoiceDate"),
+                DepositAmount    = rdr.IsDBNull(rdr.GetOrdinal("DepositAmount"))  ? 0 : rdr.GetDouble("DepositAmount"),
+                PaidAmount       = rdr.GetDouble("PaidAmount"),
+                RemainingBalance = rdr.GetDouble("RemainingBalance"),
+                TotalAmount      = rdr.GetDouble("TotalAmount"),
+                PaymentStatus    = rdr.GetString("PaymentStatus"),
+                DueDate          = rdr.GetDateTime("DueDate")
             };
 
-        private static ComplaintEntity MapComplaint(MySqlDataReader rdr)
-            => new ComplaintEntity
+        private static OrderEntity MapOrder(MySqlDataReader rdr) =>
+            new OrderEntity
+            {
+                OrderID          = rdr.GetString("OrderID"),
+                CustomerID       = rdr.GetString("CustomerID"),
+                CustomerName     = rdr.GetString("CustomerName"),
+                IssuedTime       = rdr.GetDateTime("IssuedTime"),
+                DeliveryDate     = rdr.GetDateTime("DeliveryDate"),
+                GrandTotal       = rdr.GetDouble("GrandTotal"),
+                OrderStatus      = rdr.GetString("OrderStatus"),
+                OrderContactName = rdr.GetString("OrderContactName"),
+                SalesID          = rdr.GetString("SalesID"),
+                SalesName        = rdr.GetString("SalesName"),
+                QuotationID      = rdr.IsDBNull(rdr.GetOrdinal("QuotationID"))    ? null : rdr.GetString("QuotationID"),
+                AddressID        = rdr.IsDBNull(rdr.GetOrdinal("AddressID"))      ? null : rdr.GetString("AddressID"),
+                ShippingAddress  = rdr.GetString("ShippingAddress"),
+                BillingAddress   = rdr.GetString("BillingAddress"),
+                SubTotal         = rdr.IsDBNull(rdr.GetOrdinal("SubTotal"))       ? 0    : rdr.GetDouble("SubTotal"),
+                DiscountType     = rdr.IsDBNull(rdr.GetOrdinal("DiscountType"))   ? null : rdr.GetString("DiscountType"),
+                DiscountValue    = rdr.IsDBNull(rdr.GetOrdinal("DiscountValue"))  ? 0    : rdr.GetDouble("DiscountValue"),
+                DiscountAmount   = rdr.IsDBNull(rdr.GetOrdinal("DiscountAmount")) ? 0    : rdr.GetDouble("DiscountAmount")
+            };
+
+        private static ComplaintEntity MapComplaint(MySqlDataReader rdr) =>
+            new ComplaintEntity
             {
                 ComplaintID          = rdr.GetString("ComplaintID"),
-                OrderID              = rdr.IsDBNull(rdr.GetOrdinal("OrderID"))              ? "" : rdr.GetString("OrderID"),
-                StaffName            = rdr.IsDBNull(rdr.GetOrdinal("StaffName"))            ? "" : rdr.GetString("StaffName"),
-                ComplaintDescription = rdr.IsDBNull(rdr.GetOrdinal("ComplaintDescription")) ? "" : rdr.GetString("ComplaintDescription"),
-                ComplaintStatus      = rdr.IsDBNull(rdr.GetOrdinal("ComplaintStatus"))      ? "" : rdr.GetString("ComplaintStatus")
+                OrderID              = rdr.IsDBNull(rdr.GetOrdinal("OrderID")) ? null : rdr.GetString("OrderID"),
+                StaffName            = rdr.GetString("StaffName"),
+                ComplaintDescription = rdr.IsDBNull(rdr.GetOrdinal("ComplaintDescription")) ? null : rdr.GetString("ComplaintDescription"),
+                ComplaintStatus      = rdr.GetString("ComplaintStatus")
             };
 
-        private static ReturnOrderEntity MapReturnOrder(MySqlDataReader rdr)
-            => new ReturnOrderEntity
+        private static ReturnOrderEntity MapReturnOrder(MySqlDataReader rdr) =>
+            new ReturnOrderEntity
             {
                 ReturnID     = rdr.GetString("ReturnID"),
-                OrderID      = rdr.IsDBNull(rdr.GetOrdinal("OrderID"))      ? "" : rdr.GetString("OrderID"),
-                CustomerName = rdr.IsDBNull(rdr.GetOrdinal("CustomerName")) ? "" : rdr.GetString("CustomerName"),
-                ReturnDate   = rdr.IsDBNull(rdr.GetOrdinal("ReturnDate"))   ? DateTime.MinValue : rdr.GetDateTime("ReturnDate"),
-                Reason       = rdr.IsDBNull(rdr.GetOrdinal("Reason"))       ? "" : rdr.GetString("Reason"),
-                RefundAmount = rdr.IsDBNull(rdr.GetOrdinal("RefundAmount")) ? 0 : rdr.GetDouble("RefundAmount"),
-                ReturnStatus = rdr.IsDBNull(rdr.GetOrdinal("ReturnStatus")) ? "" : rdr.GetString("ReturnStatus")
+                OrderID      = rdr.GetString("OrderID"),
+                CustomerName = rdr.GetString("CustomerName"),
+                ReturnDate   = rdr.GetDateTime("ReturnDate"),
+                Reason       = rdr.IsDBNull(rdr.GetOrdinal("Reason")) ? null : rdr.GetString("Reason"),
+                RefundAmount = rdr.GetDouble("RefundAmount"),
+                ReturnStatus = rdr.GetString("ReturnStatus")
             };
     }
 }
