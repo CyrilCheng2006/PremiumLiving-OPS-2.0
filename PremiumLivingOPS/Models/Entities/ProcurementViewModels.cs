@@ -1,28 +1,38 @@
 using System;
 using System.Collections.Generic;
 
+// ============================================================
+//  FILE: Models/Entities/ProcurementViewModels.cs
+//
+//  Block 1  ─ namespace PremiumLivingOPS.Models.Entities
+//             Pure data projections (Entity / Lookup classes)
+//
+//  Block 2  ─ namespace PremiumLivingOPS.Models.ViewModels
+//             Page-level ViewModels (Controller → View)
+// ============================================================
+
+// ──────────────────────────────────────────────────────────────
 namespace PremiumLivingOPS.Models.Entities
 {
-    // ════════════════════════════════════════════════════════════════
-    //  PROCUREMENT — Domain Entities
-    //  Maps to: PurchaseOrder, PurchaseOrderLine, MaterialRequest,
-    //           Supplier, RawMaterial, Item, Warehouse
-    // ════════════════════════════════════════════════════════════════
+    // ── PROCUREMENT — Domain Entities ───────────────────────────────
 
     /// <summary>
-    /// Flat projection used by Search Procurement grid.
+    /// Flat projection for the Search Procurement grid.
     /// Combines PurchaseOrder + Supplier + MaterialRequest.
+    /// NOTE: The lightweight version in GoodsReceivedEntity.cs is kept
+    ///       for LogisticsProcessing. This richer version is used by
+    ///       the Procurement module only.
     /// </summary>
-    public class PurchaseOrderEntity
+    public class ProcurementOrderEntity
     {
         // PurchaseOrder columns
-        public string PurchaseID     { get; set; }
-        public string RequestID      { get; set; }
-        public string SupplierID     { get; set; }
-        public string SupplierName   { get; set; }
-        public double POTotalAmount  { get; set; }
-        public DateTime OrderDate    { get; set; }
-        public string PurchaseStatus { get; set; }
+        public string   PurchaseID     { get; set; }
+        public string   RequestID      { get; set; }
+        public string   SupplierID     { get; set; }
+        public string   SupplierName   { get; set; }
+        public double   POTotalAmount  { get; set; }
+        public DateTime OrderDate      { get; set; }
+        public string   PurchaseStatus { get; set; }
 
         // MaterialRequest columns (joined)
         public string RawMaterialItemID { get; set; }
@@ -80,17 +90,21 @@ namespace PremiumLivingOPS.Models.Entities
         public string SupplierAddress { get; set; }
         public override string ToString() => $"{SupplierName}  ({SupplierID})";
     }
+}
 
-    // ════════════════════════════════════════════════════════════════
-    //  PROCUREMENT — ViewModels (Controller → View)
-    // ════════════════════════════════════════════════════════════════
+// ──────────────────────────────────────────────────────────────
+namespace PremiumLivingOPS.Models.ViewModels
+{
+    using PremiumLivingOPS.Models.Entities;
+
+    // ── PROCUREMENT — Page ViewModels ───────────────────────────────
 
     /// <summary>ViewModel for Search Procurement page.</summary>
     public class SearchProcurementViewModel
     {
-        public UserBarViewModel          UserBar      { get; set; }
-        public string[]                  AllowedMenus { get; set; }
-        public List<PurchaseOrderEntity> Orders       { get; set; }
+        public UserBarViewModel              UserBar      { get; set; }
+        public string[]                      AllowedMenus { get; set; }
+        public List<ProcurementOrderEntity>  Orders       { get; set; }
     }
 
     /// <summary>ViewModel for Create Procurement page.</summary>
@@ -106,14 +120,14 @@ namespace PremiumLivingOPS.Models.Entities
     }
 
     /// <summary>
-    /// Detail ViewModel used by Create Procurement when showing a
-    /// full PurchaseOrder for review or by Search Procurement detail dialog.
+    /// Detail ViewModel for Create Procurement review panel
+    /// and Search Procurement detail dialog.
     /// </summary>
     public class ProcurementDetailViewModel
     {
         public UserBarViewModel              UserBar      { get; set; }
         public string[]                      AllowedMenus { get; set; }
-        public PurchaseOrderEntity           Order        { get; set; }
+        public ProcurementOrderEntity        Order        { get; set; }
         public List<PurchaseOrderLineEntity> Lines        { get; set; }
     }
 }
