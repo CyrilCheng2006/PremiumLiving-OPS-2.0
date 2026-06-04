@@ -58,11 +58,11 @@ namespace PremiumLivingOPS.Views.RawMaterial
             // ── AppShell — SetPopupContainer BEFORE adding to Controls
             _shell = new AppShell();
             _shell.SetPopupContainer(pnlMain);
+            _shell.MenuItemClicked += OnTopNavMenuItemClicked;  // ✔ nav fix
+            _shell.LogoutClicked   += BtnLogout_Click;          // ✔ logout fix
 
             // ════════════════════════════════════════════════════════════
             // CARD 1 — Search Filters
-            //   Row 1: Keyword | Status | [checkbox] | Date From | Date To
-            //   Row 2: Search / Reset buttons
             // ════════════════════════════════════════════════════════════
             txtKeyword = new TextBox
             {
@@ -93,7 +93,6 @@ namespace PremiumLivingOPS.Views.RawMaterial
                 dtpDateTo.Enabled   = chkUseDateRange.Checked;
             };
 
-            // 5-column filter row
             var tblFields = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill, ColumnCount = 5, RowCount = 1,
@@ -111,8 +110,6 @@ namespace PremiumLivingOPS.Views.RawMaterial
             tblFields.Controls.Add(MakeCell("Date From", dtpDateFrom,    true),  3, 0);
             tblFields.Controls.Add(MakeCell("Date To",   dtpDateTo,      false), 4, 0);
 
-            // Buttons row
-            // NOTE: btnSearch / btnReset Click handlers wired here (UI-only, no named methods needed)
             btnSearch = MakePrimaryBtn("🔍  Search", Point.Empty,       210, 52);
             btnReset  = MakeOutlineBtn("↺  Reset",        new Point(218, 0), 210, 52);
             btnSearch.Click += (s, e) => RefreshGrid();
@@ -121,7 +118,6 @@ namespace PremiumLivingOPS.Views.RawMaterial
             pnlSearchBtns.Controls.Add(btnSearch);
             pnlSearchBtns.Controls.Add(btnReset);
 
-            // Card 1 TLP: title + fields + buttons
             var tblSearch = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill, RowCount = 3, ColumnCount = 1,
@@ -129,14 +125,13 @@ namespace PremiumLivingOPS.Views.RawMaterial
                 Padding = new Padding(18, 14, 18, 14)
             };
             tblSearch.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-            tblSearch.RowStyles.Add(new RowStyle(SizeType.Absolute,  50f));   // title
-            tblSearch.RowStyles.Add(new RowStyle(SizeType.Absolute, 114f));   // fields
-            tblSearch.RowStyles.Add(new RowStyle(SizeType.Absolute,  68f));   // buttons
+            tblSearch.RowStyles.Add(new RowStyle(SizeType.Absolute,  50f));
+            tblSearch.RowStyles.Add(new RowStyle(SizeType.Absolute, 114f));
+            tblSearch.RowStyles.Add(new RowStyle(SizeType.Absolute,  68f));
 
-            var pnlSearchTitle = BuildTitlePanel("Search Procurement", isSectionTitle: false);
-            tblSearch.Controls.Add(pnlSearchTitle, 0, 0);
-            tblSearch.Controls.Add(tblFields,      0, 1);
-            tblSearch.Controls.Add(pnlSearchBtns,  0, 2);
+            tblSearch.Controls.Add(BuildTitlePanel("Search Procurement", isSectionTitle: false), 0, 0);
+            tblSearch.Controls.Add(tblFields,     0, 1);
+            tblSearch.Controls.Add(pnlSearchBtns, 0, 2);
 
             var pnlSearchOuter = new Panel
             {
@@ -165,8 +160,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
             const int BtnGap = 8;
             const int BtnPad = 12;
 
-            // NOTE: btnViewDetail / btnCreateNew Click+SelectionChanged / CellFormatting / CellDoubleClick
-            //       are ALL wired in SearchProcurementForm_Load via lambda — do NOT re-wire here.
+            // NOTE: Click + dgvOrders events are wired in SearchProcurementForm_Load via lambda
             btnViewDetail = MakePrimaryBtn("🔍 View Detail", Point.Empty, BtnW, BtnH);
             btnCreateNew  = MakeGreenBtn  ("＋ Create New",  Point.Empty, BtnW, BtnH);
             btnViewDetail.Enabled = false;
@@ -188,10 +182,9 @@ namespace PremiumLivingOPS.Views.RawMaterial
             pnlActionBtns.Controls.Add(btnCreateNew);
             pnlActionBtns.Resize += (s, e) => CentreActionBtns();
 
-            // KPI row: pills fill left, buttons dock right
             var pnlKpiRow = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             pnlKpiRow.Controls.Add(pnlKpi);        // Fill — add first
-            pnlKpiRow.Controls.Add(pnlActionBtns); // Right — add after Fill
+            pnlKpiRow.Controls.Add(pnlActionBtns); // Right — add after
 
             var pnlActionOuter = new Panel
             {
@@ -241,7 +234,6 @@ namespace PremiumLivingOPS.Views.RawMaterial
             };
             dgvOrders.RowTemplate.Height = 48;
 
-            // Column definitions — event handlers are wired in SearchProcurementForm_Load
             dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPurchaseID", HeaderText = "PURCHASE ID",  FillWeight = 16 });
             dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colSupplier",   HeaderText = "SUPPLIER",     FillWeight = 20 });
             dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colMaterial",   HeaderText = "RAW MATERIAL", FillWeight = 20 });
@@ -263,12 +255,10 @@ namespace PremiumLivingOPS.Views.RawMaterial
             pnlGridCard.Controls.Add(pnlGridInner);
 
             // ════════════════════════════════════════════════════════════
-            // Assemble pnlMain — ViewOrderForm pattern:
-            //   Fill first, then Top in REVERSE visual order
-            //   (last Top added = topmost on screen)
+            // Assemble pnlMain — ViewOrderForm pattern
             // ════════════════════════════════════════════════════════════
-            pnlMain.Controls.Add(pnlGridCard);    // Fill  — grid (content area)
-            pnlMain.Controls.Add(pnlActionOuter); // Top   — KPI + action buttons
+            pnlMain.Controls.Add(pnlGridCard);    // Fill  — grid
+            pnlMain.Controls.Add(pnlActionOuter); // Top   — KPI + buttons
             pnlMain.Controls.Add(pnlSearchOuter); // Top   — search filters
             pnlMain.Controls.Add(_shell);         // Top   — AppShell (last = topmost)
 
@@ -328,7 +318,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
             return tlp;
         }
 
-        // ── Cell with checkbox instead of label
+        // ── Cell with checkbox
         private static TableLayoutPanel MakeCellWithExtra(string caption, Control extra, bool rightPad)
         {
             var tlp = new TableLayoutPanel

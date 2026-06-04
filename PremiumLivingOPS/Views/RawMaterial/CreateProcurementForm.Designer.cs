@@ -52,16 +52,18 @@ namespace PremiumLivingOPS.Views.RawMaterial
             this.WindowState   = FormWindowState.Maximized;
             this.Font          = new Font("Segoe UI", 13f);
 
-            // ── Root panel (Fill) — matches ViewOrderForm pnlMain pattern
+            // ── Root panel (Fill)
             var pnlMain = new Panel
             {
                 Dock      = DockStyle.Fill,
                 BackColor = Color.FromArgb(240, 244, 249)
             };
 
-            // ── AppShell — CRITICAL: SetPopupContainer BEFORE adding to Controls
+            // ── AppShell — SetPopupContainer BEFORE adding to Controls
             _shell = new AppShell();
             _shell.SetPopupContainer(pnlMain);
+            _shell.MenuItemClicked += OnTopNavMenuItemClicked;  // ✔ nav fix
+            _shell.LogoutClicked   += BtnLogout_Click;          // ✔ logout fix
 
             // ════════════════════════════════════════════════════════════
             // Scroll panel — holds all cards, sits below the AppShell
@@ -75,7 +77,6 @@ namespace PremiumLivingOPS.Views.RawMaterial
 
             // ════════════════════════════════════════════════════════════
             // CARD 1 — Purchase Order Info
-            //   Row: Purchase ID (auto) | Order Date | Status
             // ════════════════════════════════════════════════════════════
             txtPurchaseID = new TextBox
             {
@@ -119,8 +120,6 @@ namespace PremiumLivingOPS.Views.RawMaterial
 
             // ════════════════════════════════════════════════════════════
             // CARD 2 — Material Request & Supplier
-            //   Row 1: Material Request | Supplier
-            //   Row 2: Raw Material ID (auto) | Requested Qty (ref)
             // ════════════════════════════════════════════════════════════
             cboMaterialRequest = new ComboBox { Font = new Font("Segoe UI", 12f), DropDownStyle = ComboBoxStyle.DropDownList };
             cboSupplier        = new ComboBox { Font = new Font("Segoe UI", 12f), DropDownStyle = ComboBoxStyle.DropDownList };
@@ -166,12 +165,9 @@ namespace PremiumLivingOPS.Views.RawMaterial
 
             // ════════════════════════════════════════════════════════════
             // CARD 3 — Order Line Details
-            //   Row 1: Delivery Warehouse | Order Qty | Unit Price
-            //   Row 2: PO Total Amount
             // ════════════════════════════════════════════════════════════
             cboWarehouse = new ComboBox { Font = new Font("Segoe UI", 12f), DropDownStyle = ComboBoxStyle.DropDownList };
-            nudOrderQty  = new NumericUpDown { Font = new Font("Segoe UI", 12f), Minimum = 1,  Maximum = 99999,     Value = 1,   DecimalPlaces = 0 };
-            // Minimum = 0 so Value = 0 (blank state) is valid; > 0 enforced in Controller on submit
+            nudOrderQty  = new NumericUpDown { Font = new Font("Segoe UI", 12f), Minimum = 1,  Maximum = 99999,      Value = 1,   DecimalPlaces = 0 };
             nudUnitPrice = new NumericUpDown { Font = new Font("Segoe UI", 12f), Minimum = 0m, Maximum = 9_999_999m, Value = 0m, DecimalPlaces = 2 };
             txtLineTotal = new TextBox
             {
@@ -221,8 +217,8 @@ namespace PremiumLivingOPS.Views.RawMaterial
             // ════════════════════════════════════════════════════════════
             // CARD 4 — Action Buttons
             // ════════════════════════════════════════════════════════════
-            btnSubmit = MakePrimaryBtn("\u2714  Submit Purchase Order", Point.Empty, 320, 60);
-            btnReset  = MakeOutlineBtn("\u21ba  Reset Form",            Point.Empty, 220, 60);
+            btnSubmit = MakePrimaryBtn("✔  Submit Purchase Order", Point.Empty, 320, 60);
+            btnReset  = MakeOutlineBtn("↺  Reset Form",            Point.Empty, 220, 60);
 
             var pnlActBtns = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             pnlActBtns.Controls.Add(btnSubmit);
@@ -241,8 +237,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
                                      content: pnlActBtns);
 
             // ════════════════════════════════════════════════════════════
-            // Assemble scroll content
-            // DockStyle.Top stacks in reverse add-order, so add BOTTOM-FIRST
+            // Assemble scroll content — Top stacks in reverse add-order (bottom-first)
             // ════════════════════════════════════════════════════════════
             pnlScroll.Controls.Add(pnlCard4);   // bottom
             pnlScroll.Controls.Add(pnlCard3);
@@ -250,29 +245,23 @@ namespace PremiumLivingOPS.Views.RawMaterial
             pnlScroll.Controls.Add(pnlCard1);   // top
 
             // ════════════════════════════════════════════════════════════
-            // Assemble pnlMain — ViewOrderForm pattern:
-            //   Fill controls first, then Top controls in REVERSE visual order
-            //   (last Top added = topmost on screen)
+            // Assemble pnlMain — ViewOrderForm pattern
             // ════════════════════════════════════════════════════════════
             pnlMain.Controls.Add(pnlScroll);  // DockStyle.Fill — content area
-            pnlMain.Controls.Add(_shell);     // DockStyle.Top  — AppShell (TopNavBar + UserBar)
+            pnlMain.Controls.Add(_shell);     // DockStyle.Top  — AppShell (last = topmost)
 
             this.Controls.Add(pnlMain);
             this.ResumeLayout(false);
         }
 
-        // ── Card builder — mirrors CardPanel.Create() but uses plain Panels
-        //    so the outer wrapper is DockStyle.Top (fixed height) and the inner
-        //    is DockStyle.Fill (white card with border)
+        // ── Card builder
         private Panel BuildCard(string title, bool isSectionTitle, int contentHeight,
                                 Padding outerPadding, Control content)
         {
-            // Title row height (0 when no title)
-            const int TitleH = 46;
+            const int TitleH  = 46;
             int titleRowH = (title != null) ? TitleH : 0;
             int outerH    = outerPadding.Top + outerPadding.Bottom + titleRowH + contentHeight + 28;
 
-            // Outer wrapper — DockStyle.Top, coloured background + padding
             var pnlOuter = new Panel
             {
                 Dock      = DockStyle.Top,
@@ -280,12 +269,9 @@ namespace PremiumLivingOPS.Views.RawMaterial
                 BackColor = Color.FromArgb(240, 244, 249),
                 Padding   = outerPadding
             };
-
-            // White card with painted border
             var pnlCard = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
             pnlCard.Paint += PaintCardBorder;
 
-            // Inner TLP: optional title row + content row
             int rowCount = (title != null) ? 2 : 1;
             var tbl = new TableLayoutPanel
             {
@@ -303,9 +289,8 @@ namespace PremiumLivingOPS.Views.RawMaterial
                 tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, TitleH));
                 tbl.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
-                // Title panel
                 var pnlTitle = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-                var lblTitle = new Label
+                pnlTitle.Controls.Add(new Label
                 {
                     Text      = title,
                     Font      = isSectionTitle
@@ -316,10 +301,8 @@ namespace PremiumLivingOPS.Views.RawMaterial
                                     : Color.FromArgb(15, 31, 53),
                     Dock      = DockStyle.Fill,
                     TextAlign = ContentAlignment.MiddleLeft
-                };
-                var divider = new Panel { Dock = DockStyle.Bottom, Height = 1, BackColor = Color.FromArgb(221, 227, 236) };
-                pnlTitle.Controls.Add(lblTitle);
-                pnlTitle.Controls.Add(divider);
+                });
+                pnlTitle.Controls.Add(new Panel { Dock = DockStyle.Bottom, Height = 1, BackColor = Color.FromArgb(221, 227, 236) });
                 tbl.Controls.Add(pnlTitle, 0, 0);
                 tbl.Controls.Add(content,  0, 1);
             }
