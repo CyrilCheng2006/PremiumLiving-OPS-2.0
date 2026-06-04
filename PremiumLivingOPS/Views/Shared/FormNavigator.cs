@@ -1,3 +1,4 @@
+using PremiumLivingOPS.Views.AfterService;
 using PremiumLivingOPS.Views.InventoryControl;
 using PremiumLivingOPS.Views.LogisticsProcessing;
 using PremiumLivingOPS.Views.OrderProcessing;
@@ -107,6 +108,18 @@ namespace PremiumLivingOPS.Views.Shared
                             return new HandlingGoodsReceivedForm();
                         default:
                             return new ViewShipmentForm();
+                    }
+
+                // ── After-Service ───────────────────────────────────────────────────
+                case "After-Service":
+                    switch (sub)
+                    {
+                        case "Create Invoice":      return new CreateInvoiceForm();
+                        case "Complaint List":       return new ComplaintListForm();
+                        case "Return Order List":    return new ReturnOrderListForm();
+                        case "Account Receivable":   return new AccountReceivableForm();
+                        case "Account Payable":      return new AccountPayableForm();
+                        default:                     return new CreateInvoiceForm();
                     }
 
                 default:
