@@ -52,20 +52,23 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         private void HandlingGoodsReceivedForm_Load(object sender, EventArgs e)
         {
             var vm = _ctrl.GetHandlingGoodsReceivedVM(null, null, null);
+
+            // ✅ Use correct AppShell public API: SetUser / SetVisibleMenus
             if (vm?.UserBar != null)
-                _shell.SetUserInfo(vm.UserBar.DisplayName, vm.UserBar.Department);
+                _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
 
             if (vm?.AllowedMenus != null)
-                _shell.SetMenuItems(vm.AllowedMenus);
+                _shell.SetVisibleMenus(vm.AllowedMenus);
 
             RefreshGrids();
         }
 
-        // ── AppShell navigation ───────────────────────────────────────
-        private void OnTopNavMenuItemClicked(object sender, EventArgs e)
+        // ── AppShell navigation ─────────────────────────────────────────
+        // ✅ Correct signature: Action<string, string> (menu, subItem)
+        //    Subscribed ONCE in Designer.cs (RULE 4) — do NOT re-subscribe here.
+        private void OnTopNavMenuItemClicked(string menu, string subItem)
         {
-            if (_shell.LastClickedModule != null)
-                FormNavigator.Navigate(this, _shell.LastClickedModule, _shell.LastClickedItem);
+            FormNavigator.Navigate(this, menu, subItem);
         }
 
         private void btnLogout_Click(object sender, EventArgs e)
@@ -533,6 +536,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         }
 
         // ── CardBorder painter (used by both popups and card panels) ────────
+        // Defined ONCE here. Designer.cs must NOT redeclare this method.
         private static void PaintCardBorder(object s, PaintEventArgs e)
         {
             var p = (Panel)s;

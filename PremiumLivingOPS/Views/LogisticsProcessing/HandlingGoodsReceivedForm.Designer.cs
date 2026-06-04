@@ -39,16 +39,28 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
         private void InitializeComponent()
         {
+            // RULE 1 — SuspendLayout MUST be the very first statement
             this.SuspendLayout();
 
+            // ── AppShell — RULE 2: construct inside SuspendLayout scope ────
+            _shell = new AppShell();
+            _shell.Dock        = DockStyle.Top;
+            _shell.Height      = AppShell.TotalHeight;
+            _shell.MinimumSize = new Size(0, AppShell.TotalHeight);
+            // RULE 4 — subscribe ONCE here; .cs Load must NOT re-subscribe
+            _shell.MenuItemClicked += OnTopNavMenuItemClicked;
+            _shell.LogoutClicked   += btnLogout_Click;
+
             // ── Form settings ──────────────────────────────────────────
-            this.Text          = "Premium Living OPS — Handling Goods Received";
-            this.Size          = new Size(1440, 900);
-            this.MinimumSize   = new Size(1200, 720);
-            this.StartPosition = FormStartPosition.CenterScreen;
-            this.BackColor     = Color.FromArgb(240, 244, 249);
-            this.WindowState   = FormWindowState.Maximized;
-            this.Font          = new Font("Segoe UI", 13f);
+            this.Text            = "Premium Living OPS — Handling Goods Received";
+            this.Size            = new Size(1440, 900);
+            this.MinimumSize     = new Size(1200, 720);
+            this.StartPosition   = FormStartPosition.CenterScreen;
+            this.BackColor       = Color.FromArgb(240, 244, 249);
+            this.WindowState     = FormWindowState.Maximized;
+            this.Font            = new Font("Segoe UI", 13f);
+            this.AutoScaleMode   = AutoScaleMode.Font;
+            this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
 
             // ── Root panel ──────────────────────────────────────────────
             var pnlMain = new Panel
@@ -57,11 +69,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 BackColor = Color.FromArgb(240, 244, 249)
             };
 
-            // ── AppShell — wire events BEFORE adding to Controls ────────────
-            _shell = new AppShell();
+            // SetPopupContainer called after pnlMain is created (RULE 2 ordering)
             _shell.SetPopupContainer(pnlMain);
-            _shell.MenuItemClicked += OnTopNavMenuItemClicked;  // ✔ nav fix
-            _shell.LogoutClicked   += btnLogout_Click;          // ✔ logout fix
 
             // ════════════════════════════════════════════════════════════
             //  Search card  (DockStyle.Top, height 265)
@@ -356,7 +365,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlGridCard.Controls.Add(split);
 
             // ════════════════════════════════════════════════════════════
-            //  Assemble pnlMain
+            //  Assemble pnlMain — RULE 5: Fill first, Top last
             // ════════════════════════════════════════════════════════════
             pnlMain.Controls.Add(pnlGridCard);     // Fill  — grids
             pnlMain.Controls.Add(pnlKpiOuter);     // Top   — KPI bar + action buttons
@@ -365,6 +374,11 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             this.Controls.Add(pnlMain);
             this.ResumeLayout(false);
+            this.PerformLayout();
+
+            // RULE 3 — re-enforce shell height after layout pass
+            _shell.Height      = AppShell.TotalHeight;
+            _shell.MinimumSize = new Size(0, AppShell.TotalHeight);
         }
 
         // ── DataGrid factory ────────────────────────────────────────────
@@ -442,6 +456,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             return b;
         }
         // NOTE: PaintCardBorder is defined in HandlingGoodsReceivedForm.cs (static)
-        //       Do NOT redeclare it here — that caused CS0111.
+        //       Do NOT redeclare it here — that would cause CS0111.
     }
 }
