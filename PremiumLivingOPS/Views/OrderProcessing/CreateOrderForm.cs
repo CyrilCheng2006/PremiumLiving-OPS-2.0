@@ -177,8 +177,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         /// Subtotal  = sum of all line totals (Qty × Price).
         /// GrandTotal = Subtotal − discount (clamped to ≥ 0).
         ///
-        /// NOTE: lblSubtotalTitle ("Subtotal:") and lblGrandTotalTitle ("Grand Total:")
-        /// are STATIC labels set in Designer. Only the VALUE labels are updated here.
+        /// After updating both value labels, PerformLayout() is called on
+        /// pnlFooterContent so the Layout handler immediately recalculates
+        /// Grand Total Title's X-position based on the new lblSubtotalValue.Width.
         /// </summary>
         private void UpdateSummary()
         {
@@ -187,7 +188,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             foreach (var l in _lines)
                 subtotal += l.LineTotal;
 
-            // Only update the number; the "Subtotal:" title is a separate static label
             lblSubtotalValue.Text = $"HK$ {subtotal:N2}";
 
             // 2. Discount
@@ -203,12 +203,14 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     discount = subtotal * rate / 100.0;
             }
 
-            // Clamp so Grand Total never goes negative
             if (discount < 0)        discount = 0;
             if (discount > subtotal) discount = subtotal;
 
-            // 3. Grand Total — only update the number; "Grand Total:" title is a separate static label
             lblGrandTotalValue.Text = $"HK$ {subtotal - discount:N2}";
+
+            // 3. Re-layout footer so Grand Total Title X-position reflects
+            //    the updated lblSubtotalValue.Width immediately.
+            pnlFooterContent.PerformLayout();
         }
 
         // ── Add / Remove line ──────────────────────────────────────────────────────
@@ -298,16 +300,13 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             string dtype = cboDiscountType.SelectedItem?.ToString() ?? "None";
             double.TryParse(txtDiscountValue.Text, out double discountValue);
 
-            // 1. Subtotal — sum of all line totals
             double sub = 0;
             foreach (var l in _lines) sub += l.LineTotal;
 
-            // 2. Discount amount
             double discountAmount = 0;
             if (dtype == "Amount")        discountAmount = discountValue;
             else if (dtype == "Rate (%)") discountAmount = sub * discountValue / 100.0;
 
-            // Clamp so Grand Total never goes negative
             if (discountAmount < 0)    discountAmount = 0;
             if (discountAmount > sub)  discountAmount = sub;
 
@@ -361,7 +360,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             lblOrderIdValue.Text = _orderId;
 
             cboCustomer.SelectedIndex     = 0;
-            // Clearing customer will trigger SelectedIndexChanged → PopulateAddresses("")
             cboQuotation.SelectedIndex    = 0;
             cboProduct.SelectedIndex      = 0;
             cboDiscountType.SelectedIndex = 0;

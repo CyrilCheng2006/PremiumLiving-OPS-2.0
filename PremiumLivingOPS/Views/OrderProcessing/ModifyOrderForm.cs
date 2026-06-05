@@ -46,38 +46,31 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             _shell.SetVisibleMenus(vm.AllowedMenus);
             _shell.SetBreadcrumb("Order Processing  ›  Modify Order");
 
-            // Catalogues
             _products     = vm.Products;
             _allAddresses = vm.Addresses ?? new List<AddressLookup>();
 
-            // Product combo
             cboProduct.Items.Clear();
             cboProduct.Items.Add(new ComboItem("-- Select Product --", ""));
             foreach (var p in _products)
                 cboProduct.Items.Add(new ComboItem(p.DisplayText, p.ItemID));
             cboProduct.SelectedIndex = 0;
 
-            // Customer combo
             cboCustomer.Items.Clear();
             cboCustomer.Items.Add(new ComboItem("-- Select Customer --", ""));
             foreach (var c in vm.Customers ?? new List<CustomerEntity>())
                 cboCustomer.Items.Add(new ComboItem(
                     $"{c.CustomerID}  –  {c.CustomerName}", c.CustomerID));
 
-            // Address combo (blank until customer selected)
             cboAddressId.Items.Clear();
             cboAddressId.Items.Add(new ComboItem("-- Select Address --", ""));
             cboAddressId.SelectedIndex = 0;
 
-            // Quotation combo
             cboQuotation.Items.Clear();
             cboQuotation.Items.Add(new ComboItem("-- None --", ""));
             cboQuotation.SelectedIndex = 0;
 
-            // Search combo
             ReloadOrderCombo();
 
-            // Auto-load from ViewOrderForm
             if (!string.IsNullOrEmpty(PendingOrderId))
             {
                 SelectAndLoadOrder(PendingOrderId);
@@ -110,7 +103,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             }
             _lines = vm.Lines ?? new List<OrderLineEntity>();
 
-            // Re-sync search combo
             for (int i = 0; i < cboSearchOrder.Items.Count; i++)
             {
                 if (cboSearchOrder.Items[i] is ComboItem ci && ci.Value == orderId)
@@ -132,28 +124,21 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         // ── Populate header fields from loaded order ─────────────────────────────────
         private void PopulateHeader(OrderEntity o)
         {
-            // Order ID chip
             lblOrderIdValue.Text = o.OrderID;
 
-            // Quotation combo — just show order's linked quotation as read text
             cboQuotation.Items.Clear();
             cboQuotation.Items.Add(new ComboItem(
                 string.IsNullOrEmpty(o.QuotationID) ? "-- None --" : o.QuotationID,
                 o.QuotationID ?? ""));
             cboQuotation.SelectedIndex = 0;
 
-            // Customer combo — select matching customer
             SelectComboByValue(cboCustomer, o.CustomerID);
-
-            // Address combo — load addresses for this customer, then select
             LoadAddressCombos(o.CustomerID);
             SelectComboByValue(cboAddressId, o.AddressID);
 
-            // Shipping / billing
             txtShippingAddr.Text = o.ShippingAddress;
             txtBillingAddr.Text  = o.BillingAddress;
 
-            // Same-as-shipping: check if they match
             bool same = !string.IsNullOrEmpty(o.ShippingAddress)
                      && o.ShippingAddress == o.BillingAddress;
             chkSameAddress.Checked  = same;
@@ -162,7 +147,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 ? Color.FromArgb(235, 240, 250)
                 : System.Drawing.SystemColors.Window;
 
-            // Other fields
             txtContactName.Text = o.OrderContactName;
             dtpDelivery.Value   = o.DeliveryDate > DateTime.MinValue
                                       ? o.DeliveryDate : DateTime.Today;
@@ -170,7 +154,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             int statusIdx = cboStatus.FindStringExact(o.OrderStatus);
             cboStatus.SelectedIndex = statusIdx >= 0 ? statusIdx : 0;
 
-            // Discount
             if (string.IsNullOrEmpty(o.DiscountType) || o.DiscountType == "None")
             {
                 cboDiscountType.SelectedIndex = 0;
@@ -189,8 +172,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         }
 
         // ── Address / Customer combo helpers ───────────────────────────────────────
-
-        /// <summary>Reload cboAddressId with addresses belonging to customerId.</summary>
         private void LoadAddressCombos(string customerId)
         {
             cboAddressId.Items.Clear();
@@ -204,18 +185,15 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         private void cboCustomer_SelectedIndexChanged(object sender, EventArgs e)
         {
             var sel = cboCustomer.SelectedItem as ComboItem;
-            string custId = sel?.Value ?? "";
-            LoadAddressCombos(custId);
+            LoadAddressCombos(sel?.Value ?? "");
         }
 
         private void cboAddressId_SelectedIndexChanged(object sender, EventArgs e)
         {
             var sel = cboAddressId.SelectedItem as ComboItem;
             if (sel == null || string.IsNullOrEmpty(sel.Value)) return;
-
             var addr = _allAddresses.Find(a => a.AddressId == sel.Value);
             if (addr == null) return;
-
             txtShippingAddr.Text = addr.FullAddress;
             if (chkSameAddress.Checked)
                 txtBillingAddr.Text = addr.FullAddress;
@@ -264,15 +242,15 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         /// Subtotal  = sum of all line totals.
         /// GrandTotal = Subtotal − discount (clamped to ≥ 0).
         ///
-        /// NOTE: lblSubtotalTitle ("Subtotal:") and lblGrandTotalTitle ("Grand Total:")
-        /// are STATIC labels set in Designer. Only the VALUE labels are updated here.
+        /// After updating both value labels, PerformLayout() is called on
+        /// pnlFooterContent so the Layout handler immediately recalculates
+        /// Grand Total Title's X-position based on the new lblSubtotalValue.Width.
         /// </summary>
         private void UpdateSummary()
         {
             double subtotal = 0;
             foreach (var l in _lines) subtotal += l.LineTotal;
 
-            // Only update the number; the "Subtotal:" title is a separate static label
             lblSubtotalValue.Text = $"HK$ {subtotal:N2}";
 
             string dtype    = cboDiscountType.SelectedItem?.ToString() ?? "None";
@@ -288,8 +266,11 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             if (discount < 0)        discount = 0;
             if (discount > subtotal) discount = subtotal;
 
-            // Only update the number; the "Grand Total:" title is a separate static label
             lblGrandTotalValue.Text = $"HK$ {subtotal - discount:N2}";
+
+            // Re-layout footer so Grand Total Title X-position reflects
+            // the updated lblSubtotalValue.Width immediately.
+            pnlFooterContent.PerformLayout();
         }
 
         private void btnAddLine_Click(object sender, EventArgs e)
@@ -368,7 +349,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 return;
             }
 
-            // Resolve customer / address from combos
             var selCust = cboCustomer.SelectedItem  as ComboItem;
             var selAddr = cboAddressId.SelectedItem as ComboItem;
 
@@ -409,7 +389,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             {
                 MessageBox.Show("Order updated successfully.", "Success",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
-                _currentOrder = header;   // keep in sync
+                _currentOrder = header;
                 ReloadOrderCombo();
             }
             else
@@ -489,7 +469,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 cboSearchOrder.SelectedIndex = 0;
         }
 
-        // ── TopNavBar navigation ────────────────────────────────────────────────────────
         private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
             => FormNavigator.NavigateTo(this, menuLabel, subItem);
 
@@ -499,7 +478,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             Application.Restart();
         }
 
-        // ── ComboItem helper ──────────────────────────────────────────────────────────────────
         private class ComboItem
         {
             public string Text  { get; }
