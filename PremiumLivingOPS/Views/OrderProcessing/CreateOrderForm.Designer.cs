@@ -183,17 +183,17 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlInfoInner.Controls.Add(pnlInfoContent);
 
             // ==================================================================
-            // FOOTER  — [Subtotal: HK$ x.xx]  32px  [Grand Total: HK$ x.xx]  |  [Submit] [Clear]
-            // Gap is measured from the END of the Subtotal number
-            // to the START of the "Grand Total:" title text.
+            // FOOTER  — [Subtotal: HK$ x.xx]  60px  [Grand Total: HK$ x.xx]  |  [Submit] [Clear]
+            // ValToLblGap = 60: gap from right edge of lblSubtotalValue
+            //                   to left edge of lblGrandTotalTitle, always constant.
             // ==================================================================
 
-            const int BtnW   = 210;
-            const int BtnH   = 60;
-            const int BtnGap = 8;
-            const int BtnPad = 12;
-            // Gap between end-of-SubtotalValue and start-of-GrandTotalTitle
-            const int ValToLblGap = 32;
+            const int BtnW        = 210;
+            const int BtnH        = 60;
+            const int BtnGap      = 8;
+            const int BtnPad      = 12;
+            // Fixed 60px gap: right-of-SubtotalValue → left-of-GrandTotalTitle
+            const int ValToLblGap = 60;
             const int LblLeft     = 8;
 
             // Subtotal — "Subtotal:" title
@@ -282,9 +282,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 lblSubtotalValue.Location = new Point(subValX, subTop + (subRowH - lblSubtotalValue.Height) / 2);
 
                 // --- Grand Total row (vertically centred) ---
-                int grandRowH  = Math.Max(lblGrandTotalTitle.Height, lblGrandTotalValue.Height);
-                int grandTop   = (h - grandRowH) / 2; if (grandTop < 0) grandTop = 0;
-                // "Grand Total:" starts ValToLblGap after end of SubtotalValue
+                // "Grand Total:" starts exactly ValToLblGap (60px) after right edge of lblSubtotalValue
+                int grandRowH   = Math.Max(lblGrandTotalTitle.Height, lblGrandTotalValue.Height);
+                int grandTop    = (h - grandRowH) / 2; if (grandTop < 0) grandTop = 0;
                 int grandTitleX = subValX + lblSubtotalValue.Width + ValToLblGap;
                 lblGrandTotalTitle.Location = new Point(grandTitleX, grandTop + (grandRowH - lblGrandTotalTitle.Height) / 2);
                 // number immediately after grand title + 4px kern
