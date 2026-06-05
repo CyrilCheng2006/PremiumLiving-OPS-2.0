@@ -19,19 +19,27 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         private Button         btnSearch;
         private Button         btnRefresh;
 
-        // ── KPI bar ──────────────────────────────────────────────────────
+        // ── KPI bar ──────────────────────────────────────────────────────────
         private Panel pnlKpi;
 
-        // ── Action buttons ─────────────────────────────────────────────────
+        // ── Grid tab switcher (added below KPI bar) ──────────────────────────
+        private Button btnTabReceipts;
+        private Button btnTabPO;
+        private Button btnTabInvoices;
+
+        // ── Action buttons ───────────────────────────────────────────────────
         private Button btnViewPODetail;
         private Button btnViewReceiptLines;
         private Button btnUploadReceipt;
         private Button btnRecordInvoice;
 
-        // ── Three grids ────────────────────────────────────────────────────
+        // ── Three grids ──────────────────────────────────────────────────────
         private DataGridView dgvReceipts;
         private DataGridView dgvPO;
         private DataGridView dgvInvoices;
+
+        // ── Grid container (shared Fill area) ────────────────────────────────
+        private Panel pnlGridHost;
 
         protected override void Dispose(bool disposing)
         {
@@ -43,7 +51,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         {
             this.SuspendLayout();
 
-            // ── Form settings ────────────────────────────────────────────
+            // ── Form settings ────────────────────────────────────────────────
             this.Text          = "Premium Living OPS — Handling Goods Received";
             this.Size          = new Size(1440, 900);
             this.MinimumSize   = new Size(1280, 720);
@@ -52,47 +60,32 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             this.WindowState   = FormWindowState.Maximized;
             this.Font          = new Font("Segoe UI", 13f);
 
-            // ── Root panel ─────────────────────────────────────────────
-            var pnlMain = new Panel
-            {
-                Dock      = DockStyle.Fill,
-                BackColor = Color.FromArgb(240, 244, 249)
-            };
+            // ── Root panel ───────────────────────────────────────────────────
+            var pnlMain = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(240, 244, 249) };
 
-            // AppShell — must call SetPopupContainer BEFORE adding to Controls
+            // AppShell — SetPopupContainer BEFORE adding to Controls
             _shell = new AppShell();
             _shell.SetPopupContainer(pnlMain);
 
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             //  Search / Filter card  (DockStyle.Top, Height 270)
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             txtKeyword = new TextBox
             {
-                Font            = new Font("Segoe UI", 12f),
-                BorderStyle     = BorderStyle.FixedSingle,
-                Dock            = DockStyle.Fill,
-                PlaceholderText = "PO ID / Supplier / Material"
+                Font = new Font("Segoe UI", 12f), BorderStyle = BorderStyle.FixedSingle,
+                Dock = DockStyle.Fill, PlaceholderText = "PO ID / Supplier / Material"
             };
             txtKeyword.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) RefreshGrids(); };
 
-            cboStatus = new ComboBox
-            {
-                DropDownStyle = ComboBoxStyle.DropDownList,
-                Font          = new Font("Segoe UI", 12f),
-                Dock          = DockStyle.Fill
-            };
-            cboStatus.Items.AddRange(new object[]
-                { "All", "Sent", "Partially Received", "Received", "Completed", "Cancelled" });
+            cboStatus = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 12f), Dock = DockStyle.Fill };
+            cboStatus.Items.AddRange(new object[] { "All", "Sent", "Partially Received", "Received", "Completed", "Cancelled" });
             cboStatus.SelectedIndex = 0;
 
             chkDateFrom = new CheckBox { Text = "", Width = 24, Checked = false, Cursor = Cursors.Hand };
             dtpDateFrom = new DateTimePicker
             {
-                Format  = DateTimePickerFormat.Short,
-                Value   = DateTime.Today.AddMonths(-1),
-                Font    = new Font("Segoe UI", 12f),
-                Enabled = false,
-                Dock    = DockStyle.Fill
+                Format = DateTimePickerFormat.Short, Value = DateTime.Today.AddMonths(-1),
+                Font = new Font("Segoe UI", 12f), Enabled = false, Dock = DockStyle.Fill
             };
             chkDateFrom.CheckedChanged += (s, e) => { dtpDateFrom.Enabled = chkDateFrom.Checked; };
 
@@ -106,7 +99,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 };
                 tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
                 tlp.RowStyles.Add(new RowStyle(SizeType.Absolute, 40f));
-                tlp.RowStyles.Add(new RowStyle(SizeType.Percent,  70f));
+                tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 70f));
                 var lbl = new Label
                 {
                     Text = caption, Font = new Font("Segoe UI", 10f, FontStyle.Bold),
@@ -126,7 +119,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             cellDate.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 33f));
             cellDate.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
             cellDate.RowStyles.Add(new RowStyle(SizeType.Absolute, 40f));
-            cellDate.RowStyles.Add(new RowStyle(SizeType.Percent,  70f));
+            cellDate.RowStyles.Add(new RowStyle(SizeType.Percent, 70f));
             var lblDate = new Label
             {
                 Text = "Date From", Font = new Font("Segoe UI", 10f, FontStyle.Bold),
@@ -157,8 +150,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             btnRefresh = MakeOutlineBtn("↺  Reset",         new Point(218, 0), 210, 60);
             btnSearch.Click  += (s, e) => RefreshGrids();
             btnRefresh.Click += (s, e) => ResetFilters();
-            pnlBtns.Controls.Add(btnSearch);
-            pnlBtns.Controls.Add(btnRefresh);
+            pnlBtns.Controls.Add(btnSearch); pnlBtns.Controls.Add(btnRefresh);
 
             var tblCard = new TableLayoutPanel
             {
@@ -172,42 +164,34 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  65f));
 
             var pnlTitleBar = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            var lblTitle    = new Label
+            var lblTitle = new Label
             {
                 Text = "Search — Goods Received / Purchase Orders",
                 Font = new Font("Segoe UI", 13f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(15, 31, 53), Dock = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleLeft
+                ForeColor = Color.FromArgb(15, 31, 53), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft
             };
             var divider = new Panel { Dock = DockStyle.Bottom, Height = 1, BackColor = Color.FromArgb(221, 227, 236) };
-            pnlTitleBar.Controls.Add(lblTitle);
-            pnlTitleBar.Controls.Add(divider);
+            pnlTitleBar.Controls.Add(lblTitle); pnlTitleBar.Controls.Add(divider);
             tblCard.Controls.Add(pnlTitleBar, 0, 0);
             tblCard.Controls.Add(tblFields,   0, 1);
             tblCard.Controls.Add(pnlBtns,     0, 2);
 
             var pnlCard = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
-            pnlCard.Paint += PaintCardBorder;
-            pnlCard.Controls.Add(tblCard);
+            pnlCard.Paint += PaintCardBorder; pnlCard.Controls.Add(tblCard);
 
             var pnlSearchOuter = new Panel
             {
                 Dock = DockStyle.Top, Height = 270,
-                BackColor = Color.FromArgb(240, 244, 249),
-                Padding   = new Padding(20, 14, 20, 8)
+                BackColor = Color.FromArgb(240, 244, 249), Padding = new Padding(20, 14, 20, 8)
             };
             pnlSearchOuter.Controls.Add(pnlCard);
 
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             //  KPI bar + 4 action buttons  (DockStyle.Top, Height 90)
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             pnlKpi = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(12, 10, 12, 10) };
 
-            const int BtnW   = 230;
-            const int BtnH   = 60;
-            const int BtnGap = 8;
-            const int BtnPad = 12;
-
+            const int BtnW = 230, BtnH = 60, BtnGap = 8, BtnPad = 12;
             btnViewPODetail     = MakePrimaryBtn("\U0001F50D  PO Detail",     Point.Empty, BtnW, BtnH);
             btnViewReceiptLines = MakePrimaryBtn("\U0001F4CB  Receipt Lines",  Point.Empty, BtnW, BtnH);
             btnUploadReceipt    = MakeSuccessBtn("\U0001F4E4  Upload Receipt", Point.Empty, BtnW, BtnH);
@@ -225,16 +209,15 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             {
                 int top = Math.Max(0, (pnlActionBtns.Height - BtnH) / 2);
                 btnViewPODetail.Location     = new Point(BtnPad, top);
-                btnViewReceiptLines.Location = new Point(BtnPad +  BtnW + BtnGap,       top);
-                btnUploadReceipt.Location    = new Point(BtnPad + (BtnW + BtnGap) * 2,  top);
-                btnRecordInvoice.Location    = new Point(BtnPad + (BtnW + BtnGap) * 3,  top);
+                btnViewReceiptLines.Location = new Point(BtnPad +  BtnW + BtnGap,      top);
+                btnUploadReceipt.Location    = new Point(BtnPad + (BtnW + BtnGap) * 2, top);
+                btnRecordInvoice.Location    = new Point(BtnPad + (BtnW + BtnGap) * 3, top);
             }
-            pnlActionBtns.Controls.AddRange(new Control[]
-                { btnViewPODetail, btnViewReceiptLines, btnUploadReceipt, btnRecordInvoice });
+            pnlActionBtns.Controls.AddRange(new Control[] { btnViewPODetail, btnViewReceiptLines, btnUploadReceipt, btnRecordInvoice });
             pnlActionBtns.Resize += (s, e) => CentreActionBtns();
 
-            var pnlKpiRow   = new Panel { Dock = DockStyle.Fill,  BackColor = Color.Transparent };
-            pnlKpiRow.Controls.Add(pnlKpi);        // Fill  — pills
+            var pnlKpiRow = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
+            pnlKpiRow.Controls.Add(pnlKpi);        // Fill — pills
             pnlKpiRow.Controls.Add(pnlActionBtns); // Right — buttons
 
             var pnlKpiInner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
@@ -244,35 +227,98 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             var pnlKpiOuter = new Panel
             {
                 Dock = DockStyle.Top, Height = 90,
-                BackColor = Color.FromArgb(240, 244, 249),
-                Padding   = new Padding(20, 8, 20, 8)
+                BackColor = Color.FromArgb(240, 244, 249), Padding = new Padding(20, 8, 20, 8)
             };
             pnlKpiOuter.Controls.Add(pnlKpiInner);
 
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            //  THREE-GRID SECTION
-            //
-            //  FIX: Replace DockStyle.Top stacking (which causes overlap when
-            //  available height < sum of fixed heights) with a TableLayoutPanel
-            //  using Percent row heights.  Each row expands/shrinks with the
-            //  window so no grid ever overlaps another.
-            //
-            //  Row 0  40%  — Goods Received Receipts
-            //  Row 1  30%  — Purchase Orders
-            //  Row 2  30%  — Purchase Invoices
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            //  GRID TAB SWITCHER BAR  (DockStyle.Top, Height 52)
+            //  Three tab buttons: Goods Received Receipts | Purchase Orders | Purchase Invoices
+            //  Clicking a tab shows the corresponding single grid card (Fill).
+            //  Active tab: blue underline + bold text.
+            //  Inactive tab: plain text, no underline.
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            var pnlTabInner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
+            pnlTabInner.Paint += PaintCardBorder;
 
-            // ── Shared DGV factory ──────────────────────────────────────────
+            // Bottom border of the entire tab bar panel
+            var tabDivider = new Panel { Dock = DockStyle.Bottom, Height = 1, BackColor = Color.FromArgb(221, 227, 236) };
+
+            // Build three tab buttons
+            Color tabActiveFg   = Color.FromArgb(47, 111, 237);
+            Color tabInactiveFg = Color.FromArgb(98, 112, 135);
+            Color tabBg         = Color.White;
+
+            Button MakeTabBtn(string text)
+            {
+                var b = new Button
+                {
+                    Text      = text,
+                    Font      = new Font("Segoe UI", 12f),
+                    ForeColor = tabInactiveFg,
+                    BackColor = tabBg,
+                    FlatStyle = FlatStyle.Flat,
+                    Height    = 52,
+                    Width     = 240,
+                    Dock      = DockStyle.Left,
+                    Cursor    = Cursors.Hand,
+                    TextAlign = ContentAlignment.MiddleCenter,
+                    Padding   = new Padding(0, 0, 0, 4)   // visual bottom padding for underline illusion
+                };
+                b.FlatAppearance.BorderSize         = 0;
+                b.FlatAppearance.MouseOverBackColor = Color.FromArgb(245, 248, 255);
+                b.FlatAppearance.MouseDownBackColor = Color.FromArgb(235, 241, 255);
+                return b;
+            }
+
+            btnTabReceipts = MakeTabBtn("\U0001F4E6  Goods Received Receipts");
+            btnTabPO       = MakeTabBtn("\U0001F4CB  Purchase Orders");
+            btnTabInvoices = MakeTabBtn("\U0001F4C4  Purchase Invoices");
+
+            // Wire click events — defined in .cs via SwitchToGrid()
+            btnTabReceipts.Click += (s, e) => SwitchToGrid(0);
+            btnTabPO.Click       += (s, e) => SwitchToGrid(1);
+            btnTabInvoices.Click += (s, e) => SwitchToGrid(2);
+
+            // FlowLayoutPanel keeps the three tabs left-aligned
+            var flowTabs = new FlowLayoutPanel
+            {
+                Dock          = DockStyle.Fill,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents  = false,
+                BackColor     = Color.Transparent,
+                Padding       = new Padding(8, 0, 0, 0)
+            };
+            flowTabs.Controls.Add(btnTabReceipts);
+            flowTabs.Controls.Add(btnTabPO);
+            flowTabs.Controls.Add(btnTabInvoices);
+
+            pnlTabInner.Controls.Add(flowTabs);
+            pnlTabInner.Controls.Add(tabDivider);
+
+            var pnlTabOuter = new Panel
+            {
+                Dock      = DockStyle.Top,
+                Height    = 52,
+                BackColor = Color.FromArgb(240, 244, 249),
+                Padding   = new Padding(20, 0, 20, 0)
+            };
+            pnlTabOuter.Controls.Add(pnlTabInner);
+
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            //  SINGLE-GRID HOST PANEL  (DockStyle.Fill)
+            //  All three grids live here; only one is Visible at a time.
+            //  SwitchToGrid() in .cs controls visibility + tab styling.
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             DataGridView MakeDgv() => new DataGridView
             {
                 ReadOnly = true, AllowUserToAddRows = false, AllowUserToDeleteRows = false,
                 RowHeadersVisible = false,
-                SelectionMode     = DataGridViewSelectionMode.FullRowSelect,
-                MultiSelect       = false,
-                BackgroundColor   = Color.White,
-                BorderStyle       = BorderStyle.None,
-                GridColor         = Color.FromArgb(221, 227, 236),
-                Font              = new Font("Segoe UI", 12f),
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                MultiSelect   = false,
+                BackgroundColor = Color.White, BorderStyle = BorderStyle.None,
+                GridColor       = Color.FromArgb(221, 227, 236),
+                Font            = new Font("Segoe UI", 12f),
                 AutoSizeColumnsMode     = DataGridViewAutoSizeColumnsMode.Fill,
                 CellBorderStyle         = DataGridViewCellBorderStyle.SingleHorizontal,
                 RowTemplate             = { Height = 44 },
@@ -281,30 +327,24 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 EnableHeadersVisualStyles = false,
                 ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
                 {
-                    BackColor = Color.FromArgb(246, 249, 255),
-                    ForeColor = Color.FromArgb(98,  112, 135),
-                    Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
-                    Padding   = new Padding(12, 0, 0, 0),
-                    Alignment = DataGridViewContentAlignment.MiddleLeft
+                    BackColor = Color.FromArgb(246, 249, 255), ForeColor = Color.FromArgb(98, 112, 135),
+                    Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+                    Padding = new Padding(12, 0, 0, 0), Alignment = DataGridViewContentAlignment.MiddleLeft
                 },
                 DefaultCellStyle = new DataGridViewCellStyle
                 {
-                    BackColor          = Color.White,
-                    ForeColor          = Color.FromArgb(15, 31, 53),
-                    SelectionBackColor = Color.FromArgb(219, 234, 254),
-                    SelectionForeColor = Color.FromArgb(15, 31, 53),
-                    Padding            = new Padding(12, 6, 12, 6)
+                    BackColor = Color.White, ForeColor = Color.FromArgb(15, 31, 53),
+                    SelectionBackColor = Color.FromArgb(219, 234, 254), SelectionForeColor = Color.FromArgb(15, 31, 53),
+                    Padding = new Padding(12, 6, 12, 6)
                 }
             };
 
-            // ── Section header bar factory ────────────────────────────────
             Panel MakeSectionLabel(string text)
             {
                 var p = new Panel
                 {
                     Dock = DockStyle.Top, Height = 38,
-                    BackColor = Color.FromArgb(246, 249, 255),
-                    Padding   = new Padding(16, 0, 0, 0)
+                    BackColor = Color.FromArgb(246, 249, 255), Padding = new Padding(16, 0, 0, 0)
                 };
                 p.Paint += (o, ev) =>
                 {
@@ -313,37 +353,32 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 };
                 p.Controls.Add(new Label
                 {
-                    Text      = text,
-                    Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
-                    ForeColor = Color.FromArgb(98, 112, 135),
-                    Dock      = DockStyle.Fill,
-                    TextAlign = ContentAlignment.MiddleLeft
+                    Text = text, Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+                    ForeColor = Color.FromArgb(98, 112, 135), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft
                 });
                 return p;
             }
 
-            // ── Card wrapper: grey outer → white inner → content ──────────────
-            //  outerDock must be DockStyle.Fill for all three grids because
-            //  they live inside TableLayoutPanel cells (not a Dock-stacking panel).
-            Panel WrapInCard(Control content, Panel sectionLabel)
+            // Each grid is wrapped in its own white card Panel (Dock=Fill, hidden by default)
+            Panel WrapGridCard(DataGridView dgv, Panel sectionLabel)
             {
                 var inner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
                 inner.Paint += PaintCardBorder;
-                // Add content (Fill) BEFORE sectionLabel (Top) to avoid overlap
-                inner.Controls.Add(content);      // DockStyle.Fill — grid
-                inner.Controls.Add(sectionLabel); // DockStyle.Top  — header
+                inner.Controls.Add(dgv);         // Fill — grid
+                inner.Controls.Add(sectionLabel);// Top  — header bar
 
                 var outer = new Panel
                 {
-                    Dock      = DockStyle.Fill,          // <— always Fill inside a TLP cell
+                    Dock      = DockStyle.Fill,
                     BackColor = Color.FromArgb(240, 244, 249),
-                    Padding   = new Padding(20, 6, 20, 6)
+                    Padding   = new Padding(20, 6, 20, 10),
+                    Visible   = false        // hidden until SwitchToGrid() shows it
                 };
                 outer.Controls.Add(inner);
                 return outer;
             }
 
-            // ── Build three grids ──────────────────────────────────────────
+            // Build the three grids
             dgvReceipts = MakeDgv();
             dgvReceipts.Columns.Add(new DataGridViewTextBoxColumn { Name = "colRcptID",  HeaderText = "RECEIPT ID",   FillWeight = 13 });
             dgvReceipts.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPOID",    HeaderText = "PO ID",        FillWeight = 13 });
@@ -379,103 +414,58 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             dgvInvoices.Columns.Add(new DataGridViewTextBoxColumn { Name = "colInvDate", HeaderText = "EXPECTED DATE", FillWeight = 12 });
             dgvInvoices.CellFormatting += dgvInvoices_CellFormatting;
 
-            // ─────────────────────────────────────────────────────────────────
-            //  KEY FIX: TableLayoutPanel with 3 Percent rows
-            //  Each cell gets DockStyle.Fill via WrapInCard.
-            //  TableLayoutPanel distributes available height proportionally,
-            //  so no grid can ever overlap another regardless of window size.
-            // ─────────────────────────────────────────────────────────────────
-            var tblGrids = new TableLayoutPanel
-            {
-                Dock            = DockStyle.Fill,
-                RowCount        = 3,
-                ColumnCount     = 1,
-                BackColor       = Color.FromArgb(240, 244, 249),
-                CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                Padding         = Padding.Empty
-            };
-            tblGrids.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-            // Row 0: 40% — Goods Received Receipts (most columns, primary focus)
-            tblGrids.RowStyles.Add(new RowStyle(SizeType.Percent, 40f));
-            // Row 1: 30% — Purchase Orders
-            tblGrids.RowStyles.Add(new RowStyle(SizeType.Percent, 30f));
-            // Row 2: 30% — Purchase Invoices
-            tblGrids.RowStyles.Add(new RowStyle(SizeType.Percent, 30f));
+            var pnlReceiptsCard = WrapGridCard(dgvReceipts, MakeSectionLabel("GOODS RECEIVED RECEIPTS"));
+            var pnlPOCard       = WrapGridCard(dgvPO,       MakeSectionLabel("PURCHASE ORDERS"));
+            var pnlInvoicesCard = WrapGridCard(dgvInvoices, MakeSectionLabel("PURCHASE INVOICES"));
 
-            tblGrids.Controls.Add(WrapInCard(dgvReceipts, MakeSectionLabel("GOODS RECEIVED RECEIPTS")), 0, 0);
-            tblGrids.Controls.Add(WrapInCard(dgvPO,       MakeSectionLabel("PURCHASE ORDERS")),         0, 1);
-            tblGrids.Controls.Add(WrapInCard(dgvInvoices, MakeSectionLabel("PURCHASE INVOICES")),       0, 2);
+            // Store grid card panels in Tag for SwitchToGrid() to access
+            btnTabReceipts.Tag = pnlReceiptsCard;
+            btnTabPO.Tag       = pnlPOCard;
+            btnTabInvoices.Tag = pnlInvoicesCard;
 
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            //  Final assembly into pnlMain
-            //  Order: Fill (grids TLP) → Top (KPI) → Top (Search) → Top (_shell)
-            //  _shell must be added LAST so it docks topmost.
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            pnlMain.Controls.Add(tblGrids);        // DockStyle.Fill
-            pnlMain.Controls.Add(pnlKpiOuter);     // DockStyle.Top
-            pnlMain.Controls.Add(pnlSearchOuter);  // DockStyle.Top
-            pnlMain.Controls.Add(_shell);          // DockStyle.Top — AppShell (NavBar + UserBar)
+            // pnlGridHost holds all three overlapping cards; only one Visible at once
+            pnlGridHost = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(240, 244, 249) };
+            pnlGridHost.Controls.Add(pnlReceiptsCard);
+            pnlGridHost.Controls.Add(pnlPOCard);
+            pnlGridHost.Controls.Add(pnlInvoicesCard);
+
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            //  Final assembly
+            //  Fill first, then Top in reverse visual order, _shell last.
+            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            pnlMain.Controls.Add(pnlGridHost);    // DockStyle.Fill
+            pnlMain.Controls.Add(pnlTabOuter);    // DockStyle.Top  — tab switcher
+            pnlMain.Controls.Add(pnlKpiOuter);    // DockStyle.Top  — KPI bar
+            pnlMain.Controls.Add(pnlSearchOuter); // DockStyle.Top  — search card
+            pnlMain.Controls.Add(_shell);         // DockStyle.Top  — AppShell
 
             this.Controls.Add(pnlMain);
             this.ResumeLayout(false);
             _shell.Height = AppShell.NavBarHeight + AppShell.UserBarHeight;
         }
 
-        // ── Button factories ─────────────────────────────────────────────────────
+        // ── Button factories ─────────────────────────────────────────────────
         private Button MakePrimaryBtn(string text, Point loc, int w, int h)
         {
-            var b = new Button
-            {
-                Text = text, Font = new Font("Segoe UI", 12f, FontStyle.Bold),
-                ForeColor = Color.White, BackColor = Color.FromArgb(47, 111, 237),
-                FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand
-            };
-            b.FlatAppearance.BorderSize         = 0;
-            b.FlatAppearance.MouseOverBackColor = Color.FromArgb(26,  77, 192);
-            b.FlatAppearance.MouseDownBackColor = Color.FromArgb(21,  60, 155);
-            return b;
+            var b = new Button { Text = text, Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.White, BackColor = Color.FromArgb(47, 111, 237), FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand };
+            b.FlatAppearance.BorderSize = 0; b.FlatAppearance.MouseOverBackColor = Color.FromArgb(26, 77, 192); b.FlatAppearance.MouseDownBackColor = Color.FromArgb(21, 60, 155); return b;
         }
         private Button MakeSuccessBtn(string text, Point loc, int w, int h)
         {
-            var b = new Button
-            {
-                Text = text, Font = new Font("Segoe UI", 12f, FontStyle.Bold),
-                ForeColor = Color.White, BackColor = Color.FromArgb(5, 150, 105),
-                FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand
-            };
-            b.FlatAppearance.BorderSize         = 0;
-            b.FlatAppearance.MouseOverBackColor = Color.FromArgb(4, 120, 87);
-            b.FlatAppearance.MouseDownBackColor = Color.FromArgb(3, 100, 70);
-            return b;
+            var b = new Button { Text = text, Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.White, BackColor = Color.FromArgb(5, 150, 105), FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand };
+            b.FlatAppearance.BorderSize = 0; b.FlatAppearance.MouseOverBackColor = Color.FromArgb(4, 120, 87); b.FlatAppearance.MouseDownBackColor = Color.FromArgb(3, 100, 70); return b;
         }
         private Button MakeWarningBtn(string text, Point loc, int w, int h)
         {
-            var b = new Button
-            {
-                Text = text, Font = new Font("Segoe UI", 12f, FontStyle.Bold),
-                ForeColor = Color.White, BackColor = Color.FromArgb(180, 83, 9),
-                FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand
-            };
-            b.FlatAppearance.BorderSize         = 0;
-            b.FlatAppearance.MouseOverBackColor = Color.FromArgb(146, 64, 14);
-            b.FlatAppearance.MouseDownBackColor = Color.FromArgb(120, 53, 15);
-            return b;
+            var b = new Button { Text = text, Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.White, BackColor = Color.FromArgb(180, 83, 9), FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand };
+            b.FlatAppearance.BorderSize = 0; b.FlatAppearance.MouseOverBackColor = Color.FromArgb(146, 64, 14); b.FlatAppearance.MouseDownBackColor = Color.FromArgb(120, 53, 15); return b;
         }
         private Button MakeOutlineBtn(string text, Point loc, int w, int h)
         {
-            var b = new Button
-            {
-                Text = text, Font = new Font("Segoe UI", 12f),
-                ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White,
-                FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand
-            };
-            b.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
-            b.FlatAppearance.BorderSize         = 1;
-            b.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
-            return b;
+            var b = new Button { Text = text, Font = new Font("Segoe UI", 12f), ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White, FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand };
+            b.FlatAppearance.BorderColor = Color.FromArgb(221, 227, 236); b.FlatAppearance.BorderSize = 1; b.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249); return b;
         }
 
-        // NOTE: PaintCardBorder is defined in HandlingGoodsReceivedForm.cs
-        //       Do NOT redefine here — CS0111 will result.
+        // NOTE: PaintCardBorder defined in HandlingGoodsReceivedForm.cs — do NOT redefine here.
     }
 }
