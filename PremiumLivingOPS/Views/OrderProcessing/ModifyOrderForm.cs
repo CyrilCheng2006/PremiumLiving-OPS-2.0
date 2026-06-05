@@ -263,12 +263,17 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         /// Unified summary recalculation.
         /// Subtotal  = sum of all line totals.
         /// GrandTotal = Subtotal − discount (clamped to ≥ 0).
+        ///
+        /// NOTE: lblSubtotalTitle ("Subtotal:") and lblGrandTotalTitle ("Grand Total:")
+        /// are STATIC labels set in Designer. Only the VALUE labels are updated here.
         /// </summary>
         private void UpdateSummary()
         {
             double subtotal = 0;
             foreach (var l in _lines) subtotal += l.LineTotal;
-            lblSubtotal.Text = $"Subtotal:  HK$ {subtotal:N2}";
+
+            // Only update the number; the "Subtotal:" title is a separate static label
+            lblSubtotalValue.Text = $"HK$ {subtotal:N2}";
 
             string dtype    = cboDiscountType.SelectedItem?.ToString() ?? "None";
             double discount = 0;
@@ -283,7 +288,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             if (discount < 0)        discount = 0;
             if (discount > subtotal) discount = subtotal;
 
-            lblGrandTotal.Text = $"Grand Total:  HK$ {subtotal - discount:N2}";
+            // Only update the number; the "Grand Total:" title is a separate static label
+            lblGrandTotalValue.Text = $"HK$ {subtotal - discount:N2}";
         }
 
         private void btnAddLine_Click(object sender, EventArgs e)

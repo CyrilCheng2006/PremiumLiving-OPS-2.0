@@ -176,6 +176,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         /// Subtotal and Grand Total are always in sync regardless of trigger.
         /// Subtotal  = sum of all line totals (Qty × Price).
         /// GrandTotal = Subtotal − discount (clamped to ≥ 0).
+        ///
+        /// NOTE: lblSubtotalTitle ("Subtotal:") and lblGrandTotalTitle ("Grand Total:")
+        /// are STATIC labels set in Designer. Only the VALUE labels are updated here.
         /// </summary>
         private void UpdateSummary()
         {
@@ -184,7 +187,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             foreach (var l in _lines)
                 subtotal += l.LineTotal;
 
-            lblSubtotal.Text = $"Subtotal:  HK$ {subtotal:N2}";
+            // Only update the number; the "Subtotal:" title is a separate static label
+            lblSubtotalValue.Text = $"HK$ {subtotal:N2}";
 
             // 2. Discount
             string dtype    = cboDiscountType.SelectedItem?.ToString() ?? "None";
@@ -203,8 +207,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             if (discount < 0)        discount = 0;
             if (discount > subtotal) discount = subtotal;
 
-            // 3. Grand Total
-            lblGrandTotal.Text = $"Grand Total:  HK$ {subtotal - discount:N2}";
+            // 3. Grand Total — only update the number; "Grand Total:" title is a separate static label
+            lblGrandTotalValue.Text = $"HK$ {subtotal - discount:N2}";
         }
 
         // ── Add / Remove line ──────────────────────────────────────────────────────
