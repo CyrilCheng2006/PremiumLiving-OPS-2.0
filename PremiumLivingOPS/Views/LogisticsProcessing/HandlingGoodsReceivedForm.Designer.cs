@@ -9,14 +9,11 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
     {
         private System.ComponentModel.IContainer components = null;
 
-        // ── AppShell (TopNavBar 44 px + UserBar 72 px = 116 px)
-        // Exposed as field so Form.cs can call:
-        //   _shell.SetUser(...)  _shell.SetVisibleMenus(...)  _shell.SetBreadcrumb(...)
-        //   _shell.MenuItemClicked += ...  _shell.LogoutClicked += ...
-        // Events are wired in Form_Load (Form.cs), NOT here — matches ViewShipmentForm baseline.
+        // ── AppShell (TopNavBar 44 px + UserBar 72 px = 116 px) ──────────
+        // Events wired in Form_Load (Form.cs), NOT here — mirrors ViewShipmentForm.
         private AppShell _shell;
 
-        // ── Search-bar controls
+        // ── Search-bar controls ──────────────────────────────────────────
         private TextBox        txtKeyword;
         private ComboBox       cboStatus;
         private DateTimePicker dtpDateFrom;
@@ -24,19 +21,19 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         private Button         btnSearch;
         private Button         btnReset;
 
-        // ── KPI pills panel (populated at runtime by RenderKpi())
+        // ── KPI pills panel (populated at runtime by RenderKpi) ───────────
         private Panel pnlKpi;
 
-        // ── Action buttons (right side of KPI bar)
+        // ── Action buttons ───────────────────────────────────────────────
         private Button btnViewPODetail;
         private Button btnViewReceiptLines;
         private Button btnUploadReceipt;
         private Button btnRecordInvoice;
 
-        // ── Data grids
-        private DataGridView dgvReceipts;   // Tab 1 — Goods Received lines
-        private DataGridView dgvPO;         // Tab 2 — Purchase Orders
-        private DataGridView dgvInvoices;   // Tab 3 — Purchase Invoices
+        // ── Data grids ───────────────────────────────────────────────────
+        private DataGridView dgvReceipts;    // Tab 1 — Goods Received lines
+        private DataGridView dgvPO;          // Tab 2 — Purchase Orders
+        private DataGridView dgvInvoices;    // Tab 3 — Purchase Invoices
 
         protected override void Dispose(bool disposing)
         {
@@ -46,46 +43,35 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
         private void InitializeComponent()
         {
-            // ────────────────────────────────────────────────────────────────
-            // RULE 0  AutoScaleDimensions + AutoScaleMode MUST be the very
-            //         first two statements after SuspendLayout().
-            //         Placing them anywhere else (e.g. after Controls.Add)
-            //         causes WinForms to run a font-scaling PerformLayout pass
-            //         that silently shrinks _shell below TotalHeight (116 px),
-            //         hiding the lower UserBar (72 px).
-            //         This is the PRIMARY fix for the UserBar-missing bug.
-            // ────────────────────────────────────────────────────────────────
+            // ────────────────────────────────────────────────────────────
+            // RULE 1  SuspendLayout() MUST be the absolute first statement.
+            // ────────────────────────────────────────────────────────────
             this.SuspendLayout();
-            this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
-            this.AutoScaleMode       = AutoScaleMode.Font;
 
-            // ────────────────────────────────────────────────────────────────
+            // ────────────────────────────────────────────────────────────
             // RULE 2  Construct AppShell INSIDE SuspendLayout scope.
-            //         Set Dock, Height, MinimumSize immediately so AppShell's
-            //         own OnLayout + ScaleControl overrides can take effect
-            //         before the first PerformLayout pass.
-            //
-            //  *** NO event wiring here — mirrors ViewShipmentForm.Designer.cs ***
+            //         Set Dock / Height / MinimumSize immediately.
+            //  *** NO event wiring here — mirrors ViewShipmentForm.Designer ***
             //      MenuItemClicked and LogoutClicked are wired in Form_Load.
-            // ────────────────────────────────────────────────────────────────
+            // ────────────────────────────────────────────────────────────
             _shell             = new AppShell();
             _shell.Dock        = DockStyle.Top;
             _shell.Height      = AppShell.TotalHeight;               // 116 px
             _shell.MinimumSize = new Size(0, AppShell.TotalHeight);
 
-            // ── Root panel ──────────────────────────────────────────────────
+            // ── Root panel ───────────────────────────────────────────────
             var pnlMain = new Panel
             {
                 Dock      = DockStyle.Fill,
                 BackColor = Color.FromArgb(240, 244, 249)
             };
 
-            // SetPopupContainer before _shell is added to any Controls collection.
+            // SetPopupContainer BEFORE _shell is added to any Controls collection.
             _shell.SetPopupContainer(pnlMain);
 
-            // ================================================================
+            // ============================================================
             //  SEARCH CARD  (DockStyle.Top, height = 270)
-            // ================================================================
+            // ============================================================
 
             txtKeyword = new TextBox
             {
@@ -117,7 +103,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             };
             chkDateFrom.CheckedChanged += (s, e) => { dtpDateFrom.Enabled = chkDateFrom.Checked; };
 
-            // ── MakeCell helper (identical pattern to ViewShipmentForm) ──────
+            // ── MakeCell helper (mirrors ViewShipmentForm.Designer) ───────
             TableLayoutPanel MakeCell(string caption, Control ctrl, bool rightPad = true)
             {
                 var t = new TableLayoutPanel
@@ -131,7 +117,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 };
                 t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
                 t.RowStyles.Add(new RowStyle(SizeType.Absolute,  40f));
-                t.RowStyles.Add(new RowStyle(SizeType.Percent,  70f));
+                t.RowStyles.Add(new RowStyle(SizeType.Percent,   70f));
                 var lbl = new Label
                 {
                     Text      = caption,
@@ -147,7 +133,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 return t;
             }
 
-            // ── Date-From cell ───────────────────────────────────────────────
+            // ── Date-From cell ────────────────────────────────────────────
             var cellDate = new TableLayoutPanel
             {
                 Dock            = DockStyle.Fill,
@@ -158,8 +144,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             };
             cellDate.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 33f));
             cellDate.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-            cellDate.RowStyles.Add(new RowStyle(SizeType.Absolute, 40f));
-            cellDate.RowStyles.Add(new RowStyle(SizeType.Percent,  70f));
+            cellDate.RowStyles.Add(new RowStyle(SizeType.Absolute,  40f));
+            cellDate.RowStyles.Add(new RowStyle(SizeType.Percent,   70f));
             var lblDateCap = new Label
             {
                 Text      = "Date From",
@@ -176,7 +162,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             cellDate.Controls.Add(chkDateFrom, 0, 1);
             cellDate.Controls.Add(dtpDateFrom, 1, 1);
 
-            // ── 3-column fields row ──────────────────────────────────────────
+            // ── 3-column fields row ───────────────────────────────────────
             var tblFields = new TableLayoutPanel
             {
                 Dock            = DockStyle.Fill,
@@ -193,16 +179,16 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             tblFields.Controls.Add(MakeCell("PO Status",                         cboStatus),  1, 0);
             tblFields.Controls.Add(cellDate,                                                   2, 0);
 
-            // ── Search / Reset buttons ───────────────────────────────────────
+            // ── Search / Reset buttons ────────────────────────────────────
             var pnlSearchBtns = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            btnSearch = MakePrimaryBtn("\U0001f50d  Search", new Point(0,   0), 210, 60);
-            btnReset  = MakeOutlineBtn("↺  Reset",          new Point(218, 0), 210, 60);
+            btnSearch = MakePrimaryBtn ("\U0001f50d  Search", new Point(0,   0), 210, 60);
+            btnReset  = MakeOutlineBtn ("↺  Reset",         new Point(218, 0), 210, 60);
             btnSearch.Click += (s, e) => RefreshGrids();
             btnReset.Click  += (s, e) => ResetFilters();
             pnlSearchBtns.Controls.Add(btnSearch);
             pnlSearchBtns.Controls.Add(btnReset);
 
-            // ── Search card TLP ──────────────────────────────────────────────
+            // ── Search card TLP ───────────────────────────────────────────
             var tblSearchCard = new TableLayoutPanel
             {
                 Dock            = DockStyle.Fill,
@@ -250,10 +236,10 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             };
             pnlSearchOuter.Controls.Add(pnlSearchWhite);
 
-            // ================================================================
+            // ============================================================
             //  KPI BAR  (DockStyle.Top, height = 90)
             //  Left: KPI pills (Fill)    Right: 4 action buttons (Right)
-            // ================================================================
+            // ============================================================
             pnlKpi = new Panel
             {
                 Dock      = DockStyle.Fill,
@@ -263,10 +249,10 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             const int BW = 210; const int BH = 60; const int BG = 8; const int BP = 12;
 
-            btnViewPODetail     = MakePrimaryBtn   ("\U0001f50d  View PO",        Point.Empty, BW, BH);
-            btnViewReceiptLines = MakeSecondaryBtn ("\U0001f4cb  Receipt Lines",  Point.Empty, BW, BH);
-            btnUploadReceipt    = MakeWarningBtn   ("\U0001f4ce  Upload",          Point.Empty, BW, BH);
-            btnRecordInvoice    = MakeSuccessBtn   ("\U0001f4c4  Record Invoice",  Point.Empty, BW, BH);
+            btnViewPODetail     = MakePrimaryBtn   ("\U0001f50d  View PO",       Point.Empty, BW, BH);
+            btnViewReceiptLines = MakeSecondaryBtn ("\U0001f4cb  Receipt Lines", Point.Empty, BW, BH);
+            btnUploadReceipt    = MakeWarningBtn   ("\U0001f4ce  Upload",         Point.Empty, BW, BH);
+            btnRecordInvoice    = MakeSuccessBtn   ("\U0001f4c4  Record Invoice", Point.Empty, BW, BH);
 
             btnViewPODetail.Enabled     = false;
             btnViewReceiptLines.Enabled = false;
@@ -281,7 +267,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             var pnlActions = new Panel
             {
                 Dock      = DockStyle.Right,
-                Width     = BP + (BW + BG) * 4 + BP,  // 12 + 4*(210+8) + 12 = 896
+                Width     = BP + (BW + BG) * 4 + BP,
                 BackColor = Color.Transparent
             };
             void CentreActions()
@@ -299,7 +285,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlActions.Controls.Add(btnRecordInvoice);
             pnlActions.Resize += (s, e) => CentreActions();
 
-            // Fill (pills) added BEFORE Right (buttons) — DockStyle stacking rule
             var pnlKpiRow = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             pnlKpiRow.Controls.Add(pnlKpi);     // DockStyle.Fill  — pills
             pnlKpiRow.Controls.Add(pnlActions); // DockStyle.Right — buttons
@@ -317,11 +302,10 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             };
             pnlKpiOuter.Controls.Add(pnlKpiWhite);
 
-            // ================================================================
+            // ============================================================
             //  GRID AREA  (DockStyle.Fill) — TabControl with 3 tabs
-            // ================================================================
+            // ============================================================
 
-            // Grid factory (shared style matching ViewShipmentForm dgvShipments)
             DataGridView BuildGrid() => new DataGridView
             {
                 ReadOnly               = true,
@@ -408,13 +392,12 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 BackColor = Color.FromArgb(246, 249, 255)
             };
 
-            // Card wrapper for each tab
             Panel WrapCard(string title, DataGridView grid)
             {
                 var inner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
                 inner.Paint += PaintCardBorder;
                 inner.Controls.Add(grid);
-                inner.Controls.Add(SectionLabel(title)); // Top — renders above grid
+                inner.Controls.Add(SectionLabel(title));
                 var outer = new Panel
                 {
                     Dock      = DockStyle.Fill,
@@ -455,43 +438,43 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             };
             pnlGridOuter.Controls.Add(tabs);
 
-            // ================================================================
-            //  RULE 5  pnlMain.Controls.Add ORDER  (mirrors ViewShipmentForm)
+            // ============================================================
+            //  RULE 5  pnlMain.Controls.Add ORDER — mirrors ViewShipmentForm
             //    1. DockStyle.Fill FIRST
             //    2. DockStyle.Top in reverse visual order
-            //    3. _shell LAST  → sits at absolute top of window
-            // ================================================================
+            //    3. _shell LAST → sits at absolute top of window
+            // ============================================================
             pnlMain.Controls.Add(pnlGridOuter);   // Fill  — grid/tab area
             pnlMain.Controls.Add(pnlKpiOuter);    // Top   — KPI bar
             pnlMain.Controls.Add(pnlSearchOuter); // Top   — Search card
-            pnlMain.Controls.Add(_shell);         // Top   — AppShell LAST
+            pnlMain.Controls.Add(_shell);          // Top   — AppShell LAST
 
-            // ── Form-level properties ────────────────────────────────────────
-            this.Text          = "Premium Living OPS — Handling Goods Received";
-            this.Size          = new Size(1440, 900);
-            this.MinimumSize   = new Size(1280, 800);
-            this.StartPosition = FormStartPosition.CenterScreen;
-            this.BackColor     = Color.FromArgb(240, 244, 249);
-            this.WindowState   = FormWindowState.Maximized;
-            this.Font          = new Font("Segoe UI", 13f);
+            // ── Form-level properties — mirror ViewShipmentForm exactly ──
+            this.Text                = "Premium Living OPS — Handling Goods Received";
+            this.Size                = new Size(1440, 900);
+            this.MinimumSize         = new Size(1280, 800);
+            this.StartPosition       = FormStartPosition.CenterScreen;
+            this.BackColor           = Color.FromArgb(240, 244, 249);
+            this.WindowState         = FormWindowState.Maximized;
+            this.Font                = new Font("Segoe UI", 13f);
+            this.AutoScaleMode       = AutoScaleMode.Font;
+            this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
 
             this.Controls.Add(pnlMain);
 
-            // ────────────────────────────────────────────────────────────────
+            // ────────────────────────────────────────────────────────────
             // RULE 3  Re-enforce _shell height AFTER ResumeLayout + PerformLayout.
-            //         These two lines are the final safety net that guarantees
-            //         UserBar remains visible even on high-DPI screens.
-            // ────────────────────────────────────────────────────────────────
+            //         AutoScaleMode = Font can silently shrink _shell during
+            //         the first PerformLayout pass. These two lines are the
+            //         final safety net that guarantees UserBar stays visible.
+            // ────────────────────────────────────────────────────────────
             this.ResumeLayout(false);
             this.PerformLayout();
             _shell.Height      = AppShell.TotalHeight;               // 116 px — RULE 3
             _shell.MinimumSize = new Size(0, AppShell.TotalHeight);  // RULE 3
         }
 
-        // ====================================================================
-        //  Button factory helpers  (colours match ViewShipmentForm palette)
-        // ====================================================================
-
+        // ── Button factory helpers ────────────────────────────────────────
         private Button MakePrimaryBtn(string text, Point loc, int w, int h)
         {
             var b = new Button
@@ -552,7 +535,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         {
             var b = new Button
             {
-                Text = text, Font = new Font("Segoe UI", 12f), ForeColor = Color.FromArgb(15, 31, 53),
+                Text = text, Font = new Font("Segoe UI", 12f),
+                ForeColor = Color.FromArgb(15, 31, 53),
                 BackColor = Color.White, FlatStyle = FlatStyle.Flat,
                 Location = loc, Width = w, Height = h, Cursor = Cursors.Hand
             };
@@ -560,15 +544,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             b.FlatAppearance.BorderSize  = 1;
             b.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
             return b;
-        }
-
-        // ── Card border painter ──────────────────────────────────────────────
-        // Defined ONCE here; Form.cs partial class references this definition.
-        private static void PaintCardBorder(object s, PaintEventArgs e)
-        {
-            var p = (Panel)s;
-            using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
-            e.Graphics.DrawRectangle(pen, 0, 0, p.Width - 1, p.Height - 1);
         }
     }
 }
