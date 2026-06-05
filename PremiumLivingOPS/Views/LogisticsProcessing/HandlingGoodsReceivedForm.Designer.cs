@@ -232,12 +232,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlKpiOuter.Controls.Add(pnlKpiInner);
 
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            //  GRID TAB SWITCHER BAR  (DockStyle.Top, Height 56)
-            //
-            //  FIX: Use TableLayoutPanel (3 equal columns) instead of
-            //  FlowLayoutPanel + DockStyle.Fill buttons.
-            //  FlowLayoutPanel with Dock=Fill causes zero-height in WinForms
-            //  when sibling DockStyle.Bottom controls are added first.
+            //  GRID TAB SWITCHER BAR  (DockStyle.Top, Height 69 = 65px + 4px top padding)
+            //  TableLayoutPanel 3 equal columns — buttons Dock=Fill per cell.
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             Color tabActiveFg   = Color.FromArgb(47, 111, 237);
             Color tabInactiveFg = Color.FromArgb(98, 112, 135);
@@ -251,7 +247,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                     ForeColor = tabInactiveFg,
                     BackColor = Color.White,
                     FlatStyle = FlatStyle.Flat,
-                    Dock      = DockStyle.Fill,   // fills the TableLayoutPanel cell
+                    Dock      = DockStyle.Fill,
                     Cursor    = Cursors.Hand,
                     TextAlign = ContentAlignment.MiddleCenter,
                     Padding   = new Padding(0, 0, 0, 3)
@@ -270,7 +266,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             btnTabPO.Click       += (s, e) => SwitchToGrid(1);
             btnTabInvoices.Click += (s, e) => SwitchToGrid(2);
 
-            // TableLayoutPanel — 3 equal columns, 1 row — reliably fills the card
             var tblTabs = new TableLayoutPanel
             {
                 Dock        = DockStyle.Fill,
@@ -288,24 +283,22 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             tblTabs.Controls.Add(btnTabPO,       1, 0);
             tblTabs.Controls.Add(btnTabInvoices, 2, 0);
 
-            // White card wrapper — Paint draws card border + bottom divider line
             var pnlTabCard = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
             pnlTabCard.Paint += PaintCardBorder;
             pnlTabCard.Paint += (s, e) =>
             {
-                // bottom border separating tab bar from grid area
                 using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
                 e.Graphics.DrawLine(pen, 0, pnlTabCard.Height - 1, pnlTabCard.Width, pnlTabCard.Height - 1);
             };
-            pnlTabCard.Controls.Add(tblTabs); // add FILL child before any other
+            pnlTabCard.Controls.Add(tblTabs);
 
-            // Outer — 56px tall so 52px inner + 4px bottom margin sit cleanly
+            // Height = 69: 65px visible content + 4px top gap from KPI bar
             var pnlTabOuter = new Panel
             {
                 Dock      = DockStyle.Top,
-                Height    = 56,
+                Height    = 69,
                 BackColor = Color.FromArgb(240, 244, 249),
-                Padding   = new Padding(20, 4, 20, 0)  // 4px top gap from KPI bar
+                Padding   = new Padding(20, 4, 20, 0)
             };
             pnlTabOuter.Controls.Add(pnlTabCard);
 
@@ -365,8 +358,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             {
                 var inner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
                 inner.Paint += PaintCardBorder;
-                inner.Controls.Add(dgv);          // Fill — grid
-                inner.Controls.Add(sectionLabel); // Top  — header bar
+                inner.Controls.Add(dgv);
+                inner.Controls.Add(sectionLabel);
 
                 var outer = new Panel
                 {
@@ -379,7 +372,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 return outer;
             }
 
-            // Build the three grids
             dgvReceipts = MakeDgv();
             dgvReceipts.Columns.Add(new DataGridViewTextBoxColumn { Name = "colRcptID",  HeaderText = "RECEIPT ID",   FillWeight = 13 });
             dgvReceipts.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPOID",    HeaderText = "PO ID",        FillWeight = 13 });
@@ -419,27 +411,23 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             var pnlPOCard       = WrapGridCard(dgvPO,       MakeSectionLabel("PURCHASE ORDERS"));
             var pnlInvoicesCard = WrapGridCard(dgvInvoices, MakeSectionLabel("PURCHASE INVOICES"));
 
-            // Store grid card panels in Tag so SwitchToGrid() can access them
             btnTabReceipts.Tag = pnlReceiptsCard;
             btnTabPO.Tag       = pnlPOCard;
             btnTabInvoices.Tag = pnlInvoicesCard;
 
-            // pnlGridHost holds all three overlapping cards; only one Visible at once
             pnlGridHost = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(240, 244, 249) };
             pnlGridHost.Controls.Add(pnlReceiptsCard);
             pnlGridHost.Controls.Add(pnlPOCard);
             pnlGridHost.Controls.Add(pnlInvoicesCard);
 
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            //  Final assembly
-            //  RULE: Add Fill control FIRST, then Top controls in reverse visual
-            //  order (bottom-most Top added last), _shell added last.
+            //  Final assembly — Fill first, then Top in reverse visual order.
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            pnlMain.Controls.Add(pnlGridHost);    // DockStyle.Fill  — must be added first
-            pnlMain.Controls.Add(pnlTabOuter);    // DockStyle.Top   — tab switcher (closest to grid)
-            pnlMain.Controls.Add(pnlKpiOuter);    // DockStyle.Top   — KPI bar
-            pnlMain.Controls.Add(pnlSearchOuter); // DockStyle.Top   — search card
-            pnlMain.Controls.Add(_shell);         // DockStyle.Top   — AppShell (topmost)
+            pnlMain.Controls.Add(pnlGridHost);    // DockStyle.Fill
+            pnlMain.Controls.Add(pnlTabOuter);    // DockStyle.Top — tab switcher
+            pnlMain.Controls.Add(pnlKpiOuter);    // DockStyle.Top — KPI bar
+            pnlMain.Controls.Add(pnlSearchOuter); // DockStyle.Top — search card
+            pnlMain.Controls.Add(_shell);         // DockStyle.Top — AppShell
 
             this.Controls.Add(pnlMain);
             this.ResumeLayout(false);
