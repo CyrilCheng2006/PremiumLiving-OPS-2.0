@@ -188,16 +188,20 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlInfoInner.Controls.Add(pnlInfoContent);
 
             // ==================================================================
-            // FOOTER  — [Subtotal: HK$ x.xx]  60px  [Grand Total: HK$ x.xx]  |  [Save] [Cancel]
-            // ValToLblGap = 60: gap from right edge of lblSubtotalValue
-            //                   to left edge of lblGrandTotalTitle, always constant.
+            // FOOTER  — [Subtotal: HK$ x.xx]  [+60px→]  [Grand Total: HK$ x.xx]  |  [Save] [Cancel]
+            //
+            // ValToLblGap = 60 is appended to the RIGHT EDGE of lblSubtotalValue:
+            //   grandTitleX = lblSubtotalValue.Right + ValToLblGap
+            //
+            // This guarantees the 60px gap originates FROM lblSubtotalValue,
+            // regardless of how wide the subtotal number is.
             // ==================================================================
 
             const int BtnW        = 210;
             const int BtnH        = 60;
             const int BtnGap      = 8;
             const int BtnPad      = 12;
-            // Fixed 60px gap: right-of-SubtotalValue → left-of-GrandTotalTitle
+            // 60px measured from the right edge of lblSubtotalValue
             const int ValToLblGap = 60;
             const int LblLeft     = 8;
 
@@ -281,10 +285,13 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 lblSubtotalValue.Location = new Point(subValX, subTop + (subRowH - lblSubtotalValue.Height) / 2);
 
                 // --- Grand Total row ---
-                // "Grand Total:" starts exactly ValToLblGap (60px) after right edge of lblSubtotalValue
+                // ValToLblGap (60px) is added to the RIGHT EDGE of lblSubtotalValue:
+                //   subValRight  =  subValX + lblSubtotalValue.Width   (right edge of the number)
+                //   grandTitleX  =  subValRight + ValToLblGap          (60px gap from that edge)
                 int grandRowH   = Math.Max(lblGrandTotalTitle.Height, lblGrandTotalValue.Height);
                 int grandTop    = (h - grandRowH) / 2; if (grandTop < 0) grandTop = 0;
-                int grandTitleX = subValX + lblSubtotalValue.Width + ValToLblGap;
+                int subValRight = subValX + lblSubtotalValue.Width;
+                int grandTitleX = subValRight + ValToLblGap;          // ← 60px appended to SubtotalValue right edge
                 lblGrandTotalTitle.Location = new Point(grandTitleX, grandTop + (grandRowH - lblGrandTotalTitle.Height) / 2);
                 lblGrandTotalValue.Location = new Point(grandTitleX + lblGrandTotalTitle.Width + 4, grandTop + (grandRowH - lblGrandTotalValue.Height) / 2);
 
