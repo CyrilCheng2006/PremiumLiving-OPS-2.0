@@ -175,7 +175,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlInfoInner.Controls.Add(pnlInfoContent);
 
             // ==================================================================
-            // FOOTER  — Grand Total | Subtotal | [Submit] [Clear]
+            // FOOTER  — Subtotal | Grand Total | [Submit] [Clear]
             // ==================================================================
 
             const int BtnW   = 210;
@@ -183,7 +183,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             const int BtnGap = 8;
             const int BtnPad = 12;
 
-            // Two labels side-by-side, each vertically centred via Resize
             lblGrandTotal = new Label
             {
                 Text      = "Grand Total:  HK$ 0.00",
@@ -223,11 +222,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlActionBtns.Controls.Add(btnClear);
             pnlActionBtns.Resize += (s, e) => CentreFooterBtns();
 
-            // pnlFooterContent hosts both labels and the button panel.
-            // On Resize, each label is repositioned so its vertical centre
-            // aligns with the panel's vertical centre.
-            const int LblGap   = 28;   // horizontal gap between Grand Total and Subtotal
-            const int LblLeft  = 8;    // left margin for Grand Total
+            // Subtotal LEFT, Grand Total RIGHT, 60px gap between them
+            const int LblGap  = 60;
+            const int LblLeft = 8;
 
             var pnlFooterContent = new Panel
             {
@@ -235,8 +232,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 BackColor = Color.Transparent,
                 Padding   = new Padding(4, 0, 0, 0)
             };
-            pnlFooterContent.Controls.Add(lblGrandTotal);
             pnlFooterContent.Controls.Add(lblSubtotal);
+            pnlFooterContent.Controls.Add(lblGrandTotal);
             pnlFooterContent.Controls.Add(pnlActionBtns);
 
             pnlFooterContent.Resize += (s, e) =>
@@ -244,14 +241,15 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 var pnl = (Panel)s;
                 int h   = pnl.Height;
 
-                // Vertically centre each label independently
-                int topGrand = (h - lblGrandTotal.Height) / 2;
-                if (topGrand < 0) topGrand = 0;
-                lblGrandTotal.Location = new Point(LblLeft, topGrand);
-
+                // Subtotal on the left
                 int topSub = (h - lblSubtotal.Height) / 2;
                 if (topSub < 0) topSub = 0;
-                lblSubtotal.Location = new Point(LblLeft + lblGrandTotal.Width + LblGap, topSub);
+                lblSubtotal.Location = new Point(LblLeft, topSub);
+
+                // Grand Total to the right of Subtotal + 60px gap
+                int topGrand = (h - lblGrandTotal.Height) / 2;
+                if (topGrand < 0) topGrand = 0;
+                lblGrandTotal.Location = new Point(LblLeft + lblSubtotal.Width + LblGap, topGrand);
 
                 CentreFooterBtns();
             };
