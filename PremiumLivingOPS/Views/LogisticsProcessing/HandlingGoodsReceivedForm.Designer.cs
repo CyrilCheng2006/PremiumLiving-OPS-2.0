@@ -11,7 +11,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         //  RULE 1 — AppShell declared as field (TopNavBar 44 px + UserBar 72 px = 116 px)
-        //           Identical to ViewShipmentForm._shell declaration.
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private AppShell _shell;
 
@@ -45,10 +44,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
         private void InitializeComponent()
         {
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            //  RULE 2 — SuspendLayout must be the FIRST line, identical to
-            //            ViewShipmentForm.InitializeComponent().
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             this.SuspendLayout();
 
             // ── Form settings ────────────────────────────────────────────
@@ -60,9 +55,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             this.WindowState   = FormWindowState.Maximized;
             this.Font          = new Font("Segoe UI", 13f);
 
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            //  Root panel — identical to ViewShipmentForm
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // ── Root panel ─────────────────────────────────────────────
             var pnlMain = new Panel
             {
                 Dock      = DockStyle.Fill,
@@ -70,21 +63,15 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             };
 
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            //  RULE 3 — AppShell construction
-            //  new AppShell()  THEN  SetPopupContainer(pnlMain)
-            //  BEFORE adding to Controls. Identical to ViewShipmentForm.
+            //  RULE 3 — AppShell: new AppShell() then SetPopupContainer(pnlMain)
+            //            BEFORE adding to Controls.
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             _shell = new AppShell();
             _shell.SetPopupContainer(pnlMain);
 
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            //  Search / Filter card  (DockStyle.Top, Height 280)
-            //  Layer 1: grey page padding (pnlSearchOuter)
-            //  Layer 2: white card       (pnlCard)
-            //  Layer 3: content TLP      (tblCard)
+            //  Search / Filter card  (DockStyle.Top, Height 270)
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-            // ── Input controls ──────────────────────────────────────────
             txtKeyword = new TextBox
             {
                 Font            = new Font("Segoe UI", 12f),
@@ -117,7 +104,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             };
             chkDateFrom.CheckedChanged += (s, e) => { dtpDateFrom.Enabled = chkDateFrom.Checked; };
 
-            // ── MakeCell helper (identical to ViewShipmentForm) ────────────
+            // ── MakeCell helper ──────────────────────────────────────────
             TableLayoutPanel MakeCell(string caption, Control ctrl, bool rightPad = true)
             {
                 var tlp = new TableLayoutPanel
@@ -147,7 +134,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 return tlp;
             }
 
-            // ── Date-From cell (identical to ViewShipmentForm) ─────────────
+            // ── Date-From cell ────────────────────────────────────────────
             var cellDate = new TableLayoutPanel
             {
                 Dock            = DockStyle.Fill,
@@ -176,7 +163,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             cellDate.Controls.Add(chkDateFrom, 0, 1);
             cellDate.Controls.Add(dtpDateFrom, 1, 1);
 
-            // ── 3-column fields TLP (keyword | status | date) ───────────
             var tblFields = new TableLayoutPanel
             {
                 Dock            = DockStyle.Fill,
@@ -193,7 +179,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             tblFields.Controls.Add(MakeCell("PO Status",  cboStatus),                          1, 0);
             tblFields.Controls.Add(cellDate,                                                    2, 0);
 
-            // ── Search / Reset buttons ───────────────────────────────────
             var pnlBtns = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             btnSearch  = MakePrimaryBtn("\U0001F50D  Search", new Point(0,   0), 210, 60);
             btnRefresh = MakeOutlineBtn("↺  Reset",         new Point(218, 0), 210, 60);
@@ -202,7 +187,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlBtns.Controls.Add(btnSearch);
             pnlBtns.Controls.Add(btnRefresh);
 
-            // ── Search card TLP (identical to ViewShipmentForm) ──────────
             var tblCard = new TableLayoutPanel
             {
                 Dock            = DockStyle.Fill,
@@ -217,7 +201,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute, 120f));
             tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  65f));
 
-            var pnlTitle = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
+            var pnlTitleBar = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             var lblTitle = new Label
             {
                 Text      = "Search — Goods Received / Purchase Orders",
@@ -232,13 +216,12 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 Height    = 1,
                 BackColor = Color.FromArgb(221, 227, 236)
             };
-            pnlTitle.Controls.Add(lblTitle);
-            pnlTitle.Controls.Add(divider);
-            tblCard.Controls.Add(pnlTitle,  0, 0);
-            tblCard.Controls.Add(tblFields, 0, 1);
-            tblCard.Controls.Add(pnlBtns,   0, 2);
+            pnlTitleBar.Controls.Add(lblTitle);
+            pnlTitleBar.Controls.Add(divider);
+            tblCard.Controls.Add(pnlTitleBar, 0, 0);
+            tblCard.Controls.Add(tblFields,   0, 1);
+            tblCard.Controls.Add(pnlBtns,     0, 2);
 
-            // Layer 1: grey outer  /  Layer 2: white card
             var pnlCard = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
             pnlCard.Paint += PaintCardBorder;
             pnlCard.Controls.Add(tblCard);
@@ -254,9 +237,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             //  KPI bar + 4 action buttons  (DockStyle.Top, Height 90)
-            //  Left  : pnlKpi  (DockStyle.Fill  — FlowLayout pills)
-            //  Right : 4 buttons side-by-side in pnlActionBtns
-            //  Mirror ViewShipmentForm KPI row exactly.
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             pnlKpi = new Panel
             {
@@ -270,10 +250,10 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             const int BtnGap = 8;
             const int BtnPad = 12;
 
-            btnViewPODetail     = MakePrimaryBtn("\U0001F50D  PO Detail",       Point.Empty, BtnW, BtnH);
-            btnViewReceiptLines = MakePrimaryBtn("\U0001F4CB  Receipt Lines",    Point.Empty, BtnW, BtnH);
-            btnUploadReceipt    = MakeSuccessBtn("\U0001F4E4  Upload Receipt",   Point.Empty, BtnW, BtnH);
-            btnRecordInvoice    = MakeWarningBtn("\U0001F4C4  Record Invoice",   Point.Empty, BtnW, BtnH);
+            btnViewPODetail     = MakePrimaryBtn("\U0001F50D  PO Detail",     Point.Empty, BtnW, BtnH);
+            btnViewReceiptLines = MakePrimaryBtn("\U0001F4CB  Receipt Lines",  Point.Empty, BtnW, BtnH);
+            btnUploadReceipt    = MakeSuccessBtn("\U0001F4E4  Upload Receipt", Point.Empty, BtnW, BtnH);
+            btnRecordInvoice    = MakeWarningBtn("\U0001F4C4  Record Invoice", Point.Empty, BtnW, BtnH);
 
             btnViewPODetail.Enabled     = false;
             btnViewReceiptLines.Enabled = false;
@@ -285,7 +265,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             btnUploadReceipt.Click    += btnUploadReceipt_Click;
             btnRecordInvoice.Click    += btnRecordInvoice_Click;
 
-            // 4 buttons panel (DockStyle.Right)
             int actionPanelWidth = BtnPad + BtnW + BtnGap + BtnW + BtnGap + BtnW + BtnGap + BtnW + BtnPad;
             var pnlActionBtns = new Panel
             {
@@ -328,17 +307,11 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             //  Three-grid section (DockStyle.Fill)
-            //  Arranged as SplitContainer-like vertical thirds:
-            //    Top 38%   : Goods Received Receipts
-            //    Top 30%   : Purchase Orders
-            //    Fill      : Purchase Invoices
-            //  All wrapped in CardPanel three-layer nesting.
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-            // ── Shared DGV style factory ────────────────────────────────
             DataGridView MakeDgv()
             {
-                var g = new DataGridView
+                return new DataGridView
                 {
                     ReadOnly                  = true,
                     AllowUserToAddRows        = false,
@@ -373,10 +346,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                         Padding            = new Padding(12, 6, 12, 6)
                     }
                 };
-                return g;
             }
 
-            // ── Grid section label factory ───────────────────────────────
             Panel MakeSectionLabel(string text)
             {
                 var p = new Panel
@@ -402,13 +373,12 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 return p;
             }
 
-            // ── CardPanel wrapper factory (outer=grey page, inner=white card) ─
             Panel WrapInCard(Control content, Panel sectionLabel, DockStyle outerDock, int outerHeight = 0)
             {
                 var inner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
                 inner.Paint += PaintCardBorder;
-                inner.Controls.Add(content);      // DockStyle.Fill  — grid
-                inner.Controls.Add(sectionLabel); // DockStyle.Top   — section header
+                inner.Controls.Add(content);      // Fill — grid
+                inner.Controls.Add(sectionLabel); // Top  — section header
 
                 var outer = new Panel
                 {
@@ -438,26 +408,20 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             dgvReceipts.CellFormatting   += dgvReceipts_CellFormatting;
             dgvReceipts.CellDoubleClick  += dgvReceipts_CellDoubleClick;
 
-            var pnlReceiptsOuter = WrapInCard(
-                dgvReceipts,
-                MakeSectionLabel("GOODS RECEIVED RECEIPTS"),
-                DockStyle.Top, 300);
+            var pnlReceiptsOuter = WrapInCard(dgvReceipts, MakeSectionLabel("GOODS RECEIVED RECEIPTS"), DockStyle.Top, 300);
 
             // ---- Grid 2: Purchase Orders ------------------------------------
             dgvPO = MakeDgv();
-            dgvPO.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPID",   HeaderText = "PO ID",          FillWeight = 18 });
-            dgvPO.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPSup",  HeaderText = "SUPPLIER",       FillWeight = 28 });
-            dgvPO.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPDate", HeaderText = "ORDER DATE",     FillWeight = 18 });
-            dgvPO.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPAmt",  HeaderText = "PO AMOUNT",      FillWeight = 18 });
-            dgvPO.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPSt",   HeaderText = "STATUS",         FillWeight = 18 });
+            dgvPO.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPID",   HeaderText = "PO ID",      FillWeight = 18 });
+            dgvPO.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPSup",  HeaderText = "SUPPLIER",   FillWeight = 28 });
+            dgvPO.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPDate", HeaderText = "ORDER DATE", FillWeight = 18 });
+            dgvPO.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPAmt",  HeaderText = "PO AMOUNT",  FillWeight = 18 });
+            dgvPO.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPSt",   HeaderText = "STATUS",     FillWeight = 18 });
             dgvPO.SelectionChanged += dgvPO_SelectionChanged;
             dgvPO.CellFormatting   += dgvPO_CellFormatting;
             dgvPO.CellDoubleClick  += dgvPO_CellDoubleClick;
 
-            var pnlPOOuter = WrapInCard(
-                dgvPO,
-                MakeSectionLabel("PURCHASE ORDERS"),
-                DockStyle.Top, 240);
+            var pnlPOOuter = WrapInCard(dgvPO, MakeSectionLabel("PURCHASE ORDERS"), DockStyle.Top, 240);
 
             // ---- Grid 3: Purchase Invoices (DockStyle.Fill) -----------------
             dgvInvoices = MakeDgv();
@@ -469,50 +433,38 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             dgvInvoices.Columns.Add(new DataGridViewTextBoxColumn { Name = "colInvDate", HeaderText = "EXPECTED DATE", FillWeight = 12 });
             dgvInvoices.CellFormatting += dgvInvoices_CellFormatting;
 
-            var pnlInvoicesOuter = WrapInCard(
-                dgvInvoices,
-                MakeSectionLabel("PURCHASE INVOICES"),
-                DockStyle.Fill);
+            var pnlInvoicesOuter = WrapInCard(dgvInvoices, MakeSectionLabel("PURCHASE INVOICES"), DockStyle.Fill);
 
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            //  Grids container (DockStyle.Fill)
-            //  Fill panels must be added BEFORE Top panels.
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // ── Grids container ─────────────────────────────────────────────
             var pnlGridsContainer = new Panel
             {
                 Dock      = DockStyle.Fill,
                 BackColor = Color.FromArgb(240, 244, 249)
             };
-            pnlGridsContainer.Controls.Add(pnlInvoicesOuter); // Fill  — added first
+            pnlGridsContainer.Controls.Add(pnlInvoicesOuter); // Fill — added first
             pnlGridsContainer.Controls.Add(pnlPOOuter);        // Top
             pnlGridsContainer.Controls.Add(pnlReceiptsOuter);  // Top
 
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             //  RULE 4 — Final assembly into pnlMain
-            //  Order: Fill → Top (reverse declaration order)
-            //  AppShell is the LAST DockStyle.Top added so it sits at top.
-            //  Identical order to ViewShipmentForm.
+            //  Fill panels first, then Top panels in reverse visual order.
+            //  _shell (AppShell) added LAST as the topmost DockStyle.Top.
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            pnlMain.Controls.Add(pnlGridsContainer); // DockStyle.Fill  — grids
-            pnlMain.Controls.Add(pnlKpiOuter);       // DockStyle.Top   — KPI + actions
-            pnlMain.Controls.Add(pnlSearchOuter);    // DockStyle.Top   — Search card
-            pnlMain.Controls.Add(_shell);            // DockStyle.Top   — AppShell (NavBar + UserBar)
+            pnlMain.Controls.Add(pnlGridsContainer); // DockStyle.Fill
+            pnlMain.Controls.Add(pnlKpiOuter);       // DockStyle.Top
+            pnlMain.Controls.Add(pnlSearchOuter);    // DockStyle.Top
+            pnlMain.Controls.Add(_shell);            // DockStyle.Top — AppShell (NavBar + UserBar)
 
             this.Controls.Add(pnlMain);
 
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            //  RULE 5 — ResumeLayout(false) last, then correct _shell height.
-            //  AppShell.NavBarHeight + UserBarHeight = 116 px by design.
-            //  Reassign _shell.Height after ResumeLayout to override any
-            //  auto-size, identical to ViewShipmentForm.
+            //  RULE 5 — ResumeLayout last; correct _shell height.
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             this.ResumeLayout(false);
             _shell.Height = AppShell.NavBarHeight + AppShell.UserBarHeight;
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  Button factories — identical to ViewShipmentForm
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ── Button factories (identical to ViewShipmentForm) ───────────────
         private Button MakePrimaryBtn(string text, Point loc, int w, int h)
         {
             var b = new Button
@@ -522,14 +474,12 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 ForeColor = Color.White,
                 BackColor = Color.FromArgb(47, 111, 237),
                 FlatStyle = FlatStyle.Flat,
-                Location  = loc,
-                Width     = w,
-                Height    = h,
+                Location  = loc, Width = w, Height = h,
                 Cursor    = Cursors.Hand
             };
-            b.FlatAppearance.BorderSize             = 0;
-            b.FlatAppearance.MouseOverBackColor     = Color.FromArgb(26,  77, 192);
-            b.FlatAppearance.MouseDownBackColor     = Color.FromArgb(21,  60, 155);
+            b.FlatAppearance.BorderSize         = 0;
+            b.FlatAppearance.MouseOverBackColor = Color.FromArgb(26,  77, 192);
+            b.FlatAppearance.MouseDownBackColor = Color.FromArgb(21,  60, 155);
             return b;
         }
 
@@ -542,9 +492,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 ForeColor = Color.White,
                 BackColor = Color.FromArgb(5, 150, 105),
                 FlatStyle = FlatStyle.Flat,
-                Location  = loc,
-                Width     = w,
-                Height    = h,
+                Location  = loc, Width = w, Height = h,
                 Cursor    = Cursors.Hand
             };
             b.FlatAppearance.BorderSize         = 0;
@@ -562,9 +510,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 ForeColor = Color.White,
                 BackColor = Color.FromArgb(180, 83, 9),
                 FlatStyle = FlatStyle.Flat,
-                Location  = loc,
-                Width     = w,
-                Height    = h,
+                Location  = loc, Width = w, Height = h,
                 Cursor    = Cursors.Hand
             };
             b.FlatAppearance.BorderSize         = 0;
@@ -582,9 +528,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 ForeColor = Color.FromArgb(15, 31, 53),
                 BackColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Location  = loc,
-                Width     = w,
-                Height    = h,
+                Location  = loc, Width = w, Height = h,
                 Cursor    = Cursors.Hand
             };
             b.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
@@ -593,14 +537,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             return b;
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  Border painter — identical to ViewShipmentForm
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        private static void PaintCardBorder(object s, PaintEventArgs e)
-        {
-            var p = (Panel)s;
-            using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
-            e.Graphics.DrawRectangle(pen, 0, 0, p.Width - 1, p.Height - 1);
-        }
+        // NOTE: PaintCardBorder is defined in HandlingGoodsReceivedForm.cs
+        //       and shared across both partial class files via C# partial class.
+        //       It must NOT be redefined here to avoid CS0111.
     }
 }
