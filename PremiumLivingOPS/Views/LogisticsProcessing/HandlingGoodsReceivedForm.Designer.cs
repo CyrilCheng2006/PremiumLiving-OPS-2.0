@@ -13,7 +13,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         // Exposed as field so Form.cs can call:
         //   _shell.SetUser(...)  _shell.SetVisibleMenus(...)  _shell.SetBreadcrumb(...)
         //   _shell.MenuItemClicked += ...  _shell.LogoutClicked += ...
-        // Events are wired in Form_Load (Form.cs), NOT here — matches ViewOrderForm baseline.
+        // Events are wired in Form_Load (Form.cs), NOT here — matches ViewShipmentForm baseline.
         private AppShell _shell;
 
         // ── Search-bar controls
@@ -47,11 +47,17 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         private void InitializeComponent()
         {
             // ────────────────────────────────────────────────────────────────
-            // RULE 1  SuspendLayout() MUST be the absolute first statement.
-            //         AutoScaleMode = Font re-measures controls on every
-            //         Controls.Add() call while layout is running.
+            // RULE 0  AutoScaleDimensions + AutoScaleMode MUST be the very
+            //         first two statements after SuspendLayout().
+            //         Placing them anywhere else (e.g. after Controls.Add)
+            //         causes WinForms to run a font-scaling PerformLayout pass
+            //         that silently shrinks _shell below TotalHeight (116 px),
+            //         hiding the lower UserBar (72 px).
+            //         This is the PRIMARY fix for the UserBar-missing bug.
             // ────────────────────────────────────────────────────────────────
             this.SuspendLayout();
+            this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
+            this.AutoScaleMode       = AutoScaleMode.Font;
 
             // ────────────────────────────────────────────────────────────────
             // RULE 2  Construct AppShell INSIDE SuspendLayout scope.
@@ -59,7 +65,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             //         own OnLayout + ScaleControl overrides can take effect
             //         before the first PerformLayout pass.
             //
-            //  *** NO event wiring here — mirrors ViewOrderForm.Designer.cs ***
+            //  *** NO event wiring here — mirrors ViewShipmentForm.Designer.cs ***
             //      MenuItemClicked and LogoutClicked are wired in Form_Load.
             // ────────────────────────────────────────────────────────────────
             _shell             = new AppShell();
@@ -111,7 +117,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             };
             chkDateFrom.CheckedChanged += (s, e) => { dtpDateFrom.Enabled = chkDateFrom.Checked; };
 
-            // ── MakeCell helper (identical pattern to ViewOrderForm) ─────────
+            // ── MakeCell helper (identical pattern to ViewShipmentForm) ──────
             TableLayoutPanel MakeCell(string caption, Control ctrl, bool rightPad = true)
             {
                 var t = new TableLayoutPanel
@@ -315,7 +321,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             //  GRID AREA  (DockStyle.Fill) — TabControl with 3 tabs
             // ================================================================
 
-            // Grid factory (shared style matching ViewOrderForm dgvOrders)
+            // Grid factory (shared style matching ViewShipmentForm dgvShipments)
             DataGridView BuildGrid() => new DataGridView
             {
                 ReadOnly               = true,
@@ -450,7 +456,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlGridOuter.Controls.Add(tabs);
 
             // ================================================================
-            //  RULE 5  pnlMain.Controls.Add ORDER  (mirrors ViewOrderForm)
+            //  RULE 5  pnlMain.Controls.Add ORDER  (mirrors ViewShipmentForm)
             //    1. DockStyle.Fill FIRST
             //    2. DockStyle.Top in reverse visual order
             //    3. _shell LAST  → sits at absolute top of window
@@ -460,25 +466,21 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlMain.Controls.Add(pnlSearchOuter); // Top   — Search card
             pnlMain.Controls.Add(_shell);         // Top   — AppShell LAST
 
-            // ── Form-level properties  (mirror ViewOrderForm exactly) ────────
-            this.Text                = "Premium Living OPS — Handling Goods Received";
-            this.Size                = new Size(1440, 900);
-            this.MinimumSize         = new Size(1280, 800);
-            this.StartPosition       = FormStartPosition.CenterScreen;
-            this.BackColor           = Color.FromArgb(240, 244, 249);
-            this.WindowState         = FormWindowState.Maximized;
-            this.Font                = new Font("Segoe UI", 13f);
-            this.AutoScaleMode       = AutoScaleMode.Font;
-            this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
+            // ── Form-level properties ────────────────────────────────────────
+            this.Text          = "Premium Living OPS — Handling Goods Received";
+            this.Size          = new Size(1440, 900);
+            this.MinimumSize   = new Size(1280, 800);
+            this.StartPosition = FormStartPosition.CenterScreen;
+            this.BackColor     = Color.FromArgb(240, 244, 249);
+            this.WindowState   = FormWindowState.Maximized;
+            this.Font          = new Font("Segoe UI", 13f);
 
             this.Controls.Add(pnlMain);
 
             // ────────────────────────────────────────────────────────────────
             // RULE 3  Re-enforce _shell height AFTER ResumeLayout + PerformLayout.
-            //         AutoScaleMode = Font can silently shrink _shell during the
-            //         first PerformLayout pass even though AppShell.OnLayout and
-            //         ScaleControl try to prevent it.  These two lines are the
-            //         final safety net that guarantees UserBar is visible.
+            //         These two lines are the final safety net that guarantees
+            //         UserBar remains visible even on high-DPI screens.
             // ────────────────────────────────────────────────────────────────
             this.ResumeLayout(false);
             this.PerformLayout();
@@ -487,7 +489,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         }
 
         // ====================================================================
-        //  Button factory helpers  (colours match ViewOrderForm palette)
+        //  Button factory helpers  (colours match ViewShipmentForm palette)
         // ====================================================================
 
         private Button MakePrimaryBtn(string text, Point loc, int w, int h)
