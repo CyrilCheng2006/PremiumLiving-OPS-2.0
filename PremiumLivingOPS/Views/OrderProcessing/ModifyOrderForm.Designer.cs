@@ -102,13 +102,14 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 BackColor = Color.Transparent,
                 Padding   = new Padding(16, 10, 16, 10)
             };
+            // Right btn first so it claims the right edge; Fill combo gets remainder
             pnlSearchRow.Controls.Add(cboSearchOrder);
             pnlSearchRow.Controls.Add(btnLoadOrder);
             pnlSearchRow.Controls.Add(lblSearchLbl);
             pnlSearchInner.Controls.Add(pnlSearchRow);
 
             // ==================================================================
-            // CARD 1 — ORDER DETAILS  (mirrors CreateOrderForm Card 1)
+            // CARD 1 — ORDER DETAILS
             // ==================================================================
 
             lblOrderIdValue = new Label
@@ -203,12 +204,11 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlDiscountInput.Controls.Add(txtDiscountValue);
             pnlDiscountInput.Controls.Add(lblDiscountUnit);
 
-            // Row layout: 2 cols × 12 rows (label + input per field, label 40 px, input 72 px)
             var tblInfo = new TableLayoutPanel
             {
                 Dock            = DockStyle.Fill,
                 ColumnCount     = 2,
-                RowCount        = 14,   // 7 field pairs
+                RowCount        = 14,
                 BackColor       = Color.Transparent,
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
                 Padding         = new Padding(18, 8, 18, 8)
@@ -221,19 +221,16 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, 72f));
             }
 
-            // Row 0–1 : Order ID  |  Linked Quotation
             tblInfo.Controls.Add(FieldLabel("Order ID",         false), 0, 0);
             tblInfo.Controls.Add(FieldLabel("Linked Quotation", false), 1, 0);
             tblInfo.Controls.Add(pnlOrderIdChip,                        0, 1);
             tblInfo.Controls.Add(Pad(cboQuotation),                     1, 1);
 
-            // Row 2–3 : Address ID  |  Customer
             tblInfo.Controls.Add(FieldLabel("Address ID", true), 0, 2);
             tblInfo.Controls.Add(FieldLabel("Customer",   true), 1, 2);
             tblInfo.Controls.Add(Pad(cboAddressId),               0, 3);
             tblInfo.Controls.Add(Pad(cboCustomer),                1, 3);
 
-            // Row 4–5 : Shipping Address (full width)
             var lblShipping = FieldLabel("Shipping Address", true);
             tblInfo.Controls.Add(lblShipping, 0, 4);
             tblInfo.SetColumnSpan(lblShipping, 2);
@@ -241,24 +238,20 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             tblInfo.Controls.Add(pnlShipping, 0, 5);
             tblInfo.SetColumnSpan(pnlShipping, 2);
 
-            // Row 6–7 : Billing Address  |  Same-as-Shipping checkbox
             tblInfo.Controls.Add(FieldLabel("Billing Address", true), 0, 6);
             tblInfo.Controls.Add(pnlChk,                              1, 6);
             var pnlBilling = Pad(txtBillingAddr);
             tblInfo.Controls.Add(pnlBilling, 0, 7);
             tblInfo.SetColumnSpan(pnlBilling, 2);
 
-            // Row 8–9 : Delivery Date  |  Contact Name
             tblInfo.Controls.Add(FieldLabel("Delivery Date",      true), 0, 8);
             tblInfo.Controls.Add(FieldLabel("Order Contact Name", true), 1, 8);
             tblInfo.Controls.Add(Pad(dtpDelivery),                        0, 9);
             tblInfo.Controls.Add(Pad(txtContactName),                     1, 9);
 
-            // Row 10–11 : Order Status  |  (empty)
             tblInfo.Controls.Add(FieldLabel("Order Status", true), 0, 10);
             tblInfo.Controls.Add(Pad(cboStatus),                   0, 11);
 
-            // Row 12–13 : Discount Type  |  Discount Value
             tblInfo.Controls.Add(FieldLabel("Discount Type",  false), 0, 12);
             tblInfo.Controls.Add(FieldLabel("Discount Value", false), 1, 12);
             tblInfo.Controls.Add(Pad(cboDiscountType),                 0, 13);
@@ -269,7 +262,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlInfoContent.Controls.Add(tblInfo);
             pnlInfoContent.Controls.Add(pnlInfoTitle);
 
-            // 7 field pairs × (40 label + 72 input) = 784; + 54 title + 16 top
             var (pnlInfoOuter, pnlInfoInner) = CardPanel.Create(outerHeight: 900);
             pnlInfoInner.Controls.Add(pnlInfoContent);
 
@@ -304,8 +296,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 TextAlign = ContentAlignment.MiddleLeft
             };
 
-            btnSaveChanges = MakeGreenBtn("✓  Save Changes", Point.Empty, BtnW, BtnH);
-            btnCancelOrder = MakeRedBtn(  "✕  Cancel Order", Point.Empty, BtnW, BtnH);
+            btnSaveChanges = MakeGreenBtn("\u2713  Save Changes", Point.Empty, BtnW, BtnH);
+            btnCancelOrder = MakeRedBtn(  "\u2715  Cancel Order", Point.Empty, BtnW, BtnH);
             btnSaveChanges.Click += btnSaveChanges_Click;
             btnCancelOrder.Click += btnCancelOrder_Click;
 
@@ -326,15 +318,17 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlActionBtns.Controls.Add(btnCancelOrder);
             pnlActionBtns.Resize += (s, e) => CentreFooterBtns();
 
+            // ── FIX: Left labels added first (innermost); Right panel added last
+            //         so it claims the right edge before Left labels are laid out.
             var pnlFooterContent = new Panel
             {
                 Dock      = DockStyle.Fill,
                 BackColor = Color.Transparent,
                 Padding   = new Padding(16, 0, 0, 0)
             };
-            pnlFooterContent.Controls.Add(pnlActionBtns);
-            pnlFooterContent.Controls.Add(lblGrandTotal);
-            pnlFooterContent.Controls.Add(lblSubtotal);
+            pnlFooterContent.Controls.Add(lblSubtotal);    // Left — innermost
+            pnlFooterContent.Controls.Add(lblGrandTotal);  // Left
+            pnlFooterContent.Controls.Add(pnlActionBtns);  // Right — outermost
 
             var footerInner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
             footerInner.Paint += (s, e) =>
@@ -355,7 +349,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             footerOuter.Controls.Add(footerInner);
 
             // ==================================================================
-            // CARD 2 — ORDER ITEMS  (mirrors CreateOrderForm Card 2)
+            // CARD 2 — ORDER ITEMS
             // ==================================================================
 
             cboProduct  = MakeCombo();
@@ -366,7 +360,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             const int ItemBtnH = 60;
 
             btnAddLine    = MakePrimaryBtn("+ Add Item", Point.Empty, ItemBtnW, ItemBtnH);
-            btnRemoveLine = MakeOutlineBtn("− Remove",   Point.Empty, ItemBtnW, ItemBtnH);
+            btnRemoveLine = MakeOutlineBtn("\u2212 Remove", Point.Empty, ItemBtnW, ItemBtnH);
             btnAddLine.Anchor    = AnchorStyles.None;
             btnRemoveLine.Anchor = AnchorStyles.None;
             btnAddLine.Click    += btnAddLine_Click;
@@ -482,20 +476,19 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlItemsInner.Controls.Add(pnlItemsContent);
 
             // ==================================================================
-            // Assemble  (DockStyle.Fill stack: last added = bottom-most in Z)
-            // Fill must be added first, then Bottom, then Top cards
+            // Assemble
             // ==================================================================
-            pnlMain.Controls.Add(pnlItemsOuter);   // Fill — Order Items
-            pnlMain.Controls.Add(footerOuter);      // Bottom — Footer
-            pnlMain.Controls.Add(pnlInfoOuter);     // Top (DockStyle.Top via CardPanel.Create)
-            pnlMain.Controls.Add(pnlSearchOuter);   // Top (DockStyle.Top) — sits above Info
-            pnlMain.Controls.Add(_shell);           // Top — AppShell (nav bar)
+            pnlMain.Controls.Add(pnlItemsOuter);
+            pnlMain.Controls.Add(footerOuter);
+            pnlMain.Controls.Add(pnlInfoOuter);
+            pnlMain.Controls.Add(pnlSearchOuter);
+            pnlMain.Controls.Add(_shell);
 
             this.Controls.Add(pnlMain);
             this.ResumeLayout(false);
         }
 
-        // ── Factory helpers (identical to CreateOrderForm)
+        // ── Factory helpers
 
         private static TextBox MakeTextBox() => new TextBox
         {
@@ -552,7 +545,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             return pnl;
         }
 
-        /// <summary>Green — Save Changes.</summary>
         private static Button MakeGreenBtn(string text, Point loc, int w, int h)
         {
             var b = new Button
@@ -571,7 +563,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             return b;
         }
 
-        /// <summary>Red — Cancel Order.</summary>
         private static Button MakeRedBtn(string text, Point loc, int w, int h)
         {
             var b = new Button
