@@ -30,8 +30,16 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         private Button       btnRemoveLine;
         private DataGridView dgvLines;
 
-        private Label  lblGrandTotal;
-        private Label  lblSubtotal;
+        // Footer labels — split into title + value so gap is measured
+        // from the END of the Subtotal number to the START of "Grand Total:"
+        private Label  lblSubtotalTitle;
+        private Label  lblSubtotalValue;
+        private Label  lblGrandTotalTitle;
+        private Label  lblGrandTotalValue;
+        // Legacy aliases kept for controller compatibility
+        private Label  lblSubtotal   => lblSubtotalValue;
+        private Label  lblGrandTotal => lblGrandTotalValue;
+
         private Button btnSubmit;
         private Button btnClear;
 
@@ -103,7 +111,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             chkSameAddress.Dock = DockStyle.Fill;
             pnlChk.Controls.Add(chkSameAddress);
 
-            dtpDelivery = new DateTimePicker { Font = new Font("Segoe UI", 12f), Format = DateTimePickerFormat.Short, Dock = DockStyle.Fill };
+            dtpDelivery    = new DateTimePicker { Font = new Font("Segoe UI", 12f), Format = DateTimePickerFormat.Short, Dock = DockStyle.Fill };
             txtContactName = MakeTextBox();
 
             cboDiscountType = MakeCombo();
@@ -175,27 +183,52 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlInfoInner.Controls.Add(pnlInfoContent);
 
             // ==================================================================
-            // FOOTER  — Subtotal | Grand Total | [Submit] [Clear]
+            // FOOTER  — [Subtotal: HK$ x.xx]  32px  [Grand Total: HK$ x.xx]  |  [Submit] [Clear]
+            // Gap is measured from the END of the Subtotal number
+            // to the START of the "Grand Total:" title text.
             // ==================================================================
 
             const int BtnW   = 210;
             const int BtnH   = 60;
             const int BtnGap = 8;
             const int BtnPad = 12;
+            // Gap between end-of-SubtotalValue and start-of-GrandTotalTitle
+            const int ValToLblGap = 32;
+            const int LblLeft     = 8;
 
-            lblGrandTotal = new Label
+            // Subtotal — "Subtotal:" title
+            lblSubtotalTitle = new Label
             {
-                Text      = "Grand Total:  HK$ 0.00",
+                Text      = "Subtotal:",
+                Font      = new Font("Segoe UI", 12f),
+                ForeColor = Color.FromArgb(98, 112, 135),
+                AutoSize  = true,
+                Anchor    = AnchorStyles.Left | AnchorStyles.Top
+            };
+            // Subtotal — number value
+            lblSubtotalValue = new Label
+            {
+                Text      = "HK$ 0.00",
+                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(98, 112, 135),
+                AutoSize  = true,
+                Anchor    = AnchorStyles.Left | AnchorStyles.Top
+            };
+            // Grand Total — "Grand Total:" title
+            lblGrandTotalTitle = new Label
+            {
+                Text      = "Grand Total:",
                 Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
                 ForeColor = Palette.TextMain,
                 AutoSize  = true,
                 Anchor    = AnchorStyles.Left | AnchorStyles.Top
             };
-            lblSubtotal = new Label
+            // Grand Total — number value
+            lblGrandTotalValue = new Label
             {
-                Text      = "Subtotal:  HK$ 0.00",
-                Font      = new Font("Segoe UI", 12f),
-                ForeColor = Color.FromArgb(98, 112, 135),
+                Text      = "HK$ 0.00",
+                Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
+                ForeColor = Palette.Primary,
                 AutoSize  = true,
                 Anchor    = AnchorStyles.Left | AnchorStyles.Top
             };
@@ -222,18 +255,16 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlActionBtns.Controls.Add(btnClear);
             pnlActionBtns.Resize += (s, e) => CentreFooterBtns();
 
-            // Subtotal LEFT, Grand Total RIGHT, 60px gap between them
-            const int LblGap  = 60;
-            const int LblLeft = 8;
-
             var pnlFooterContent = new Panel
             {
                 Dock      = DockStyle.Fill,
                 BackColor = Color.Transparent,
                 Padding   = new Padding(4, 0, 0, 0)
             };
-            pnlFooterContent.Controls.Add(lblSubtotal);
-            pnlFooterContent.Controls.Add(lblGrandTotal);
+            pnlFooterContent.Controls.Add(lblSubtotalTitle);
+            pnlFooterContent.Controls.Add(lblSubtotalValue);
+            pnlFooterContent.Controls.Add(lblGrandTotalTitle);
+            pnlFooterContent.Controls.Add(lblGrandTotalValue);
             pnlFooterContent.Controls.Add(pnlActionBtns);
 
             pnlFooterContent.Resize += (s, e) =>
@@ -241,15 +272,23 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 var pnl = (Panel)s;
                 int h   = pnl.Height;
 
-                // Subtotal on the left
-                int topSub = (h - lblSubtotal.Height) / 2;
-                if (topSub < 0) topSub = 0;
-                lblSubtotal.Location = new Point(LblLeft, topSub);
+                // --- Subtotal row (vertically centred) ---
+                int subRowH   = Math.Max(lblSubtotalTitle.Height, lblSubtotalValue.Height);
+                int subTop    = (h - subRowH) / 2; if (subTop < 0) subTop = 0;
+                // "Subtotal:" title at LblLeft
+                lblSubtotalTitle.Location = new Point(LblLeft, subTop + (subRowH - lblSubtotalTitle.Height) / 2);
+                // number immediately after title + 4px kern
+                int subValX = LblLeft + lblSubtotalTitle.Width + 4;
+                lblSubtotalValue.Location = new Point(subValX, subTop + (subRowH - lblSubtotalValue.Height) / 2);
 
-                // Grand Total to the right of Subtotal + 60px gap
-                int topGrand = (h - lblGrandTotal.Height) / 2;
-                if (topGrand < 0) topGrand = 0;
-                lblGrandTotal.Location = new Point(LblLeft + lblSubtotal.Width + LblGap, topGrand);
+                // --- Grand Total row (vertically centred) ---
+                int grandRowH  = Math.Max(lblGrandTotalTitle.Height, lblGrandTotalValue.Height);
+                int grandTop   = (h - grandRowH) / 2; if (grandTop < 0) grandTop = 0;
+                // "Grand Total:" starts ValToLblGap after end of SubtotalValue
+                int grandTitleX = subValX + lblSubtotalValue.Width + ValToLblGap;
+                lblGrandTotalTitle.Location = new Point(grandTitleX, grandTop + (grandRowH - lblGrandTotalTitle.Height) / 2);
+                // number immediately after grand title + 4px kern
+                lblGrandTotalValue.Location = new Point(grandTitleX + lblGrandTotalTitle.Width + 4, grandTop + (grandRowH - lblGrandTotalValue.Height) / 2);
 
                 CentreFooterBtns();
             };
@@ -383,8 +422,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             this.ResumeLayout(false);
         }
 
-        private static TextBox MakeTextBox() => new TextBox { Font = new Font("Segoe UI", 12f), BorderStyle = BorderStyle.FixedSingle, Dock = DockStyle.Fill };
-        private static ComboBox MakeCombo() => new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 12f), Dock = DockStyle.Fill };
+        private static TextBox  MakeTextBox() => new TextBox  { Font = new Font("Segoe UI", 12f), BorderStyle = BorderStyle.FixedSingle, Dock = DockStyle.Fill };
+        private static ComboBox MakeCombo()   => new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 12f), Dock = DockStyle.Fill };
 
         private static Panel Pad(Control ctrl)
         {
@@ -396,12 +435,12 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
         private static Label FieldLabel(string text, bool required) => new Label
         {
-            Text = required ? text + " *" : text,
-            Font = new Font("Segoe UI", 10.5f, FontStyle.Bold),
+            Text      = required ? text + " *" : text,
+            Font      = new Font("Segoe UI", 10.5f, FontStyle.Bold),
             ForeColor = Color.FromArgb(98, 112, 135),
-            Dock = DockStyle.Fill,
+            Dock      = DockStyle.Fill,
             TextAlign = ContentAlignment.BottomLeft,
-            Padding = new Padding(18, 0, 0, 2)
+            Padding   = new Padding(18, 0, 0, 2)
         };
 
         private static Panel CardTitlePanel(string title)

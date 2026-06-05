@@ -30,8 +30,16 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         private Button       btnAddLine;
         private Button       btnRemoveLine;
         private DataGridView dgvLines;
-        private Label  lblGrandTotal;
-        private Label  lblSubtotal;
+
+        // Footer labels — split into title + value so gap is measured
+        // from the END of the Subtotal number to the START of "Grand Total:"
+        private Label  lblSubtotalTitle;
+        private Label  lblSubtotalValue;
+        private Label  lblGrandTotalTitle;
+        private Label  lblGrandTotalValue;
+        private Label  lblSubtotal   => lblSubtotalValue;
+        private Label  lblGrandTotal => lblGrandTotalValue;
+
         private Button btnSaveChanges;
         private Button btnCancelOrder;
 
@@ -69,7 +77,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Padding = new Padding(0, 0, 12, 0)
             };
             cboSearchOrder = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 12f), Dock = DockStyle.Fill };
-            btnLoadOrder = MakePrimaryBtn("Load Order", Point.Empty, 210, 60);
+            btnLoadOrder   = MakePrimaryBtn("Load Order", Point.Empty, 210, 60);
             btnLoadOrder.Dock   = DockStyle.Right;
             btnLoadOrder.Click += btnLoadOrder_Click;
             var pnlSearchRow = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(16, 10, 16, 10) };
@@ -115,7 +123,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             chkSameAddress.Dock = DockStyle.Fill;
             pnlChk.Controls.Add(chkSameAddress);
 
-            dtpDelivery = new DateTimePicker { Font = new Font("Segoe UI", 12f), Format = DateTimePickerFormat.Short, Dock = DockStyle.Fill };
+            dtpDelivery    = new DateTimePicker { Font = new Font("Segoe UI", 12f), Format = DateTimePickerFormat.Short, Dock = DockStyle.Fill };
             txtContactName = MakeTextBox();
 
             cboDiscountType = MakeCombo();
@@ -180,27 +188,46 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlInfoInner.Controls.Add(pnlInfoContent);
 
             // ==================================================================
-            // FOOTER  — Subtotal | Grand Total | [Save Changes] [Cancel Order]
+            // FOOTER  — [Subtotal: HK$ x.xx]  32px  [Grand Total: HK$ x.xx]  |  [Save] [Cancel]
+            // Gap measured from end-of-SubtotalValue to start-of-GrandTotalTitle
             // ==================================================================
 
-            const int BtnW   = 210;
-            const int BtnH   = 60;
-            const int BtnGap = 8;
-            const int BtnPad = 12;
+            const int BtnW        = 210;
+            const int BtnH        = 60;
+            const int BtnGap      = 8;
+            const int BtnPad      = 12;
+            const int ValToLblGap = 32;
+            const int LblLeft     = 8;
 
-            lblGrandTotal = new Label
+            lblSubtotalTitle = new Label
             {
-                Text      = "Grand Total:  HK$ 0.00",
+                Text      = "Subtotal:",
+                Font      = new Font("Segoe UI", 12f),
+                ForeColor = Color.FromArgb(98, 112, 135),
+                AutoSize  = true,
+                Anchor    = AnchorStyles.Left | AnchorStyles.Top
+            };
+            lblSubtotalValue = new Label
+            {
+                Text      = "HK$ 0.00",
+                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(98, 112, 135),
+                AutoSize  = true,
+                Anchor    = AnchorStyles.Left | AnchorStyles.Top
+            };
+            lblGrandTotalTitle = new Label
+            {
+                Text      = "Grand Total:",
                 Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
                 ForeColor = Palette.TextMain,
                 AutoSize  = true,
                 Anchor    = AnchorStyles.Left | AnchorStyles.Top
             };
-            lblSubtotal = new Label
+            lblGrandTotalValue = new Label
             {
-                Text      = "Subtotal:  HK$ 0.00",
-                Font      = new Font("Segoe UI", 12f),
-                ForeColor = Color.FromArgb(98, 112, 135),
+                Text      = "HK$ 0.00",
+                Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
+                ForeColor = Palette.Primary,
                 AutoSize  = true,
                 Anchor    = AnchorStyles.Left | AnchorStyles.Top
             };
@@ -227,18 +254,16 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlActionBtns.Controls.Add(btnCancelOrder);
             pnlActionBtns.Resize += (s, e) => CentreFooterBtns();
 
-            // Subtotal LEFT, Grand Total RIGHT, 60px gap between them
-            const int LblGap  = 60;
-            const int LblLeft = 8;
-
             var pnlFooterContent = new Panel
             {
                 Dock      = DockStyle.Fill,
                 BackColor = Color.Transparent,
                 Padding   = new Padding(4, 0, 0, 0)
             };
-            pnlFooterContent.Controls.Add(lblSubtotal);
-            pnlFooterContent.Controls.Add(lblGrandTotal);
+            pnlFooterContent.Controls.Add(lblSubtotalTitle);
+            pnlFooterContent.Controls.Add(lblSubtotalValue);
+            pnlFooterContent.Controls.Add(lblGrandTotalTitle);
+            pnlFooterContent.Controls.Add(lblGrandTotalValue);
             pnlFooterContent.Controls.Add(pnlActionBtns);
 
             pnlFooterContent.Resize += (s, e) =>
@@ -246,15 +271,19 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 var pnl = (Panel)s;
                 int h   = pnl.Height;
 
-                // Subtotal on the left
-                int topSub = (h - lblSubtotal.Height) / 2;
-                if (topSub < 0) topSub = 0;
-                lblSubtotal.Location = new Point(LblLeft, topSub);
+                // --- Subtotal row ---
+                int subRowH = Math.Max(lblSubtotalTitle.Height, lblSubtotalValue.Height);
+                int subTop  = (h - subRowH) / 2; if (subTop < 0) subTop = 0;
+                lblSubtotalTitle.Location = new Point(LblLeft, subTop + (subRowH - lblSubtotalTitle.Height) / 2);
+                int subValX = LblLeft + lblSubtotalTitle.Width + 4;
+                lblSubtotalValue.Location = new Point(subValX, subTop + (subRowH - lblSubtotalValue.Height) / 2);
 
-                // Grand Total to the right of Subtotal + 60px gap
-                int topGrand = (h - lblGrandTotal.Height) / 2;
-                if (topGrand < 0) topGrand = 0;
-                lblGrandTotal.Location = new Point(LblLeft + lblSubtotal.Width + LblGap, topGrand);
+                // --- Grand Total row ---
+                int grandRowH   = Math.Max(lblGrandTotalTitle.Height, lblGrandTotalValue.Height);
+                int grandTop    = (h - grandRowH) / 2; if (grandTop < 0) grandTop = 0;
+                int grandTitleX = subValX + lblSubtotalValue.Width + ValToLblGap;
+                lblGrandTotalTitle.Location = new Point(grandTitleX, grandTop + (grandRowH - lblGrandTotalTitle.Height) / 2);
+                lblGrandTotalValue.Location = new Point(grandTitleX + lblGrandTotalTitle.Width + 4, grandTop + (grandRowH - lblGrandTotalValue.Height) / 2);
 
                 CentreFooterBtns();
             };
@@ -275,7 +304,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             // CARD 2 — ORDER ITEMS
             // ==================================================================
             cboProduct = MakeCombo();
-            txtQty = MakeTextBox();
+            txtQty     = MakeTextBox();
             txtQty.Text = "1";
 
             const int ItemBtnW = 210;
@@ -379,8 +408,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             this.ResumeLayout(false);
         }
 
-        private static TextBox MakeTextBox() => new TextBox { Font = new Font("Segoe UI", 12f), BorderStyle = BorderStyle.FixedSingle, Dock = DockStyle.Fill };
-        private static ComboBox MakeCombo() => new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 12f), Dock = DockStyle.Fill };
+        private static TextBox  MakeTextBox() => new TextBox  { Font = new Font("Segoe UI", 12f), BorderStyle = BorderStyle.FixedSingle, Dock = DockStyle.Fill };
+        private static ComboBox MakeCombo()   => new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 12f), Dock = DockStyle.Fill };
         private static Panel Pad(Control ctrl)
         {
             ctrl.Dock = DockStyle.Fill;
