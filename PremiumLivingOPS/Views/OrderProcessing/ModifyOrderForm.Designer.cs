@@ -180,7 +180,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlInfoInner.Controls.Add(pnlInfoContent);
 
             // ==================================================================
-            // FOOTER  — [Grand Total / Subtotal stacked] | [Save Changes] [Cancel Order]
+            // FOOTER  — Grand Total | Subtotal | [Save Changes] [Cancel Order]
             // ==================================================================
 
             const int BtnW   = 210;
@@ -188,14 +188,13 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             const int BtnGap = 8;
             const int BtnPad = 12;
 
-            // Grand Total + Subtotal stacked vertically
             lblGrandTotal = new Label
             {
                 Text      = "Grand Total:  HK$ 0.00",
                 Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
                 ForeColor = Palette.TextMain,
                 AutoSize  = true,
-                Margin    = new Padding(0, 0, 0, 2)
+                Anchor    = AnchorStyles.Left | AnchorStyles.Top
             };
             lblSubtotal = new Label
             {
@@ -203,33 +202,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Font      = new Font("Segoe UI", 12f),
                 ForeColor = Color.FromArgb(98, 112, 135),
                 AutoSize  = true,
-                Margin    = new Padding(0, 0, 0, 0)
-            };
-
-            var flowTotals = new FlowLayoutPanel
-            {
-                FlowDirection = FlowDirection.TopDown,
-                AutoSize      = true,
-                AutoSizeMode  = AutoSizeMode.GrowAndShrink,
-                WrapContents  = false,
-                BackColor     = Color.Transparent,
-                Anchor        = AnchorStyles.Left | AnchorStyles.Top
-            };
-            flowTotals.Controls.Add(lblGrandTotal);
-            flowTotals.Controls.Add(lblSubtotal);
-
-            var pnlTotals = new Panel
-            {
-                Dock      = DockStyle.Left,
-                Width     = 420,
-                BackColor = Color.Transparent
-            };
-            pnlTotals.Controls.Add(flowTotals);
-            pnlTotals.Resize += (s, e) =>
-            {
-                int top = (pnlTotals.Height - flowTotals.Height) / 2;
-                if (top < 0) top = 0;
-                flowTotals.Location = new Point(8, top);
+                Anchor    = AnchorStyles.Left | AnchorStyles.Top
             };
 
             btnSaveChanges = MakeGreenBtn("\u2713  Save Changes", Point.Empty, BtnW, BtnH);
@@ -254,14 +227,34 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlActionBtns.Controls.Add(btnCancelOrder);
             pnlActionBtns.Resize += (s, e) => CentreFooterBtns();
 
+            const int LblGap  = 28;
+            const int LblLeft = 8;
+
             var pnlFooterContent = new Panel
             {
                 Dock      = DockStyle.Fill,
                 BackColor = Color.Transparent,
                 Padding   = new Padding(4, 0, 0, 0)
             };
-            pnlFooterContent.Controls.Add(pnlTotals);      // Left
-            pnlFooterContent.Controls.Add(pnlActionBtns);  // Right (last = outermost)
+            pnlFooterContent.Controls.Add(lblGrandTotal);
+            pnlFooterContent.Controls.Add(lblSubtotal);
+            pnlFooterContent.Controls.Add(pnlActionBtns);
+
+            pnlFooterContent.Resize += (s, e) =>
+            {
+                var pnl = (Panel)s;
+                int h   = pnl.Height;
+
+                int topGrand = (h - lblGrandTotal.Height) / 2;
+                if (topGrand < 0) topGrand = 0;
+                lblGrandTotal.Location = new Point(LblLeft, topGrand);
+
+                int topSub = (h - lblSubtotal.Height) / 2;
+                if (topSub < 0) topSub = 0;
+                lblSubtotal.Location = new Point(LblLeft + lblGrandTotal.Width + LblGap, topSub);
+
+                CentreFooterBtns();
+            };
 
             var footerInner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
             footerInner.Paint += (s, e) =>

@@ -175,7 +175,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlInfoInner.Controls.Add(pnlInfoContent);
 
             // ==================================================================
-            // FOOTER  — [Grand Total / Subtotal stacked] | [Submit] [Clear]
+            // FOOTER  — Grand Total | Subtotal | [Submit] [Clear]
             // ==================================================================
 
             const int BtnW   = 210;
@@ -183,15 +183,14 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             const int BtnGap = 8;
             const int BtnPad = 12;
 
-            // Grand Total + Subtotal stacked vertically in a FlowLayoutPanel
-            // AutoSize=true on labels — no fixed width, text drives the size
+            // Two labels side-by-side, each vertically centred via Resize
             lblGrandTotal = new Label
             {
                 Text      = "Grand Total:  HK$ 0.00",
                 Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
                 ForeColor = Palette.TextMain,
                 AutoSize  = true,
-                Margin    = new Padding(0, 0, 0, 2)
+                Anchor    = AnchorStyles.Left | AnchorStyles.Top
             };
             lblSubtotal = new Label
             {
@@ -199,36 +198,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Font      = new Font("Segoe UI", 12f),
                 ForeColor = Color.FromArgb(98, 112, 135),
                 AutoSize  = true,
-                Margin    = new Padding(0, 0, 0, 0)
-            };
-
-            // FlowLayoutPanel stacks Grand Total on top, Subtotal below
-            var flowTotals = new FlowLayoutPanel
-            {
-                FlowDirection = FlowDirection.TopDown,
-                AutoSize      = true,
-                AutoSizeMode  = AutoSizeMode.GrowAndShrink,
-                WrapContents  = false,
-                BackColor     = Color.Transparent,
-                Anchor        = AnchorStyles.Left | AnchorStyles.Top   // will be centred by wrapper
-            };
-            flowTotals.Controls.Add(lblGrandTotal);
-            flowTotals.Controls.Add(lblSubtotal);
-
-            // Wrapper panel: DockStyle.Left, centres the FlowLayoutPanel vertically
-            var pnlTotals = new Panel
-            {
-                Dock      = DockStyle.Left,
-                Width     = 420,
-                BackColor = Color.Transparent
-            };
-            // Centre flowTotals vertically when pnlTotals resizes
-            pnlTotals.Controls.Add(flowTotals);
-            pnlTotals.Resize += (s, e) =>
-            {
-                int top = (pnlTotals.Height - flowTotals.Height) / 2;
-                if (top < 0) top = 0;
-                flowTotals.Location = new Point(8, top);
+                Anchor    = AnchorStyles.Left | AnchorStyles.Top
             };
 
             btnSubmit = MakeGreenBtn("\u2713  Submit Order", Point.Empty, BtnW, BtnH);
@@ -253,16 +223,38 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlActionBtns.Controls.Add(btnClear);
             pnlActionBtns.Resize += (s, e) => CentreFooterBtns();
 
-            // pnlTotals = Left (added first, innermost)
-            // pnlActionBtns = Right (added last, outermost — claims right edge first)
+            // pnlFooterContent hosts both labels and the button panel.
+            // On Resize, each label is repositioned so its vertical centre
+            // aligns with the panel's vertical centre.
+            const int LblGap   = 28;   // horizontal gap between Grand Total and Subtotal
+            const int LblLeft  = 8;    // left margin for Grand Total
+
             var pnlFooterContent = new Panel
             {
                 Dock      = DockStyle.Fill,
                 BackColor = Color.Transparent,
                 Padding   = new Padding(4, 0, 0, 0)
             };
-            pnlFooterContent.Controls.Add(pnlTotals);      // Left
-            pnlFooterContent.Controls.Add(pnlActionBtns);  // Right (last = outermost)
+            pnlFooterContent.Controls.Add(lblGrandTotal);
+            pnlFooterContent.Controls.Add(lblSubtotal);
+            pnlFooterContent.Controls.Add(pnlActionBtns);
+
+            pnlFooterContent.Resize += (s, e) =>
+            {
+                var pnl = (Panel)s;
+                int h   = pnl.Height;
+
+                // Vertically centre each label independently
+                int topGrand = (h - lblGrandTotal.Height) / 2;
+                if (topGrand < 0) topGrand = 0;
+                lblGrandTotal.Location = new Point(LblLeft, topGrand);
+
+                int topSub = (h - lblSubtotal.Height) / 2;
+                if (topSub < 0) topSub = 0;
+                lblSubtotal.Location = new Point(LblLeft + lblGrandTotal.Width + LblGap, topSub);
+
+                CentreFooterBtns();
+            };
 
             var footerInner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
             footerInner.Paint += (s, e) =>
