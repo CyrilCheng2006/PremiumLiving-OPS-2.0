@@ -40,6 +40,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         private Label  lblSubtotal   => lblSubtotalValue;
         private Label  lblGrandTotal => lblGrandTotalValue;
 
+        // Footer content panel — instance field so UpdateSummary() can call PerformLayout()
+        private Panel pnlFooterContent;
+
         private Button btnSaveChanges;
         private Button btnCancelOrder;
 
@@ -188,20 +191,14 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlInfoInner.Controls.Add(pnlInfoContent);
 
             // ==================================================================
-            // FOOTER  — [Subtotal: HK$ x.xx]  [+60px→]  [Grand Total: HK$ x.xx]  |  [Save] [Cancel]
-            //
-            // ValToLblGap = 60 is appended to the RIGHT EDGE of lblSubtotalValue:
-            //   grandTitleX = lblSubtotalValue.Right + ValToLblGap
-            //
-            // This guarantees the 60px gap originates FROM lblSubtotalValue,
-            // regardless of how wide the subtotal number is.
+            // FOOTER
+            // ValToLblGap (60px) is appended to the RIGHT EDGE of lblSubtotalValue.
             // ==================================================================
 
             const int BtnW        = 210;
             const int BtnH        = 60;
             const int BtnGap      = 8;
             const int BtnPad      = 12;
-            // 60px measured from the right edge of lblSubtotalValue
             const int ValToLblGap = 60;
             const int LblLeft     = 8;
 
@@ -260,7 +257,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlActionBtns.Controls.Add(btnCancelOrder);
             pnlActionBtns.Resize += (s, e) => CentreFooterBtns();
 
-            var pnlFooterContent = new Panel
+            // Assign to instance field (not var) so UpdateSummary() can call PerformLayout()
+            pnlFooterContent = new Panel
             {
                 Dock      = DockStyle.Fill,
                 BackColor = Color.Transparent,
@@ -277,21 +275,16 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 var pnl = (Panel)s;
                 int h   = pnl.Height;
 
-                // --- Subtotal row ---
                 int subRowH = Math.Max(lblSubtotalTitle.Height, lblSubtotalValue.Height);
                 int subTop  = (h - subRowH) / 2; if (subTop < 0) subTop = 0;
                 lblSubtotalTitle.Location = new Point(LblLeft, subTop + (subRowH - lblSubtotalTitle.Height) / 2);
                 int subValX = LblLeft + lblSubtotalTitle.Width + 4;
                 lblSubtotalValue.Location = new Point(subValX, subTop + (subRowH - lblSubtotalValue.Height) / 2);
 
-                // --- Grand Total row ---
-                // ValToLblGap (60px) is added to the RIGHT EDGE of lblSubtotalValue:
-                //   subValRight  =  subValX + lblSubtotalValue.Width   (right edge of the number)
-                //   grandTitleX  =  subValRight + ValToLblGap          (60px gap from that edge)
                 int grandRowH   = Math.Max(lblGrandTotalTitle.Height, lblGrandTotalValue.Height);
                 int grandTop    = (h - grandRowH) / 2; if (grandTop < 0) grandTop = 0;
                 int subValRight = subValX + lblSubtotalValue.Width;
-                int grandTitleX = subValRight + ValToLblGap;          // ← 60px appended to SubtotalValue right edge
+                int grandTitleX = subValRight + ValToLblGap;
                 lblGrandTotalTitle.Location = new Point(grandTitleX, grandTop + (grandRowH - lblGrandTotalTitle.Height) / 2);
                 lblGrandTotalValue.Location = new Point(grandTitleX + lblGrandTotalTitle.Width + 4, grandTop + (grandRowH - lblGrandTotalValue.Height) / 2);
 

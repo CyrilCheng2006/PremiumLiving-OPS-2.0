@@ -40,6 +40,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         private Label  lblSubtotal   => lblSubtotalValue;
         private Label  lblGrandTotal => lblGrandTotalValue;
 
+        // Footer content panel — instance field so UpdateSummary() can call PerformLayout()
+        private Panel pnlFooterContent;
+
         private Button btnSubmit;
         private Button btnClear;
 
@@ -192,11 +195,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             const int BtnH        = 60;
             const int BtnGap      = 8;
             const int BtnPad      = 12;
-            // Fixed 60px gap: right-of-SubtotalValue → left-of-GrandTotalTitle
             const int ValToLblGap = 60;
             const int LblLeft     = 8;
 
-            // Subtotal — "Subtotal:" title
             lblSubtotalTitle = new Label
             {
                 Text      = "Subtotal:",
@@ -205,7 +206,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 AutoSize  = true,
                 Anchor    = AnchorStyles.Left | AnchorStyles.Top
             };
-            // Subtotal — number value
             lblSubtotalValue = new Label
             {
                 Text      = "HK$ 0.00",
@@ -214,7 +214,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 AutoSize  = true,
                 Anchor    = AnchorStyles.Left | AnchorStyles.Top
             };
-            // Grand Total — "Grand Total:" title
             lblGrandTotalTitle = new Label
             {
                 Text      = "Grand Total:",
@@ -223,7 +222,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 AutoSize  = true,
                 Anchor    = AnchorStyles.Left | AnchorStyles.Top
             };
-            // Grand Total — number value
             lblGrandTotalValue = new Label
             {
                 Text      = "HK$ 0.00",
@@ -255,7 +253,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlActionBtns.Controls.Add(btnClear);
             pnlActionBtns.Resize += (s, e) => CentreFooterBtns();
 
-            var pnlFooterContent = new Panel
+            // Assign to instance field (not var) so UpdateSummary() can call PerformLayout()
+            pnlFooterContent = new Panel
             {
                 Dock      = DockStyle.Fill,
                 BackColor = Color.Transparent,
@@ -272,22 +271,16 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 var pnl = (Panel)s;
                 int h   = pnl.Height;
 
-                // --- Subtotal row (vertically centred) ---
                 int subRowH   = Math.Max(lblSubtotalTitle.Height, lblSubtotalValue.Height);
                 int subTop    = (h - subRowH) / 2; if (subTop < 0) subTop = 0;
-                // "Subtotal:" title at LblLeft
                 lblSubtotalTitle.Location = new Point(LblLeft, subTop + (subRowH - lblSubtotalTitle.Height) / 2);
-                // number immediately after title + 4px kern
                 int subValX = LblLeft + lblSubtotalTitle.Width + 4;
                 lblSubtotalValue.Location = new Point(subValX, subTop + (subRowH - lblSubtotalValue.Height) / 2);
 
-                // --- Grand Total row (vertically centred) ---
-                // "Grand Total:" starts exactly ValToLblGap (60px) after right edge of lblSubtotalValue
                 int grandRowH   = Math.Max(lblGrandTotalTitle.Height, lblGrandTotalValue.Height);
                 int grandTop    = (h - grandRowH) / 2; if (grandTop < 0) grandTop = 0;
                 int grandTitleX = subValX + lblSubtotalValue.Width + ValToLblGap;
                 lblGrandTotalTitle.Location = new Point(grandTitleX, grandTop + (grandRowH - lblGrandTotalTitle.Height) / 2);
-                // number immediately after grand title + 4px kern
                 lblGrandTotalValue.Location = new Point(grandTitleX + lblGrandTotalTitle.Width + 4, grandTop + (grandRowH - lblGrandTotalValue.Height) / 2);
 
                 CentreFooterBtns();
