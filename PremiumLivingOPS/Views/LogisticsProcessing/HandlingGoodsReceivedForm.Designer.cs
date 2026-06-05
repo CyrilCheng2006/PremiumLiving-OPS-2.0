@@ -71,6 +71,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             // ============================================================
             //  SEARCH CARD  (DockStyle.Top, height = 270)
+            //  CardPanel three-layer: grey outer → white inner → content TLP
             // ============================================================
 
             txtKeyword = new TextBox
@@ -182,7 +183,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             // ── Search / Reset buttons ────────────────────────────────────
             var pnlSearchBtns = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             btnSearch = MakePrimaryBtn ("\U0001f50d  Search", new Point(0,   0), 210, 60);
-            btnReset  = MakeOutlineBtn ("↺  Reset",         new Point(218, 0), 210, 60);
+            btnReset  = MakeOutlineBtn ("\u21ba  Reset",     new Point(218, 0), 210, 60);
             btnSearch.Click += (s, e) => RefreshGrids();
             btnReset.Click  += (s, e) => ResetFilters();
             pnlSearchBtns.Controls.Add(btnSearch);
@@ -203,6 +204,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             tblSearchCard.RowStyles.Add(new RowStyle(SizeType.Absolute, 120f));
             tblSearchCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  65f));
 
+            // ── Card title row with divider ───────────────────────────────
             var pnlCardTitle = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             pnlCardTitle.Controls.Add(new Label
             {
@@ -223,10 +225,12 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             tblSearchCard.Controls.Add(tblFields,     0, 1);
             tblSearchCard.Controls.Add(pnlSearchBtns, 0, 2);
 
+            // ── White card inner (CardPanel layer 2) ──────────────────────
             var pnlSearchWhite = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
             pnlSearchWhite.Paint += PaintCardBorder;
             pnlSearchWhite.Controls.Add(tblSearchCard);
 
+            // ── Grey outer (CardPanel layer 1) ────────────────────────────
             var pnlSearchOuter = new Panel
             {
                 Dock      = DockStyle.Top,
@@ -249,10 +253,10 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             const int BW = 210; const int BH = 60; const int BG = 8; const int BP = 12;
 
-            btnViewPODetail     = MakePrimaryBtn   ("\U0001f50d  View PO",       Point.Empty, BW, BH);
-            btnViewReceiptLines = MakeSecondaryBtn ("\U0001f4cb  Receipt Lines", Point.Empty, BW, BH);
-            btnUploadReceipt    = MakeWarningBtn   ("\U0001f4ce  Upload",         Point.Empty, BW, BH);
-            btnRecordInvoice    = MakeSuccessBtn   ("\U0001f4c4  Record Invoice", Point.Empty, BW, BH);
+            btnViewPODetail     = MakePrimaryBtn   ("\U0001f50d  View PO",        Point.Empty, BW, BH);
+            btnViewReceiptLines = MakeSecondaryBtn ("\U0001f4cb  Receipt Lines",  Point.Empty, BW, BH);
+            btnUploadReceipt    = MakeWarningBtn   ("\U0001f4ce  Upload",          Point.Empty, BW, BH);
+            btnRecordInvoice    = MakeSuccessBtn   ("\U0001f4c4  Record Invoice",  Point.Empty, BW, BH);
 
             btnViewPODetail.Enabled     = false;
             btnViewReceiptLines.Enabled = false;
@@ -289,10 +293,12 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlKpiRow.Controls.Add(pnlKpi);     // DockStyle.Fill  — pills
             pnlKpiRow.Controls.Add(pnlActions); // DockStyle.Right — buttons
 
+            // ── White card inner (CardPanel layer 2) ──────────────────────
             var pnlKpiWhite = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
             pnlKpiWhite.Paint += PaintCardBorder;
             pnlKpiWhite.Controls.Add(pnlKpiRow);
 
+            // ── Grey outer (CardPanel layer 1) ────────────────────────────
             var pnlKpiOuter = new Panel
             {
                 Dock      = DockStyle.Top,
@@ -304,6 +310,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             // ============================================================
             //  GRID AREA  (DockStyle.Fill) — TabControl with 3 tabs
+            //  Each tab: grey outer → white card → section header + grid
             // ============================================================
 
             DataGridView BuildGrid() => new DataGridView
@@ -380,7 +387,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             dgvInvoices.Columns.Add(new DataGridViewTextBoxColumn { Name = "colInvExp",HeaderText = "EXPECTED DATE",  FillWeight = 14 });
             dgvInvoices.CellFormatting += dgvInvoices_CellFormatting;
 
-            // Section header label
+            // ── Section header label helper ───────────────────────────────
             Label SectionLabel(string text) => new Label
             {
                 Text      = text,
@@ -392,12 +399,16 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 BackColor = Color.FromArgb(246, 249, 255)
             };
 
+            // ── WrapCard: grey outer → white inner → header + grid ────────
             Panel WrapCard(string title, DataGridView grid)
             {
+                // Layer 3: content (grid + section header)
                 var inner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
                 inner.Paint += PaintCardBorder;
                 inner.Controls.Add(grid);
                 inner.Controls.Add(SectionLabel(title));
+
+                // Layer 1: grey outer wrapper
                 var outer = new Panel
                 {
                     Dock      = DockStyle.Fill,
