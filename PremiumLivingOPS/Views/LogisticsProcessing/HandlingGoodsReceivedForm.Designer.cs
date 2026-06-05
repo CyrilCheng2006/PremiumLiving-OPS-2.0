@@ -9,10 +9,11 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
     {
         private System.ComponentModel.IContainer components = null;
 
-        // ── AppShell (TopNavBar 44 px + UserBar 72 px = 116 px) ────────────
+        // ── AppShell  (TopNavBar 44 px + UserBar 72 px = 116 px total)
+        // Declared first so Form.cs can call _shell.SetUser / SetVisibleMenus / SetBreadcrumb.
         private AppShell _shell;
 
-        // ── Search-bar controls ─────────────────────────────────────────
+        // ── Search-bar controls ─────────────────────────────────────────────
         private TextBox        txtKeyword;
         private ComboBox       cboStatus;
         private DateTimePicker dtpDateFrom;
@@ -20,23 +21,19 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         private Button         btnSearch;
         private Button         btnReset;
 
-        // ── KPI pills container ─────────────────────────────────────────
+        // ── KPI pills panel ─────────────────────────────────────────────────
         private Panel pnlKpi;
 
-        // ── Action buttons (right-aligned in KPI bar) ─────────────────────
+        // ── Action buttons (right-anchored in the KPI bar row) ──────────────
         private Button btnViewPODetail;
         private Button btnViewReceiptLines;
         private Button btnUploadReceipt;
         private Button btnRecordInvoice;
 
-        // ── Grid 1 — Receipt lines ──────────────────────────────────────
-        private DataGridView dgvReceipts;
-
-        // ── Grid 2 — Purchase Orders ─────────────────────────────────────
-        private DataGridView dgvPO;
-
-        // ── Grid 3 — Purchase Invoices ───────────────────────────────────
-        private DataGridView dgvInvoices;
+        // ── Data grids ──────────────────────────────────────────────────────
+        private DataGridView dgvReceipts;   // Tab 1 — Goods Received lines
+        private DataGridView dgvPO;         // Tab 2 — Purchase Orders
+        private DataGridView dgvInvoices;   // Tab 3 — Purchase Invoices
 
         protected override void Dispose(bool disposing)
         {
@@ -44,47 +41,64 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             base.Dispose(disposing);
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ════════════════════════════════════════════════════════════════════
         private void InitializeComponent()
         {
-            // RULE 1: SuspendLayout() MUST be the very first statement.
-            // AutoScaleMode = Font re-calculates sizes on Controls.Add() if layout is not suspended.
+            // ──────────────────────────────────────────────────────────────────
+            // RULE 1  SuspendLayout() is the ABSOLUTE FIRST statement.
+            //         AutoScaleMode=Font re-measures every Controls.Add() when
+            //         layout is running — suspension prevents that.
+            // ──────────────────────────────────────────────────────────────────
             this.SuspendLayout();
 
-            // ════════════════════════════════════════════════════════════════
-            // RULE 2: Construct AppShell INSIDE the SuspendLayout scope with
-            //         explicit Dock, Height, and MinimumSize set immediately.
-            // ════════════════════════════════════════════════════════════════
+            // ──────────────────────────────────────────────────────────────────
+            // RULE 2  Construct AppShell INSIDE the SuspendLayout scope and set
+            //         Dock / Height / MinimumSize immediately on the same object.
+            //         Without this AutoScaleMode=Font shrinks _shell before it
+            //         can lock its own height via OnLayout.
+            // ──────────────────────────────────────────────────────────────────
             _shell             = new AppShell();
             _shell.Dock        = DockStyle.Top;
             _shell.Height      = AppShell.TotalHeight;               // 116 px
             _shell.MinimumSize = new Size(0, AppShell.TotalHeight);
 
-            // RULE 4: Subscribe events HERE in Designer.cs, ONCE ONLY.
-            //         Form_Load / constructor must NOT repeat these.
-            _shell.MenuItemClicked += OnTopNavMenuItemClicked;        // Action<string,string>
-            _shell.LogoutClicked   += btnLogout_Click;                // EventHandler
+            // ──────────────────────────────────────────────────────────────────
+            // RULE 4  Wire AppShell events HERE, ONCE ONLY.
+            //         Form_Load must NOT re-subscribe (double-fire guard).
+            // ──────────────────────────────────────────────────────────────────
+            _shell.MenuItemClicked += OnTopNavMenuItemClicked;   // Action<string,string>
+            _shell.LogoutClicked   += btnLogout_Click;           // EventHandler
 
-            // ── Root panel ─────────────────────────────────────────────
-            var pnlMain = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(240, 244, 249) };
+            // ── Root container ──────────────────────────────────────────────
+            var pnlMain = new Panel
+            {
+                Dock      = DockStyle.Fill,
+                BackColor = Color.FromArgb(240, 244, 249)
+            };
 
-            // SetPopupContainer must be called before adding _shell to pnlMain.Controls
+            // SetPopupContainer must be called before _shell is added to any Controls
+            // collection so the nav-bar popup overlay targets the correct panel.
             _shell.SetPopupContainer(pnlMain);
 
-            // ════════════════════════════════════════════════════════════════
-            //  SEARCH CARD  (DockStyle.Top, h = 270)
-            // ════════════════════════════════════════════════════════════════
+            // ================================================================
+            //  LAYER 1 (Top, h=270)  SEARCH CARD
+            // ================================================================
+
+            // ── Input controls ──────────────────────────────────────────────
             txtKeyword = new TextBox
             {
-                Font = new Font("Segoe UI", 12f), BorderStyle = BorderStyle.FixedSingle,
-                Dock = DockStyle.Fill, PlaceholderText = "Receipt ID / PO ID / Supplier"
+                Font = new Font("Segoe UI", 12f),
+                BorderStyle = BorderStyle.FixedSingle,
+                Dock = DockStyle.Fill,
+                PlaceholderText = "Receipt ID / PO ID / Supplier"
             };
             txtKeyword.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) RefreshGrids(); };
 
             cboStatus = new ComboBox
             {
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                Font = new Font("Segoe UI", 12f), Dock = DockStyle.Fill
+                Font          = new Font("Segoe UI", 12f),
+                Dock          = DockStyle.Fill
             };
             cboStatus.Items.AddRange(new object[]
                 { "All", "Sent", "Partially Received", "Received", "Completed", "Cancelled" });
@@ -93,29 +107,37 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             chkDateFrom = new CheckBox { Text = "", Width = 24, Checked = false, Cursor = Cursors.Hand };
             dtpDateFrom = new DateTimePicker
             {
-                Format = DateTimePickerFormat.Short, Value = DateTime.Today.AddMonths(-1),
-                Font = new Font("Segoe UI", 12f), Enabled = false, Dock = DockStyle.Fill
+                Format  = DateTimePickerFormat.Short,
+                Value   = DateTime.Today.AddMonths(-1),
+                Font    = new Font("Segoe UI", 12f),
+                Enabled = false,
+                Dock    = DockStyle.Fill
             };
             chkDateFrom.CheckedChanged += (s, e) => { dtpDateFrom.Enabled = chkDateFrom.Checked; };
 
-            // local cell builder (matches ViewOrderForm pattern exactly)
+            // ── Shared MakeCell helper (mirrors ViewOrderForm exactly) ───────
             TableLayoutPanel MakeCell(string caption, Control ctrl, bool pad = true)
             {
                 var t = new TableLayoutPanel
                 {
-                    Dock = DockStyle.Fill, RowCount = 2, ColumnCount = 1,
-                    BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                    Padding = pad ? new Padding(0, 0, 12, 0) : Padding.Empty
+                    Dock            = DockStyle.Fill,
+                    RowCount        = 2,
+                    ColumnCount     = 1,
+                    BackColor       = Color.Transparent,
+                    CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                    Padding         = pad ? new Padding(0, 0, 12, 0) : Padding.Empty
                 };
                 t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-                t.RowStyles.Add(new RowStyle(SizeType.Absolute, 40f));
-                t.RowStyles.Add(new RowStyle(SizeType.Percent, 70f));
+                t.RowStyles.Add(new RowStyle(SizeType.Absolute,  40f));
+                t.RowStyles.Add(new RowStyle(SizeType.Percent,  70f));
                 var lbl = new Label
                 {
-                    Text = caption, Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+                    Text      = caption,
+                    Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
                     ForeColor = Color.FromArgb(98, 112, 135),
-                    Dock = DockStyle.Fill, TextAlign = ContentAlignment.BottomLeft,
-                    Padding = new Padding(0, 0, 0, 2)
+                    Dock      = DockStyle.Fill,
+                    TextAlign = ContentAlignment.BottomLeft,
+                    Padding   = new Padding(0, 0, 0, 2)
                 };
                 ctrl.Dock = DockStyle.Fill;
                 t.Controls.Add(lbl,  0, 0);
@@ -123,59 +145,70 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 return t;
             }
 
-            // Date-From cell (checkbox + picker combo)
+            // ── Date-From cell (checkbox + picker) ───────────────────────────
             var cellDate = new TableLayoutPanel
             {
-                Dock = DockStyle.Fill, RowCount = 2, ColumnCount = 2,
-                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+                Dock            = DockStyle.Fill,
+                RowCount        = 2,
+                ColumnCount     = 2,
+                BackColor       = Color.Transparent,
+                CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
             cellDate.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 33f));
             cellDate.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
             cellDate.RowStyles.Add(new RowStyle(SizeType.Absolute, 40f));
-            cellDate.RowStyles.Add(new RowStyle(SizeType.Percent, 70f));
-            var lblDate = new Label
+            cellDate.RowStyles.Add(new RowStyle(SizeType.Percent,  70f));
+            var lblDateCap = new Label
             {
-                Text = "Date From", Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+                Text      = "Date From",
+                Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(98, 112, 135),
-                Dock = DockStyle.Fill, TextAlign = ContentAlignment.BottomLeft,
-                Padding = new Padding(0, 0, 0, 2)
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.BottomLeft,
+                Padding   = new Padding(0, 0, 0, 2)
             };
             chkDateFrom.Dock = DockStyle.Fill;
             dtpDateFrom.Dock = DockStyle.Fill;
-            cellDate.SetColumnSpan(lblDate, 2);
-            cellDate.Controls.Add(lblDate,     0, 0);
+            cellDate.SetColumnSpan(lblDateCap, 2);
+            cellDate.Controls.Add(lblDateCap,  0, 0);
             cellDate.Controls.Add(chkDateFrom, 0, 1);
             cellDate.Controls.Add(dtpDateFrom, 1, 1);
 
-            // 3-column fields row
+            // ── 3-column fields row ──────────────────────────────────────────
             var tblFields = new TableLayoutPanel
             {
-                Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 1,
-                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+                Dock            = DockStyle.Fill,
+                ColumnCount     = 3,
+                RowCount        = 1,
+                BackColor       = Color.Transparent,
+                CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
             tblFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40f));
             tblFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30f));
             tblFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30f));
             tblFields.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
             tblFields.Controls.Add(MakeCell("Keyword (Receipt / PO / Supplier)", txtKeyword), 0, 0);
-            tblFields.Controls.Add(MakeCell("PO Status", cboStatus),               1, 0);
-            tblFields.Controls.Add(cellDate,                                        2, 0);
+            tblFields.Controls.Add(MakeCell("PO Status",                         cboStatus),  1, 0);
+            tblFields.Controls.Add(cellDate,                                                   2, 0);
 
-            // Search / Reset buttons
-            var pnlBtns = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
+            // ── Search / Reset buttons ───────────────────────────────────────
+            var pnlSearchBtns = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             btnSearch = MakePrimaryBtn("\U0001f50d  Search", new Point(0,   0), 210, 60);
             btnReset  = MakeOutlineBtn("↺  Reset",          new Point(218, 0), 210, 60);
             btnSearch.Click += (s, e) => RefreshGrids();
             btnReset.Click  += (s, e) => ResetFilters();
-            pnlBtns.Controls.Add(btnSearch);
-            pnlBtns.Controls.Add(btnReset);
+            pnlSearchBtns.Controls.Add(btnSearch);
+            pnlSearchBtns.Controls.Add(btnReset);
 
-            // Search card TLP
+            // ── Assemble search card ─────────────────────────────────────────
             var tblSearchCard = new TableLayoutPanel
             {
-                Dock = DockStyle.Fill, RowCount = 3, ColumnCount = 1,
-                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                Padding = new Padding(18, 14, 18, 14)
+                Dock            = DockStyle.Fill,
+                RowCount        = 3,
+                ColumnCount     = 1,
+                BackColor       = Color.Transparent,
+                CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                Padding         = new Padding(18, 14, 18, 14)
             };
             tblSearchCard.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
             tblSearchCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  60f));
@@ -185,17 +218,22 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             var pnlCardTitle = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             pnlCardTitle.Controls.Add(new Label
             {
-                Text = "Search Goods Received",
-                Font = new Font("Segoe UI", 13f, FontStyle.Bold),
+                Text      = "Search Goods Received",
+                Font      = new Font("Segoe UI", 13f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(15, 31, 53),
-                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft
             });
             pnlCardTitle.Controls.Add(new Panel
-                { Dock = DockStyle.Bottom, Height = 1, BackColor = Color.FromArgb(221, 227, 236) });
+            {
+                Dock      = DockStyle.Bottom,
+                Height    = 1,
+                BackColor = Color.FromArgb(221, 227, 236)
+            });
 
-            tblSearchCard.Controls.Add(pnlCardTitle, 0, 0);
-            tblSearchCard.Controls.Add(tblFields,    0, 1);
-            tblSearchCard.Controls.Add(pnlBtns,      0, 2);
+            tblSearchCard.Controls.Add(pnlCardTitle,  0, 0);
+            tblSearchCard.Controls.Add(tblFields,     0, 1);
+            tblSearchCard.Controls.Add(pnlSearchBtns, 0, 2);
 
             var pnlSearchWhite = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
             pnlSearchWhite.Paint += PaintCardBorder;
@@ -203,28 +241,30 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             var pnlSearchOuter = new Panel
             {
-                Dock = DockStyle.Top, Height = 270,
+                Dock      = DockStyle.Top,
+                Height    = 270,
                 BackColor = Color.FromArgb(240, 244, 249),
-                Padding = new Padding(20, 14, 20, 8)
+                Padding   = new Padding(20, 14, 20, 8)
             };
             pnlSearchOuter.Controls.Add(pnlSearchWhite);
 
-            // ════════════════════════════════════════════════════════════════
-            //  KPI BAR  (DockStyle.Top, h = 96)
-            //  Left: KPI pills (Fill)   Right: 4 action buttons (Right)
-            // ════════════════════════════════════════════════════════════════
+            // ================================================================
+            //  LAYER 2 (Top, h=96)  KPI BAR + ACTION BUTTONS
+            // ================================================================
             pnlKpi = new Panel
             {
-                Dock = DockStyle.Fill, BackColor = Color.Transparent,
-                Padding = new Padding(12, 8, 12, 8)
+                Dock      = DockStyle.Fill,
+                BackColor = Color.Transparent,
+                Padding   = new Padding(12, 8, 12, 8)
             };
 
-            const int BW = 230; const int BH = 60; const int BG = 8; const int BP = 12;
+            // 4 action buttons side-by-side, right-anchored, vertically centred
+            const int BW = 225; const int BH = 60; const int BG = 8; const int BP = 12;
 
-            btnViewPODetail     = MakePrimaryBtn("\U0001f50d  View PO Detail",          Point.Empty, BW, BH);
-            btnViewReceiptLines = MakeSecondaryBtn("\U0001f4cb  Receipt Lines",          Point.Empty, BW, BH);
-            btnUploadReceipt    = MakeWarningBtn("\U0001f4ce  Upload Supplier Receipt",  Point.Empty, BW, BH);
-            btnRecordInvoice    = MakeSuccessBtn("\U0001f4c4  Record Invoice",           Point.Empty, BW, BH);
+            btnViewPODetail     = MakePrimaryBtn   ("\U0001f50d  View PO",       Point.Empty, BW, BH);
+            btnViewReceiptLines = MakeSecondaryBtn ("\U0001f4cb  Receipt Lines", Point.Empty, BW, BH);
+            btnUploadReceipt    = MakeWarningBtn   ("\U0001f4ce  Upload",         Point.Empty, BW, BH);
+            btnRecordInvoice    = MakeSuccessBtn   ("\U0001f4c4  Record Invoice", Point.Empty, BW, BH);
 
             btnViewPODetail.Enabled     = false;
             btnViewReceiptLines.Enabled = false;
@@ -238,18 +278,18 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             var pnlActions = new Panel
             {
-                Dock = DockStyle.Right,
-                Width = BP + BW + BG + BW + BG + BW + BG + BW + BP,
+                Dock      = DockStyle.Right,
+                Width     = BP + (BW + BG) * 4 + BP,  // 12 + 4*(225+8) + 12 = 956
                 BackColor = Color.Transparent
             };
             void CentreActions()
             {
                 int top = (pnlActions.Height - BH) / 2;
                 if (top < 0) top = 0;
-                btnViewPODetail.Location     = new Point(BP, top);
-                btnViewReceiptLines.Location = new Point(BP + BW + BG, top);
-                btnUploadReceipt.Location    = new Point(BP + (BW + BG) * 2, top);
-                btnRecordInvoice.Location    = new Point(BP + (BW + BG) * 3, top);
+                btnViewPODetail.Location     = new Point(BP,                    top);
+                btnViewReceiptLines.Location = new Point(BP + (BW + BG),       top);
+                btnUploadReceipt.Location    = new Point(BP + (BW + BG) * 2,   top);
+                btnRecordInvoice.Location    = new Point(BP + (BW + BG) * 3,   top);
             }
             pnlActions.Controls.Add(btnViewPODetail);
             pnlActions.Controls.Add(btnViewReceiptLines);
@@ -257,9 +297,10 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlActions.Controls.Add(btnRecordInvoice);
             pnlActions.Resize += (s, e) => CentreActions();
 
+            // Fill=pills must be added BEFORE Right=buttons (DockStyle stacking rule)
             var pnlKpiRow = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            pnlKpiRow.Controls.Add(pnlKpi);     // Fill  — pills
-            pnlKpiRow.Controls.Add(pnlActions); // Right — buttons (must be added AFTER Fill)
+            pnlKpiRow.Controls.Add(pnlKpi);     // DockStyle.Fill  — added first
+            pnlKpiRow.Controls.Add(pnlActions); // DockStyle.Right — added after
 
             var pnlKpiWhite = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
             pnlKpiWhite.Paint += PaintCardBorder;
@@ -267,89 +308,130 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             var pnlKpiOuter = new Panel
             {
-                Dock = DockStyle.Top, Height = 96,
+                Dock      = DockStyle.Top,
+                Height    = 96,
                 BackColor = Color.FromArgb(240, 244, 249),
-                Padding = new Padding(20, 8, 20, 8)
+                Padding   = new Padding(20, 8, 20, 8)
             };
             pnlKpiOuter.Controls.Add(pnlKpiWhite);
 
-            // ════════════════════════════════════════════════════════════════
-            //  THREE-GRID AREA (Fill) — TabControl with 3 tabs
-            // ════════════════════════════════════════════════════════════════
+            // ================================================================
+            //  LAYER 3 (Fill)  THREE-TAB GRID AREA
+            // ================================================================
 
-            // Receipt Lines grid
+            // ── Grid factory ────────────────────────────────────────────────
+            DataGridView BuildGrid() => new DataGridView
+            {
+                ReadOnly               = true,
+                AllowUserToAddRows     = false,
+                AllowUserToDeleteRows  = false,
+                RowHeadersVisible      = false,
+                SelectionMode          = DataGridViewSelectionMode.FullRowSelect,
+                MultiSelect            = false,
+                BackgroundColor        = Color.White,
+                BorderStyle            = BorderStyle.None,
+                GridColor              = Color.FromArgb(221, 227, 236),
+                Font                   = new Font("Segoe UI", 13f),
+                AutoSizeColumnsMode    = DataGridViewAutoSizeColumnsMode.Fill,
+                CellBorderStyle        = DataGridViewCellBorderStyle.SingleHorizontal,
+                RowTemplate            = { Height = 48 },
+                Dock                   = DockStyle.Fill,
+                ColumnHeadersHeight    = 46,
+                EnableHeadersVisualStyles = false,
+                ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
+                {
+                    BackColor = Color.FromArgb(246, 249, 255),
+                    ForeColor = Color.FromArgb(98,  112, 135),
+                    Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
+                    Padding   = new Padding(12, 0, 0, 0),
+                    Alignment = DataGridViewContentAlignment.MiddleLeft
+                },
+                DefaultCellStyle = new DataGridViewCellStyle
+                {
+                    BackColor          = Color.White,
+                    ForeColor          = Color.FromArgb(15, 31, 53),
+                    SelectionBackColor = Color.FromArgb(219, 234, 254),
+                    SelectionForeColor = Color.FromArgb(15, 31, 53),
+                    Padding            = new Padding(12, 6, 12, 6)
+                }
+            };
+
+            // ── Tab 1: Receipt Lines ─────────────────────────────────────────
             dgvReceipts = BuildGrid();
-            dgvReceipts.Name = "dgvReceipts";
-            dgvReceipts.Columns.Add(new DataGridViewTextBoxColumn { Name = "colRID",   HeaderText = "RECEIPT ID",   FillWeight = 10 });
-            dgvReceipts.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPOIDr", HeaderText = "PO ID",        FillWeight =  9 });
-            dgvReceipts.Columns.Add(new DataGridViewTextBoxColumn { Name = "colSup",   HeaderText = "SUPPLIER",     FillWeight = 14 });
-            dgvReceipts.Columns.Add(new DataGridViewTextBoxColumn { Name = "colMat",   HeaderText = "MATERIAL ID",  FillWeight =  9 });
-            dgvReceipts.Columns.Add(new DataGridViewTextBoxColumn { Name = "colItem",  HeaderText = "ITEM NAME",    FillWeight = 14 });
-            dgvReceipts.Columns.Add(new DataGridViewTextBoxColumn { Name = "colQtyR",  HeaderText = "QTY RECEIVED", FillWeight =  8 });
-            dgvReceipts.Columns.Add(new DataGridViewTextBoxColumn { Name = "colOut",   HeaderText = "OUTSTANDING",  FillWeight =  8 });
-            dgvReceipts.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDate",  HeaderText = "RECEIPT DATE", FillWeight = 10 });
-            dgvReceipts.Columns.Add(new DataGridViewTextBoxColumn { Name = "colWH",    HeaderText = "WAREHOUSE",    FillWeight = 10 });
-            dgvReceipts.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPOSt",  HeaderText = "PO STATUS",    FillWeight = 10 });
-            dgvReceipts.Columns.Add(new DataGridViewTextBoxColumn { Name = "colUnit",  HeaderText = "UNIT PRICE",   FillWeight =  8 });
+            dgvReceipts.Columns.Add(new DataGridViewTextBoxColumn { Name = "colRID",  HeaderText = "RECEIPT ID",   FillWeight = 10 });
+            dgvReceipts.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPOIDr",HeaderText = "PO ID",        FillWeight =  9 });
+            dgvReceipts.Columns.Add(new DataGridViewTextBoxColumn { Name = "colSup",  HeaderText = "SUPPLIER",     FillWeight = 14 });
+            dgvReceipts.Columns.Add(new DataGridViewTextBoxColumn { Name = "colMat",  HeaderText = "MATERIAL ID",  FillWeight =  9 });
+            dgvReceipts.Columns.Add(new DataGridViewTextBoxColumn { Name = "colItem", HeaderText = "ITEM NAME",    FillWeight = 14 });
+            dgvReceipts.Columns.Add(new DataGridViewTextBoxColumn { Name = "colQtyR", HeaderText = "QTY RECEIVED", FillWeight =  8 });
+            dgvReceipts.Columns.Add(new DataGridViewTextBoxColumn { Name = "colOut",  HeaderText = "OUTSTANDING",  FillWeight =  8 });
+            dgvReceipts.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDate", HeaderText = "RECEIPT DATE", FillWeight = 10 });
+            dgvReceipts.Columns.Add(new DataGridViewTextBoxColumn { Name = "colWH",   HeaderText = "WAREHOUSE",    FillWeight = 10 });
+            dgvReceipts.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPOSt", HeaderText = "PO STATUS",    FillWeight = 10 });
+            dgvReceipts.Columns.Add(new DataGridViewTextBoxColumn { Name = "colUnit", HeaderText = "UNIT PRICE",   FillWeight =  8 });
             dgvReceipts.SelectionChanged += dgvReceipts_SelectionChanged;
             dgvReceipts.CellFormatting   += dgvReceipts_CellFormatting;
             dgvReceipts.CellDoubleClick  += dgvReceipts_CellDoubleClick;
 
-            // Purchase Orders grid
+            // ── Tab 2: Purchase Orders ───────────────────────────────────────
             dgvPO = BuildGrid();
-            dgvPO.Name = "dgvPO";
-            dgvPO.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPID",   HeaderText = "PO ID",        FillWeight = 12 });
-            dgvPO.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPSup",  HeaderText = "SUPPLIER",     FillWeight = 22 });
-            dgvPO.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPDate", HeaderText = "ORDER DATE",   FillWeight = 15 });
-            dgvPO.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPAmt",  HeaderText = "TOTAL AMOUNT", FillWeight = 18 });
-            dgvPO.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPSt",   HeaderText = "STATUS",       FillWeight = 13 });
+            dgvPO.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPID",  HeaderText = "PO ID",        FillWeight = 12 });
+            dgvPO.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPSup", HeaderText = "SUPPLIER",     FillWeight = 22 });
+            dgvPO.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPDate",HeaderText = "ORDER DATE",   FillWeight = 15 });
+            dgvPO.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPAmt", HeaderText = "TOTAL AMOUNT", FillWeight = 18 });
+            dgvPO.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPSt",  HeaderText = "STATUS",       FillWeight = 13 });
             dgvPO.SelectionChanged += dgvPO_SelectionChanged;
             dgvPO.CellFormatting   += dgvPO_CellFormatting;
             dgvPO.CellDoubleClick  += dgvPO_CellDoubleClick;
 
-            // Purchase Invoices grid
+            // ── Tab 3: Purchase Invoices ─────────────────────────────────────
             dgvInvoices = BuildGrid();
-            dgvInvoices.Name = "dgvInvoices";
-            dgvInvoices.Columns.Add(new DataGridViewTextBoxColumn { Name = "colInvID",  HeaderText = "INVOICE ID",     FillWeight = 16 });
-            dgvInvoices.Columns.Add(new DataGridViewTextBoxColumn { Name = "colInvPO",  HeaderText = "PO ID",          FillWeight = 14 });
-            dgvInvoices.Columns.Add(new DataGridViewTextBoxColumn { Name = "colInvSup", HeaderText = "SUPPLIER",       FillWeight = 22 });
-            dgvInvoices.Columns.Add(new DataGridViewTextBoxColumn { Name = "colInvAmt", HeaderText = "TOTAL AMOUNT",   FillWeight = 16 });
-            dgvInvoices.Columns.Add(new DataGridViewTextBoxColumn { Name = "colInvPay", HeaderText = "PAYMENT STATUS", FillWeight = 14 });
-            dgvInvoices.Columns.Add(new DataGridViewTextBoxColumn { Name = "colInvExp", HeaderText = "EXPECTED DATE",  FillWeight = 14 });
+            dgvInvoices.Columns.Add(new DataGridViewTextBoxColumn { Name = "colInvID", HeaderText = "INVOICE ID",     FillWeight = 16 });
+            dgvInvoices.Columns.Add(new DataGridViewTextBoxColumn { Name = "colInvPO", HeaderText = "PO ID",          FillWeight = 14 });
+            dgvInvoices.Columns.Add(new DataGridViewTextBoxColumn { Name = "colInvSup",HeaderText = "SUPPLIER",       FillWeight = 22 });
+            dgvInvoices.Columns.Add(new DataGridViewTextBoxColumn { Name = "colInvAmt",HeaderText = "TOTAL AMOUNT",   FillWeight = 16 });
+            dgvInvoices.Columns.Add(new DataGridViewTextBoxColumn { Name = "colInvPay",HeaderText = "PAYMENT STATUS", FillWeight = 14 });
+            dgvInvoices.Columns.Add(new DataGridViewTextBoxColumn { Name = "colInvExp",HeaderText = "EXPECTED DATE",  FillWeight = 14 });
             dgvInvoices.CellFormatting += dgvInvoices_CellFormatting;
 
-            // Section header label factory
-            Label SectionLabel(string txt) => new Label
+            // ── Tab section-header label factory ─────────────────────────────
+            Label SectionLabel(string text) => new Label
             {
-                Text = txt, Font = new Font("Segoe UI", 11f, FontStyle.Bold),
+                Text      = text,
+                Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(15, 31, 53),
-                Dock = DockStyle.Top, Height = 36,
-                Padding = new Padding(10, 7, 0, 0),
+                Dock      = DockStyle.Top,
+                Height    = 36,
+                Padding   = new Padding(10, 7, 0, 0),
                 BackColor = Color.FromArgb(246, 249, 255)
             };
 
-            // Card wrapper factory
-            Panel WrapCard(string title, DataGridView grid, Padding outerPad)
+            // ── Tab card wrapper ─────────────────────────────────────────────
+            Panel WrapCard(string title, DataGridView grid)
             {
                 var inner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
                 inner.Paint += PaintCardBorder;
                 inner.Controls.Add(grid);
-                inner.Controls.Add(SectionLabel(title));
+                inner.Controls.Add(SectionLabel(title)); // DockStyle.Top — renders above grid
                 var outer = new Panel
                 {
-                    Dock = DockStyle.Fill, Padding = outerPad,
+                    Dock      = DockStyle.Fill,
+                    Padding   = new Padding(12, 6, 12, 6),
                     BackColor = Color.FromArgb(240, 244, 249)
                 };
                 outer.Controls.Add(inner);
                 return outer;
             }
 
-            // TabControl
+            // ── TabControl ───────────────────────────────────────────────────
             var tabs = new TabControl
             {
-                Dock = DockStyle.Fill, Font = new Font("Segoe UI", 11f),
-                Appearance = TabAppearance.Normal, Padding = new Point(14, 6)
+                Dock       = DockStyle.Fill,
+                Font       = new Font("Segoe UI", 11f),
+                Appearance = TabAppearance.Normal,
+                Padding    = new Point(14, 6)
             };
+
             var tabReceipts = new TabPage("  Receipt Lines  ")
                 { BackColor = Color.FromArgb(240, 244, 249), Padding = Padding.Empty };
             var tabPO = new TabPage("  Purchase Orders  ")
@@ -357,9 +439,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             var tabInvoices = new TabPage("  Purchase Invoices  ")
                 { BackColor = Color.FromArgb(240, 244, 249), Padding = Padding.Empty };
 
-            tabReceipts.Controls.Add(WrapCard("Goods Received — Receipt Lines", dgvReceipts, new Padding(12, 6, 12, 6)));
-            tabPO.Controls.Add(WrapCard("Purchase Orders",                      dgvPO,       new Padding(12, 6, 12, 6)));
-            tabInvoices.Controls.Add(WrapCard("Purchase Invoices",              dgvInvoices, new Padding(12, 6, 12, 6)));
+            tabReceipts.Controls.Add(WrapCard("Goods Received — Receipt Lines", dgvReceipts));
+            tabPO.Controls.Add(WrapCard("Purchase Orders",                      dgvPO));
+            tabInvoices.Controls.Add(WrapCard("Purchase Invoices",              dgvInvoices));
 
             tabs.TabPages.Add(tabReceipts);
             tabs.TabPages.Add(tabPO);
@@ -367,23 +449,25 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             var pnlGridOuter = new Panel
             {
-                Dock = DockStyle.Fill, Padding = new Padding(20, 8, 20, 12),
+                Dock      = DockStyle.Fill,
+                Padding   = new Padding(20, 8, 20, 12),
                 BackColor = Color.FromArgb(240, 244, 249)
             };
             pnlGridOuter.Controls.Add(tabs);
 
-            // ════════════════════════════════════════════════════════════════
-            // RULE 5: pnlMain.Controls add order
-            //   ① DockStyle.Fill controls FIRST
-            //   ② DockStyle.Top  controls in reverse visual order
-            //   ③ _shell (DockStyle.Top) added LAST → renders at very top
-            // ════════════════════════════════════════════════════════════════
-            pnlMain.Controls.Add(pnlGridOuter);    // Fill  — grid area
-            pnlMain.Controls.Add(pnlKpiOuter);     // Top   — KPI bar
-            pnlMain.Controls.Add(pnlSearchOuter);  // Top   — Search card
-            pnlMain.Controls.Add(_shell);          // Top   — AppShell LAST
+            // ================================================================
+            //  RULE 5  pnlMain.Controls.Add ORDER
+            //  ① DockStyle.Fill controls FIRST (bottom-most in visual z-order)
+            //  ② DockStyle.Top  controls in REVERSE visual order
+            //     (last added = topmost Top-dock item)
+            //  ③ _shell added LAST → sits flush at the very top of the window
+            // ================================================================
+            pnlMain.Controls.Add(pnlGridOuter);   // Fill  — grid / tab area
+            pnlMain.Controls.Add(pnlKpiOuter);    // Top   — KPI bar + action buttons
+            pnlMain.Controls.Add(pnlSearchOuter); // Top   — Search card
+            pnlMain.Controls.Add(_shell);         // Top   — AppShell LAST (topmost)
 
-            // ── Form properties (mirror ViewOrderForm baseline) ────────────
+            // ── Form-level properties (mirror ViewOrderForm baseline) ────────
             this.Text                 = "Premium Living OPS — Handling Goods Received";
             this.Size                 = new Size(1440, 900);
             this.MinimumSize          = new Size(1280, 800);
@@ -396,52 +480,23 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             this.Controls.Add(pnlMain);
 
-            // ════════════════════════════════════════════════════════════════
-            // RULE 3: Re-enforce _shell height AFTER ResumeLayout + PerformLayout.
-            //         This is the safety net against high-DPI scaling side-effects
-            //         that shrink AppShell after the first layout pass.
-            // ════════════════════════════════════════════════════════════════
+            // ──────────────────────────────────────────────────────────────────
+            // RULE 3  Re-enforce _shell.Height + MinimumSize AFTER
+            //         ResumeLayout(false) + PerformLayout().
+            //         AutoScaleMode=Font can silently shrink the shell during
+            //         the first PerformLayout pass; this two-line safety net
+            //         restores the correct 116 px height every time.
+            // ──────────────────────────────────────────────────────────────────
             this.ResumeLayout(false);
             this.PerformLayout();
-            _shell.Height      = AppShell.TotalHeight;               // 116 px — RULE 3
+            _shell.Height      = AppShell.TotalHeight;               // RULE 3 — 116 px
             _shell.MinimumSize = new Size(0, AppShell.TotalHeight);  // RULE 3
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  Shared factory helpers
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ════════════════════════════════════════════════════════════════════
+        //  Button factory helpers  (match ViewOrderForm colour palette)
+        // ════════════════════════════════════════════════════════════════════
 
-        private static DataGridView BuildGrid() => new DataGridView
-        {
-            ReadOnly = true, AllowUserToAddRows = false, AllowUserToDeleteRows = false,
-            RowHeadersVisible = false,
-            SelectionMode = DataGridViewSelectionMode.FullRowSelect, MultiSelect = false,
-            BackgroundColor = Color.White, BorderStyle = BorderStyle.None,
-            GridColor = Color.FromArgb(221, 227, 236),
-            Font = new Font("Segoe UI", 13f),
-            AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-            CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal,
-            RowTemplate = { Height = 48 }, Dock = DockStyle.Fill,
-            ColumnHeadersHeight = 46, EnableHeadersVisualStyles = false,
-            ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
-            {
-                BackColor = Color.FromArgb(246, 249, 255),
-                ForeColor = Color.FromArgb(98, 112, 135),
-                Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
-                Padding   = new Padding(12, 0, 0, 0),
-                Alignment = DataGridViewContentAlignment.MiddleLeft
-            },
-            DefaultCellStyle = new DataGridViewCellStyle
-            {
-                BackColor          = Color.White,
-                ForeColor          = Color.FromArgb(15, 31, 53),
-                SelectionBackColor = Color.FromArgb(219, 234, 254),
-                SelectionForeColor = Color.FromArgb(15, 31, 53),
-                Padding            = new Padding(12, 6, 12, 6)
-            }
-        };
-
-        // ── Button factories ──────────────────────────────────────────────
         private Button MakePrimaryBtn(string text, Point loc, int w, int h)
         {
             var b = new Button
@@ -451,10 +506,11 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand
             };
             b.FlatAppearance.BorderSize = 0;
-            b.FlatAppearance.MouseOverBackColor = Color.FromArgb(26, 77, 192);
-            b.FlatAppearance.MouseDownBackColor = Color.FromArgb(21, 60, 155);
+            b.FlatAppearance.MouseOverBackColor = Color.FromArgb(26,  77, 192);
+            b.FlatAppearance.MouseDownBackColor = Color.FromArgb(21,  60, 155);
             return b;
         }
+
         private Button MakeSecondaryBtn(string text, Point loc, int w, int h)
         {
             var b = new Button
@@ -464,10 +520,11 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand
             };
             b.FlatAppearance.BorderSize = 0;
-            b.FlatAppearance.MouseOverBackColor = Color.FromArgb(71, 85, 105);
-            b.FlatAppearance.MouseDownBackColor = Color.FromArgb(51, 65, 85);
+            b.FlatAppearance.MouseOverBackColor = Color.FromArgb(71,  85, 105);
+            b.FlatAppearance.MouseDownBackColor = Color.FromArgb(51,  65,  85);
             return b;
         }
+
         private Button MakeWarningBtn(string text, Point loc, int w, int h)
         {
             var b = new Button
@@ -477,10 +534,11 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand
             };
             b.FlatAppearance.BorderSize = 0;
-            b.FlatAppearance.MouseOverBackColor = Color.FromArgb(180, 95, 5);
-            b.FlatAppearance.MouseDownBackColor = Color.FromArgb(146, 73, 0);
+            b.FlatAppearance.MouseOverBackColor = Color.FromArgb(180,  95,  5);
+            b.FlatAppearance.MouseDownBackColor = Color.FromArgb(146,  73,  0);
             return b;
         }
+
         private Button MakeSuccessBtn(string text, Point loc, int w, int h)
         {
             var b = new Button
@@ -494,6 +552,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             b.FlatAppearance.MouseDownBackColor = Color.FromArgb(3, 100, 70);
             return b;
         }
+
         private Button MakeOutlineBtn(string text, Point loc, int w, int h)
         {
             var b = new Button
@@ -509,6 +568,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         }
 
         // ── Card border painter ──────────────────────────────────────────────
+        // Defined ONCE here in Designer.cs; Form.cs references this via the
+        // partial class — no duplication (resolves potential CS0111 errors).
         private static void PaintCardBorder(object s, PaintEventArgs e)
         {
             var p = (Panel)s;
