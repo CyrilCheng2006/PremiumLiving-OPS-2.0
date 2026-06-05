@@ -180,7 +180,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlInfoInner.Controls.Add(pnlInfoContent);
 
             // ==================================================================
-            // FOOTER  — Grand Total | Subtotal | [Save Changes] [Cancel Order]
+            // FOOTER  — [Grand Total / Subtotal stacked] | [Save Changes] [Cancel Order]
             // ==================================================================
 
             const int BtnW   = 210;
@@ -188,30 +188,48 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             const int BtnGap = 8;
             const int BtnPad = 12;
 
-            // Grand Total — LEFT, leftmost (added AFTER Subtotal so it is outermost-left)
+            // Grand Total + Subtotal stacked vertically
             lblGrandTotal = new Label
             {
                 Text      = "Grand Total:  HK$ 0.00",
-                Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
+                Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
                 ForeColor = Palette.TextMain,
-                Dock      = DockStyle.Left,
-                AutoSize  = false,
-                Width     = 320,
-                TextAlign = ContentAlignment.MiddleLeft,
-                Padding   = new Padding(8, 0, 16, 0)
+                AutoSize  = true,
+                Margin    = new Padding(0, 0, 0, 2)
             };
-
-            // Subtotal — LEFT, sits right of Grand Total (added FIRST)
             lblSubtotal = new Label
             {
                 Text      = "Subtotal:  HK$ 0.00",
-                Font      = new Font("Segoe UI", 10f),
+                Font      = new Font("Segoe UI", 12f),
                 ForeColor = Color.FromArgb(98, 112, 135),
+                AutoSize  = true,
+                Margin    = new Padding(0, 0, 0, 0)
+            };
+
+            var flowTotals = new FlowLayoutPanel
+            {
+                FlowDirection = FlowDirection.TopDown,
+                AutoSize      = true,
+                AutoSizeMode  = AutoSizeMode.GrowAndShrink,
+                WrapContents  = false,
+                BackColor     = Color.Transparent,
+                Anchor        = AnchorStyles.Left | AnchorStyles.Top
+            };
+            flowTotals.Controls.Add(lblGrandTotal);
+            flowTotals.Controls.Add(lblSubtotal);
+
+            var pnlTotals = new Panel
+            {
                 Dock      = DockStyle.Left,
-                AutoSize  = false,
-                Width     = 280,
-                TextAlign = ContentAlignment.MiddleLeft,
-                Padding   = new Padding(0, 0, 16, 0)
+                Width     = 420,
+                BackColor = Color.Transparent
+            };
+            pnlTotals.Controls.Add(flowTotals);
+            pnlTotals.Resize += (s, e) =>
+            {
+                int top = (pnlTotals.Height - flowTotals.Height) / 2;
+                if (top < 0) top = 0;
+                flowTotals.Location = new Point(8, top);
             };
 
             btnSaveChanges = MakeGreenBtn("\u2713  Save Changes", Point.Empty, BtnW, BtnH);
@@ -236,18 +254,14 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlActionBtns.Controls.Add(btnCancelOrder);
             pnlActionBtns.Resize += (s, e) => CentreFooterBtns();
 
-            // DockStyle rule: LAST added = outermost.
-            // Left labels in REVERSE visual order: Subtotal first (inner), GrandTotal second (outer-left).
-            // Right panel last (claims right edge).
             var pnlFooterContent = new Panel
             {
                 Dock      = DockStyle.Fill,
                 BackColor = Color.Transparent,
-                Padding   = new Padding(16, 0, 0, 0)
+                Padding   = new Padding(4, 0, 0, 0)
             };
-            pnlFooterContent.Controls.Add(lblSubtotal);    // added 1st → inner-left (right of Grand Total)
-            pnlFooterContent.Controls.Add(lblGrandTotal);  // added 2nd → outer-left (leftmost)
-            pnlFooterContent.Controls.Add(pnlActionBtns);  // added last → Right outermost
+            pnlFooterContent.Controls.Add(pnlTotals);      // Left
+            pnlFooterContent.Controls.Add(pnlActionBtns);  // Right (last = outermost)
 
             var footerInner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
             footerInner.Paint += (s, e) =>

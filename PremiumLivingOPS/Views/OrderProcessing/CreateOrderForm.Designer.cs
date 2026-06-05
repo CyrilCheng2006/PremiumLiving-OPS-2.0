@@ -175,7 +175,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlInfoInner.Controls.Add(pnlInfoContent);
 
             // ==================================================================
-            // FOOTER  — Grand Total | Subtotal | [Submit] [Clear]
+            // FOOTER  — [Grand Total / Subtotal stacked] | [Submit] [Clear]
             // ==================================================================
 
             const int BtnW   = 210;
@@ -183,30 +183,52 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             const int BtnGap = 8;
             const int BtnPad = 12;
 
-            // Grand Total label — LEFT, shown first (leftmost)
+            // Grand Total + Subtotal stacked vertically in a FlowLayoutPanel
+            // AutoSize=true on labels — no fixed width, text drives the size
             lblGrandTotal = new Label
             {
-                Text        = "Grand Total:  HK$ 0.00",
-                Font        = new Font("Segoe UI", 11f, FontStyle.Bold),
-                ForeColor   = Palette.TextMain,
-                Dock        = DockStyle.Left,
-                AutoSize    = false,
-                Width       = 320,
-                TextAlign   = ContentAlignment.MiddleLeft,
-                Padding     = new Padding(8, 0, 16, 0)
+                Text      = "Grand Total:  HK$ 0.00",
+                Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
+                ForeColor = Palette.TextMain,
+                AutoSize  = true,
+                Margin    = new Padding(0, 0, 0, 2)
             };
-
-            // Subtotal label — LEFT, shown second
             lblSubtotal = new Label
             {
-                Text        = "Subtotal:  HK$ 0.00",
-                Font        = new Font("Segoe UI", 10f),
-                ForeColor   = Color.FromArgb(98, 112, 135),
-                Dock        = DockStyle.Left,
-                AutoSize    = false,
-                Width       = 280,
-                TextAlign   = ContentAlignment.MiddleLeft,
-                Padding     = new Padding(0, 0, 16, 0)
+                Text      = "Subtotal:  HK$ 0.00",
+                Font      = new Font("Segoe UI", 12f),
+                ForeColor = Color.FromArgb(98, 112, 135),
+                AutoSize  = true,
+                Margin    = new Padding(0, 0, 0, 0)
+            };
+
+            // FlowLayoutPanel stacks Grand Total on top, Subtotal below
+            var flowTotals = new FlowLayoutPanel
+            {
+                FlowDirection = FlowDirection.TopDown,
+                AutoSize      = true,
+                AutoSizeMode  = AutoSizeMode.GrowAndShrink,
+                WrapContents  = false,
+                BackColor     = Color.Transparent,
+                Anchor        = AnchorStyles.Left | AnchorStyles.Top   // will be centred by wrapper
+            };
+            flowTotals.Controls.Add(lblGrandTotal);
+            flowTotals.Controls.Add(lblSubtotal);
+
+            // Wrapper panel: DockStyle.Left, centres the FlowLayoutPanel vertically
+            var pnlTotals = new Panel
+            {
+                Dock      = DockStyle.Left,
+                Width     = 420,
+                BackColor = Color.Transparent
+            };
+            // Centre flowTotals vertically when pnlTotals resizes
+            pnlTotals.Controls.Add(flowTotals);
+            pnlTotals.Resize += (s, e) =>
+            {
+                int top = (pnlTotals.Height - flowTotals.Height) / 2;
+                if (top < 0) top = 0;
+                flowTotals.Location = new Point(8, top);
             };
 
             btnSubmit = MakeGreenBtn("\u2713  Submit Order", Point.Empty, BtnW, BtnH);
@@ -231,22 +253,16 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlActionBtns.Controls.Add(btnClear);
             pnlActionBtns.Resize += (s, e) => CentreFooterBtns();
 
-            // DockStyle rule: controls added LATER are docked OUTERMOST.
-            // Right panel must be added LAST — it claims the right edge first,
-            // then Left labels fill from the left into the remaining space.
-            // Left labels are added in REVERSE visual order (last-added = leftmost):
-            //   Add lblSubtotal first  → it sits just right of lblGrandTotal
-            //   Add lblGrandTotal next → it becomes the leftmost element
-            //   Add pnlActionBtns last → Right, outermost
+            // pnlTotals = Left (added first, innermost)
+            // pnlActionBtns = Right (added last, outermost — claims right edge first)
             var pnlFooterContent = new Panel
             {
                 Dock      = DockStyle.Fill,
                 BackColor = Color.Transparent,
-                Padding   = new Padding(16, 0, 0, 0)
+                Padding   = new Padding(4, 0, 0, 0)
             };
-            pnlFooterContent.Controls.Add(lblSubtotal);    // added 1st → sits right of Grand Total
-            pnlFooterContent.Controls.Add(lblGrandTotal);  // added 2nd → leftmost
-            pnlFooterContent.Controls.Add(pnlActionBtns);  // added last → Right outermost
+            pnlFooterContent.Controls.Add(pnlTotals);      // Left
+            pnlFooterContent.Controls.Add(pnlActionBtns);  // Right (last = outermost)
 
             var footerInner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
             footerInner.Paint += (s, e) =>
