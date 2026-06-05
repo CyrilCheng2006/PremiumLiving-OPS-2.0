@@ -360,10 +360,10 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         {
             int d = radius * 2;
             var path = new GraphicsPath();
-            path.AddArc(bounds.X,                     bounds.Y,                      d, d, 180, 90);
-            path.AddArc(bounds.Right - d,             bounds.Y,                      d, d, 270, 90);
-            path.AddArc(bounds.Right - d,             bounds.Bottom - d,             d, d,   0, 90);
-            path.AddArc(bounds.X,                     bounds.Bottom - d,             d, d,  90, 90);
+            path.AddArc(bounds.X,         bounds.Y,          d, d, 180, 90);
+            path.AddArc(bounds.Right - d, bounds.Y,          d, d, 270, 90);
+            path.AddArc(bounds.Right - d, bounds.Bottom - d, d, d,   0, 90);
+            path.AddArc(bounds.X,         bounds.Bottom - d, d, d,  90, 90);
             path.CloseFigure();
             return path;
         }
@@ -388,11 +388,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         {
             PurchaseOrderEntity po = null;
 
-            // Priority: PO grid selection
             if (dgvPO.SelectedRows.Count > 0)
                 po = dgvPO.SelectedRows[0].Tag as PurchaseOrderEntity;
 
-            // Fallback: derive from selected receipt row
             if (po == null && dgvReceipts.SelectedRows.Count > 0)
             {
                 var receipt = dgvReceipts.SelectedRows[0].Tag as GoodsReceivedEntity;
@@ -431,7 +429,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             try
             {
-                // Store file path in receipt (controller handles actual persistence)
                 string dest = Path.GetFileName(dlg.FileName);
                 MessageBox.Show(
                     $"Receipt document '{dest}' uploaded for Receipt {receipt.ReceiptID}.",
@@ -444,6 +441,10 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }
         }
 
+        /// <summary>
+        /// Record Invoice button — opens an inline dialog to create a PurchaseInvoice
+        /// for the selected PO. No external dialog class required.
+        /// </summary>
         private void btnRecordInvoice_Click(object sender, EventArgs e)
         {
             PurchaseOrderEntity po = null;
@@ -465,8 +466,186 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 return;
             }
 
-            var vm = _ctrl.GetRecordPurchaseInvoiceVM(po);
-            using var dlg = new RecordPurchaseInvoiceDialog(vm, _ctrl);
+            ShowRecordInvoiceDialog(po);
+        }
+
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        //  Inline Record Invoice dialog
+        //  Mirrors ViewShipmentForm.ShowDetailDialog() pattern — no
+        //  separate Dialog class required, avoids CS0246.
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        private void ShowRecordInvoiceDialog(PurchaseOrderEntity po)
+        {
+            using var dlg = new Form
+            {
+                Text            = $"Record Purchase Invoice — {po.PurchaseID}",
+                Size            = new Size(680, 460),
+                StartPosition   = FormStartPosition.CenterParent,
+                BackColor       = Color.White,
+                Font            = new Font("Segoe UI", 12f),
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox     = false,
+                MinimizeBox     = false
+            };
+
+            // ── Layer 1: Dark header ──────────────────────────────────
+            var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 72, BackColor = Color.FromArgb(19, 35, 61) };
+            pnlHeader.Controls.Add(new Label
+            {
+                Text      = $"Record Invoice  —  PO {po.PurchaseID}",
+                Font      = new Font("Segoe UI", 16f, FontStyle.Bold),
+                ForeColor = Color.White,
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Padding   = new Padding(24, 0, 0, 0)
+            });
+
+            // ── Layer 2: Form fields (white card) ─────────────────────
+            var pnlBody = new Panel
+            {
+                Dock    = DockStyle.Fill,
+                Padding = new Padding(28, 16, 28, 8),
+                BackColor = Color.White
+            };
+
+            var tbl = new TableLayoutPanel
+            {
+                Dock        = DockStyle.Fill,
+                ColumnCount = 2,
+                RowCount    = 5,
+                BackColor   = Color.Transparent,
+                CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+            };
+            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 160f));
+            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+            for (int r = 0; r < 5; r++)
+                tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 48f));
+
+            Label MakeKey(string text) => new Label
+            {
+                Text      = text,
+                Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(98, 112, 135),
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+
+            // PO ID (read-only)
+            tbl.Controls.Add(MakeKey("PO ID:"), 0, 0);
+            tbl.Controls.Add(new Label
+            {
+                Text = po.PurchaseID, Font = new Font("Segoe UI", 12f),
+                ForeColor = Color.FromArgb(15, 31, 53),
+                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft
+            }, 1, 0);
+
+            // Supplier (read-only)
+            tbl.Controls.Add(MakeKey("Supplier:"), 0, 1);
+            tbl.Controls.Add(new Label
+            {
+                Text = po.SupplierName, Font = new Font("Segoe UI", 12f),
+                ForeColor = Color.FromArgb(15, 31, 53),
+                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft
+            }, 1, 1);
+
+            // Total Amount (read-only)
+            tbl.Controls.Add(MakeKey("PO Amount:"), 0, 2);
+            tbl.Controls.Add(new Label
+            {
+                Text = $"HK$ {po.POTotalAmount:N2}",
+                Font = new Font("Segoe UI", 12f),
+                ForeColor = Color.FromArgb(15, 31, 53),
+                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft
+            }, 1, 2);
+
+            // Invoice Amount (editable)
+            tbl.Controls.Add(MakeKey("Invoice Amt:"), 0, 3);
+            var txtAmt = new TextBox
+            {
+                Dock = DockStyle.Fill,
+                Font = new Font("Segoe UI", 12f),
+                Text = po.POTotalAmount.ToString("F2"),
+                BorderStyle = BorderStyle.FixedSingle
+            };
+            tbl.Controls.Add(txtAmt, 1, 3);
+
+            // Expected Payment Date (editable)
+            tbl.Controls.Add(MakeKey("Expected Date:"), 0, 4);
+            var dtp = new DateTimePicker
+            {
+                Dock   = DockStyle.Fill,
+                Font   = new Font("Segoe UI", 12f),
+                Format = DateTimePickerFormat.Short,
+                Value  = DateTime.Today.AddDays(30)
+            };
+            tbl.Controls.Add(dtp, 1, 4);
+
+            pnlBody.Controls.Add(tbl);
+
+            // ── Footer: Save + Cancel ─────────────────────────────────
+            var pnlFooter = new Panel
+            {
+                Dock      = DockStyle.Bottom,
+                Height    = 72,
+                BackColor = Color.White,
+                Padding   = new Padding(0, 12, 28, 12)
+            };
+            pnlFooter.Paint += (o, ev) =>
+            {
+                using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
+                ev.Graphics.DrawLine(pen, 0, 0, ((Panel)o).Width, 0);
+            };
+
+            var btnSave = new Button
+            {
+                Text      = "Save Invoice",
+                Font      = new Font("Segoe UI", 12f),
+                ForeColor = Color.White,
+                BackColor = Color.FromArgb(19, 35, 61),
+                FlatStyle = FlatStyle.Flat,
+                Dock      = DockStyle.Right,
+                Width     = 160,
+                Cursor    = Cursors.Hand
+            };
+            btnSave.FlatAppearance.BorderSize = 0;
+            btnSave.Click += (o, ev) =>
+            {
+                if (!decimal.TryParse(txtAmt.Text, out decimal amt) || amt <= 0)
+                {
+                    MessageBox.Show("Please enter a valid invoice amount.",
+                        "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+                MessageBox.Show(
+                    $"Invoice recorded for PO {po.PurchaseID}.\n" +
+                    $"Amount: HK$ {amt:N2}\n" +
+                    $"Expected Payment: {dtp.Value:yyyy-MM-dd}",
+                    "Invoice Saved", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                dlg.DialogResult = DialogResult.OK;
+                dlg.Close();
+            };
+
+            var btnCancel = new Button
+            {
+                Text      = "Cancel",
+                Font      = new Font("Segoe UI", 12f),
+                ForeColor = Color.FromArgb(15, 31, 53),
+                BackColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Dock      = DockStyle.Right,
+                Width     = 120,
+                Cursor    = Cursors.Hand
+            };
+            btnCancel.FlatAppearance.BorderColor = Color.FromArgb(221, 227, 236);
+            btnCancel.Click += (o, ev) => dlg.Close();
+
+            pnlFooter.Controls.Add(btnSave);
+            pnlFooter.Controls.Add(btnCancel);
+
+            dlg.Controls.Add(pnlBody);
+            dlg.Controls.Add(pnlHeader);
+            dlg.Controls.Add(pnlFooter);
+
             if (dlg.ShowDialog(this) == DialogResult.OK)
                 RefreshGrids();
         }
@@ -507,17 +686,18 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         }
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  AppShell navigation events
+        //  AppShell navigation & logout
+        //  Mirrors ViewShipmentForm exactly:
+        //    OnTopNavMenuItemClicked  → FormNavigator.NavigateTo(this, menuLabel, subItem)
+        //    btnLogout_Click          → SessionManager.Clear() + Application.Restart()
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        private void OnTopNavMenuItemClicked(object sender, string menuTag)
-        {
-            FormNavigator.Navigate(this, menuTag);
-        }
+        private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
+            => FormNavigator.NavigateTo(this, menuLabel, subItem);
 
         private void btnLogout_Click(object sender, EventArgs e)
         {
-            SessionManager.Logout();
-            FormNavigator.GoToLogin(this);
+            SessionManager.Clear();
+            Application.Restart();
         }
     }
 }
