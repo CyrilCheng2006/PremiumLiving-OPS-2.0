@@ -233,8 +233,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             using var dlg = new Form
             {
                 Text            = $"Order Detail — {o.OrderID}",
-                Size            = new Size(1400, 900),          // realistic dialog size
-                MinimumSize     = new Size(1100, 760),
+                Size            = new Size(2500, 1100),
                 StartPosition   = FormStartPosition.CenterParent,
                 BackColor       = Color.White,
                 Font            = new Font("Segoe UI", 13f),
@@ -276,8 +275,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlHeader.Controls.Add(tblHeader);
 
             // ── Order Info panel
-            // Layout: 4 columns — Key(15%) | Value(35%) | Key(15%) | Value(35%)
-            // 5 rows: rows 0-2 & 4 single-line (15% each); row 3 address row (40%)
+            // 4 columns: Key(15%) | Value(35%) | Key(15%) | Value(35%)
+            // 5 rows: 0-2 & 4 single-line (15% each); row 3 address row (40%)
             var pnlInfo = new Panel
             {
                 Dock = DockStyle.Top, Height = 340,
@@ -294,20 +293,20 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 5,
                 BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
-            // Percent-based columns: Key narrow (15%), Value wide (35%) × 2 halves
+            // Percent-based: Key 15%, Value 35% for each half
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));  // left Key
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));  // left Value
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));  // right Key
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));  // right Value
 
-            // Rows 0-2 & 4: single-line (15% each); row 3: address row (40%)
+            // Row heights: address row taller
             tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 15f)); // row 0
             tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 15f)); // row 1
             tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 15f)); // row 2
             tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 40f)); // row 3 — addresses
             tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 15f)); // row 4
 
-            // Left column: Order ID, Sales Name, Delivery Date, Billing Address (row 0-3)
+            // Left column: Order ID, Sales Name, Delivery Date, Billing Address
             var leftFields = new[]
             {
                 ("Order ID",       o.OrderID),
@@ -324,15 +323,14 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     1, i);
             }
 
-            // Right column: Quotation ID, Customer Name, Contact Name, Shipping Address, Issued Date
-            // Shipping Address at row 3 (multi-line); Issued Date at row 4
+            // Right column: Quotation ID, Customer Name, Contact Name, Shipping Address (row3), Issued Date (row4)
             var rightFields = new[]
             {
-                ("Quotation ID",    o.QuotationID,                         false),
-                ("Customer Name",   o.CustomerName,                        false),
-                ("Contact Name",    o.OrderContactName,                    false),
-                ("Shipping Address",o.ShippingAddress,                     true ),  // row 3 — multi-line
-                ("Issued Date",     o.IssuedTime.ToString("yyyy-MM-dd"),   false),
+                ("Quotation ID",    o.QuotationID,                       false),
+                ("Customer Name",   o.CustomerName,                      false),
+                ("Contact Name",    o.OrderContactName,                  false),
+                ("Shipping Address",o.ShippingAddress,                   true ),  // row 3 multi-line
+                ("Issued Date",     o.IssuedTime.ToString("yyyy-MM-dd"), false),
             };
             for (int i = 0; i < rightFields.Length; i++)
             {
@@ -360,7 +358,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     Dock = DockStyle.Fill, ColumnCount = 6, RowCount = 1,
                     BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
                 };
-                // Percent-based: Key(12%) Value(21.3%) repeated ×3
+                // Percent-based: Key(12%) Value(21.3%) ×3
                 tblDisc.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 12f));
                 tblDisc.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 21.3f));
                 tblDisc.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 12f));
@@ -434,7 +432,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             dlg.ShowDialog(this);
         }
 
-        // Single-line value label (middle-left, ellipsis on overflow)
+        // Single-line key label (bold grey, no ellipsis)
         private static Label MakeLabelKey(string text) => new Label
         {
             Text = text, Font = new Font("Segoe UI", 10f, FontStyle.Bold),
@@ -442,6 +440,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(0, 0, 8, 0),
             AutoEllipsis = false
         };
+
+        // Single-line value label (middle-left, ellipsis on overflow)
         private static Label MakeLabelVal(string text) => new Label
         {
             Text = text, Font = new Font("Segoe UI", 12f),
