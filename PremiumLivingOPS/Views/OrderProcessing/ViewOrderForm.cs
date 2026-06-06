@@ -277,9 +277,11 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             }, 1, 0);
             pnlHeader.Controls.Add(tblHeader);
 
+            // ── Order Info panel
+            // Row heights: rows 0-2 & 4 are single-line (15% each); row 3 (address) is double-line (40%)
             var pnlInfo = new Panel
             {
-                Dock = DockStyle.Top, Height = 310,
+                Dock = DockStyle.Top, Height = 340,
                 Padding = new Padding(28, 18, 28, 8), BackColor = Color.White
             };
             pnlInfo.Paint += (s, e) =>
@@ -293,13 +295,20 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 5,
                 BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
-            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 155f));
-            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  50f));
-            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 175f));
-            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  50f));
-            for (int r = 0; r < 5; r++)
-                tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 20f));
+            // Key columns widened so "Quotation ID" / "Billing Address" / "Shipping Address" display fully
+            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 175f));  // left Key  (was 155)
+            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  50f));   // left Value
+            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 195f));  // right Key (was 175)
+            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  50f));   // right Value
 
+            // Rows 0-2 & 4: single-line (15% each); row 3 (addresses): taller (40%)
+            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 15f)); // row 0
+            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 15f)); // row 1
+            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 15f)); // row 2
+            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 40f)); // row 3 — addresses (two lines)
+            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 15f)); // row 4
+
+            // Left column fields (rows 0-3)
             var leftFields = new[]
             {
                 ("Order ID",       o.OrderID),
@@ -309,10 +318,15 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             };
             for (int i = 0; i < leftFields.Length; i++)
             {
-                tblInfo.Controls.Add(MakeLabelKey(leftFields[i].Item1),        0, i);
-                tblInfo.Controls.Add(MakeLabelVal(leftFields[i].Item2 ?? "—"), 1, i);
+                tblInfo.Controls.Add(MakeLabelKey(leftFields[i].Item1), 0, i);
+                // Address row uses top-aligned multi-line label; others use standard single-line
+                tblInfo.Controls.Add(
+                    i == 3 ? MakeLabelValMultiLine(leftFields[i].Item2 ?? "—")
+                           : MakeLabelVal(leftFields[i].Item2 ?? "—"),
+                    1, i);
             }
 
+            // Right column fields (rows 0-4)
             var rightFields = new[]
             {
                 ("Quotation ID",    o.QuotationID),
@@ -323,8 +337,18 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             };
             for (int i = 0; i < rightFields.Length; i++)
             {
-                tblInfo.Controls.Add(MakeLabelKey(rightFields[i].Item1),        2, i);
-                tblInfo.Controls.Add(MakeLabelVal(rightFields[i].Item2 ?? "—"), 3, i);
+                tblInfo.Controls.Add(MakeLabelKey(rightFields[i].Item1), 2, i);
+                // "Issued Date" sits in the address row on the right side — keep single line
+                // "Shipping Address" is placed at row 4 (right column only occupies rows 0-4)
+                // Re-map: Issued Date → row 3 right; Shipping Address → row 4 right (spans address height)
+                // To align nicely we place Shipping Address at row 3 right (multi-line)
+                // and Issued Date at row 4 right (single-line).
+                // Swap order for right column: [QuotID, CustName, ContactName, ShipAddr, IssuedDate]
+                // (already correct in the array above; issued=index3, shipping=index4 stay as-is)
+                tblInfo.Controls.Add(
+                    i == 4 ? MakeLabelValMultiLine(rightFields[i].Item2 ?? "—")
+                           : MakeLabelVal(rightFields[i].Item2 ?? "—"),
+                    3, i);
             }
             pnlInfo.Controls.Add(tblInfo);
 
@@ -412,6 +436,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             dlg.ShowDialog(this);
         }
 
+        // Standard single-line value label (middle-left aligned, ellipsis on overflow)
         private static Label MakeLabelKey(string text) => new Label
         {
             Text = text, Font = new Font("Segoe UI", 10f, FontStyle.Bold),
@@ -423,6 +448,19 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             Text = text, Font = new Font("Segoe UI", 12f),
             ForeColor = Color.FromArgb(15, 31, 53), Dock = DockStyle.Fill,
             TextAlign = ContentAlignment.MiddleLeft, AutoEllipsis = true
+        };
+
+        // Multi-line value label for address fields — wraps to two lines, top-aligned
+        private static Label MakeLabelValMultiLine(string text) => new Label
+        {
+            Text         = text,
+            Font         = new Font("Segoe UI", 12f),
+            ForeColor    = Color.FromArgb(15, 31, 53),
+            Dock         = DockStyle.Fill,
+            TextAlign    = ContentAlignment.TopLeft,
+            AutoEllipsis = false,
+            AutoSize     = false,
+            Padding      = new Padding(0, 6, 8, 6)
         };
 
         private static void PaintBottomBorderStatic(object s, PaintEventArgs e)
