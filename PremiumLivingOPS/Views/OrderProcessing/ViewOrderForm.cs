@@ -25,6 +25,11 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 { "Completed",          (Color.FromArgb(220, 252, 231), Color.FromArgb( 22, 101,  52)) },
             };
 
+        // Returns shortened display text for the header status badge only.
+        // "Partially Delivered" → "Partially"; all others unchanged.
+        private static string StatusBadgeText(string status)
+            => status == "Partially Delivered" ? "Partially" : (status ?? "Unknown");
+
         public ViewOrderForm()
         {
             InitializeComponent();
@@ -259,11 +264,12 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
             }, 0, 0);
 
+            // Status badge: 14pt Bold; "Partially Delivered" shortened to "Partially"
             StatusColors.TryGetValue(o.OrderStatus ?? "", out var sc);
             tblHeader.Controls.Add(new Label
             {
-                Text = o.OrderStatus ?? "Unknown",
-                Font = new Font("Segoe UI", 11f, FontStyle.Bold),
+                Text      = StatusBadgeText(o.OrderStatus),
+                Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
                 ForeColor = sc.fg != default ? sc.fg : Color.White,
                 BackColor = sc.bg != default ? sc.bg : Color.FromArgb(80, 80, 80),
                 Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter,
