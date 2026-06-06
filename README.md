@@ -211,7 +211,7 @@ PremiumLiving-OPS-2.0/                          ← Repository Root
         │   ├── SupplierListForm.cs             🔲
         │   └── CustomerListForm.cs             🔲
         │
-        ├── SystemSecurity/                     🔲
+        ├── SystemControl/                      🔲
         │   ├── StaffListForm.cs                🔲
         │   └── AuditLogForm.cs                 🔲
         │
@@ -385,7 +385,7 @@ Dashboard
 │   ├── Supplier List (Add / Edit)
 │   └── Customer List (Add / Edit)
 │
-├── 8. System Security & Control              🔲
+├── 8. System Security & Control              🔲  (Views/SystemControl/)
 │   ├── Staff List (Add / Edit / Delete)
 │   └── Log List
 │
