@@ -191,15 +191,16 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlInfoInner.Controls.Add(pnlInfoContent);
 
             // ==================================================================
-            // FOOTER
-            // ValToLblGap (60px) is appended to the RIGHT EDGE of lblSubtotalValue.
+            // FOOTER  — [Subtotal: HK$ x.xx]  80px  [Grand Total: HK$ x.xx]  |  [Save] [Cancel]
+            // ValToLblGap = 80: gap from right edge of lblSubtotalValue
+            //                   to left edge of lblGrandTotalTitle, always constant.
             // ==================================================================
 
             const int BtnW        = 210;
             const int BtnH        = 60;
             const int BtnGap      = 8;
             const int BtnPad      = 12;
-            const int ValToLblGap = 60;
+            const int ValToLblGap = 80;
             const int LblLeft     = 8;
 
             lblSubtotalTitle = new Label
