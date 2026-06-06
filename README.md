@@ -38,7 +38,7 @@ PremiumLiving-OPS-2.0/                          ← Repository Root
 ├── Database/                                   ✅  SQL scripts (no C# code)
 │   ├── schema.sql                              ✅  DDL — 27 tables
 │   ├── sample_data.sql                         ✅  13 business scenarios seed data
-│   └── README.md                               ✅  DB setup instructions
+│   └── README.md                               ✅  DB setup instructions & password policy
 │
 └── PremiumLivingOPS/                           ✅  Visual Studio Project Root
     ├── PremiumLivingOPS.csproj                 ✅
@@ -107,11 +107,12 @@ PremiumLiving-OPS-2.0/                          ← Repository Root
     │   │   └── AuditLogRepo.cs                 🔲
     │   │
     │   └── Helpers/                                Utility / helper classes
-    │       └── PasswordHelper.cs               ✅  BCrypt hash + verify
+    │       └── PasswordHelper.cs               ✅  PBKDF2-HMACSHA256 hash + verify
     │
     ├── Controllers/                                Business logic (no UI dependencies)
     │   ├── SessionManager.cs                   ✅  Current user session state
     │   ├── NavAccessPolicy.cs                  ✅  Role-based menu access rules
+    │   │                                           (see Department Navigation Access Matrix)
     │   ├── DashboardController.cs              ✅  GetDashboardVM
     │   ├── OrderProcessingController.cs        ✅  GetViewOrderVM, GetOrderLines,
     │   │                                           GetQuotationVM, UpdateQuotationStatus,
@@ -170,6 +171,20 @@ PremiumLiving-OPS-2.0/                          ← Repository Root
         │   └── ModifyOrderForm.Designer.cs     ✅    business rule: Delivered/Completed
         │                                             orders cannot be cancelled
         │
+        ├── ProductionProcessing/               🔲  Prototype 2
+        │   ├── MaterialRequestListForm.cs      🔲
+        │   └── CreateMaterialRequestForm.cs    🔲
+        │
+        ├── LogisticsProcessing/                ✅  2 pages complete
+        │   ├── ViewShipmentForm.cs             ✅  Search & filter shipments,
+        │   ├── ViewShipmentForm.Designer.cs    ✅    Status filter / keyword / date range,
+        │   │                                         DataGridView + Shipment Detail dialog
+        │   │                                         (Lines, Delivery Note, Reply Slip)
+        │   ├── HandlingGoodsReceivedForm.cs    ✅  Search & filter goods receipts,
+        │   └── HandlingGoodsReceivedForm.Designer.cs ✅
+        │                                             KPI bar (Total PO / Pending / Completed),
+        │                                             DataGridView + Receipt Detail dialog
+        │
         ├── InventoryControl/                   ✅  2 pages complete
         │   ├── ViewProductForm.cs              ✅  Search & filter products,
         │   ├── ViewProductForm.Designer.cs     ✅    KPI bar (Total / In Stock /
@@ -181,15 +196,9 @@ PremiumLiving-OPS-2.0/                          ← Repository Root
         │                                             Raw Material Detail dialog
         │                                             View Detail button in KPI bar (right-aligned)
         │
-        ├── LogisticsProcessing/                ✅  2 pages complete
-        │   ├── ViewShipmentForm.cs             ✅  Search & filter shipments,
-        │   ├── ViewShipmentForm.Designer.cs    ✅    Status filter / keyword / date range,
-        │   │                                         DataGridView + Shipment Detail dialog
-        │   │                                         (Lines, Delivery Note, Reply Slip)
-        │   ├── HandlingGoodsReceivedForm.cs    ✅  Search & filter goods receipts,
-        │   └── HandlingGoodsReceivedForm.Designer.cs ✅
-        │                                             KPI bar (Total PO / Pending / Completed),
-        │                                             DataGridView + Receipt Detail dialog
+        ├── RawMaterial/                        🔲  Prototype 2
+        │   ├── ProcurementListForm.cs          🔲
+        │   └── CreateProcurementForm.cs        🔲
         │
         ├── AfterService/                       🔲
         │   ├── CreateInvoiceForm.cs            🔲
@@ -202,9 +211,12 @@ PremiumLiving-OPS-2.0/                          ← Repository Root
         │   ├── SupplierListForm.cs             🔲
         │   └── CustomerListForm.cs             🔲
         │
-        └── SystemSecurity/                     🔲
-            ├── StaffListForm.cs                🔲
-            └── AuditLogForm.cs                 🔲
+        ├── SystemSecurity/                     🔲
+        │   ├── StaffListForm.cs                🔲
+        │   └── AuditLogForm.cs                 🔲
+        │
+        └── StatisticalReports/                 🔲  Prototype 2
+            └── ReportForm.cs                   🔲
 ```
 
 ---
@@ -289,6 +301,38 @@ NavAccessPolicy              │  executes SQL via
   ▼
 View  renders data into controls
 ```
+
+---
+
+## 🔐 Department Navigation Access Matrix
+
+This matrix defines which Top Navigation Bar items are visible to each department.
+It is enforced at runtime by `NavAccessPolicy.GetAllowedMenus(department)` in
+`PremiumLivingOPS/Controllers/NavAccessPolicy.cs` — **no database query is required**.
+
+> **Legend:** `Y` = menu item is visible to this department &nbsp;|&nbsp; _(blank)_ = hidden
+
+| Menu Item | IT | Production | Sales | Inventory | Finance | Logistics |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|
+| Dashboard | Y | Y | Y | Y | Y | Y |
+| Order Processing | Y | | Y | | | |
+| Production Processing | Y | Y | | | | |
+| Logistics Processing | Y | | | | | Y |
+| Inventory Control | Y | Y | | Y | | |
+| Raw Material | Y | Y | | Y | | |
+| After-Service | Y | | Y | | Y | |
+| Master Data Maintenance | Y | | Y | Y | Y | Y |
+| System Security & Control | Y | | | | | |
+| Statistical Reports | Y | | Y | | Y | |
+
+### Design Notes
+
+- **IT** is the super-user department and has access to all menu items.
+- **System Security & Control** is restricted to IT only.
+- **Dashboard** is accessible to every department and cannot be hidden.
+- To update access rules, edit **only** `NavAccessPolicy.cs`; no other file needs to change.
+- The `TopNavBar` control is a pure View — it renders whatever list it receives and has
+  no knowledge of departments or access rules.
 
 ---
 
@@ -413,7 +457,7 @@ The `sample_data.sql` file includes **13 realistic business scenarios** for test
 | S-009 | Yuki Tanaka | Manager | Inventory (Tokyo) | `tok001` |
 | S-010 | Maria Gonzalez | Manager | Inventory (LA) | `la001` |
 
-> ⚠️ **Note:** Passwords in the seed data are plain text for development purposes only. Production builds must hash passwords (e.g., BCrypt).
+> ⚠️ **Note:** Passwords in the seed data are plain text for development purposes only. Production builds must hash passwords via `PasswordHelper.cs`.
 
 ---
 
@@ -450,4 +494,4 @@ The `sample_data.sql` file includes **13 realistic business scenarios** for test
 
 ---
 
-*Last updated: 2026-06-04*
+*Last updated: 2026-06-06*
