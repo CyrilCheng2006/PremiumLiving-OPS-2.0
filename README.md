@@ -29,194 +29,135 @@ The system replaces manual paper-based workflows with a centralised, role-based 
 ## 🏗️ Project Structure
 
 ```
-PremiumLiving-OPS-2.0/                          ← Repository Root
+PremiumLiving-OPS-2.0/                          #  Repository Root
 │
-├── .gitignore                                  ✅
-├── PremiumLivingOPS.sln                        ✅  Solution file
-├── README.md                                   ✅
+├── .gitignore
+├── PremiumLivingOPS.sln                        #  Solution file
+├── README.md
 │
-├── Database/                                   ✅  SQL scripts (no C# code)
-│   ├── schema.sql                              ✅  DDL — 27 tables
-│   ├── sample_data.sql                         ✅  13 business scenarios seed data
-│   └── README.md                               ✅  DB setup instructions & password policy
+├── Database/                                   #  SQL scripts (no C# code)
+│   ├── schema.sql                              #  DDL — 27 tables
+│   ├── sample_data.sql                         #  13 business scenarios seed data
+│   └── README.md
 │
-└── PremiumLivingOPS/                           ✅  Visual Studio Project Root
-    ├── PremiumLivingOPS.csproj                 ✅
-    ├── Program.cs                              ✅  Entry point — shows LoginForm
+└── PremiumLivingOPS/
+    ├── PremiumLivingOPS.csproj
+    ├── Program.cs
     │
     ├── Models/
     │   │
-    │   ├── Entities/                               Entity & ViewModel classes
-    │   │   ├── Staff.cs                        ✅  StaffEntity + LoginViewModel
-    │   │   ├── DashboardViewModel.cs           ✅  DashboardVM, UserBarVM, KpiItem,
-    │   │   │                                       RecentOrderRow, ChartPoint
-    │   │   ├── OrderProcessingViewModel.cs     ✅  OrderEntity, OrderLineEntity,
-    │   │   │                                       QuotationEntity, CustomerEntity,
-    │   │   │                                       ProductLookup, OrderDetailViewModel,
-    │   │   │                                       ViewOrderViewModel,
-    │   │   │                                       QuotationViewModel,
-    │   │   │                                       CreateOrderViewModel,
-    │   │   │                                       ModifyOrderViewModel
-    │   │   ├── InventoryControlViewModel.cs    ✅  ProductEntity, RawMaterialEntity,
-    │   │   │                                       ViewProductViewModel,
-    │   │   │                                       ViewRawMaterialViewModel
-    │   │   ├── ShipmentEntity.cs               ✅  ShipmentEntity, ShipmentLineEntity,
-    │   │   │                                       DeliveryNoteEntity, ReplySlipEntity
-    │   │   ├── GoodsReceivedEntity.cs          ✅  GoodsReceivedEntity,
-    │   │   │                                       PurchaseOrderEntity
-    │   │   ├── Customer.cs                     🔲
-    │   │   ├── Product.cs                      🔲
-    │   │   ├── RawMaterial.cs                  🔲
-    │   │   ├── Invoice.cs                      🔲
-    │   │   ├── Complaint.cs                    🔲
-    │   │   ├── ReturnOrder.cs                  🔲
-    │   │   ├── Supplier.cs                     🔲
-    │   │   ├── PurchaseInvoice.cs              🔲
-    │   │   ├── WarehouseTransfer.cs            🔲
-    │   │   └── AuditLog.cs                     🔲
+    │   ├── Entities/                           #  Entity & ViewModel classes
+    │   │   ├── Staff.cs
+    │   │   ├── DashboardViewModel.cs
+    │   │   ├── OrderProcessingViewModel.cs
+    │   │   ├── InventoryControlViewModel.cs
+    │   │   ├── ShipmentEntity.cs
+    │   │   ├── GoodsReceivedEntity.cs
+    │   │   ├── Customer.cs
+    │   │   ├── Product.cs
+    │   │   ├── RawMaterial.cs
+    │   │   ├── Invoice.cs
+    │   │   ├── Complaint.cs
+    │   │   ├── ReturnOrder.cs
+    │   │   ├── Supplier.cs
+    │   │   ├── PurchaseInvoice.cs
+    │   │   ├── WarehouseTransfer.cs
+    │   │   └── AuditLog.cs
     │   │
-    │   ├── DAL/                                    Repository classes (MySQL)
-    │   │   ├── DatabaseHelper.cs               ✅  MySQL connection manager
-    │   │   ├── DashboardRepo.cs                ✅  KPI queries, recent orders, charts
-    │   │   ├── OrderProcessingRepo.cs          ✅  GetAllOrders, GetOrdersByStatus,
-    │   │   │                                       GetOrderById, GetOrderLines,
-    │   │   │                                       GetAllQuotations, GetPendingQuotations,
-    │   │   │                                       GetAllCustomers, GetAllProducts,
-    │   │   │                                       CreateOrder, CreateOrderLine,
-    │   │   │                                       UpdateOrder, UpdateOrderStatus,
-    │   │   │                                       ReplaceOrderLines, UpdateQuotationStatus
-    │   │   ├── InventoryControlRepo.cs         ✅  GetAllProducts, GetProductCategories,
-    │   │   │                                       GetAllRawMaterials,
-    │   │   │                                       GetRawMaterialCategories
-    │   │   ├── LogisticsProcessingRepo.cs      ✅  SearchShipments, GetShipmentById,
-    │   │   │                                       GetShipmentLines,
-    │   │   │                                       GetDeliveryNoteByShipment,
-    │   │   │                                       GetReplySlipByDelivery,
-    │   │   │                                       SearchReceipts,
-    │   │   │                                       GetAllPurchaseOrders
-    │   │   ├── StaffRepo.cs                    ✅  Login auth, staff lookup
-    │   │   ├── CustomerRepo.cs                 🔲
-    │   │   ├── ProductRepo.cs                  🔲
-    │   │   ├── RawMaterialRepo.cs              🔲
-    │   │   ├── QuotationRepo.cs                🔲
-    │   │   ├── InvoiceRepo.cs                  🔲
-    │   │   ├── ShipmentRepo.cs                 🔲
-    │   │   ├── ComplaintRepo.cs                🔲
-    │   │   ├── ReturnOrderRepo.cs              🔲
-    │   │   ├── SupplierRepo.cs                 🔲
-    │   │   └── AuditLogRepo.cs                 🔲
+    │   ├── DAL/                                #  Repository classes (MySQL)
+    │   │   ├── DatabaseHelper.cs               #  MySQL connection manager
+    │   │   ├── DashboardRepo.cs
+    │   │   ├── OrderProcessingRepo.cs
+    │   │   ├── InventoryControlRepo.cs
+    │   │   ├── LogisticsProcessingRepo.cs
+    │   │   ├── StaffRepo.cs
+    │   │   ├── CustomerRepo.cs
+    │   │   ├── ProductRepo.cs
+    │   │   ├── RawMaterialRepo.cs
+    │   │   ├── QuotationRepo.cs
+    │   │   ├── InvoiceRepo.cs
+    │   │   ├── ShipmentRepo.cs
+    │   │   ├── ComplaintRepo.cs
+    │   │   ├── ReturnOrderRepo.cs
+    │   │   ├── SupplierRepo.cs
+    │   │   └── AuditLogRepo.cs
     │   │
-    │   └── Helpers/                                Utility / helper classes
-    │       └── PasswordHelper.cs               ✅  PBKDF2-HMACSHA256 hash + verify
+    │   └── Helpers/                            #  Utility / helper classes
+    │       └── PasswordHelper.cs               #  PBKDF2-HMACSHA256 hash + verify
     │
-    ├── Controllers/                                Business logic (no UI dependencies)
-    │   ├── SessionManager.cs                   ✅  Current user session state
-    │   ├── NavAccessPolicy.cs                  ✅  Role-based menu access rules
-    │   │                                           (see Department Navigation Access Matrix)
-    │   ├── DashboardController.cs              ✅  GetDashboardVM
-    │   ├── OrderProcessingController.cs        ✅  GetViewOrderVM, GetOrderLines,
-    │   │                                           GetQuotationVM, UpdateQuotationStatus,
-    │   │                                           GetCreateOrderVM, SubmitCreateOrder,
-    │   │                                           GetModifyOrderVM, SubmitModifyOrder,
-    │   │                                           CancelOrder, GetOrderDetail
-    │   ├── InventoryControlController.cs       ✅  GetViewProductVM,
-    │   │                                           GetProductCategories,
-    │   │                                           GetViewRawMaterialVM,
-    │   │                                           GetRawMaterialCategories
-    │   └── LogisticsProcessingController.cs    ✅  GetViewShipmentVM, GetShipmentDetail,
-    │                                               GetHandlingGoodsReceivedVM
+    ├── Controllers/                            #  Business logic (no UI dependencies)
+    │   ├── SessionManager.cs
+    │   ├── NavAccessPolicy.cs
+    │   ├── DashboardController.cs
+    │   ├── OrderProcessingController.cs
+    │   ├── InventoryControlController.cs
+    │   └── LogisticsProcessingController.cs
     │
-    └── Views/                                      Windows Forms (UI only, no business logic)
+    └── Views/                                  #  Windows Forms (UI only, no business logic)
         │
-        ├── Shared/                             ✅  Reusable chrome — used by ALL forms
-        │   ├── AppShell.cs                     ✅  Hosts TopNavBar (44 px) + UserBar (72 px)
-        │   │                                       Total height: 116 px, DockStyle.Top
-        │   │                                       Public API:
-        │   │                                         SetUser(name, dept)
-        │   │                                         SetVisibleMenus(allowedMenus)
-        │   │                                         SetBreadcrumb(text)
-        │   │                                         SetPopupContainer(panel)
-        │   │                                       Events:
-        │   │                                         MenuItemClicked(menuLabel, subItem)
-        │   │                                         LogoutClicked
-        │   ├── TopNavBar.cs                    ✅  Apple-style horizontal nav bar (44 px)
-        │   │                                       Mega-menu dropdown per role
-        │   ├── UserInfoLabel.cs                ✅  User name + department display chip
-        │   ├── CardPanel.cs                    ✅  Shared card factory:
-        │   │                                         CardPanel.Create(outerHeight, outerPadding)
-        │   │                                         CardPanel.CreateFill(outerPadding)
-        │   │                                       Returns (outerPanel, innerPanel) tuple
-        │   ├── Palette.cs                      ✅  Centralised colour constants
-        │   │                                       (BgPage, BgCard, Primary, Danger,
-        │   │                                        Success, TextMain, TextMuted, BorderColor)
-        │   └── FormNavigator.cs                ✅  Routes (menuLabel, subItem) → target Form
+        ├── Shared/                             #  Reusable chrome — used by ALL forms
+        │   ├── AppShell.cs
+        │   ├── TopNavBar.cs
+        │   ├── UserInfoLabel.cs
+        │   ├── CardPanel.cs
+        │   ├── Palette.cs
+        │   └── FormNavigator.cs
         │
         ├── Auth/
-        │   ├── LoginForm.cs                    ✅  Login logic + validation
-        │   └── LoginForm.Designer.cs           ✅
+        │   ├── LoginForm.cs
+        │   └── LoginForm.Designer.cs
         │
         ├── Dashboard/
-        │   ├── DashboardForm.cs                ✅  KPI tiles, charts, recent orders
-        │   └── DashboardForm.Designer.cs       ✅
+        │   ├── DashboardForm.cs
+        │   └── DashboardForm.Designer.cs
         │
-        ├── OrderProcessing/                    ✅  All 4 pages complete
-        │   ├── ViewOrderForm.cs                ✅  Search orders (Search button triggered),
-        │   ├── ViewOrderForm.Designer.cs       ✅    Reset clears all filters,
-        │   │                                         DataGridView + status badge + drill-down dialog
-        │   ├── QuotationForm.cs                ✅  List & approve/reject quotations
-        │   ├── QuotationForm.Designer.cs       ✅
-        │   ├── CreateOrderForm.cs              ✅  New order — header + line items,
-        │   ├── CreateOrderForm.Designer.cs     ✅    real-time grand total calculation
-        │   ├── ModifyOrderForm.cs              ✅  Edit order + Cancel Order,
-        │   └── ModifyOrderForm.Designer.cs     ✅    business rule: Delivered/Completed
-        │                                             orders cannot be cancelled
+        ├── OrderProcessing/
+        │   ├── ViewOrderForm.cs
+        │   ├── ViewOrderForm.Designer.cs
+        │   ├── QuotationForm.cs
+        │   ├── QuotationForm.Designer.cs
+        │   ├── CreateOrderForm.cs
+        │   ├── CreateOrderForm.Designer.cs
+        │   ├── ModifyOrderForm.cs
+        │   └── ModifyOrderForm.Designer.cs
         │
-        ├── ProductionProcessing/               🔲  Prototype 2
-        │   ├── MaterialRequestListForm.cs      🔲
-        │   └── CreateMaterialRequestForm.cs    🔲
+        ├── ProductionProcessing/
+        │   ├── MaterialRequestListForm.cs
+        │   └── CreateMaterialRequestForm.cs
         │
-        ├── LogisticsProcessing/                ✅  2 pages complete
-        │   ├── ViewShipmentForm.cs             ✅  Search & filter shipments,
-        │   ├── ViewShipmentForm.Designer.cs    ✅    Status filter / keyword / date range,
-        │   │                                         DataGridView + Shipment Detail dialog
-        │   │                                         (Lines, Delivery Note, Reply Slip)
-        │   ├── HandlingGoodsReceivedForm.cs    ✅  Search & filter goods receipts,
-        │   └── HandlingGoodsReceivedForm.Designer.cs ✅
-        │                                             KPI bar (Total PO / Pending / Completed),
-        │                                             DataGridView + Receipt Detail dialog
+        ├── LogisticsProcessing/
+        │   ├── ViewShipmentForm.cs
+        │   ├── ViewShipmentForm.Designer.cs
+        │   ├── HandlingGoodsReceivedForm.cs
+        │   └── HandlingGoodsReceivedForm.Designer.cs
         │
-        ├── InventoryControl/                   ✅  2 pages complete
-        │   ├── ViewProductForm.cs              ✅  Search & filter products,
-        │   ├── ViewProductForm.Designer.cs     ✅    KPI bar (Total / In Stock /
-        │   │                                         Low Stock / Out of Stock),
-        │   │                                         DataGridView + Product Detail dialog
-        │   │                                         View Detail button in KPI bar (right-aligned)
-        │   ├── ViewRawMaterialForm.cs          ✅  Search & filter raw materials,
-        │   └── ViewRawMaterialForm.Designer.cs ✅    KPI bar + DataGridView +
-        │                                             Raw Material Detail dialog
-        │                                             View Detail button in KPI bar (right-aligned)
+        ├── InventoryControl/
+        │   ├── ViewProductForm.cs
+        │   ├── ViewProductForm.Designer.cs
+        │   ├── ViewRawMaterialForm.cs
+        │   └── ViewRawMaterialForm.Designer.cs
         │
-        ├── RawMaterial/                        🔲  Prototype 2
-        │   ├── ProcurementListForm.cs          🔲
-        │   └── CreateProcurementForm.cs        🔲
+        ├── RawMaterial/
+        │   ├── ProcurementListForm.cs
+        │   └── CreateProcurementForm.cs
         │
-        ├── AfterService/                       🔲
-        │   ├── CreateInvoiceForm.cs            🔲
-        │   ├── ComplaintListForm.cs            🔲
-        │   ├── ReturnOrderListForm.cs          🔲
-        │   ├── AccountReceivableForm.cs        🔲
-        │   └── AccountPayableForm.cs           🔲
+        ├── AfterService/
+        │   ├── CreateInvoiceForm.cs
+        │   ├── ComplaintListForm.cs
+        │   ├── ReturnOrderListForm.cs
+        │   ├── AccountReceivableForm.cs
+        │   └── AccountPayableForm.cs
         │
-        ├── MasterData/                         🔲
-        │   ├── SupplierListForm.cs             🔲
-        │   └── CustomerListForm.cs             🔲
+        ├── MasterData/
+        │   ├── SupplierListForm.cs
+        │   └── CustomerListForm.cs
         │
-        ├── SystemControl/                      🔲
-        │   ├── StaffListForm.cs                🔲
-        │   └── AuditLogForm.cs                 🔲
+        ├── SystemControl/
+        │   ├── StaffListForm.cs
+        │   └── AuditLogForm.cs
         │
-        └── StatisticalReports/                 🔲  Prototype 2
-            └── ReportForm.cs                   🔲
+        └── StatisticalReports/
+            └── ReportForm.cs
 ```
 
 ---
@@ -340,56 +281,56 @@ It is enforced at runtime by `NavAccessPolicy.GetAllowedMenus(department)` in
 
 ```
 Dashboard
-├── 1. Order Processing Management            ✅ Done
-│   ├── View & Search Order                   ✅  (ViewOrderForm)
-│   ├── Quotation                             ✅  (QuotationForm)
-│   ├── Create Order                          ✅  (CreateOrderForm)
-│   └── Modify Order                          ✅  (ModifyOrderForm)
-│       ├── Cancel Order                      ✅
-│       └── Edit Order                        ✅
+├── 1. Order Processing Management
+│   ├── View & Search Order
+│   ├── Quotation
+│   ├── Create Order
+│   └── Modify Order
+│       ├── Cancel Order
+│       └── Edit Order
 │
-├── 2. Production Processing Management       🔲 Prototype 2
+├── 2. Production Processing Management
 │   ├── Search Raw Material Request
 │   │   └── Modify Request (Edit / Delete)
 │   └── Create Raw Material Request
 │
-├── 3. Logistics Processing Management        ✅ Partial (View only)
-│   ├── View & Search Shipment                ✅  (ViewShipmentForm)
-│   │   └── Shipment Detail (popup dialog)    ✅    Lines / Delivery Note / Reply Slip
-│   └── Handling Goods Received               ✅  (HandlingGoodsReceivedForm)
-│       ├── KPI bar                           ✅    Total PO / Pending / Completed
-│       └── Receipt Detail (popup dialog)     ✅
+├── 3. Logistics Processing Management
+│   ├── View & Search Shipment
+│   │   └── Shipment Detail (popup dialog)
+│   └── Handling Goods Received
+│       ├── KPI bar
+│       └── Receipt Detail (popup dialog)
 │
-├── 4. Inventory Control Management           ✅ Partial (View only)
-│   ├── View & Search Product                 ✅  (ViewProductForm)
-│   │   └── Product Detail (popup dialog)     ✅
-│   ├── View & Search Raw Material            ✅  (ViewRawMaterialForm)
-│   │   └── Raw Material Detail (popup dialog)✅
-│   ├── Add New Item                          🔲
-│   ├── Modify Item (Edit / Delete)           🔲
-│   ├── Record Inward Goods                   🔲
-│   └── Record Warehouse Item Transfer        🔲
+├── 4. Inventory Control Management
+│   ├── View & Search Product
+│   │   └── Product Detail (popup dialog)
+│   ├── View & Search Raw Material
+│   │   └── Raw Material Detail (popup dialog)
+│   ├── Add New Item
+│   ├── Modify Item (Edit / Delete)
+│   ├── Record Inward Goods
+│   └── Record Warehouse Item Transfer
 │
-├── 5. Raw Material Management                🔲 Prototype 2
+├── 5. Raw Material Management
 │   ├── Create Procurement
 │   └── Search & List Procurement
 │
-├── 6. After-service Management               🔲
+├── 6. After-service Management
 │   ├── Create Invoice
 │   ├── Complaint List (Create / Edit / Delete)
 │   ├── Return Order List (Create / Edit)
 │   ├── Account Receivable
 │   └── Account Payable
 │
-├── 7. Master Data Maintenance                🔲
+├── 7. Master Data Maintenance
 │   ├── Supplier List (Add / Edit)
 │   └── Customer List (Add / Edit)
 │
-├── 8. System Security & Control              🔲  (Views/SystemControl/)
+├── 8. System Security & Control
 │   ├── Staff List (Add / Edit / Delete)
 │   └── Log List
 │
-└── 9. Statistical Reports                    🔲 Prototype 2
+└── 9. Statistical Reports
 ```
 
 ---
@@ -471,26 +412,6 @@ The `sample_data.sql` file includes **13 realistic business scenarios** for test
 | Logistics | Delivery, Shipment Tracking, Return, Reply Slip | UC-008, UC-009, UC-010, UC-017 |
 | Finance | Transaction Records | UC-014, UC-015 |
 | IT / Admin | Staff Accounts, Audit Log | UC-011, UC-012, UC-013, UC-019 |
-
----
-
-## 🚀 Development Roadmap
-
-### Prototype 1
-- [x] **Phase 0** — Database Schema + MySQL Connection (`DatabaseHelper.cs`) + Login (UC-019)
-- [x] **Phase 1** — Shared Chrome: `AppShell`, `TopNavBar`, `UserBar`, `Palette`, `FormNavigator`, `CardPanel`
-- [x] **Phase 2** — Dashboard
-- [x] **Phase 3** — Order Processing Management (all 4 tabs: View Order, Quotation, Create Order, Modify Order)
-- [x] **Phase 4** — Inventory Control — View Product & View Raw Material (read-only + detail dialog)
-- [x] **Phase 5** — Logistics Processing — View Shipment & Handling Goods Received (read-only + detail dialog)
-- [ ] **Phase 6** — Inventory Control — Add / Edit / Delete Item, Inward Goods, Warehouse Transfer
-- [ ] **Phase 7** — After-service Module (Invoice, Complaint, Return Order, Finance)
-- [ ] **Phase 8** — Master Data & System Security
-
-### Prototype 2
-- [ ] **Phase 9** — Production Processing Management
-- [ ] **Phase 10** — Raw Material Management (Procurement)
-- [ ] **Phase 11** — Statistical Reports
 
 ---
 
