@@ -44,64 +44,71 @@ PremiumLiving-OPS-2.0/                          #  Repository Root
     ├── PremiumLivingOPS.csproj
     ├── Program.cs
     │
+    ├── Controllers/                            #  Business logic (no UI dependencies)
+    │   ├── AfterServiceController.cs
+    │   ├── DashboardController.cs
+    │   ├── InventoryControlController.cs
+    │   ├── LogisticsProcessingController.cs
+    │   ├── MasterDataController.cs
+    │   ├── NavAccessPolicy.cs
+    │   ├── OrderProcessingController.cs
+    │   ├── ProcurementController.cs
+    │   ├── ProductionProcessingController.cs
+    │   ├── SessionManager.cs
+    │   ├── StatisticalReportsController.cs
+    │   └── SystemControlController.cs
+    │
     ├── Models/
     │   │
-    │   ├── Entities/                           #  Entity & ViewModel classes
-    │   │   ├── Staff.cs
-    │   │   ├── DashboardViewModel.cs
-    │   │   ├── OrderProcessingViewModel.cs
-    │   │   ├── InventoryControlViewModel.cs
-    │   │   ├── ShipmentEntity.cs
-    │   │   ├── GoodsReceivedEntity.cs
-    │   │   ├── Customer.cs
-    │   │   ├── Product.cs
-    │   │   ├── RawMaterial.cs
-    │   │   ├── Invoice.cs
-    │   │   ├── Complaint.cs
-    │   │   ├── ReturnOrder.cs
-    │   │   ├── Supplier.cs
-    │   │   ├── PurchaseInvoice.cs
-    │   │   ├── WarehouseTransfer.cs
-    │   │   └── AuditLog.cs
-    │   │
     │   ├── DAL/                                #  Repository classes (MySQL)
-    │   │   ├── DatabaseHelper.cs               #  MySQL connection manager
+    │   │   ├── AfterServiceRepo.cs
     │   │   ├── DashboardRepo.cs
-    │   │   ├── OrderProcessingRepo.cs
+    │   │   ├── DatabaseHelper.cs               #  MySQL connection manager
     │   │   ├── InventoryControlRepo.cs
     │   │   ├── LogisticsProcessingRepo.cs
+    │   │   ├── MasterDataRepo.cs
+    │   │   ├── OrderProcessingRepo.cs
+    │   │   ├── ProcurementRepo.cs
+    │   │   ├── ProductionProcessingRepo.cs
     │   │   ├── StaffRepo.cs
-    │   │   ├── CustomerRepo.cs
-    │   │   ├── ProductRepo.cs
-    │   │   ├── RawMaterialRepo.cs
-    │   │   ├── QuotationRepo.cs
-    │   │   ├── InvoiceRepo.cs
-    │   │   ├── ShipmentRepo.cs
-    │   │   ├── ComplaintRepo.cs
-    │   │   ├── ReturnOrderRepo.cs
-    │   │   ├── SupplierRepo.cs
-    │   │   └── AuditLogRepo.cs
+    │   │   ├── StatisticalReportsRepo.cs
+    │   │   └── SystemControlRepo.cs
     │   │
-    │   └── Helpers/                            #  Utility / helper classes
-    │       └── PasswordHelper.cs               #  PBKDF2-HMACSHA256 hash + verify
-    │
-    ├── Controllers/                            #  Business logic (no UI dependencies)
-    │   ├── SessionManager.cs
-    │   ├── NavAccessPolicy.cs
-    │   ├── DashboardController.cs
-    │   ├── OrderProcessingController.cs
-    │   ├── InventoryControlController.cs
-    │   └── LogisticsProcessingController.cs
+    │   ├── Entities/                           #  Entity & ViewModel classes
+    │   │   ├── AfterServiceViewModels.cs
+    │   │   ├── CustomerEntity.cs
+    │   │   ├── DashboardViewModel.cs
+    │   │   ├── GoodsReceivedEntity.cs
+    │   │   ├── InventoryControlViewModel.cs
+    │   │   ├── MasterDataViewModels.cs
+    │   │   ├── OrderProcessingViewModel.cs
+    │   │   ├── ProcurementViewModels.cs
+    │   │   ├── ProductionProcessingViewModels.cs
+    │   │   ├── ShipmentEntity.cs
+    │   │   ├── Staff.cs
+    │   │   ├── StatisticalReportsViewModels.cs
+    │   │   ├── SupplierEntity.cs
+    │   │   └── SystemControlViewModels.cs
+    │   │
+    │   ├── Helpers/                            #  Utility / helper classes
+    │   │   └── PasswordHelper.cs               #  PBKDF2-HMACSHA256 hash + verify
+    │   │
+    │   └── ViewModels/
+    │       └── LogisticsProcessingViewModels.cs
     │
     └── Views/                                  #  Windows Forms (UI only, no business logic)
         │
-        ├── Shared/                             #  Reusable chrome — used by ALL forms
-        │   ├── AppShell.cs
-        │   ├── TopNavBar.cs
-        │   ├── UserInfoLabel.cs
-        │   ├── CardPanel.cs
-        │   ├── Palette.cs
-        │   └── FormNavigator.cs
+        ├── AfterService/
+        │   ├── AccountPayableForm.cs
+        │   ├── AccountPayableForm.Designer.cs
+        │   ├── AccountReceivableForm.cs
+        │   ├── AccountReceivableForm.Designer.cs
+        │   ├── ComplaintListForm.cs
+        │   ├── ComplaintListForm.Designer.cs
+        │   ├── CreateInvoiceForm.cs
+        │   ├── CreateInvoiceForm.Designer.cs
+        │   ├── ReturnOrderListForm.cs
+        │   └── ReturnOrderListForm.Designer.cs
         │
         ├── Auth/
         │   ├── LoginForm.cs
@@ -111,53 +118,71 @@ PremiumLiving-OPS-2.0/                          #  Repository Root
         │   ├── DashboardForm.cs
         │   └── DashboardForm.Designer.cs
         │
-        ├── OrderProcessing/
-        │   ├── ViewOrderForm.cs
-        │   ├── ViewOrderForm.Designer.cs
-        │   ├── QuotationForm.cs
-        │   ├── QuotationForm.Designer.cs
-        │   ├── CreateOrderForm.cs
-        │   ├── CreateOrderForm.Designer.cs
-        │   ├── ModifyOrderForm.cs
-        │   └── ModifyOrderForm.Designer.cs
-        │
-        ├── ProductionProcessing/
-        │   ├── MaterialRequestListForm.cs
-        │   └── CreateMaterialRequestForm.cs
-        │
-        ├── LogisticsProcessing/
-        │   ├── ViewShipmentForm.cs
-        │   ├── ViewShipmentForm.Designer.cs
-        │   ├── HandlingGoodsReceivedForm.cs
-        │   └── HandlingGoodsReceivedForm.Designer.cs
-        │
         ├── InventoryControl/
+        │   ├── AddItemForm.cs
+        │   ├── InwardGoodsForm.cs
+        │   ├── ModifyItemForm.cs
         │   ├── ViewProductForm.cs
         │   ├── ViewProductForm.Designer.cs
         │   ├── ViewRawMaterialForm.cs
-        │   └── ViewRawMaterialForm.Designer.cs
+        │   ├── ViewRawMaterialForm.Designer.cs
+        │   └── WarehouseTransferForm.cs
         │
-        ├── RawMaterial/
-        │   ├── ProcurementListForm.cs
-        │   └── CreateProcurementForm.cs
-        │
-        ├── AfterService/
-        │   ├── CreateInvoiceForm.cs
-        │   ├── ComplaintListForm.cs
-        │   ├── ReturnOrderListForm.cs
-        │   ├── AccountReceivableForm.cs
-        │   └── AccountPayableForm.cs
+        ├── LogisticsProcessing/
+        │   ├── HandlingGoodsReceivedForm.cs
+        │   ├── HandlingGoodsReceivedForm.Designer.cs
+        │   ├── ViewShipmentForm.cs
+        │   └── ViewShipmentForm.Designer.cs
         │
         ├── MasterData/
+        │   ├── CustomerListForm.cs
+        │   ├── CustomerListForm.Designer.cs
         │   ├── SupplierListForm.cs
-        │   └── CustomerListForm.cs
+        │   └── SupplierListForm.Designer.cs
         │
-        ├── SystemControl/
-        │   ├── StaffListForm.cs
-        │   └── AuditLogForm.cs
+        ├── OrderProcessing/
+        │   ├── CreateOrderForm.cs
+        │   ├── CreateOrderForm.Designer.cs
+        │   ├── ModifyOrderForm.cs
+        │   ├── ModifyOrderForm.Designer.cs
+        │   ├── QuotationForm.cs
+        │   ├── QuotationForm.Designer.cs
+        │   ├── ViewOrderForm.cs
+        │   └── ViewOrderForm.Designer.cs
         │
-        └── StatisticalReports/
-            └── ReportForm.cs
+        ├── ProductionProcessing/
+        │   ├── CreateMaterialRequestForm.cs
+        │   ├── CreateMaterialRequestForm.Designer.cs
+        │   ├── SearchMaterialRequestForm.cs
+        │   └── SearchMaterialRequestForm.Designer.cs
+        │
+        ├── RawMaterial/
+        │   ├── CreateProcurementForm.cs
+        │   ├── CreateProcurementForm.Designer.cs
+        │   ├── SearchProcurementForm.cs
+        │   └── SearchProcurementForm.Designer.cs
+        │
+        ├── Shared/                             #  Reusable chrome — used by ALL forms
+        │   ├── AppShell.cs
+        │   ├── CardPanel.cs
+        │   ├── ChartRenderer.cs
+        │   ├── CsvExporter.cs
+        │   ├── FormNavigator.cs
+        │   ├── Palette.cs
+        │   ├── TopNavBar.cs
+        │   ├── UserBar.cs
+        │   ├── UserInfoLabel.cs
+        │   └── README.md
+        │
+        ├── StatisticalReports/
+        │   ├── ViewReportForm.cs
+        │   └── ViewReportForm.Designer.cs
+        │
+        └── SystemControl/
+            ├── LogListForm.cs
+            ├── LogListForm.Designer.cs
+            ├── StaffListForm.cs
+            └── StaffListForm.Designer.cs
 ```
 
 ---
