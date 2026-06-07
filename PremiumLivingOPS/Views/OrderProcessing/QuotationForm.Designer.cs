@@ -16,6 +16,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         private Button          btnReset;
         private Panel           pnlKpi;
         private DataGridView    dgvQuotations;
+        private Button          btnViewDetail;
         private Button          btnUpdateStatus;
         private ComboBox        cboNewStatus;
 
@@ -159,32 +160,34 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Padding   = new Padding(12, 10, 12, 10)
             };
 
-            // Action area dimensions
-            // cboNewStatus : 210 x 60
-            // btnUpdateStatus : 210 x 60
-            // gap between them : 8
-            // left/right pad : 12 each
-            // total pnlActionArea width = 12 + 210 + 8 + 210 + 12 = 452
-            const int CboW   = 210;
-            const int CboH   = 60;
-            const int BtnW   = 210;
-            const int BtnH   = 60;
-            const int BtnGap = 8;
-            const int BtnPad = 12;
-            const int ActionAreaW = BtnPad + CboW + BtnGap + BtnW + BtnPad;  // 452
+            // Action area: [🔍 View Detail] [cboNewStatus] [✓ Update Status]
+            // Each item : 210 x 60 px, gaps 8 px, outer pad 12 px each side
+            // total width = 12 + 210 + 8 + 210 + 8 + 210 + 12 = 670
+            const int ItemW      = 210;
+            const int ItemH      = 60;
+            const int ItemGap    = 8;
+            const int ActionPad  = 12;
+            const int ActionAreaW = ActionPad + ItemW + ItemGap + ItemW + ItemGap + ItemW + ActionPad; // 670
+
+            btnViewDetail = MakePrimaryBtn("\uD83D\uDD0D  View Detail", Point.Empty, ItemW, ItemH);
+            btnViewDetail.Enabled = false;
+            btnViewDetail.Click  += btnViewDetail_Click;
 
             cboNewStatus = new ComboBox
             {
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 Font          = new Font("Segoe UI", 12f),
-                Width         = CboW,
-                Height        = CboH,
+                Width         = ItemW,
+                Height        = ItemH,
                 Enabled       = false
             };
             cboNewStatus.Items.AddRange(new object[] { "Pending", "Converted", "Rejected" });
             cboNewStatus.SelectedIndex = 0;
 
-            btnUpdateStatus = MakePrimaryBtn("\u2713  Update Status", Point.Empty, BtnW, BtnH);
+            btnUpdateStatus = MakePrimaryBtn("\u2713  Update Status", Point.Empty, ItemW, ItemH);
+            btnUpdateStatus.BackColor = Color.FromArgb(245, 158, 11);     // Warning amber — matches Modify Order
+            btnUpdateStatus.FlatAppearance.MouseOverBackColor = Color.FromArgb(217, 119, 6);
+            btnUpdateStatus.FlatAppearance.MouseDownBackColor = Color.FromArgb(180,  90,  0);
             btnUpdateStatus.Enabled = false;
             btnUpdateStatus.Click  += btnUpdateStatus_Click;
 
@@ -197,12 +200,15 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             void CentreActions()
             {
-                int top = (pnlActionArea.Height - BtnH) / 2;
+                int top = (pnlActionArea.Height - ItemH) / 2;
                 if (top < 0) top = 0;
-                cboNewStatus.Location    = new Point(BtnPad, top + (BtnH - cboNewStatus.Height) / 2);
-                btnUpdateStatus.Location = new Point(BtnPad + CboW + BtnGap, top);
-                btnUpdateStatus.Size     = new Size(BtnW, BtnH);
+                btnViewDetail.Location   = new Point(ActionPad, top);
+                btnViewDetail.Size       = new Size(ItemW, ItemH);
+                cboNewStatus.Location    = new Point(ActionPad + ItemW + ItemGap, top + (ItemH - cboNewStatus.Height) / 2);
+                btnUpdateStatus.Location = new Point(ActionPad + ItemW + ItemGap + ItemW + ItemGap, top);
+                btnUpdateStatus.Size     = new Size(ItemW, ItemH);
             }
+            pnlActionArea.Controls.Add(btnViewDetail);
             pnlActionArea.Controls.Add(cboNewStatus);
             pnlActionArea.Controls.Add(btnUpdateStatus);
             pnlActionArea.Resize += (s, e) => CentreActions();
@@ -264,6 +270,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             dgvQuotations.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",      HeaderText = "STATUS",        FillWeight = 12 });
             dgvQuotations.SelectionChanged += dgvQuotations_SelectionChanged;
             dgvQuotations.CellFormatting   += dgvQuotations_CellFormatting;
+            dgvQuotations.CellDoubleClick  += dgvQuotations_CellDoubleClick;
 
             var (pnlGridOuter, pnlGridInner) = CardPanel.CreateFill();
             pnlGridInner.Controls.Add(dgvQuotations);
