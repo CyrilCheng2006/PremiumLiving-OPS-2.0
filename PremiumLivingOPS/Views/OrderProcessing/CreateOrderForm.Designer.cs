@@ -13,8 +13,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
         private Label          lblOrderIdValue;
         private ComboBox       cboAddressId;
-        private ComboBox       cboCustomer;
-        private ComboBox       cboQuotation;
         private TextBox        txtContactName;
         private DateTimePicker dtpDelivery;
         private TextBox        txtShippingAddr;
@@ -24,7 +22,18 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         private TextBox        txtDiscountValue;
         private Label          lblDiscountUnit;
 
-        private ComboBox     cboProduct;
+        // ── Picker controls — Customer ───────────────────────────────────────────
+        private Button btnPickCustomer;
+        private Label  lblCustomerPicked;
+
+        // ── Picker controls — Linked Quotation ──────────────────────────────────
+        private Button btnPickQuotation;
+        private Label  lblQuotationPicked;
+
+        // ── Picker controls — Order Item ─────────────────────────────────────────
+        private Button btnPickProduct;
+        private Label  lblProductPicked;
+
         private TextBox      txtQty;
         private Button       btnAddLine;
         private Button       btnRemoveLine;
@@ -86,11 +95,20 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             lblOrderIdValue.Dock = DockStyle.Fill;
             pnlOrderIdChip.Controls.Add(lblOrderIdValue);
 
-            cboQuotation = MakeCombo();
+            // ── Linked Quotation picker ──────────────────────────────────────────
+            btnPickQuotation   = MakePickerBtn("🔍  Link Quotation");
+            lblQuotationPicked = MakePickerLabel("(None)");
+            btnPickQuotation.Click += btnPickQuotation_Click;
+            var pnlQuotationPicker = MakePickerCell(btnPickQuotation, lblQuotationPicked);
+
+            // ── Customer picker ──────────────────────────────────────────────────
+            btnPickCustomer   = MakePickerBtn("🔍  Select Customer");
+            lblCustomerPicked = MakePickerLabel("(None selected)");
+            btnPickCustomer.Click += btnPickCustomer_Click;
+            var pnlCustomerPicker = MakePickerCell(btnPickCustomer, lblCustomerPicked);
+
             cboAddressId = MakeCombo();
             cboAddressId.SelectedIndexChanged += cboAddressId_SelectedIndexChanged;
-            cboCustomer = MakeCombo();
-            cboCustomer.SelectedIndexChanged += cboCustomer_SelectedIndexChanged;
 
             txtShippingAddr = MakeTextBox();
             txtShippingAddr.TextChanged += txtShippingAddr_TextChanged;
@@ -158,11 +176,11 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             tblInfo.Controls.Add(FieldLabel("Order ID", false),          0, 0);
             tblInfo.Controls.Add(FieldLabel("Linked Quotation", false),  1, 0);
             tblInfo.Controls.Add(pnlOrderIdChip,                         0, 1);
-            tblInfo.Controls.Add(Pad(cboQuotation),                      1, 1);
+            tblInfo.Controls.Add(pnlQuotationPicker,                     1, 1);
             tblInfo.Controls.Add(FieldLabel("Address ID", true),         0, 2);
             tblInfo.Controls.Add(FieldLabel("Customer",   true),         1, 2);
             tblInfo.Controls.Add(Pad(cboAddressId),                      0, 3);
-            tblInfo.Controls.Add(Pad(cboCustomer),                       1, 3);
+            tblInfo.Controls.Add(pnlCustomerPicker,                      1, 3);
             var lblShip = FieldLabel("Shipping Address", true); tblInfo.Controls.Add(lblShip, 0, 4); tblInfo.SetColumnSpan(lblShip, 2);
             var pnlShip = Pad(txtShippingAddr);                 tblInfo.Controls.Add(pnlShip, 0, 5); tblInfo.SetColumnSpan(pnlShip, 2);
             tblInfo.Controls.Add(FieldLabel("Billing Address", true), 0, 6);
@@ -187,8 +205,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             // ==================================================================
             // FOOTER  — [Subtotal: HK$ x.xx]  120px  [Grand Total: HK$ x.xx]  |  [Submit] [Clear]
-            // ValToLblGap = 120: gap from right edge of lblSubtotalValue
-            //                    to left edge of lblGrandTotalTitle, always constant.
             // ==================================================================
 
             const int BtnW        = 210;
@@ -253,7 +269,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlActionBtns.Controls.Add(btnClear);
             pnlActionBtns.Resize += (s, e) => CentreFooterBtns();
 
-            // Assign to instance field (not var) so UpdateSummary() can call PerformLayout()
             pnlFooterContent = new Panel
             {
                 Dock      = DockStyle.Fill,
@@ -308,7 +323,13 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             // CARD 2 — ORDER ITEMS
             // ==================================================================
 
-            cboProduct  = MakeCombo();
+            // ── Product picker ───────────────────────────────────────────────────
+            btnPickProduct   = MakePickerBtn("🔍  Select Item");
+            lblProductPicked = MakePickerLabel("(None selected)");
+            btnPickProduct.Click += btnPickProduct_Click;
+            var pnlProductPicker = MakePickerCell(btnPickProduct, lblProductPicked);
+            pnlProductPicker.Dock = DockStyle.Fill;
+
             txtQty      = MakeTextBox();
             txtQty.Text = "1";
 
@@ -337,7 +358,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             tblToolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 210f));
             tblToolbar.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
-            cboProduct.Dock = DockStyle.Fill;
             var lblQty = new Label { Text = "Qty:", Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleRight, Padding = new Padding(0, 0, 6, 0) };
             txtQty.Dock = DockStyle.Fill;
 
@@ -354,11 +374,11 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlAddBtn.Resize += (s, e) => CentreItemBtn(pnlAddBtn, btnAddLine);
             pnlRemBtn.Resize += (s, e) => CentreItemBtn(pnlRemBtn, btnRemoveLine);
 
-            tblToolbar.Controls.Add(cboProduct,  0, 0);
-            tblToolbar.Controls.Add(lblQty,      1, 0);
-            tblToolbar.Controls.Add(txtQty,      2, 0);
-            tblToolbar.Controls.Add(pnlAddBtn,   3, 0);
-            tblToolbar.Controls.Add(pnlRemBtn,   4, 0);
+            tblToolbar.Controls.Add(pnlProductPicker, 0, 0);
+            tblToolbar.Controls.Add(lblQty,           1, 0);
+            tblToolbar.Controls.Add(txtQty,           2, 0);
+            tblToolbar.Controls.Add(pnlAddBtn,        3, 0);
+            tblToolbar.Controls.Add(pnlRemBtn,        4, 0);
 
             var pnlToolbar = new Panel { Dock = DockStyle.Top, Height = 76, BackColor = Color.Transparent, Padding = new Padding(18, 8, 18, 8) };
             pnlToolbar.Controls.Add(tblToolbar);
@@ -413,6 +433,57 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             this.Controls.Add(pnlMain);
             this.ResumeLayout(false);
+        }
+
+        // ── Picker cell builder — Button on left, label on right ─────────────────
+        /// <summary>
+        /// Creates a Panel containing a picker button (left, fixed 160px) and a
+        /// read-only label that displays the currently-selected value (right, fills).
+        /// Used for Customer, Linked Quotation, and Select Item fields.
+        /// </summary>
+        private static Panel MakePickerCell(Button btn, Label lbl)
+        {
+            btn.Dock = DockStyle.Left;
+            btn.Width = 160;
+            lbl.Dock = DockStyle.Fill;
+
+            var p = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(0, 8, 12, 8) };
+            p.Controls.Add(lbl);
+            p.Controls.Add(btn);
+            return p;
+        }
+
+        private static Button MakePickerBtn(string text)
+        {
+            var b = new Button
+            {
+                Text      = text,
+                Font      = new Font("Segoe UI", 10.5f, FontStyle.Bold),
+                ForeColor = Color.White,
+                BackColor = Color.FromArgb(47, 111, 237),
+                FlatStyle = FlatStyle.Flat,
+                Height    = 40,
+                Width     = 160,
+                Cursor    = Cursors.Hand,
+                Dock      = DockStyle.Left
+            };
+            b.FlatAppearance.BorderSize             = 0;
+            b.FlatAppearance.MouseOverBackColor     = Color.FromArgb(26, 77, 192);
+            b.FlatAppearance.MouseDownBackColor     = Color.FromArgb(21, 60, 155);
+            return b;
+        }
+
+        private static Label MakePickerLabel(string placeholder)
+        {
+            return new Label
+            {
+                Text      = placeholder,
+                Font      = new Font("Segoe UI", 11f),
+                ForeColor = Color.FromArgb(98, 112, 135),
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Padding   = new Padding(10, 0, 0, 0)
+            };
         }
 
         private static TextBox  MakeTextBox() => new TextBox  { Font = new Font("Segoe UI", 12f), BorderStyle = BorderStyle.FixedSingle, Dock = DockStyle.Fill };
