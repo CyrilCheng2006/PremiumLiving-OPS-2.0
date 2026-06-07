@@ -160,9 +160,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Padding   = new Padding(12, 10, 12, 10)
             };
 
-            // Action area: [🔍 View Detail] [cboNewStatus] [✓ Update Status]
-            // Each item : 210 x 60 px, gaps 8 px, outer pad 12 px each side
-            // total width = 12 + 210 + 8 + 210 + 8 + 210 + 12 = 670
             const int ItemW      = 210;
             const int ItemH      = 60;
             const int ItemGap    = 8;
@@ -185,7 +182,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             cboNewStatus.SelectedIndex = 0;
 
             btnUpdateStatus = MakePrimaryBtn("\u2713  Update Status", Point.Empty, ItemW, ItemH);
-            btnUpdateStatus.BackColor = Color.FromArgb(245, 158, 11);     // Warning amber — matches Modify Order
+            btnUpdateStatus.BackColor = Color.FromArgb(245, 158, 11);
             btnUpdateStatus.FlatAppearance.MouseOverBackColor = Color.FromArgb(217, 119, 6);
             btnUpdateStatus.FlatAppearance.MouseDownBackColor = Color.FromArgb(180,  90,  0);
             btnUpdateStatus.Enabled = false;
@@ -261,12 +258,12 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     Padding            = new Padding(12, 6, 12, 6)
                 }
             };
-            dgvQuotations.Columns.Add(new DataGridViewTextBoxColumn { Name = "colQuotationID", HeaderText = "QUOTATION ID", FillWeight = 14 });
-            dgvQuotations.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCustomer",    HeaderText = "CUSTOMER",      FillWeight = 24 });
-            dgvQuotations.Columns.Add(new DataGridViewTextBoxColumn { Name = "colExpiry",      HeaderText = "EXPIRY DATE",   FillWeight = 13 });
-            dgvQuotations.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTotal",       HeaderText = "TOTAL AMOUNT",  FillWeight = 14 });
-            dgvQuotations.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDeposit",     HeaderText = "DEPOSIT REQ.",  FillWeight = 12 });
-            dgvQuotations.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLeadTime",    HeaderText = "LEAD TIME",     FillWeight = 11 });
+            dgvQuotations.Columns.Add(new DataGridViewTextBoxColumn { Name = "colQuotationID", HeaderText = "QUOTATION ID", FillWeight = 12 });
+            dgvQuotations.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCustomer",    HeaderText = "CUSTOMER",      FillWeight = 25 });
+            dgvQuotations.Columns.Add(new DataGridViewTextBoxColumn { Name = "colExpiry",      HeaderText = "EXPIRY DATE",   FillWeight = 10 });
+            dgvQuotations.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTotal",       HeaderText = "TOTAL AMOUNT",  FillWeight = 13 });
+            dgvQuotations.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDeposit",     HeaderText = "DEPOSIT REQ.",  FillWeight = 13 });
+            dgvQuotations.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLeadTime",    HeaderText = "LEAD TIME",     FillWeight = 15 });
             dgvQuotations.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",      HeaderText = "STATUS",        FillWeight = 12 });
             dgvQuotations.SelectionChanged += dgvQuotations_SelectionChanged;
             dgvQuotations.CellFormatting   += dgvQuotations_CellFormatting;
