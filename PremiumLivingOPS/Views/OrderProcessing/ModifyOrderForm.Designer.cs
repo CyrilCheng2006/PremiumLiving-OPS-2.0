@@ -24,15 +24,15 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         private TextBox        txtDiscountValue;
         private Label          lblDiscountUnit;
 
-        // ── Customer — read-only display label (no picker button) ──────────────
+        // ── Customer — read-only display label ──────────────────────────────────
         private Label lblCustomerValue;
 
-        // ── Picker controls — Linked Quotation ─────────────────────────────
+        // ── Picker controls — Linked Quotation ─────────────────────────────────
         private Button btnPickQuotation;
         private Label  lblQuotationPicked;
 
-        // ── Order Items toolbar ──────────────────────────────────────────
-        private Button       btnPickProduct;   // opens AddOrderItemDialog
+        // ── Order Items toolbar ─────────────────────────────────────────────────
+        private Button       btnPickProduct;
         private Button       btnRemoveLine;
         private DataGridView dgvLines;
 
@@ -42,8 +42,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         private Label  lblGrandTotalValue;
         private Panel  pnlFooterContent;
 
+        // Footer: Save left, Discard right
         private Button btnSaveChanges;
-        private Button btnCancelOrder;
+        private Button btnDiscardChanges;
 
         protected override void Dispose(bool disposing)
         {
@@ -107,13 +108,13 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             var pnlOrderIdChip = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(0, 8, 12, 8) };
             pnlOrderIdChip.Controls.Add(lblOrderIdValue);
 
-            // ── Linked Quotation picker ─────────────────────────────────────
+            // Linked Quotation picker
             btnPickQuotation   = MakePickerBtn("🔍  Link Quotation");
             lblQuotationPicked = MakePickerLabel("(None)");
             btnPickQuotation.Click += btnPickQuotation_Click;
             var pnlQuotationPicker = MakePickerCell(btnPickQuotation, lblQuotationPicked);
 
-            // ── Customer — read-only label ──────────────────────────────────
+            // Customer — read-only
             lblCustomerValue = new Label
             {
                 Text      = "—",
@@ -134,7 +135,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             txtShippingAddr = MakeTextBox();
             txtShippingAddr.TextChanged += txtShippingAddr_TextChanged;
-            txtBillingAddr = MakeTextBox();
+            txtBillingAddr  = MakeTextBox();
             txtBillingAddr.Enabled   = false;
             txtBillingAddr.BackColor = Color.FromArgb(235, 240, 250);
 
@@ -178,8 +179,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlDiscountInput.Controls.Add(txtDiscountValue);
             pnlDiscountInput.Controls.Add(lblDiscountUnit);
 
-            // tblInfo: 2-column, 16 rows (label+field pairs)
-            // Row layout mirrors CreateOrderForm exactly, with Customer read-only
             var tblInfo = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 16,
@@ -200,38 +199,29 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             tblInfo.Controls.Add(FieldLabel("Linked Quotation", false), 1, 0);
             tblInfo.Controls.Add(pnlOrderIdChip,                        0, 1);
             tblInfo.Controls.Add(pnlQuotationPicker,                    1, 1);
-
-            // Row 2-3: Customer (read-only) | Address ID  ── matches Create layout
+            // Row 2-3: Customer (read-only) | Address ID
             tblInfo.Controls.Add(FieldLabel("Customer",   false), 0, 2);
             tblInfo.Controls.Add(FieldLabel("Address ID", true),  1, 2);
             tblInfo.Controls.Add(pnlCustomerReadOnly,              0, 3);
             tblInfo.Controls.Add(Pad(cboAddressId),                1, 3);
-
             // Row 4-5: Shipping Address (full width)
             var lblShip = FieldLabel("Shipping Address", true);
-            tblInfo.Controls.Add(lblShip, 0, 4);
-            tblInfo.SetColumnSpan(lblShip, 2);
+            tblInfo.Controls.Add(lblShip, 0, 4); tblInfo.SetColumnSpan(lblShip, 2);
             var pnlShip = Pad(txtShippingAddr);
-            tblInfo.Controls.Add(pnlShip, 0, 5);
-            tblInfo.SetColumnSpan(pnlShip, 2);
-
-            // Row 6-7: Billing Address label | Same-as-Shipping checkbox
+            tblInfo.Controls.Add(pnlShip, 0, 5); tblInfo.SetColumnSpan(pnlShip, 2);
+            // Row 6-7: Billing Address | Same-as-Shipping
             tblInfo.Controls.Add(FieldLabel("Billing Address", true), 0, 6);
             tblInfo.Controls.Add(pnlChk,                              1, 6);
             var pnlBill = Pad(txtBillingAddr);
-            tblInfo.Controls.Add(pnlBill, 0, 7);
-            tblInfo.SetColumnSpan(pnlBill, 2);
-
-            // Row 8-9: Delivery Date | Order Contact Name
+            tblInfo.Controls.Add(pnlBill, 0, 7); tblInfo.SetColumnSpan(pnlBill, 2);
+            // Row 8-9: Delivery Date | Contact Name
             tblInfo.Controls.Add(FieldLabel("Delivery Date",      true), 0, 8);
             tblInfo.Controls.Add(FieldLabel("Order Contact Name", true), 1, 8);
             tblInfo.Controls.Add(Pad(dtpDelivery),                        0, 9);
             tblInfo.Controls.Add(Pad(txtContactName),                     1, 9);
-
-            // Row 10-11: Order Status | (empty)
+            // Row 10-11: Order Status
             tblInfo.Controls.Add(FieldLabel("Order Status", true), 0, 10);
             tblInfo.Controls.Add(Pad(cboStatus),                   0, 11);
-
             // Row 12-13: Discount Type | Discount Value
             tblInfo.Controls.Add(FieldLabel("Discount Type",  false), 0, 12);
             tblInfo.Controls.Add(FieldLabel("Discount Value", false), 1, 12);
@@ -246,32 +236,33 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlInfoInner.Controls.Add(pnlInfoContent);
 
             // ==================================================================
-            // FOOTER
+            // FOOTER  —  [Save Changes]  [↺ Discard Changes]
             // ==================================================================
-            const int BtnW        = 210;
-            const int BtnH        = 60;
-            const int BtnGap      = 8;
-            const int BtnPad      = 12;
+            const int BtnW   = 210;
+            const int BtnH   = 60;
+            const int BtnGap = 8;
+            const int BtnPad = 12;
 
             lblSubtotalTitle   = new Label { Text = "Subtotal:",    Font = new Font("Segoe UI", 12f),               ForeColor = Color.FromArgb(98, 112, 135), AutoSize = true, Anchor = AnchorStyles.Left | AnchorStyles.Top };
             lblSubtotalValue   = new Label { Text = "HK$ 0.00",    Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), AutoSize = true, Anchor = AnchorStyles.Left | AnchorStyles.Top };
             lblGrandTotalTitle = new Label { Text = "Grand Total:", Font = new Font("Segoe UI", 14f, FontStyle.Bold), ForeColor = Palette.TextMain,              AutoSize = true, Anchor = AnchorStyles.Left | AnchorStyles.Top };
             lblGrandTotalValue = new Label { Text = "HK$ 0.00",    Font = new Font("Segoe UI", 14f, FontStyle.Bold), ForeColor = Palette.Primary,               AutoSize = true, Anchor = AnchorStyles.Left | AnchorStyles.Top };
 
-            btnSaveChanges = MakeGreenBtn("✓  Save Changes", Point.Empty, BtnW, BtnH);
-            btnCancelOrder = MakeRedBtn(  "✕  Cancel Order", Point.Empty, BtnW, BtnH);
-            btnSaveChanges.Click += btnSaveChanges_Click;
-            btnCancelOrder.Click += btnCancelOrder_Click;
+            // Save = green (left), Discard = outline (right)
+            btnSaveChanges    = MakeGreenBtn  ("✔  Save Changes",    Point.Empty, BtnW, BtnH);
+            btnDiscardChanges = MakeOutlineBtn("↺  Discard Changes", Point.Empty, BtnW, BtnH);
+            btnSaveChanges.Click    += btnSaveChanges_Click;
+            btnDiscardChanges.Click += btnDiscardChanges_Click;
 
             var pnlActionBtns = new Panel { Dock = DockStyle.Right, Width = BtnPad + BtnW + BtnGap + BtnW + BtnPad, BackColor = Color.Transparent };
             void CentreFooterBtns()
             {
                 int top = (pnlActionBtns.Height - BtnH) / 2; if (top < 0) top = 0;
-                btnSaveChanges.Location = new Point(BtnPad, top);
-                btnCancelOrder.Location = new Point(BtnPad + BtnW + BtnGap, top);
+                btnSaveChanges.Location    = new Point(BtnPad, top);
+                btnDiscardChanges.Location = new Point(BtnPad + BtnW + BtnGap, top);
             }
             pnlActionBtns.Controls.Add(btnSaveChanges);
-            pnlActionBtns.Controls.Add(btnCancelOrder);
+            pnlActionBtns.Controls.Add(btnDiscardChanges);
             pnlActionBtns.Resize += (s, e) => CentreFooterBtns();
 
             pnlFooterContent = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(4, 0, 0, 0) };
@@ -303,7 +294,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             footerOuter.Controls.Add(footerInner);
 
             // ==================================================================
-            // CARD 2 — ORDER ITEMS  (matches CreateOrderForm exactly)
+            // CARD 2 — ORDER ITEMS
             // ==================================================================
             const int ItemBtnW = 210;
             const int ItemBtnH = 60;
@@ -339,7 +330,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlAddBtn.Resize += (s, e) => CentreItemBtn(pnlAddBtn, btnPickProduct);
             pnlRemBtn.Resize += (s, e) => CentreItemBtn(pnlRemBtn, btnRemoveLine);
 
-            // empty filler so buttons sit on the right
             tblToolbar.Controls.Add(new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent }, 0, 0);
             tblToolbar.Controls.Add(pnlAddBtn, 1, 0);
             tblToolbar.Controls.Add(pnlRemBtn, 2, 0);
@@ -390,7 +380,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             this.ResumeLayout(false);
         }
 
-        // ── Picker cell builder ───────────────────────────────────────────────
+        // ── Builder helpers ──────────────────────────────────────────────────────
         private static Panel MakePickerCell(Button btn, Label lbl)
         {
             btn.Dock = DockStyle.Left; btn.Width = 160; lbl.Dock = DockStyle.Fill;
@@ -416,9 +406,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             var div = new Panel { Dock = DockStyle.Bottom, Height = 1, BackColor = Palette.BorderColor };
             pnl.Controls.Add(lbl); pnl.Controls.Add(div); return pnl;
         }
-        private static Button MakeGreenBtn(string text, Point loc, int w, int h)   { var b = new Button { Text = text, Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.White, BackColor = Color.FromArgb(34, 139, 34),   FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand }; b.FlatAppearance.BorderSize = 0; b.FlatAppearance.MouseOverBackColor = Color.FromArgb(22, 111, 22);  b.FlatAppearance.MouseDownBackColor = Color.FromArgb(14, 85, 14);   return b; }
-        private static Button MakeRedBtn(string text, Point loc, int w, int h)     { var b = new Button { Text = text, Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.White, BackColor = Color.FromArgb(192, 57, 43),   FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand }; b.FlatAppearance.BorderSize = 0; b.FlatAppearance.MouseOverBackColor = Color.FromArgb(160, 40, 30); b.FlatAppearance.MouseDownBackColor = Color.FromArgb(125, 28, 20); return b; }
-        private static Button MakePrimaryBtn(string text, Point loc, int w, int h) { var b = new Button { Text = text, Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.White, BackColor = Color.FromArgb(47, 111, 237),  FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand }; b.FlatAppearance.BorderSize = 0; b.FlatAppearance.MouseOverBackColor = Color.FromArgb(26, 77, 192);  b.FlatAppearance.MouseDownBackColor = Color.FromArgb(21, 60, 155);  return b; }
-        private static Button MakeOutlineBtn(string text, Point loc, int w, int h) { var b = new Button { Text = text, Font = new Font("Segoe UI", 12f),               ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White,              FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand }; b.FlatAppearance.BorderColor = Color.FromArgb(221, 227, 236); b.FlatAppearance.BorderSize = 1; b.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249); return b; }
+        private static Button MakeGreenBtn(string text, Point loc, int w, int h)   { var b = new Button { Text = text, Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.White, BackColor = Color.FromArgb(34, 139, 34),  FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand }; b.FlatAppearance.BorderSize = 0; b.FlatAppearance.MouseOverBackColor = Color.FromArgb(22, 111, 22); b.FlatAppearance.MouseDownBackColor = Color.FromArgb(14, 85, 14);   return b; }
+        private static Button MakePrimaryBtn(string text, Point loc, int w, int h) { var b = new Button { Text = text, Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.White, BackColor = Color.FromArgb(47, 111, 237), FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand }; b.FlatAppearance.BorderSize = 0; b.FlatAppearance.MouseOverBackColor = Color.FromArgb(26, 77, 192); b.FlatAppearance.MouseDownBackColor = Color.FromArgb(21, 60, 155); return b; }
+        private static Button MakeOutlineBtn(string text, Point loc, int w, int h) { var b = new Button { Text = text, Font = new Font("Segoe UI", 12f),               ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White,             FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand }; b.FlatAppearance.BorderColor = Color.FromArgb(221, 227, 236); b.FlatAppearance.BorderSize = 1; b.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249); return b; }
     }
 }

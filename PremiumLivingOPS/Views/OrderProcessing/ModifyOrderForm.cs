@@ -16,6 +16,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
     ///   • Calls OrderProcessingController for all data and business operations.
     ///   • Customer is read-only (cannot be changed after order creation).
     ///   • Order Item + Qty + Add are handled by AddOrderItemDialog.
+    ///   • "Discard Changes" re-loads the original order data from the controller,
+    ///     reverting any unsaved edits in the form fields.
     /// </summary>
     public partial class ModifyOrderForm : Form
     {
@@ -23,13 +25,12 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
         private readonly OrderProcessingController _ctrl = new OrderProcessingController();
 
-        private OrderEntity           _currentOrder;
+        private OrderEntity           _currentOrder;          // last successfully loaded snapshot
         private List<OrderLineEntity> _lines        = new List<OrderLineEntity>();
         private List<ProductLookup>   _products     = new List<ProductLookup>();
         private List<AddressLookup>   _allAddresses = new List<AddressLookup>();
         private List<QuotationEntity> _quotations   = new List<QuotationEntity>();
 
-        // Picker state — Quotation only (Customer read-only, Product via AddOrderItemDialog)
         private string _selectedQuotationId = "";
 
         public ModifyOrderForm()
@@ -38,7 +39,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             this.Load += ModifyOrderForm_Load;
         }
 
-        // ── Load ─────────────────────────────────────────────────────────────────
+        // ── Load ──────────────────────────────────────────────────────────────────
         private void ModifyOrderForm_Load(object sender, EventArgs e)
         {
             _shell.MenuItemClicked += OnTopNavMenuItemClicked;
@@ -67,7 +68,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             }
         }
 
-        // ── Picker: Linked Quotation ──────────────────────────────────────────────
+        // ── Picker: Linked Quotation ───────────────────────────────────────────────
         private void btnPickQuotation_Click(object sender, EventArgs e)
         {
             var items = new List<SearchPickerDialog.PickerItem>
@@ -92,7 +93,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 : Color.FromArgb(15, 31, 53);
         }
 
-        // ── "+ Add Item" → opens AddOrderItemDialog ───────────────────────────────
+        // ── "+ Add Item" → opens AddOrderItemDialog ────────────────────────────────
         private void btnPickProduct_Click(object sender, EventArgs e)
         {
             using var dlg = new AddOrderItemDialog(_products);
@@ -117,7 +118,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             RefreshLineGrid();
         }
 
-        // ── Load Order button ─────────────────────────────────────────────────────
+        // ── Load Order button ──────────────────────────────────────────────────────
         private void btnLoadOrder_Click(object sender, EventArgs e)
         {
             var sel = cboSearchOrder.SelectedItem as ComboItem;
@@ -150,13 +151,13 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             RefreshLineGrid();
 
             bool isCancelled = _currentOrder.OrderStatus == "Cancelled";
-            btnSaveChanges.Enabled  = !isCancelled;
-            btnPickProduct.Enabled  = !isCancelled;
-            btnRemoveLine.Enabled   = !isCancelled;
-            btnCancelOrder.Enabled  = !isCancelled;
+            btnSaveChanges.Enabled    = !isCancelled;
+            btnPickProduct.Enabled    = !isCancelled;
+            btnRemoveLine.Enabled     = !isCancelled;
+            btnDiscardChanges.Enabled = true;  // always available once an order is loaded
         }
 
-        // ── Populate header from loaded order ─────────────────────────────────────
+        // ── Populate header from loaded order ──────────────────────────────────────
         private void PopulateHeader(OrderEntity o)
         {
             lblOrderIdValue.Text = o.OrderID;
@@ -166,7 +167,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             lblQuotationPicked.ForeColor = string.IsNullOrEmpty(o.QuotationID)
                 ? Color.FromArgb(98, 112, 135) : Color.FromArgb(15, 31, 53);
 
-            // Customer — read-only
             lblCustomerValue.Text = string.IsNullOrEmpty(o.CustomerName)
                 ? o.CustomerID ?? "—"
                 : $"{o.CustomerID}  –  {o.CustomerName}";
@@ -206,7 +206,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             }
         }
 
-        // ── Address helpers ───────────────────────────────────────────────────────
+        // ── Address helpers ────────────────────────────────────────────────────────
         private void LoadAddressCombos(string customerId)
         {
             cboAddressId.Items.Clear();
@@ -238,7 +238,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             if (same) txtBillingAddr.Text = txtShippingAddr.Text;
         }
 
-        // ── Remove line ───────────────────────────────────────────────────────────
+        // ── Remove line ────────────────────────────────────────────────────────────
         private void btnRemoveLine_Click(object sender, EventArgs e)
         {
             if (dgvLines.SelectedRows.Count == 0)
@@ -248,7 +248,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             RefreshLineGrid();
         }
 
-        // ── Line grid & summary ───────────────────────────────────────────────────
+        // ── Line grid & summary ────────────────────────────────────────────────────
         private void RefreshLineGrid()
         {
             dgvLines.Rows.Clear();
@@ -287,7 +287,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
         private void txtDiscountValue_TextChanged(object sender, EventArgs e) => UpdateSummary();
 
-        // ── Save Changes ──────────────────────────────────────────────────────────
+        // ── Save Changes ───────────────────────────────────────────────────────────
         private void btnSaveChanges_Click(object sender, EventArgs e)
         {
             if (_currentOrder == null)
@@ -340,35 +340,25 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 MessageBox.Show("Failed to save changes. Please try again.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
 
-        // ── Cancel Order ──────────────────────────────────────────────────────────
-        private void btnCancelOrder_Click(object sender, EventArgs e)
+        // ── Discard Changes — re-loads the original snapshot from DB ───────────────
+        private void btnDiscardChanges_Click(object sender, EventArgs e)
         {
             if (_currentOrder == null)
-            { MessageBox.Show("No order is loaded.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+            {
+                MessageBox.Show("No order is loaded.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
 
             var confirm = MessageBox.Show(
-                $"Are you sure you want to CANCEL order '{_currentOrder.OrderID}'?\nThis action cannot be undone.",
-                "Confirm Cancellation", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+                "Discard all unsaved changes and revert to the last saved state?",
+                "Discard Changes", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
             if (confirm != DialogResult.Yes) return;
 
-            bool ok = _ctrl.CancelOrder(_currentOrder.OrderID);
-            if (ok)
-            {
-                MessageBox.Show("Order has been cancelled.", "Cancelled", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                _currentOrder.OrderStatus  = "Cancelled";
-                btnSaveChanges.Enabled     = false;
-                btnCancelOrder.Enabled     = false;
-                btnPickProduct.Enabled     = false;
-                btnRemoveLine.Enabled      = false;
-                int idx = cboStatus.FindStringExact("Cancelled");
-                if (idx >= 0) cboStatus.SelectedIndex = idx;
-                ReloadOrderCombo();
-            }
-            else
-                MessageBox.Show("Failed to cancel order. Please try again.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            // Re-fetch from controller to get the clean DB state
+            SelectAndLoadOrder(_currentOrder.OrderID);
         }
 
-        // ── Helpers ───────────────────────────────────────────────────────────────
+        // ── Helpers ────────────────────────────────────────────────────────────────
         private void ReloadOrderCombo()
         {
             string currentId = _currentOrder?.OrderID;
