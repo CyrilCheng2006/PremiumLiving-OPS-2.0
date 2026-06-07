@@ -15,6 +15,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
     ///   • View displays the ID read-only; SalesID and IssuedTime are stamped at Submit time.
     ///   • NO business logic or DB calls in this class.
     ///   • CardPanel three-layer card structure throughout.
+    ///
+    /// Picker fields:
+    ///   Customer, Linked Quotation, and Order Item are now opened via PickerDialog
+    ///   (searchable popup) rather than a plain ComboBox drop-down.
     /// </summary>
     public partial class CreateOrderForm : Form
     {
@@ -23,9 +27,18 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         private string                         _orderId;
         private readonly List<OrderLineEntity> _lines    = new List<OrderLineEntity>();
         private List<ProductLookup>            _products = new List<ProductLookup>();
+        private List<AddressLookup>            _allAddresses = new List<AddressLookup>();
 
-        // Full address list loaded from VM; filtered per customer in PopulateAddresses()
-        private List<AddressLookup> _allAddresses = new List<AddressLookup>();
+        // ── Picker backing data ──────────────────────────────────────────────────────────
+        private List<CustomerEntity>   _customers   = new List<CustomerEntity>();
+        private List<QuotationLookup>  _quotations  = new List<QuotationLookup>();
+
+        // Currently-selected values from pickers
+        private string _selectedCustomerId   = "";
+        private string _selectedCustomerName = "";
+        private string _selectedQuotationId  = "";
+        private string _selectedProductId    = "";
+        private string _selectedProductName  = "";
 
         public CreateOrderForm()
         {
@@ -33,7 +46,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             this.Load += CreateOrderForm_Load;
         }
 
-        // ── Load ──────────────────────────────────────────────────────────────────────────
+        // ── Load ──────────────────────────────────────────────────────────────────
         private void CreateOrderForm_Load(object sender, EventArgs e)
         {
             _shell.MenuItemClicked += OnTopNavMenuItemClicked;
@@ -48,55 +61,98 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             _orderId             = vm.NextOrderId;
             lblOrderIdValue.Text = _orderId;
 
-            // Cache full address list for filtering
             _allAddresses = vm.Addresses ?? new List<AddressLookup>();
+            _customers    = vm.Customers ?? new List<CustomerEntity>();
+            _quotations   = vm.PendingQuotations ?? new List<QuotationLookup>();
+            _products     = vm.Products ?? new List<ProductLookup>();
 
-            // Customer
-            cboCustomer.Items.Clear();
-            cboCustomer.Items.Add(new ComboItem("-- Select Customer --", ""));
-            foreach (var c in vm.Customers)
-                cboCustomer.Items.Add(new ComboItem(
-                    $"{c.CustomerID}  —  {c.CustomerName}", c.CustomerID));
-            cboCustomer.SelectedIndex = 0;
-
-            // AddressID — initially empty until a customer is chosen
+            // Address ComboBox — still a drop-down (filtered per customer)
             cboAddressId.Items.Clear();
             cboAddressId.Items.Add(new ComboItem("-- Select Address --", ""));
             cboAddressId.SelectedIndex = 0;
 
-            // Linked Quotation
-            cboQuotation.Items.Clear();
-            cboQuotation.Items.Add(new ComboItem("-- None --", ""));
-            foreach (var q in vm.PendingQuotations)
-                cboQuotation.Items.Add(new ComboItem(
-                    $"{q.QuotationID}  –  {q.CustomerName}  (HK$ {q.TotalAmount:N0})",
-                    q.QuotationID));
-            cboQuotation.SelectedIndex = 0;
-
-            // Product
-            _products = vm.Products;
-            cboProduct.Items.Clear();
-            cboProduct.Items.Add(new ComboItem("-- Select Product --", ""));
-            foreach (var p in _products)
-                cboProduct.Items.Add(new ComboItem(p.DisplayText, p.ItemID));
-            cboProduct.SelectedIndex = 0;
-
-            dtpDelivery.Value             = DateTime.Today.AddDays(14);
+            // Discount
             cboDiscountType.SelectedIndex = 0;
+
+            dtpDelivery.Value = DateTime.Today.AddDays(14);
             RefreshLineGrid();
+
+            // Reset picker label displays
+            ResetPickerLabels();
+        }
+
+        // ── Picker button handlers ────────────────────────────────────────────────────
+
+        /// <summary>Opens the Customer picker popup.</summary>
+        private void btnPickCustomer_Click(object sender, EventArgs e)
+        {
+            var rows = new List<PickerRow>();
+            foreach (var c in _customers)
+                rows.Add(new PickerRow(c.CustomerID, c.CustomerName, c.CustomerID));
+
+            using var dlg = new PickerDialog(
+                "Select Customer",
+                new[] { "Customer ID", "Customer Name" },
+                rows);
+
+            if (dlg.ShowDialog(this) != DialogResult.OK) return;
+
+            _selectedCustomerId   = dlg.SelectedId;
+            _selectedCustomerName = dlg.SelectedText;
+            lblCustomerPicked.Text = $"{_selectedCustomerId}  —  {_selectedCustomerName}";
+            PopulateAddresses(_selectedCustomerId);
+        }
+
+        /// <summary>Opens the Linked Quotation picker popup.</summary>
+        private void btnPickQuotation_Click(object sender, EventArgs e)
+        {
+            var rows = new List<PickerRow>();
+            // Blank option first
+            rows.Add(new PickerRow("", "(None)", "", ""));
+            foreach (var q in _quotations)
+                rows.Add(new PickerRow(
+                    q.QuotationID,
+                    q.CustomerName,
+                    q.QuotationID,
+                    $"HK$ {q.TotalAmount:N0}"));
+
+            using var dlg = new PickerDialog(
+                "Link Quotation",
+                new[] { "Quotation ID", "Customer", "Ref ID", "Total" },
+                rows);
+
+            if (dlg.ShowDialog(this) != DialogResult.OK) return;
+
+            _selectedQuotationId      = dlg.SelectedId;
+            lblQuotationPicked.Text   = string.IsNullOrEmpty(dlg.SelectedId)
+                ? "(None)"
+                : $"{dlg.SelectedId}  –  {dlg.SelectedText}";
+        }
+
+        /// <summary>Opens the Product (Select Item) picker popup.</summary>
+        private void btnPickProduct_Click(object sender, EventArgs e)
+        {
+            var rows = new List<PickerRow>();
+            foreach (var p in _products)
+                rows.Add(new PickerRow(
+                    p.ItemID,
+                    p.ItemName,
+                    p.ItemID,
+                    $"HK$ {p.SalesPrice:N2}"));
+
+            using var dlg = new PickerDialog(
+                "Select Item",
+                new[] { "Item ID", "Item Name", "Ref ID", "Sales Price" },
+                rows);
+
+            if (dlg.ShowDialog(this) != DialogResult.OK) return;
+
+            _selectedProductId   = dlg.SelectedId;
+            _selectedProductName = dlg.SelectedText;
+            lblProductPicked.Text = $"{_selectedProductId}  —  {_selectedProductName}";
         }
 
         // ── Customer selection → populate Address ComboBox ─────────────────────────────
-        private void cboCustomer_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            var sel = cboCustomer.SelectedItem as ComboItem;
-            PopulateAddresses(sel?.Value ?? "");
-        }
-
-        /// <summary>
-        /// Fills cboAddressId with addresses that belong to the given customerId.
-        /// Delegates filtering to Controller (no business logic in View).
-        /// </summary>
         private void PopulateAddresses(string customerId)
         {
             cboAddressId.Items.Clear();
@@ -110,7 +166,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             txtShippingAddr.Text = string.Empty;
         }
 
-        // ── AddressID selection → auto-fill Shipping Address ───────────────────────────
+        // ── AddressID selection → auto-fill Shipping Address ──────────────────────────
         private void cboAddressId_SelectedIndexChanged(object sender, EventArgs e)
         {
             var sel = cboAddressId.SelectedItem as ComboItem;
@@ -119,19 +175,16 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 txtShippingAddr.Text = string.Empty;
                 return;
             }
-
-            // Find full address text from cached list
             var addr = _allAddresses.Find(a => a.AddressId == sel.Value);
             if (addr != null)
             {
                 txtShippingAddr.Text = addr.FullAddress;
-                // If 'Same as Shipping' is checked, billing syncs automatically
                 if (chkSameAddress.Checked)
                     txtBillingAddr.Text = addr.FullAddress;
             }
         }
 
-        // ── Same-address checkbox ───────────────────────────────────────────────────
+        // ── Same-address checkbox ──────────────────────────────────────────────────
         private void chkSameAddress_CheckedChanged(object sender, EventArgs e)
         {
             if (chkSameAddress.Checked)
@@ -147,83 +200,54 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             }
         }
 
-        // Keep Billing in sync while checkbox is checked
         private void txtShippingAddr_TextChanged(object sender, EventArgs e)
         {
             if (chkSameAddress.Checked)
                 txtBillingAddr.Text = txtShippingAddr.Text;
         }
 
-        // ── Line-item helpers ─────────────────────────────────────────────────────
-
-        /// <summary>
-        /// Refreshes the DataGridView rows from _lines, then calls UpdateSummary().
-        /// Single source of truth for all row rendering and totals display.
-        /// </summary>
+        // ── Line-item helpers ──────────────────────────────────────────────────────
         private void RefreshLineGrid()
         {
             dgvLines.Rows.Clear();
             foreach (var l in _lines)
-            {
                 dgvLines.Rows.Add(l.ItemID, l.ItemName, l.Quantity,
                                   $"HK$ {l.Price:N2}", $"HK$ {l.LineTotal:N2}");
-            }
             UpdateSummary();
         }
 
-        /// <summary>
-        /// Unified summary recalculation — reads _lines directly so that
-        /// Subtotal and Grand Total are always in sync regardless of trigger.
-        /// Subtotal  = sum of all line totals (Qty × Price).
-        /// GrandTotal = Subtotal − discount (clamped to ≥ 0).
-        ///
-        /// After updating both value labels, PerformLayout() is called on
-        /// pnlFooterContent so the Layout handler immediately recalculates
-        /// Grand Total Title's X-position based on the new lblSubtotalValue.Width.
-        /// </summary>
         private void UpdateSummary()
         {
-            // 1. Subtotal — sum of all line totals
             double subtotal = 0;
-            foreach (var l in _lines)
-                subtotal += l.LineTotal;
-
+            foreach (var l in _lines) subtotal += l.LineTotal;
             lblSubtotalValue.Text = $"HK$ {subtotal:N2}";
 
-            // 2. Discount
             string dtype    = cboDiscountType.SelectedItem?.ToString() ?? "None";
             double discount = 0;
             if (dtype == "Amount")
-            {
                 double.TryParse(txtDiscountValue.Text, out discount);
-            }
             else if (dtype == "Rate (%)")
             {
                 if (double.TryParse(txtDiscountValue.Text, out double rate))
                     discount = subtotal * rate / 100.0;
             }
-
             if (discount < 0)        discount = 0;
             if (discount > subtotal) discount = subtotal;
 
             lblGrandTotalValue.Text = $"HK$ {subtotal - discount:N2}";
-
-            // 3. Re-layout footer so Grand Total Title X-position reflects
-            //    the updated lblSubtotalValue.Width immediately.
             pnlFooterContent.PerformLayout();
         }
 
-        // ── Add / Remove line ──────────────────────────────────────────────────────
+        // ── Add / Remove line ────────────────────────────────────────────────────
         private void btnAddLine_Click(object sender, EventArgs e)
         {
-            var selProduct = cboProduct.SelectedItem as ComboItem;
-            if (selProduct == null || string.IsNullOrEmpty(selProduct.Value))
-            { ShowWarning("Please select a product."); return; }
+            if (string.IsNullOrEmpty(_selectedProductId))
+            { ShowWarning("Please select a product via the \"Select Item\" button."); return; }
 
             if (!int.TryParse(txtQty.Text, out int qty) || qty <= 0)
             { ShowWarning("Please enter a valid quantity (minimum 1)."); return; }
 
-            var product = _products.Find(p => p.ItemID == selProduct.Value);
+            var product = _products.Find(p => p.ItemID == _selectedProductId);
             if (product == null) return;
 
             var existing = _lines.Find(l => l.ItemID == product.ItemID);
@@ -238,7 +262,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     Price    = product.SalesPrice
                 });
 
-            cboProduct.SelectedIndex = 0;
+            // Reset product picker
+            _selectedProductId   = "";
+            _selectedProductName = "";
+            lblProductPicked.Text = "(None selected)";
             txtQty.Text = "1";
             RefreshLineGrid();
         }
@@ -253,7 +280,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             RefreshLineGrid();
         }
 
-        // ── Discount ────────────────────────────────────────────────────────────────────
+        // ── Discount ─────────────────────────────────────────────────────────────────
         private void cboDiscountType_SelectedIndexChanged(object sender, EventArgs e)
         {
             string dtype     = cboDiscountType.SelectedItem?.ToString() ?? "None";
@@ -272,15 +299,12 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         }
 
         private void txtDiscountValue_TextChanged(object sender, EventArgs e)
-        {
-            UpdateSummary();
-        }
+            => UpdateSummary();
 
-        // ── Submit ────────────────────────────────────────────────────────────────────────
+        // ── Submit ───────────────────────────────────────────────────────────────────
         private void btnSubmit_Click(object sender, EventArgs e)
         {
-            var selCustomer = cboCustomer.SelectedItem as ComboItem;
-            if (selCustomer == null || string.IsNullOrEmpty(selCustomer.Value))
+            if (string.IsNullOrEmpty(_selectedCustomerId))
             { ShowWarning("Please select a customer."); return; }
 
             if (string.IsNullOrWhiteSpace(txtShippingAddr.Text))
@@ -295,9 +319,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             if (_lines.Count == 0)
             { ShowWarning("Please add at least one order item before submitting."); return; }
 
-            var selQuotation = cboQuotation.SelectedItem as ComboItem;
-            var selAddress   = cboAddressId.SelectedItem  as ComboItem;
-            string dtype = cboDiscountType.SelectedItem?.ToString() ?? "None";
+            var selAddress = cboAddressId.SelectedItem as ComboItem;
+            string dtype   = cboDiscountType.SelectedItem?.ToString() ?? "None";
             double.TryParse(txtDiscountValue.Text, out double discountValue);
 
             double sub = 0;
@@ -306,16 +329,15 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             double discountAmount = 0;
             if (dtype == "Amount")        discountAmount = discountValue;
             else if (dtype == "Rate (%)") discountAmount = sub * discountValue / 100.0;
-
-            if (discountAmount < 0)    discountAmount = 0;
-            if (discountAmount > sub)  discountAmount = sub;
+            if (discountAmount < 0)   discountAmount = 0;
+            if (discountAmount > sub) discountAmount = sub;
 
             var header = new OrderEntity
             {
                 OrderID          = _orderId,
-                CustomerID       = selCustomer.Value,
+                CustomerID       = _selectedCustomerId,
                 AddressID        = selAddress?.Value ?? "",
-                QuotationID      = selQuotation?.Value ?? "",
+                QuotationID      = _selectedQuotationId ?? "",
                 DeliveryDate     = dtpDelivery.Value,
                 ShippingAddress  = txtShippingAddr.Text.Trim(),
                 BillingAddress   = txtBillingAddr.Text.Trim(),
@@ -346,7 +368,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             }
         }
 
-        // ── Clear ────────────────────────────────────────────────────────────────────────────
+        // ── Clear ────────────────────────────────────────────────────────────────────
         private void btnClear_Click(object sender, EventArgs e)
         {
             if (MessageBox.Show("Clear all entered data?", "Confirm Clear",
@@ -359,26 +381,38 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             _orderId             = _ctrl.GenerateOrderId();
             lblOrderIdValue.Text = _orderId;
 
-            cboCustomer.SelectedIndex     = 0;
-            cboQuotation.SelectedIndex    = 0;
-            cboProduct.SelectedIndex      = 0;
+            _selectedCustomerId   = "";
+            _selectedCustomerName = "";
+            _selectedQuotationId  = "";
+            _selectedProductId    = "";
+            _selectedProductName  = "";
+            ResetPickerLabels();
+
+            cboAddressId.SelectedIndex    = 0;
             cboDiscountType.SelectedIndex = 0;
-            txtShippingAddr.Text  = string.Empty;
-            txtBillingAddr.Text   = string.Empty;
-            txtContactName.Text   = string.Empty;
-            txtDiscountValue.Text = "0";
-            lblDiscountUnit.Text  = "";
-            txtQty.Text           = "1";
+            txtShippingAddr.Text   = string.Empty;
+            txtBillingAddr.Text    = string.Empty;
+            txtContactName.Text    = string.Empty;
+            txtDiscountValue.Text  = "0";
+            lblDiscountUnit.Text   = "";
+            txtQty.Text            = "1";
             chkSameAddress.Checked = false;
-            dtpDelivery.Value     = DateTime.Today.AddDays(14);
+            dtpDelivery.Value      = DateTime.Today.AddDays(14);
             _lines.Clear();
             RefreshLineGrid();
+        }
+
+        private void ResetPickerLabels()
+        {
+            lblCustomerPicked.Text  = "(None selected)";
+            lblQuotationPicked.Text = "(None)";
+            lblProductPicked.Text   = "(None selected)";
         }
 
         private static void ShowWarning(string msg)
             => MessageBox.Show(msg, "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
 
-        // ── Nav / Logout ───────────────────────────────────────────────────────────────────
+        // ── Nav / Logout ───────────────────────────────────────────────────────────────
         private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
             => FormNavigator.NavigateTo(this, menuLabel, subItem);
 
@@ -388,7 +422,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             Application.Restart();
         }
 
-        // ── ComboItem helper ─────────────────────────────────────────────────────────────────
+        // ── ComboItem helper (Address drop-down only) ───────────────────────────────────
         private class ComboItem
         {
             public string Text  { get; }
