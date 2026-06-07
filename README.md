@@ -169,6 +169,7 @@ PremiumLiving-OPS-2.0/                          #  Repository Root
         │   ├── CsvExporter.cs
         │   ├── FormNavigator.cs
         │   ├── Palette.cs
+        │   ├── SearchPickerDialog.cs
         │   ├── TopNavBar.cs
         │   ├── UserBar.cs
         │   ├── UserInfoLabel.cs
