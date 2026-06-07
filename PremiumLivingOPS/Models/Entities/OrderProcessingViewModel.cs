@@ -41,12 +41,31 @@ namespace PremiumLivingOPS.Models.Entities
         public string          QuotationID       { get; set; }
         public string          CustomerID        { get; set; }
         public string          CustomerName      { get; set; }
+        public System.DateTime IssuedDate        { get; set; }  // from quotation.IssuedDate
         public System.DateTime ExpiryDate        { get; set; }
         public double          TotalAmount       { get; set; }
         public double          DepositRequired   { get; set; }
         public string          LeadTimeEstimated { get; set; }
         public string          TermsandCondition { get; set; }
         public string          QuotationStatus   { get; set; }
+        public string          SalesStaffName    { get; set; }  // joined from Staff table
+        public string          Notes             { get; set; }  // from quotation.Notes
+
+        /// <summary>Line items — populated only by GetQuotationDetail, null in list queries.</summary>
+        public List<QuotationItemEntity> Items   { get; set; }
+    }
+
+    /// <summary>One line item inside a Quotation (maps to QuotationItem table).</summary>
+    public class QuotationItemEntity
+    {
+        public string QuotationID      { get; set; }
+        public string ProductName      { get; set; }
+        public int    Quantity         { get; set; }
+        public string Unit             { get; set; }
+        public double UnitPrice        { get; set; }
+        public double DiscountPercent  { get; set; }
+        public double Subtotal         => Quantity * UnitPrice * (1 - DiscountPercent / 100.0);
+        public string ItemNote         { get; set; }
     }
 
     public class ProductLookup

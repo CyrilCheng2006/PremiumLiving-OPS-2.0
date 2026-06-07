@@ -91,6 +91,19 @@ namespace PremiumLivingOPS.Controllers
             };
         }
 
+        /// <summary>
+        /// Returns full detail of one quotation including its line items.
+        /// Returns null if the quotation is not found.
+        /// </summary>
+        public QuotationEntity GetQuotationDetail(string quotationId)
+        {
+            if (string.IsNullOrEmpty(quotationId)) return null;
+            var q = _repo.GetQuotationById(quotationId);
+            if (q == null) return null;
+            q.Items = _repo.GetQuotationItems(quotationId);
+            return q;
+        }
+
         public bool UpdateQuotationStatus(string quotationId, string newStatus)
             => _repo.UpdateQuotationStatus(quotationId, newStatus);
 
@@ -109,7 +122,7 @@ namespace PremiumLivingOPS.Controllers
                 },
                 AllowedMenus      = NavAccessPolicy.GetAllowedMenus(user?.Department ?? ""),
                 Customers         = _repo.GetAllCustomers(),
-                Addresses         = _repo.GetAllAddresses(),   // all addresses; View filters by CustomerID
+                Addresses         = _repo.GetAllAddresses(),
                 Products          = _repo.GetAllProducts(),
                 Quotations        = allQ,
                 PendingQuotations = allQ.FindAll(q => q.QuotationStatus == "Pending"),
