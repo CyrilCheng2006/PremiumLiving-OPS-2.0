@@ -8,42 +8,42 @@ using System.Windows.Forms;
 namespace PremiumLivingOPS.Views.Shared
 {
     /// <summary>
-    /// AddOrderItemDialog — searchable product picker + qty input in one popup.
-    /// Opens from "+ Add Item" button in Create Order and Modify Order.
+    /// AddOrderItemDialog — searchable product picker + qty input.
+    /// Opens from "+ Add Item" in Create Order and Modify Order.
     /// Returns SelectedProduct and SelectedQty on DialogResult.OK.
     /// </summary>
     public class AddOrderItemDialog : Form
     {
-        // ── Public results ──────────────────────────────────────────────────────
         public ProductLookup SelectedProduct { get; private set; }
         public int           SelectedQty     { get; private set; } = 1;
 
-        // ── Controls ────────────────────────────────────────────────────────────
-        private TextBox     txtSearch;
-        private ListBox     lstItems;
-        private Label       lblSelectedName;
-        private Label       lblSelectedPrice;
+        private TextBox       txtSearch;
+        private ListBox       lstItems;
+        private Label         lblSelectedName;
+        private Label         lblSelectedPrice;
         private NumericUpDown nudQty;
-        private Button      btnConfirm;
-        private Button      btnCancel;
+        private Button        btnConfirm;
+        private Button        btnCancel;
 
         private readonly List<ProductLookup> _products;
         private List<ProductLookup>          _filtered;
 
         public AddOrderItemDialog(List<ProductLookup> products)
         {
-            _products = products ?? new List<ProductLookup>();
+            // Sort source list by ItemID once; filtering preserves order
+            _products = (products ?? new List<ProductLookup>())
+                        .OrderBy(p => p.ItemID, StringComparer.Ordinal)
+                        .ToList();
             _filtered = new List<ProductLookup>(_products);
             BuildUI();
             PopulateList();
         }
 
-        // ── UI Builder ──────────────────────────────────────────────────────────
         private void BuildUI()
         {
             this.Text            = "Add Order Item";
-            this.Size            = new Size(1500, 700);
-            this.MinimumSize     = new Size(1200, 600);
+            this.Size            = new Size(1400, 800);
+            this.MinimumSize     = new Size(1200, 660);
             this.StartPosition   = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox     = false;
@@ -69,8 +69,14 @@ namespace PremiumLivingOPS.Views.Shared
             };
             pnlTitle.Controls.Add(lblTitle);
 
-            // ── Search box ─────────────────────────────────────────────────────
-            var pnlSearch = new Panel { Dock = DockStyle.Top, Height = 52, BackColor = Color.Transparent, Padding = new Padding(16, 10, 16, 4) };
+            // ── Search box ───────────────────────────────────────────────────
+            var pnlSearch = new Panel
+            {
+                Dock    = DockStyle.Top,
+                Height  = 52,
+                BackColor = Color.Transparent,
+                Padding = new Padding(16, 10, 16, 4)
+            };
             txtSearch = new TextBox
             {
                 PlaceholderText = "🔍  Search by item ID or name…",
@@ -82,61 +88,86 @@ namespace PremiumLivingOPS.Views.Shared
             txtSearch.KeyDown     += TxtSearch_KeyDown;
             pnlSearch.Controls.Add(txtSearch);
 
-            // ── List ───────────────────────────────────────────────────────────
+            // ── Item list ──────────────────────────────────────────────────────
             lstItems = new ListBox
             {
-                Dock            = DockStyle.Fill,
-                Font            = new Font("Segoe UI", 11f),
-                BorderStyle     = BorderStyle.FixedSingle,
-                ItemHeight      = 28,
-                BackColor       = Color.White,
-                ForeColor       = Color.FromArgb(15, 31, 53),
-                SelectionMode   = SelectionMode.One,
-                IntegralHeight  = false
+                Dock           = DockStyle.Fill,
+                Font           = new Font("Segoe UI", 11f),
+                BorderStyle    = BorderStyle.FixedSingle,
+                ItemHeight     = 32,
+                BackColor      = Color.White,
+                ForeColor      = Color.FromArgb(15, 31, 53),
+                SelectionMode  = SelectionMode.One,
+                IntegralHeight = false
             };
             lstItems.SelectedIndexChanged += LstItems_SelectedIndexChanged;
             lstItems.DoubleClick          += LstItems_DoubleClick;
             lstItems.KeyDown              += LstItems_KeyDown;
 
-            var pnlList = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(16, 0, 16, 0) };
+            var pnlList = new Panel
+            {
+                Dock      = DockStyle.Fill,
+                BackColor = Color.Transparent,
+                Padding   = new Padding(16, 0, 16, 0)
+            };
             pnlList.Controls.Add(lstItems);
 
-            // ── Selected item preview ──────────────────────────────────────────
-            var pnlPreview = new Panel { Dock = DockStyle.Bottom, Height = 56, BackColor = Color.White, Padding = new Padding(16, 8, 16, 8) };
+            // ── Selected item preview ────────────────────────────────────────
+            var pnlPreview = new Panel
+            {
+                Dock      = DockStyle.Bottom,
+                Height    = 60,
+                BackColor = Color.White,
+                Padding   = new Padding(20, 0, 20, 0)
+            };
             pnlPreview.Paint += (s, e) =>
             {
                 using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
                 e.Graphics.DrawLine(pen, 0, 0, pnlPreview.Width, 0);
             };
+
+            // Price label — fixed width, right-aligned, anchored RIGHT so it is never clipped
+            lblSelectedPrice = new Label
+            {
+                Text      = "",
+                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(47, 111, 237),
+                Dock      = DockStyle.Right,
+                AutoSize  = false,
+                Width     = 220,
+                TextAlign = ContentAlignment.MiddleRight
+            };
+            // Name label fills remaining width
             lblSelectedName = new Label
             {
                 Text      = "No item selected",
-                Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
+                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(98, 112, 135),
                 Dock      = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft
             };
-            lblSelectedPrice = new Label
-            {
-                Text      = "",
-                Font      = new Font("Segoe UI", 11f),
-                ForeColor = Color.FromArgb(47, 111, 237),
-                Dock      = DockStyle.Right,
-                AutoSize  = false,
-                Width     = 160,
-                TextAlign = ContentAlignment.MiddleRight
-            };
+            // Add price first so it docks to the right before Fill takes remaining space
             pnlPreview.Controls.Add(lblSelectedName);
             pnlPreview.Controls.Add(lblSelectedPrice);
 
-            // ── Qty + Confirm row ──────────────────────────────────────────────
-            var pnlFooter = new Panel { Dock = DockStyle.Bottom, Height = 72, BackColor = Color.FromArgb(246, 249, 255), Padding = new Padding(16, 10, 16, 10) };
+            // ── Footer: Qty + Cancel + Confirm ─────────────────────────────────
+            const int BtnW = 210;
+            const int BtnH = 60;
+
+            var pnlFooter = new Panel
+            {
+                Dock      = DockStyle.Bottom,
+                Height    = BtnH + 20,   // 80 px total
+                BackColor = Color.FromArgb(246, 249, 255),
+                Padding   = new Padding(16, 10, 16, 10)
+            };
             pnlFooter.Paint += (s, e) =>
             {
                 using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
                 e.Graphics.DrawLine(pen, 0, 0, pnlFooter.Width, 0);
             };
 
+            // Qty label — wide enough to show "Quantity:"
             var lblQty = new Label
             {
                 Text      = "Quantity:",
@@ -144,62 +175,66 @@ namespace PremiumLivingOPS.Views.Shared
                 ForeColor = Color.FromArgb(98, 112, 135),
                 Dock      = DockStyle.Left,
                 AutoSize  = false,
-                Width     = 90,
+                Width     = 100,          // was 90, now fits full word
                 TextAlign = ContentAlignment.MiddleLeft
             };
+
             nudQty = new NumericUpDown
             {
                 Minimum   = 1,
                 Maximum   = 9999,
                 Value     = 1,
                 Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
-                Width     = 90,
+                Width     = 100,
                 Dock      = DockStyle.Left,
                 TextAlign = HorizontalAlignment.Center
             };
 
+            // Green Confirm button
             btnConfirm = new Button
             {
                 Text      = "✔  Confirm",
-                Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
+                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
                 ForeColor = Color.White,
-                BackColor = Color.FromArgb(47, 111, 237),
+                BackColor = Color.FromArgb(34, 139, 34),
                 FlatStyle = FlatStyle.Flat,
                 Dock      = DockStyle.Right,
-                Width     = 150,
+                Width     = BtnW,
                 Cursor    = Cursors.Hand
             };
-            btnConfirm.FlatAppearance.BorderSize           = 0;
-            btnConfirm.FlatAppearance.MouseOverBackColor   = Color.FromArgb(26, 77, 192);
-            btnConfirm.FlatAppearance.MouseDownBackColor   = Color.FromArgb(21, 60, 155);
+            btnConfirm.FlatAppearance.BorderSize         = 0;
+            btnConfirm.FlatAppearance.MouseOverBackColor = Color.FromArgb(22, 111, 22);
+            btnConfirm.FlatAppearance.MouseDownBackColor = Color.FromArgb(14, 85, 14);
             btnConfirm.Click += BtnConfirm_Click;
 
+            // Red Cancel button
             btnCancel = new Button
             {
-                Text      = "Cancel",
-                Font      = new Font("Segoe UI", 11f),
-                ForeColor = Color.FromArgb(15, 31, 53),
-                BackColor = Color.White,
+                Text      = "✕  Cancel",
+                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.White,
+                BackColor = Color.FromArgb(192, 57, 43),
                 FlatStyle = FlatStyle.Flat,
                 Dock      = DockStyle.Right,
-                Width     = 110,
+                Width     = BtnW,
                 Cursor    = Cursors.Hand
             };
-            btnCancel.FlatAppearance.BorderColor         = Color.FromArgb(221, 227, 236);
-            btnCancel.FlatAppearance.BorderSize          = 1;
-            btnCancel.FlatAppearance.MouseOverBackColor  = Color.FromArgb(240, 244, 249);
+            btnCancel.FlatAppearance.BorderSize         = 0;
+            btnCancel.FlatAppearance.MouseOverBackColor = Color.FromArgb(160, 40, 30);
+            btnCancel.FlatAppearance.MouseDownBackColor = Color.FromArgb(125, 28, 20);
             btnCancel.Click += (s, e) => { this.DialogResult = DialogResult.Cancel; this.Close(); };
 
-            // gap panel between qty and buttons
+            // Spacer fills gap between qty and buttons
             var pnlGap = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
 
+            // Controls added in reverse Dock.Right order: rightmost first
             pnlFooter.Controls.Add(pnlGap);
             pnlFooter.Controls.Add(btnCancel);
             pnlFooter.Controls.Add(btnConfirm);
             pnlFooter.Controls.Add(nudQty);
             pnlFooter.Controls.Add(lblQty);
 
-            // ── Assemble ───────────────────────────────────────────────────────
+            // ── Assemble top-to-bottom ───────────────────────────────────────────
             this.Controls.Add(pnlList);
             this.Controls.Add(pnlPreview);
             this.Controls.Add(pnlFooter);
@@ -211,12 +246,13 @@ namespace PremiumLivingOPS.Views.Shared
             this.ActiveControl = txtSearch;
         }
 
-        // ── List population & filtering ─────────────────────────────────────────
+        // ── List population & filtering ────────────────────────────────────────
         private void PopulateList()
         {
             lstItems.Items.Clear();
+            // Display: "IID-P-0001  –  Item Name  –  HK$ 12,800.00" (no parentheses)
             foreach (var p in _filtered)
-                lstItems.Items.Add($"{p.ItemID}  –  {p.ItemName}  (HK$ {p.SalesPrice:N2})");
+                lstItems.Items.Add($"{p.ItemID}  –  {p.ItemName}  –  HK$ {p.SalesPrice:N2}");
             if (lstItems.Items.Count > 0) lstItems.SelectedIndex = 0;
         }
 
@@ -228,6 +264,7 @@ namespace PremiumLivingOPS.Views.Shared
                 : _products.Where(p =>
                     p.ItemID.ToLower().Contains(kw) ||
                     p.ItemName.ToLower().Contains(kw)).ToList();
+            // Filtered list inherits the pre-sorted order from _products
             PopulateList();
         }
 
@@ -241,7 +278,7 @@ namespace PremiumLivingOPS.Views.Shared
             }
         }
 
-        // ── Selection preview ───────────────────────────────────────────────────
+        // ── Selection preview ─────────────────────────────────────────────────
         private void LstItems_SelectedIndexChanged(object sender, EventArgs e)
         {
             int idx = lstItems.SelectedIndex;
@@ -265,7 +302,7 @@ namespace PremiumLivingOPS.Views.Shared
             if (e.KeyCode == Keys.Enter) { Confirm(); e.Handled = true; }
         }
 
-        // ── Confirm ─────────────────────────────────────────────────────────────
+        // ── Confirm ───────────────────────────────────────────────────────────
         private void BtnConfirm_Click(object sender, EventArgs e) => Confirm();
 
         private void Confirm()
@@ -277,8 +314,8 @@ namespace PremiumLivingOPS.Views.Shared
                     "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
-            SelectedProduct = _filtered[idx];
-            SelectedQty     = (int)nudQty.Value;
+            SelectedProduct   = _filtered[idx];
+            SelectedQty       = (int)nudQty.Value;
             this.DialogResult = DialogResult.OK;
             this.Close();
         }
