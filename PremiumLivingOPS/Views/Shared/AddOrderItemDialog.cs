@@ -50,7 +50,11 @@ namespace PremiumLivingOPS.Views.Shared
             this.BackColor       = Color.FromArgb(246, 249, 255);
             this.Font            = new Font("Segoe UI", 11f);
 
-            // ── Title bar ─────────────────────────────────────────────────────
+            const int BtnW   = 290;
+            const int BtnH   = 60;
+            const int BtnGap = 10;
+
+            // ── Title bar ─────────────────────────────────────────────────
             var pnlTitle = new Panel { Dock = DockStyle.Top, Height = 56, BackColor = Color.White };
             pnlTitle.Paint += (s, e) =>
             {
@@ -68,7 +72,7 @@ namespace PremiumLivingOPS.Views.Shared
             };
             pnlTitle.Controls.Add(lblTitle);
 
-            // ── Search box ────────────────────────────────────────────────────
+            // ── Search box ────────────────────────────────────────────────
             var pnlSearch = new Panel
             {
                 Dock      = DockStyle.Top,
@@ -87,7 +91,7 @@ namespace PremiumLivingOPS.Views.Shared
             txtSearch.KeyDown     += TxtSearch_KeyDown;
             pnlSearch.Controls.Add(txtSearch);
 
-            // ── Item list ─────────────────────────────────────────────────────
+            // ── Item list ─────────────────────────────────────────────────
             lstItems = new ListBox
             {
                 Dock           = DockStyle.Fill,
@@ -111,7 +115,7 @@ namespace PremiumLivingOPS.Views.Shared
             };
             pnlList.Controls.Add(lstItems);
 
-            // ── Selected item preview ─────────────────────────────────────────
+            // ── Selected item preview ─────────────────────────────────────
             var pnlPreview = new Panel
             {
                 Dock      = DockStyle.Bottom,
@@ -124,8 +128,6 @@ namespace PremiumLivingOPS.Views.Shared
                 using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
                 e.Graphics.DrawLine(pen, 0, 0, pnlPreview.Width, 0);
             };
-
-            // Price: 280 px wide — fits "HK$ 999,999.00" without clipping
             lblSelectedPrice = new Label
             {
                 Text      = "",
@@ -136,7 +138,6 @@ namespace PremiumLivingOPS.Views.Shared
                 Width     = 280,
                 TextAlign = ContentAlignment.MiddleRight
             };
-            // Name fills remaining space
             lblSelectedName = new Label
             {
                 Text      = "No item selected",
@@ -145,20 +146,16 @@ namespace PremiumLivingOPS.Views.Shared
                 Dock      = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft
             };
-            // Price must be added before Name so Dock.Right reserves space first
             pnlPreview.Controls.Add(lblSelectedName);
             pnlPreview.Controls.Add(lblSelectedPrice);
 
-            // ── Footer: Qty + Cancel + Confirm ────────────────────────────────
-            const int BtnW = 290;
-            const int BtnH = 60;
-
+            // ── Footer ────────────────────────────────────────────────────
+            int footerH = BtnH + 20;
             var pnlFooter = new Panel
             {
                 Dock      = DockStyle.Bottom,
-                Height    = BtnH + 20,
-                BackColor = Color.FromArgb(246, 249, 255),
-                Padding   = new Padding(16, 10, 16, 10)
+                Height    = footerH,
+                BackColor = Color.FromArgb(246, 249, 255)
             };
             pnlFooter.Paint += (s, e) =>
             {
@@ -166,16 +163,18 @@ namespace PremiumLivingOPS.Views.Shared
                 e.Graphics.DrawLine(pen, 0, 0, pnlFooter.Width, 0);
             };
 
-            // Qty label — 160 px, fully shows "Quantity:"
+            // Qty label — 160 px, left-anchored
             var lblQty = new Label
             {
                 Text      = "Quantity:",
                 Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(98, 112, 135),
-                Dock      = DockStyle.Left,
                 AutoSize  = false,
                 Width     = 160,
-                TextAlign = ContentAlignment.MiddleLeft
+                Height    = BtnH,
+                Location  = new Point(16, (footerH - BtnH) / 2),
+                TextAlign = ContentAlignment.MiddleLeft,
+                Anchor    = AnchorStyles.Left | AnchorStyles.Top
             };
 
             nudQty = new NumericUpDown
@@ -185,11 +184,13 @@ namespace PremiumLivingOPS.Views.Shared
                 Value     = 1,
                 Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
                 Width     = 110,
-                Dock      = DockStyle.Left,
-                TextAlign = HorizontalAlignment.Center
+                Height    = BtnH,
+                Location  = new Point(16 + 160, (footerH - BtnH) / 2),
+                TextAlign = HorizontalAlignment.Center,
+                Anchor    = AnchorStyles.Left | AnchorStyles.Top
             };
 
-            // Green Confirm
+            // Green Confirm — explicit Size, right-anchored
             btnConfirm = new Button
             {
                 Text      = "✔  Confirm",
@@ -197,16 +198,16 @@ namespace PremiumLivingOPS.Views.Shared
                 ForeColor = Color.White,
                 BackColor = Color.FromArgb(34, 139, 34),
                 FlatStyle = FlatStyle.Flat,
-                Dock      = DockStyle.Right,
-                Width     = BtnW,
-                Cursor    = Cursors.Hand
+                Size      = new Size(BtnW, BtnH),
+                Cursor    = Cursors.Hand,
+                Anchor    = AnchorStyles.Right | AnchorStyles.Top
             };
             btnConfirm.FlatAppearance.BorderSize         = 0;
             btnConfirm.FlatAppearance.MouseOverBackColor = Color.FromArgb(22, 111, 22);
             btnConfirm.FlatAppearance.MouseDownBackColor = Color.FromArgb(14, 85, 14);
             btnConfirm.Click += BtnConfirm_Click;
 
-            // Red Cancel
+            // Red Cancel — identical Size, right-anchored
             btnCancel = new Button
             {
                 Text      = "✕  Cancel",
@@ -214,41 +215,49 @@ namespace PremiumLivingOPS.Views.Shared
                 ForeColor = Color.White,
                 BackColor = Color.FromArgb(192, 57, 43),
                 FlatStyle = FlatStyle.Flat,
-                Dock      = DockStyle.Right,
-                Width     = BtnW,
-                Cursor    = Cursors.Hand
+                Size      = new Size(BtnW, BtnH),
+                Cursor    = Cursors.Hand,
+                Anchor    = AnchorStyles.Right | AnchorStyles.Top
             };
             btnCancel.FlatAppearance.BorderSize         = 0;
             btnCancel.FlatAppearance.MouseOverBackColor = Color.FromArgb(160, 40, 30);
             btnCancel.FlatAppearance.MouseDownBackColor = Color.FromArgb(125, 28, 20);
             btnCancel.Click += (s, e) => { this.DialogResult = DialogResult.Cancel; this.Close(); };
 
-            var pnlGap = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
+            // Position both buttons manually so sizes are never distorted by Dock
+            void LayoutBtns()
+            {
+                int top   = (pnlFooter.Height - BtnH) / 2;
+                int right = pnlFooter.Width - 16;
+                btnConfirm.Location = new Point(right - BtnW, top);
+                btnCancel.Location  = new Point(right - BtnW - BtnGap - BtnW, top);
+            }
+            pnlFooter.Resize += (s, e) => LayoutBtns();
 
-            // Right-docked: add in reverse visual order (rightmost added first)
-            pnlFooter.Controls.Add(pnlGap);
-            pnlFooter.Controls.Add(btnCancel);
-            pnlFooter.Controls.Add(btnConfirm);
-            pnlFooter.Controls.Add(nudQty);
             pnlFooter.Controls.Add(lblQty);
+            pnlFooter.Controls.Add(nudQty);
+            pnlFooter.Controls.Add(btnConfirm);
+            pnlFooter.Controls.Add(btnCancel);
 
-            // ── Assemble ──────────────────────────────────────────────────────
+            // ── Assemble ──────────────────────────────────────────────────
             this.Controls.Add(pnlList);
             this.Controls.Add(pnlPreview);
             this.Controls.Add(pnlFooter);
             this.Controls.Add(pnlSearch);
             this.Controls.Add(pnlTitle);
 
-            this.AcceptButton = btnConfirm;
-            this.CancelButton = btnCancel;
+            this.AcceptButton  = btnConfirm;
+            this.CancelButton  = btnCancel;
             this.ActiveControl = txtSearch;
+
+            // Run layout once form is fully loaded
+            this.Load += (s, e) => LayoutBtns();
         }
 
-        // ── List population & filtering ────────────────────────────────────────
+        // ── List population & filtering ───────────────────────────────────
         private void PopulateList()
         {
             lstItems.Items.Clear();
-            // Format: "IID-P-0001  –  Item Name"  (no price in list row)
             foreach (var p in _filtered)
                 lstItems.Items.Add($"{p.ItemID}  –  {p.ItemName}");
             if (lstItems.Items.Count > 0) lstItems.SelectedIndex = 0;
@@ -275,7 +284,7 @@ namespace PremiumLivingOPS.Views.Shared
             }
         }
 
-        // ── Selection preview ──────────────────────────────────────────────────
+        // ── Selection preview ─────────────────────────────────────────────
         private void LstItems_SelectedIndexChanged(object sender, EventArgs e)
         {
             int idx = lstItems.SelectedIndex;
@@ -299,7 +308,7 @@ namespace PremiumLivingOPS.Views.Shared
             if (e.KeyCode == Keys.Enter) { Confirm(); e.Handled = true; }
         }
 
-        // ── Confirm ────────────────────────────────────────────────────────────
+        // ── Confirm ───────────────────────────────────────────────────────
         private void BtnConfirm_Click(object sender, EventArgs e) => Confirm();
 
         private void Confirm()
