@@ -346,6 +346,93 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
+        /// <summary>
+        /// Returns a single QuotationEntity by QuotationID, including SalesStaffName,
+        /// IssuedDate, and Notes. Returns null if not found.
+        /// </summary>
+        public QuotationEntity GetQuotationById(string quotationId)
+        {
+            const string sql =
+                @"SELECT q.QuotationID, q.CustomerID, c.CustomerName,
+                         q.IssuedDate, q.ExpiryDate, q.TotalAmount, q.DepositRequired,
+                         q.LeadTimeEstimated, q.TermsandCondition, q.QuotationStatus,
+                         q.Notes,
+                         CONCAT(s.FirstName, ' ', s.LastName) AS SalesStaffName
+                  FROM Quotation q
+                  LEFT JOIN Customer c ON c.CustomerID = q.CustomerID
+                  LEFT JOIN Staff    s ON s.StaffID    = q.SalesID
+                  WHERE q.QuotationID = @qid
+                  LIMIT 1";
+
+            using (var conn = DatabaseHelper.GetConnection())
+            {
+                conn.Open();
+                using (var cmd = new MySqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@qid", quotationId);
+                    using (var rdr = cmd.ExecuteReader())
+                    {
+                        if (!rdr.Read()) return null;
+                        return new QuotationEntity
+                        {
+                            QuotationID       = rdr["QuotationID"].ToString(),
+                            CustomerID        = rdr["CustomerID"].ToString(),
+                            CustomerName      = rdr["CustomerName"].ToString(),
+                            IssuedDate        = rdr["IssuedDate"]        == DBNull.Value ? DateTime.MinValue : Convert.ToDateTime(rdr["IssuedDate"]),
+                            ExpiryDate        = rdr["ExpiryDate"]        == DBNull.Value ? DateTime.MinValue : Convert.ToDateTime(rdr["ExpiryDate"]),
+                            TotalAmount       = rdr["TotalAmount"]       == DBNull.Value ? 0 : Convert.ToDouble(rdr["TotalAmount"]),
+                            DepositRequired   = rdr["DepositRequired"]   == DBNull.Value ? 0 : Convert.ToDouble(rdr["DepositRequired"]),
+                            LeadTimeEstimated = rdr["LeadTimeEstimated"].ToString(),
+                            TermsandCondition = rdr["TermsandCondition"].ToString(),
+                            QuotationStatus   = rdr["QuotationStatus"].ToString(),
+                            Notes             = rdr["Notes"].ToString(),
+                            SalesStaffName    = rdr["SalesStaffName"].ToString()
+                        };
+                    }
+                }
+            }
+        }
+
+        /// <summary>Returns all line items belonging to a Quotation (QuotationItem table).</summary>
+        public List<QuotationItemEntity> GetQuotationItems(string quotationId)
+        {
+            const string sql =
+                @"SELECT qi.QuotationID,
+                         p.ItemName      AS ProductName,
+                         qi.Quantity,
+                         qi.Unit,
+                         qi.UnitPrice,
+                         qi.DiscountPercent,
+                         qi.ItemNote
+                  FROM QuotationItem qi
+                  LEFT JOIN Product p ON p.ItemID = qi.ItemID
+                  WHERE qi.QuotationID = @qid
+                  ORDER BY qi.LineNo";
+
+            var list = new List<QuotationItemEntity>();
+            using (var conn = DatabaseHelper.GetConnection())
+            {
+                conn.Open();
+                using (var cmd = new MySqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@qid", quotationId);
+                    using (var rdr = cmd.ExecuteReader())
+                        while (rdr.Read())
+                            list.Add(new QuotationItemEntity
+                            {
+                                QuotationID     = rdr["QuotationID"].ToString(),
+                                ProductName     = rdr["ProductName"].ToString(),
+                                Quantity        = rdr["Quantity"]        == DBNull.Value ? 0 : Convert.ToInt32(rdr["Quantity"]),
+                                Unit            = rdr["Unit"].ToString(),
+                                UnitPrice       = rdr["UnitPrice"]       == DBNull.Value ? 0 : Convert.ToDouble(rdr["UnitPrice"]),
+                                DiscountPercent = rdr["DiscountPercent"]  == DBNull.Value ? 0 : Convert.ToDouble(rdr["DiscountPercent"]),
+                                ItemNote        = rdr["ItemNote"].ToString()
+                            });
+                }
+            }
+            return list;
+        }
+
         public bool UpdateQuotationStatus(string quotationId, string newStatus)
         {
             using (var conn = DatabaseHelper.GetConnection())
@@ -380,8 +467,8 @@ namespace PremiumLivingOPS.Models.DAL
                         {
                             CustomerID    = rdr.GetString("CustomerID"),
                             CustomerName  = rdr.GetString("CustomerName"),
-                            EmailAddress  = rdr.GetString("EmailAddress"),  // fixed: was .Email
-                            PhoneNumber   = rdr.GetString("PhoneNumber")    // fixed: was .Phone
+                            EmailAddress  = rdr.GetString("EmailAddress"),
+                            PhoneNumber   = rdr.GetString("PhoneNumber")
                         });
             }
             return list;
