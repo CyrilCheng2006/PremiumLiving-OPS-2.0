@@ -152,7 +152,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             bool isCancelled = _currentOrder.OrderStatus == "Cancelled";
             btnSaveChanges.Enabled  = !isCancelled;
             btnPickProduct.Enabled  = !isCancelled;
-            btnAddLine.Enabled      = !isCancelled;
             btnRemoveLine.Enabled   = !isCancelled;
             btnCancelOrder.Enabled  = !isCancelled;
         }
@@ -360,7 +359,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 btnSaveChanges.Enabled     = false;
                 btnCancelOrder.Enabled     = false;
                 btnPickProduct.Enabled     = false;
-                btnAddLine.Enabled         = false;
                 btnRemoveLine.Enabled      = false;
                 int idx = cboStatus.FindStringExact("Cancelled");
                 if (idx >= 0) cboStatus.SelectedIndex = idx;
