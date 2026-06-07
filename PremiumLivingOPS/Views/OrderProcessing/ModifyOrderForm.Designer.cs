@@ -289,7 +289,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             btnRemoveLine = MakeOutlineBtn("− Remove",   Point.Empty, ItemBtnW, ItemBtnH);
             btnAddLine.Anchor    = AnchorStyles.None;
             btnRemoveLine.Anchor = AnchorStyles.None;
-            btnAddLine.Click    += btnAddLine_Click;
+            // ✅ Fixed: was btnAddLine_Click (missing handler) → now btnPickProduct_Click
+            btnAddLine.Click    += btnPickProduct_Click;
             btnRemoveLine.Click += btnRemoveLine_Click;
 
             var tblToolbar = new TableLayoutPanel
