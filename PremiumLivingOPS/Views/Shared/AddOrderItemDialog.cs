@@ -42,8 +42,8 @@ namespace PremiumLivingOPS.Views.Shared
         private void BuildUI()
         {
             this.Text            = "Add Order Item";
-            this.Size            = new Size(620, 560);
-            this.MinimumSize     = new Size(520, 480);
+            this.Size            = new Size(1500, 700);
+            this.MinimumSize     = new Size(1200, 600);
             this.StartPosition   = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox     = false;
