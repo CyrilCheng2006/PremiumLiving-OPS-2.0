@@ -163,6 +163,7 @@ PremiumLiving-OPS-2.0/                          #  Repository Root
         │   └── SearchProcurementForm.Designer.cs
         │
         ├── Shared/                             #  Reusable chrome — used by ALL forms
+        │   ├── AddOrderItemDialog.cs
         │   ├── AppShell.cs
         │   ├── CardPanel.cs
         │   ├── ChartRenderer.cs
