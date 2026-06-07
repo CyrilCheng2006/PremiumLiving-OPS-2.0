@@ -4,6 +4,8 @@ using PremiumLivingOPS.Views.Shared;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Linq;
 using System.Windows.Forms;
 
 namespace PremiumLivingOPS.Views.SystemControl
@@ -13,15 +15,25 @@ namespace PremiumLivingOPS.Views.SystemControl
     ///
     /// MVC role: pure View. Delegates all data access to SystemControlController.
     ///
-    /// UI structure (CardPanel three-layer nested cards):
-    ///   Card 1 — Search / filter bar
-    ///   Card 2 — KPI strip  (Total Staff, Shown)
-    ///   Card 3 — DataGridView listing all staff
+    /// KPI bar: 1 × “Total Staff” pill + 1 dynamic pill per Department,
+    /// styled after the View Order KPI bar (rounded rect, paint-rendered).
     /// </summary>
     public partial class StaffListForm : Form
     {
         private readonly SystemControlController _ctrl = new SystemControlController();
         private List<Staff> _currentStaff = new List<Staff>();
+
+        // Palette cycling for Department pills
+        private static readonly (Color fg, Color bg)[] DeptColors =
+        {
+            (Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254)),  // blue
+            (Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229)),  // green
+            (Color.FromArgb( 91,  33, 182), Color.FromArgb(237, 233, 254)),  // purple
+            (Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199)),  // amber
+            (Color.FromArgb(185,  28,  28), Color.FromArgb(254, 226, 226)),  // red
+            (Color.FromArgb( 22, 101,  52), Color.FromArgb(220, 252, 231)),  // emerald
+            (Color.FromArgb( 75,  85,  99), Color.FromArgb(241, 245, 249)),  // slate
+        };
 
         // Shared reference to the KPI inner panel (populated in RefreshKpi)
         private Panel pnlKpi;
@@ -32,13 +44,13 @@ namespace PremiumLivingOPS.Views.SystemControl
             this.Load += StaffListForm_Load;
         }
 
-        // ── Load ──────────────────────────────────────────────────────────────
+        // ── Load ──────────────────────────────────────────────────────────────────
         private void StaffListForm_Load(object sender, EventArgs e)
         {
             RefreshGrid();
         }
 
-        // ── Data refresh ──────────────────────────────────────────────────────
+        // ── Data refresh ───────────────────────────────────────────────────────────
         private void RefreshGrid()
         {
             string keyword = txtSearch.Text.Trim();
@@ -63,14 +75,20 @@ namespace PremiumLivingOPS.Views.SystemControl
             RefreshGrid();
         }
 
-        // ── KPI strip ─────────────────────────────────────────────────────────
+        // ── KPI strip ──────────────────────────────────────────────────────────────
         private void RefreshKpi()
         {
             pnlKpi.Controls.Clear();
 
-            var allVm = _ctrl.GetStaffListVM();
-            int total = allVm.Staffs.Count;
-            int shown = _currentStaff.Count;
+            // Always count against the full (unfiltered) list
+            var allStaff = _ctrl.GetStaffListVM().Staffs;
+            int total    = allStaff.Count;
+
+            // Group by Department, sorted alphabetically
+            var deptGroups = allStaff
+                .GroupBy(s => string.IsNullOrWhiteSpace(s.Department) ? "(Unknown)" : s.Department)
+                .OrderBy(g => g.Key)
+                .ToList();
 
             var flow = new FlowLayoutPanel
             {
@@ -82,64 +100,107 @@ namespace PremiumLivingOPS.Views.SystemControl
                 AutoScroll    = false
             };
 
-            var pills = new[]
+            const int PillW = 200;
+            const int PillH = 60;
+            const int Gap   = 8;
+
+            // ── 1. Total Staff pill (fixed blue)
+            flow.Controls.Add(MakePill(
+                "Total Staff", total.ToString(),
+                Color.FromArgb(47, 111, 237), Color.FromArgb(219, 234, 254),
+                PillW, PillH, Gap));
+
+            // ── 2. One pill per Department
+            int colorIdx = 0;
+            foreach (var grp in deptGroups)
             {
-                ("Total Staff", total.ToString(),
-                 Color.FromArgb(47, 111, 237), Color.FromArgb(219, 234, 254)),
-                ("Showing",     shown.ToString(),
-                 Color.FromArgb(6,  95,  70),  Color.FromArgb(209, 250, 229))
-            };
-
-            foreach (var (label, count, fg, bg) in pills)
-            {
-                var pill = new Panel
-                {
-                    BackColor = bg,
-                    Size      = new Size(220, 50),
-                    Margin    = new Padding(0, 0, 10, 0)
-                };
-                var tlp = new TableLayoutPanel
-                {
-                    Dock            = DockStyle.Fill,
-                    ColumnCount     = 2,
-                    RowCount        = 1,
-                    BackColor       = Color.Transparent,
-                    CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                    Padding         = new Padding(10, 0, 8, 0)
-                };
-                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 60f));
-                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
-                tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-
-                tlp.Controls.Add(new Label
-                {
-                    Text      = count,
-                    Font      = new Font("Segoe UI", 13f, FontStyle.Bold),
-                    ForeColor = fg,
-                    BackColor = Color.Transparent,
-                    Dock      = DockStyle.Fill,
-                    TextAlign = ContentAlignment.MiddleCenter,
-                    AutoSize  = false
-                }, 0, 0);
-                tlp.Controls.Add(new Label
-                {
-                    Text      = label,
-                    Font      = new Font("Segoe UI", 11f),
-                    ForeColor = fg,
-                    BackColor = Color.Transparent,
-                    Dock      = DockStyle.Fill,
-                    TextAlign = ContentAlignment.MiddleLeft,
-                    AutoSize  = false
-                }, 1, 0);
-
-                pill.Controls.Add(tlp);
-                flow.Controls.Add(pill);
+                var (fg, bg) = DeptColors[colorIdx % DeptColors.Length];
+                colorIdx++;
+                flow.Controls.Add(MakePill(
+                    grp.Key, grp.Count().ToString(),
+                    fg, bg, PillW, PillH, Gap));
             }
 
             pnlKpi.Controls.Add(flow);
         }
 
-        // ── Grid events ───────────────────────────────────────────────────────
+        // ── Pill factory (matches View Order rounded-rect style) ──────────────────
+        private static Panel MakePill(
+            string label, string count,
+            Color fg, Color bg,
+            int width, int height, int gap)
+        {
+            var pill = new Panel
+            {
+                BackColor = bg,
+                Size      = new Size(width, height),
+                Margin    = new Padding(0, 0, gap, 0),
+                Cursor    = Cursors.Default
+            };
+
+            // Rounded rect via Paint (same technique as ViewOrderForm)
+            pill.Paint += (s, e) =>
+            {
+                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                using var path  = RoundedRect(((Panel)s).ClientRectangle, 8);
+                using var brush = new SolidBrush(((Panel)s).BackColor);
+                e.Graphics.FillPath(brush, path);
+            };
+
+            var tlp = new TableLayoutPanel
+            {
+                Dock            = DockStyle.Fill,
+                ColumnCount     = 2,
+                RowCount        = 1,
+                BackColor       = Color.Transparent,
+                CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                Padding         = new Padding(10, 0, 8, 0)
+            };
+            tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 52f));   // count
+            tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));  // label
+            tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+
+            tlp.Controls.Add(new Label
+            {
+                Text      = count,
+                Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
+                ForeColor = fg,
+                BackColor = Color.Transparent,
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleCenter,
+                AutoSize  = false
+            }, 0, 0);
+
+            tlp.Controls.Add(new Label
+            {
+                Text         = label,
+                Font         = new Font("Segoe UI", 11f),
+                ForeColor    = fg,
+                BackColor    = Color.Transparent,
+                Dock         = DockStyle.Fill,
+                TextAlign    = ContentAlignment.MiddleLeft,
+                AutoSize     = false,
+                AutoEllipsis = true
+            }, 1, 0);
+
+            pill.Controls.Add(tlp);
+            return pill;
+        }
+
+        // ── Rounded-rectangle path helper (identical to ViewOrderForm) ───────────
+        private static GraphicsPath RoundedRect(Rectangle r, int radius)
+        {
+            var path = new GraphicsPath();
+            int d = radius * 2;
+            path.AddArc(r.X,         r.Y,          d, d, 180, 90);
+            path.AddArc(r.Right - d, r.Y,          d, d, 270, 90);
+            path.AddArc(r.Right - d, r.Bottom - d, d, d,   0, 90);
+            path.AddArc(r.X,         r.Bottom - d, d, d,  90, 90);
+            path.CloseFigure();
+            return path;
+        }
+
+        // ── Grid events ────────────────────────────────────────────────────────────
         private void dgvStaff_SelectionChanged(object sender, EventArgs e) { /* reserved */ }
 
         private void dgvStaff_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
@@ -148,7 +209,7 @@ namespace PremiumLivingOPS.Views.SystemControl
             ShowDetailDialog(e.RowIndex);
         }
 
-        // ── Detail dialog ─────────────────────────────────────────────────────
+        // ── Detail dialog ───────────────────────────────────────────────────────────
         private void ShowDetailDialog(int rowIndex)
         {
             if (rowIndex < 0 || rowIndex >= _currentStaff.Count) return;
@@ -236,7 +297,7 @@ namespace PremiumLivingOPS.Views.SystemControl
             dlg.ShowDialog(this);
         }
 
-        // ── Label helpers ─────────────────────────────────────────────────────
+        // ── Label helpers ────────────────────────────────────────────────────────────
         private static Label MakeLblKey(string text) => new Label
         {
             Text      = text,
@@ -256,7 +317,7 @@ namespace PremiumLivingOPS.Views.SystemControl
             AutoEllipsis = true
         };
 
-        // ── Navigation & Logout ───────────────────────────────────────────────
+        // ── Navigation & Logout ──────────────────────────────────────────────────
         private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
             => FormNavigator.NavigateTo(this, menuLabel, subItem);
 
