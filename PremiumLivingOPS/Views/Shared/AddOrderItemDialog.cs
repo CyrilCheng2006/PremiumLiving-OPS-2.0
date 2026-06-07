@@ -30,7 +30,6 @@ namespace PremiumLivingOPS.Views.Shared
 
         public AddOrderItemDialog(List<ProductLookup> products)
         {
-            // Sort source list by ItemID once; filtering preserves order
             _products = (products ?? new List<ProductLookup>())
                         .OrderBy(p => p.ItemID, StringComparer.Ordinal)
                         .ToList();
@@ -51,7 +50,7 @@ namespace PremiumLivingOPS.Views.Shared
             this.BackColor       = Color.FromArgb(246, 249, 255);
             this.Font            = new Font("Segoe UI", 11f);
 
-            // ── Title bar ──────────────────────────────────────────────────────
+            // ── Title bar ─────────────────────────────────────────────────────
             var pnlTitle = new Panel { Dock = DockStyle.Top, Height = 56, BackColor = Color.White };
             pnlTitle.Paint += (s, e) =>
             {
@@ -69,13 +68,13 @@ namespace PremiumLivingOPS.Views.Shared
             };
             pnlTitle.Controls.Add(lblTitle);
 
-            // ── Search box ───────────────────────────────────────────────────
+            // ── Search box ────────────────────────────────────────────────────
             var pnlSearch = new Panel
             {
-                Dock    = DockStyle.Top,
-                Height  = 52,
+                Dock      = DockStyle.Top,
+                Height    = 52,
                 BackColor = Color.Transparent,
-                Padding = new Padding(16, 10, 16, 4)
+                Padding   = new Padding(16, 10, 16, 4)
             };
             txtSearch = new TextBox
             {
@@ -88,7 +87,7 @@ namespace PremiumLivingOPS.Views.Shared
             txtSearch.KeyDown     += TxtSearch_KeyDown;
             pnlSearch.Controls.Add(txtSearch);
 
-            // ── Item list ──────────────────────────────────────────────────────
+            // ── Item list ─────────────────────────────────────────────────────
             lstItems = new ListBox
             {
                 Dock           = DockStyle.Fill,
@@ -112,7 +111,7 @@ namespace PremiumLivingOPS.Views.Shared
             };
             pnlList.Controls.Add(lstItems);
 
-            // ── Selected item preview ────────────────────────────────────────
+            // ── Selected item preview ─────────────────────────────────────────
             var pnlPreview = new Panel
             {
                 Dock      = DockStyle.Bottom,
@@ -126,7 +125,7 @@ namespace PremiumLivingOPS.Views.Shared
                 e.Graphics.DrawLine(pen, 0, 0, pnlPreview.Width, 0);
             };
 
-            // Price label — fixed width, right-aligned, anchored RIGHT so it is never clipped
+            // Price: 280 px wide — fits "HK$ 999,999.00" without clipping
             lblSelectedPrice = new Label
             {
                 Text      = "",
@@ -134,10 +133,10 @@ namespace PremiumLivingOPS.Views.Shared
                 ForeColor = Color.FromArgb(47, 111, 237),
                 Dock      = DockStyle.Right,
                 AutoSize  = false,
-                Width     = 220,
+                Width     = 280,
                 TextAlign = ContentAlignment.MiddleRight
             };
-            // Name label fills remaining width
+            // Name fills remaining space
             lblSelectedName = new Label
             {
                 Text      = "No item selected",
@@ -146,18 +145,18 @@ namespace PremiumLivingOPS.Views.Shared
                 Dock      = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft
             };
-            // Add price first so it docks to the right before Fill takes remaining space
+            // Price must be added before Name so Dock.Right reserves space first
             pnlPreview.Controls.Add(lblSelectedName);
             pnlPreview.Controls.Add(lblSelectedPrice);
 
-            // ── Footer: Qty + Cancel + Confirm ─────────────────────────────────
-            const int BtnW = 210;
+            // ── Footer: Qty + Cancel + Confirm ────────────────────────────────
+            const int BtnW = 290;
             const int BtnH = 60;
 
             var pnlFooter = new Panel
             {
                 Dock      = DockStyle.Bottom,
-                Height    = BtnH + 20,   // 80 px total
+                Height    = BtnH + 20,
                 BackColor = Color.FromArgb(246, 249, 255),
                 Padding   = new Padding(16, 10, 16, 10)
             };
@@ -167,7 +166,7 @@ namespace PremiumLivingOPS.Views.Shared
                 e.Graphics.DrawLine(pen, 0, 0, pnlFooter.Width, 0);
             };
 
-            // Qty label — wide enough to show "Quantity:"
+            // Qty label — 160 px, fully shows "Quantity:"
             var lblQty = new Label
             {
                 Text      = "Quantity:",
@@ -175,7 +174,7 @@ namespace PremiumLivingOPS.Views.Shared
                 ForeColor = Color.FromArgb(98, 112, 135),
                 Dock      = DockStyle.Left,
                 AutoSize  = false,
-                Width     = 100,          // was 90, now fits full word
+                Width     = 160,
                 TextAlign = ContentAlignment.MiddleLeft
             };
 
@@ -185,12 +184,12 @@ namespace PremiumLivingOPS.Views.Shared
                 Maximum   = 9999,
                 Value     = 1,
                 Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
-                Width     = 100,
+                Width     = 110,
                 Dock      = DockStyle.Left,
                 TextAlign = HorizontalAlignment.Center
             };
 
-            // Green Confirm button
+            // Green Confirm
             btnConfirm = new Button
             {
                 Text      = "✔  Confirm",
@@ -207,7 +206,7 @@ namespace PremiumLivingOPS.Views.Shared
             btnConfirm.FlatAppearance.MouseDownBackColor = Color.FromArgb(14, 85, 14);
             btnConfirm.Click += BtnConfirm_Click;
 
-            // Red Cancel button
+            // Red Cancel
             btnCancel = new Button
             {
                 Text      = "✕  Cancel",
@@ -224,17 +223,16 @@ namespace PremiumLivingOPS.Views.Shared
             btnCancel.FlatAppearance.MouseDownBackColor = Color.FromArgb(125, 28, 20);
             btnCancel.Click += (s, e) => { this.DialogResult = DialogResult.Cancel; this.Close(); };
 
-            // Spacer fills gap between qty and buttons
             var pnlGap = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
 
-            // Controls added in reverse Dock.Right order: rightmost first
+            // Right-docked: add in reverse visual order (rightmost added first)
             pnlFooter.Controls.Add(pnlGap);
             pnlFooter.Controls.Add(btnCancel);
             pnlFooter.Controls.Add(btnConfirm);
             pnlFooter.Controls.Add(nudQty);
             pnlFooter.Controls.Add(lblQty);
 
-            // ── Assemble top-to-bottom ───────────────────────────────────────────
+            // ── Assemble ──────────────────────────────────────────────────────
             this.Controls.Add(pnlList);
             this.Controls.Add(pnlPreview);
             this.Controls.Add(pnlFooter);
@@ -250,9 +248,9 @@ namespace PremiumLivingOPS.Views.Shared
         private void PopulateList()
         {
             lstItems.Items.Clear();
-            // Display: "IID-P-0001  –  Item Name  –  HK$ 12,800.00" (no parentheses)
+            // Format: "IID-P-0001  –  Item Name"  (no price in list row)
             foreach (var p in _filtered)
-                lstItems.Items.Add($"{p.ItemID}  –  {p.ItemName}  –  HK$ {p.SalesPrice:N2}");
+                lstItems.Items.Add($"{p.ItemID}  –  {p.ItemName}");
             if (lstItems.Items.Count > 0) lstItems.SelectedIndex = 0;
         }
 
@@ -264,7 +262,6 @@ namespace PremiumLivingOPS.Views.Shared
                 : _products.Where(p =>
                     p.ItemID.ToLower().Contains(kw) ||
                     p.ItemName.ToLower().Contains(kw)).ToList();
-            // Filtered list inherits the pre-sorted order from _products
             PopulateList();
         }
 
@@ -278,7 +275,7 @@ namespace PremiumLivingOPS.Views.Shared
             }
         }
 
-        // ── Selection preview ─────────────────────────────────────────────────
+        // ── Selection preview ──────────────────────────────────────────────────
         private void LstItems_SelectedIndexChanged(object sender, EventArgs e)
         {
             int idx = lstItems.SelectedIndex;
@@ -302,7 +299,7 @@ namespace PremiumLivingOPS.Views.Shared
             if (e.KeyCode == Keys.Enter) { Confirm(); e.Handled = true; }
         }
 
-        // ── Confirm ───────────────────────────────────────────────────────────
+        // ── Confirm ────────────────────────────────────────────────────────────
         private void BtnConfirm_Click(object sender, EventArgs e) => Confirm();
 
         private void Confirm()
