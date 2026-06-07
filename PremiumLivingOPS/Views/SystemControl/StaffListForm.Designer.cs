@@ -13,6 +13,7 @@ namespace PremiumLivingOPS.Views.SystemControl
         private TextBox      txtSearch;
         private Button       btnSearch;
         private Button       btnRefresh;
+        private Button       btnModifyDetail;
         private DataGridView dgvStaff;
 
         protected override void Dispose(bool disposing)
@@ -23,7 +24,7 @@ namespace PremiumLivingOPS.Views.SystemControl
 
         private void InitializeComponent()
         {
-            this.SuspendLayout();                                    // RULE 1
+            this.SuspendLayout();
 
             this.Text          = "Premium Living OPS \u2014 Staff List";
             this.Size          = new Size(1440, 900);
@@ -33,17 +34,17 @@ namespace PremiumLivingOPS.Views.SystemControl
             this.WindowState   = FormWindowState.Maximized;
             this.Font          = new Font("Segoe UI", 13f);
 
-            // ── Root panel ─────────────────────────────────────────────────────
+            // ── Root panel
             var pnlMain = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(240, 244, 249) };
 
-            // ── AppShell (RULE 2) ──────────────────────────────────────────────
+            // ── AppShell
             _shell = new AppShell();
             _shell.Dock        = DockStyle.Top;
             _shell.Height      = AppShell.TotalHeight;
             _shell.MinimumSize = new Size(0, AppShell.TotalHeight);
             _shell.SetPopupContainer(pnlMain);
-            _shell.MenuItemClicked += OnTopNavMenuItemClicked;   // RULE 4
-            _shell.LogoutClicked   += btnLogout_Click;           // RULE 4
+            _shell.MenuItemClicked += OnTopNavMenuItemClicked;
+            _shell.LogoutClicked   += btnLogout_Click;
 
             // ════════════════════════════════════════════════════════════════
             //  CARD 1 — Search / filter bar
@@ -62,7 +63,6 @@ namespace PremiumLivingOPS.Views.SystemControl
             btnSearch.Click  += (s, e) => RefreshGrid();
             btnRefresh.Click += (s, e) => ResetFilters();
 
-            // Title row
             var pnlTitle = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             pnlTitle.Controls.Add(new Label
             {
@@ -74,14 +74,12 @@ namespace PremiumLivingOPS.Views.SystemControl
             });
             pnlTitle.Controls.Add(new Panel { Dock = DockStyle.Bottom, Height = 1, BackColor = Color.FromArgb(221, 227, 236) });
 
-            // Button row
             var pnlBtns = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             btnSearch.Location  = new Point(0,   0);
             btnRefresh.Location = new Point(218, 0);
             pnlBtns.Controls.Add(btnSearch);
             pnlBtns.Controls.Add(btnRefresh);
 
-            // Search card TLP
             var tblSearchCard = new TableLayoutPanel
             {
                 Dock            = DockStyle.Fill,
@@ -92,12 +90,12 @@ namespace PremiumLivingOPS.Views.SystemControl
                 Padding         = new Padding(18, 14, 18, 14)
             };
             tblSearchCard.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-            tblSearchCard.RowStyles.Add(new RowStyle(SizeType.Absolute, 60f));  // title
-            tblSearchCard.RowStyles.Add(new RowStyle(SizeType.Absolute, 80f));  // field
-            tblSearchCard.RowStyles.Add(new RowStyle(SizeType.Absolute, 65f));  // buttons
-            tblSearchCard.Controls.Add(pnlTitle,   0, 0);
-            tblSearchCard.Controls.Add(txtSearch,  0, 1);
-            tblSearchCard.Controls.Add(pnlBtns,    0, 2);
+            tblSearchCard.RowStyles.Add(new RowStyle(SizeType.Absolute, 60f));
+            tblSearchCard.RowStyles.Add(new RowStyle(SizeType.Absolute, 80f));
+            tblSearchCard.RowStyles.Add(new RowStyle(SizeType.Absolute, 65f));
+            tblSearchCard.Controls.Add(pnlTitle,  0, 0);
+            tblSearchCard.Controls.Add(txtSearch, 0, 1);
+            tblSearchCard.Controls.Add(pnlBtns,   0, 2);
 
             var pnlSearchWhite = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
             pnlSearchWhite.Paint += PaintCardBorder;
@@ -113,7 +111,11 @@ namespace PremiumLivingOPS.Views.SystemControl
             pnlSearchOuter.Controls.Add(pnlSearchWhite);
 
             // ════════════════════════════════════════════════════════════════
-            //  CARD 2 — KPI strip
+            //  CARD 2 — KPI strip  (Pills ——— [Modify Detail btn])
+            //
+            //  Layout: TableLayoutPanel 2-col
+            //    col 0  Percent 100%  →  pnlKpi  (FlowLayoutPanel pills)
+            //    col 1  Absolute 310  →  Modify Detail button (290×60, centred)
             // ════════════════════════════════════════════════════════════════
             pnlKpi = new Panel
             {
@@ -122,9 +124,39 @@ namespace PremiumLivingOPS.Views.SystemControl
                 Padding   = new Padding(12, 10, 12, 10)
             };
 
+            // Modify Detail button
+            btnModifyDetail = MakePrimaryBtn("\u270F\uFE0F  Modify Detail", Point.Empty, 290, 60);
+            btnModifyDetail.Enabled = false;
+            btnModifyDetail.Click  += btnModifyDetail_Click;
+
+            // Centre the button vertically inside its cell
+            var pnlBtnCell = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
+            pnlBtnCell.Controls.Add(btnModifyDetail);
+            pnlBtnCell.Layout += (s, e) =>
+            {
+                var p = (Panel)s;
+                btnModifyDetail.Left = (p.Width  - btnModifyDetail.Width)  / 2;
+                btnModifyDetail.Top  = (p.Height - btnModifyDetail.Height) / 2;
+            };
+
+            var tblKpi = new TableLayoutPanel
+            {
+                Dock            = DockStyle.Fill,
+                ColumnCount     = 2,
+                RowCount        = 1,
+                BackColor       = Color.Transparent,
+                CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                Padding         = new Padding(0)
+            };
+            tblKpi.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f)); // pills
+            tblKpi.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 310f)); // button
+            tblKpi.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+            tblKpi.Controls.Add(pnlKpi,    0, 0);
+            tblKpi.Controls.Add(pnlBtnCell, 1, 0);
+
             var pnlKpiWhite = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
             pnlKpiWhite.Paint += PaintCardBorder;
-            pnlKpiWhite.Controls.Add(pnlKpi);
+            pnlKpiWhite.Controls.Add(tblKpi);
 
             var pnlKpiOuter = new Panel
             {
@@ -173,11 +205,11 @@ namespace PremiumLivingOPS.Views.SystemControl
                     Padding            = new Padding(12, 6, 12, 6)
                 }
             };
-            dgvStaff.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStaffID",     HeaderText = "STAFF ID",    FillWeight = 15 });
-            dgvStaff.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStaffName",   HeaderText = "NAME",        FillWeight = 25 });
-            dgvStaff.Columns.Add(new DataGridViewTextBoxColumn { Name = "colRole",        HeaderText = "ROLE",        FillWeight = 18 });
-            dgvStaff.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDepartment",  HeaderText = "DEPARTMENT",  FillWeight = 18 });
-            dgvStaff.Columns.Add(new DataGridViewTextBoxColumn { Name = "colEmail",       HeaderText = "EMAIL",       FillWeight = 24 });
+            dgvStaff.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStaffID",    HeaderText = "STAFF ID",   FillWeight = 15 });
+            dgvStaff.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStaffName",  HeaderText = "NAME",       FillWeight = 25 });
+            dgvStaff.Columns.Add(new DataGridViewTextBoxColumn { Name = "colRole",       HeaderText = "ROLE",       FillWeight = 18 });
+            dgvStaff.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDepartment", HeaderText = "DEPARTMENT", FillWeight = 18 });
+            dgvStaff.Columns.Add(new DataGridViewTextBoxColumn { Name = "colEmail",      HeaderText = "EMAIL",      FillWeight = 24 });
             dgvStaff.SelectionChanged += dgvStaff_SelectionChanged;
             dgvStaff.CellDoubleClick  += dgvStaff_CellDoubleClick;
 
@@ -193,20 +225,20 @@ namespace PremiumLivingOPS.Views.SystemControl
             };
             pnlGridOuter.Controls.Add(pnlGridInner);
 
-            // ── Assemble pnlMain (RULE 5: Fill first, then Top in reverse, AppShell last)
-            pnlMain.Controls.Add(pnlGridOuter);    // Fill  — grid card
-            pnlMain.Controls.Add(pnlKpiOuter);     // Top   — KPI strip
-            pnlMain.Controls.Add(pnlSearchOuter);  // Top   — Search card
-            pnlMain.Controls.Add(_shell);          // Top   — AppShell nav chrome
+            // ── Assemble pnlMain
+            pnlMain.Controls.Add(pnlGridOuter);   // Fill
+            pnlMain.Controls.Add(pnlKpiOuter);    // Top
+            pnlMain.Controls.Add(pnlSearchOuter); // Top
+            pnlMain.Controls.Add(_shell);         // Top
 
             this.Controls.Add(pnlMain);
             this.ResumeLayout(false);
             this.PerformLayout();
-            _shell.Height      = AppShell.TotalHeight;             // RULE 3
-            _shell.MinimumSize = new Size(0, AppShell.TotalHeight); // RULE 3
+            _shell.Height      = AppShell.TotalHeight;
+            _shell.MinimumSize = new Size(0, AppShell.TotalHeight);
         }
 
-        // ── Button factories ──────────────────────────────────────────────────
+        // ── Button factories
         private static Button MakePrimaryBtn(string text, Point loc, int w, int h)
         {
             var b = new Button
@@ -243,7 +275,7 @@ namespace PremiumLivingOPS.Views.SystemControl
             return b;
         }
 
-        // ── Border painter ────────────────────────────────────────────────────
+        // ── Border painter
         private static void PaintCardBorder(object s, PaintEventArgs e)
         {
             var p = (Panel)s;
