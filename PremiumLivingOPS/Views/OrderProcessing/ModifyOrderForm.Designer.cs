@@ -24,19 +24,15 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         private TextBox        txtDiscountValue;
         private Label          lblDiscountUnit;
 
-        // ── Customer — read-only display label (no picker button) ────────────────
+        // ── Customer — read-only display label (no picker button) ──────────────
         private Label lblCustomerValue;
 
-        // ── Picker controls — Linked Quotation ──────────────────────────────────
+        // ── Picker controls — Linked Quotation ─────────────────────────────
         private Button btnPickQuotation;
         private Label  lblQuotationPicked;
 
-        // ── Picker controls — Order Item ─────────────────────────────────────────
-        private Button btnPickProduct;
-        private Label  lblProductPicked;
-
-        private TextBox      txtQty;
-        private Button       btnAddLine;
+        // ── Order Items toolbar ──────────────────────────────────────────
+        private Button       btnPickProduct;   // opens AddOrderItemDialog
         private Button       btnRemoveLine;
         private DataGridView dgvLines;
 
@@ -44,8 +40,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         private Label  lblSubtotalValue;
         private Label  lblGrandTotalTitle;
         private Label  lblGrandTotalValue;
-
-        private Panel pnlFooterContent;
+        private Panel  pnlFooterContent;
 
         private Button btnSaveChanges;
         private Button btnCancelOrder;
@@ -76,12 +71,15 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             // SEARCH BAR
             // ==================================================================
             var (pnlSearchOuter, pnlSearchInner) = CardPanel.Create(outerHeight: 90);
-            Label lblSearchLbl = new Label
+            var lblSearchLbl = new Label
             {
-                Text = "Select Order to Modify:", Font = new Font("Segoe UI", 10.5f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(98, 112, 135), Dock = DockStyle.Left,
-                AutoSize = false, Width = 340, TextAlign = ContentAlignment.MiddleRight,
-                Padding = new Padding(0, 0, 12, 0)
+                Text      = "Select Order to Modify:",
+                Font      = new Font("Segoe UI", 10.5f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(98, 112, 135),
+                Dock      = DockStyle.Left,
+                AutoSize  = false, Width = 340,
+                TextAlign = ContentAlignment.MiddleRight,
+                Padding   = new Padding(0, 0, 12, 0)
             };
             cboSearchOrder = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 12f), Dock = DockStyle.Fill };
             btnLoadOrder   = MakePrimaryBtn("Load Order", Point.Empty, 210, 60);
@@ -98,20 +96,24 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             // ==================================================================
             lblOrderIdValue = new Label
             {
-                Text = "", Font = new Font("Segoe UI", 12f, FontStyle.Bold),
-                ForeColor = Palette.Primary, BackColor = Color.FromArgb(219, 234, 254),
-                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(10, 0, 0, 0)
+                Text      = "",
+                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Palette.Primary,
+                BackColor = Color.FromArgb(219, 234, 254),
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Padding   = new Padding(10, 0, 0, 0)
             };
             var pnlOrderIdChip = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(0, 8, 12, 8) };
             pnlOrderIdChip.Controls.Add(lblOrderIdValue);
 
-            // ── Linked Quotation picker ──────────────────────────────────────────
+            // ── Linked Quotation picker ─────────────────────────────────────
             btnPickQuotation   = MakePickerBtn("🔍  Link Quotation");
             lblQuotationPicked = MakePickerLabel("(None)");
             btnPickQuotation.Click += btnPickQuotation_Click;
             var pnlQuotationPicker = MakePickerCell(btnPickQuotation, lblQuotationPicked);
 
-            // ── Customer — read-only label (no button) ───────────────────────────
+            // ── Customer — read-only label ──────────────────────────────────
             lblCustomerValue = new Label
             {
                 Text      = "—",
@@ -138,9 +140,12 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             chkSameAddress = new CheckBox
             {
-                Text = "Same as Shipping", Font = new Font("Segoe UI", 10.5f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(98, 112, 135), Checked = false,
-                AutoSize = false, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft
+                Text      = "Same as Shipping",
+                Font      = new Font("Segoe UI", 10.5f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(98, 112, 135),
+                Checked   = false, AutoSize = false,
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft
             };
             chkSameAddress.CheckedChanged += chkSameAddress_CheckedChanged;
             var pnlChk = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(12, 0, 0, 0) };
@@ -162,47 +167,76 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             lblDiscountUnit = new Label
             {
-                Text = "", Font = new Font("Segoe UI", 11f), ForeColor = Color.FromArgb(98, 112, 135),
-                Dock = DockStyle.Right, AutoSize = false, Width = 48, TextAlign = ContentAlignment.MiddleLeft
+                Text      = "",
+                Font      = new Font("Segoe UI", 11f),
+                ForeColor = Color.FromArgb(98, 112, 135),
+                Dock      = DockStyle.Right, AutoSize = false, Width = 48,
+                TextAlign = ContentAlignment.MiddleLeft
             };
             var pnlDiscountInput = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(0, 8, 12, 8) };
             txtDiscountValue.Dock = DockStyle.Fill;
             pnlDiscountInput.Controls.Add(txtDiscountValue);
             pnlDiscountInput.Controls.Add(lblDiscountUnit);
 
+            // tblInfo: 2-column, 16 rows (label+field pairs)
+            // Row layout mirrors CreateOrderForm exactly, with Customer read-only
             var tblInfo = new TableLayoutPanel
             {
-                Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 14,
-                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 16,
+                BackColor = Color.Transparent,
+                CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
                 Padding = new Padding(18, 8, 18, 8)
             };
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
-            for (int i = 0; i < 7; i++) { tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, 40f)); tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, 72f)); }
+            for (int i = 0; i < 8; i++)
+            {
+                tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, 40f));
+                tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, 72f));
+            }
 
+            // Row 0-1: Order ID | Linked Quotation
             tblInfo.Controls.Add(FieldLabel("Order ID",         false), 0, 0);
             tblInfo.Controls.Add(FieldLabel("Linked Quotation", false), 1, 0);
             tblInfo.Controls.Add(pnlOrderIdChip,                        0, 1);
             tblInfo.Controls.Add(pnlQuotationPicker,                    1, 1);
-            tblInfo.Controls.Add(FieldLabel("Address ID",         true), 0, 2);
-            tblInfo.Controls.Add(FieldLabel("Customer",          false), 1, 2);
-            tblInfo.Controls.Add(Pad(cboAddressId),               0, 3);
-            tblInfo.Controls.Add(pnlCustomerReadOnly,             1, 3);
-            var lblShip = FieldLabel("Shipping Address", true); tblInfo.Controls.Add(lblShip, 0, 4); tblInfo.SetColumnSpan(lblShip, 2);
-            var pnlShip = Pad(txtShippingAddr);                 tblInfo.Controls.Add(pnlShip, 0, 5); tblInfo.SetColumnSpan(pnlShip, 2);
+
+            // Row 2-3: Customer (read-only) | Address ID  ── matches Create layout
+            tblInfo.Controls.Add(FieldLabel("Customer",   false), 0, 2);
+            tblInfo.Controls.Add(FieldLabel("Address ID", true),  1, 2);
+            tblInfo.Controls.Add(pnlCustomerReadOnly,              0, 3);
+            tblInfo.Controls.Add(Pad(cboAddressId),                1, 3);
+
+            // Row 4-5: Shipping Address (full width)
+            var lblShip = FieldLabel("Shipping Address", true);
+            tblInfo.Controls.Add(lblShip, 0, 4);
+            tblInfo.SetColumnSpan(lblShip, 2);
+            var pnlShip = Pad(txtShippingAddr);
+            tblInfo.Controls.Add(pnlShip, 0, 5);
+            tblInfo.SetColumnSpan(pnlShip, 2);
+
+            // Row 6-7: Billing Address label | Same-as-Shipping checkbox
             tblInfo.Controls.Add(FieldLabel("Billing Address", true), 0, 6);
             tblInfo.Controls.Add(pnlChk,                              1, 6);
-            var pnlBill = Pad(txtBillingAddr); tblInfo.Controls.Add(pnlBill, 0, 7); tblInfo.SetColumnSpan(pnlBill, 2);
-            tblInfo.Controls.Add(FieldLabel("Delivery Date",      true), 0,  8);
-            tblInfo.Controls.Add(FieldLabel("Order Contact Name", true), 1,  8);
-            tblInfo.Controls.Add(Pad(dtpDelivery),                        0,  9);
-            tblInfo.Controls.Add(Pad(txtContactName),                     1,  9);
-            tblInfo.Controls.Add(FieldLabel("Order Status", true),       0, 10);
-            tblInfo.Controls.Add(Pad(cboStatus),                         0, 11);
-            tblInfo.Controls.Add(FieldLabel("Discount Type",  false),    0, 12);
-            tblInfo.Controls.Add(FieldLabel("Discount Value", false),    1, 12);
-            tblInfo.Controls.Add(Pad(cboDiscountType),                    0, 13);
-            tblInfo.Controls.Add(pnlDiscountInput,                        1, 13);
+            var pnlBill = Pad(txtBillingAddr);
+            tblInfo.Controls.Add(pnlBill, 0, 7);
+            tblInfo.SetColumnSpan(pnlBill, 2);
+
+            // Row 8-9: Delivery Date | Order Contact Name
+            tblInfo.Controls.Add(FieldLabel("Delivery Date",      true), 0, 8);
+            tblInfo.Controls.Add(FieldLabel("Order Contact Name", true), 1, 8);
+            tblInfo.Controls.Add(Pad(dtpDelivery),                        0, 9);
+            tblInfo.Controls.Add(Pad(txtContactName),                     1, 9);
+
+            // Row 10-11: Order Status | (empty)
+            tblInfo.Controls.Add(FieldLabel("Order Status", true), 0, 10);
+            tblInfo.Controls.Add(Pad(cboStatus),                   0, 11);
+
+            // Row 12-13: Discount Type | Discount Value
+            tblInfo.Controls.Add(FieldLabel("Discount Type",  false), 0, 12);
+            tblInfo.Controls.Add(FieldLabel("Discount Value", false), 1, 12);
+            tblInfo.Controls.Add(Pad(cboDiscountType),                 0, 13);
+            tblInfo.Controls.Add(pnlDiscountInput,                     1, 13);
 
             var pnlInfoTitle   = CardTitlePanel("Order Details");
             var pnlInfoContent = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
@@ -218,16 +252,14 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             const int BtnH        = 60;
             const int BtnGap      = 8;
             const int BtnPad      = 12;
-            const int ValToLblGap = 120;
-            const int LblLeft     = 8;
 
-            lblSubtotalTitle = new Label { Text = "Subtotal:", Font = new Font("Segoe UI", 12f), ForeColor = Color.FromArgb(98, 112, 135), AutoSize = true, Anchor = AnchorStyles.Left | AnchorStyles.Top };
-            lblSubtotalValue = new Label { Text = "HK$ 0.00", Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), AutoSize = true, Anchor = AnchorStyles.Left | AnchorStyles.Top };
-            lblGrandTotalTitle = new Label { Text = "Grand Total:", Font = new Font("Segoe UI", 14f, FontStyle.Bold), ForeColor = Palette.TextMain, AutoSize = true, Anchor = AnchorStyles.Left | AnchorStyles.Top };
-            lblGrandTotalValue = new Label { Text = "HK$ 0.00", Font = new Font("Segoe UI", 14f, FontStyle.Bold), ForeColor = Palette.Primary, AutoSize = true, Anchor = AnchorStyles.Left | AnchorStyles.Top };
+            lblSubtotalTitle   = new Label { Text = "Subtotal:",    Font = new Font("Segoe UI", 12f),               ForeColor = Color.FromArgb(98, 112, 135), AutoSize = true, Anchor = AnchorStyles.Left | AnchorStyles.Top };
+            lblSubtotalValue   = new Label { Text = "HK$ 0.00",    Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), AutoSize = true, Anchor = AnchorStyles.Left | AnchorStyles.Top };
+            lblGrandTotalTitle = new Label { Text = "Grand Total:", Font = new Font("Segoe UI", 14f, FontStyle.Bold), ForeColor = Palette.TextMain,              AutoSize = true, Anchor = AnchorStyles.Left | AnchorStyles.Top };
+            lblGrandTotalValue = new Label { Text = "HK$ 0.00",    Font = new Font("Segoe UI", 14f, FontStyle.Bold), ForeColor = Palette.Primary,               AutoSize = true, Anchor = AnchorStyles.Left | AnchorStyles.Top };
 
-            btnSaveChanges = MakeGreenBtn("\u2713  Save Changes", Point.Empty, BtnW, BtnH);
-            btnCancelOrder = MakeRedBtn(  "\u2715  Cancel Order", Point.Empty, BtnW, BtnH);
+            btnSaveChanges = MakeGreenBtn("✓  Save Changes", Point.Empty, BtnW, BtnH);
+            btnCancelOrder = MakeRedBtn(  "✕  Cancel Order", Point.Empty, BtnW, BtnH);
             btnSaveChanges.Click += btnSaveChanges_Click;
             btnCancelOrder.Click += btnCancelOrder_Click;
 
@@ -253,60 +285,46 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 var pnl = (Panel)s; int h = pnl.Height;
                 int subRowH = Math.Max(lblSubtotalTitle.Height, lblSubtotalValue.Height);
                 int subTop  = (h - subRowH) / 2; if (subTop < 0) subTop = 0;
-                lblSubtotalTitle.Location = new Point(LblLeft, subTop + (subRowH - lblSubtotalTitle.Height) / 2);
-                int subValX = LblLeft + lblSubtotalTitle.Width + 4;
+                lblSubtotalTitle.Location = new Point(8, subTop + (subRowH - lblSubtotalTitle.Height) / 2);
+                int subValX = 8 + lblSubtotalTitle.Width + 4;
                 lblSubtotalValue.Location = new Point(subValX, subTop + (subRowH - lblSubtotalValue.Height) / 2);
-                int grandRowH = Math.Max(lblGrandTotalTitle.Height, lblGrandTotalValue.Height);
-                int grandTop  = (h - grandRowH) / 2; if (grandTop < 0) grandTop = 0;
-                int grandTitleX = subValX + lblSubtotalValue.Width + ValToLblGap;
+                int grandRowH   = Math.Max(lblGrandTotalTitle.Height, lblGrandTotalValue.Height);
+                int grandTop    = (h - grandRowH) / 2; if (grandTop < 0) grandTop = 0;
+                int grandTitleX = subValX + lblSubtotalValue.Width + 120;
                 lblGrandTotalTitle.Location = new Point(grandTitleX, grandTop + (grandRowH - lblGrandTotalTitle.Height) / 2);
                 lblGrandTotalValue.Location = new Point(grandTitleX + lblGrandTotalTitle.Width + 4, grandTop + (grandRowH - lblGrandTotalValue.Height) / 2);
                 CentreFooterBtns();
             };
 
             var footerInner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
-            footerInner.Paint += (s, e) => { var p = (Panel)s; using var pen = new System.Drawing.Pen(Color.FromArgb(221, 227, 236), 1); e.Graphics.DrawRectangle(pen, 0, 0, p.Width - 1, p.Height - 1); };
+            footerInner.Paint += (s, e) => { var p = (Panel)s; using var pen = new Pen(Color.FromArgb(221, 227, 236), 1); e.Graphics.DrawRectangle(pen, 0, 0, p.Width - 1, p.Height - 1); };
             footerInner.Controls.Add(pnlFooterContent);
             var footerOuter = new Panel { Dock = DockStyle.Bottom, Height = 108, BackColor = Palette.BgPage, Padding = new Padding(20, 14, 20, 14) };
             footerOuter.Controls.Add(footerInner);
 
             // ==================================================================
-            // CARD 2 — ORDER ITEMS
+            // CARD 2 — ORDER ITEMS  (matches CreateOrderForm exactly)
             // ==================================================================
-            btnPickProduct   = MakePickerBtn("🔍  Select Item");
-            lblProductPicked = MakePickerLabel("(None selected)");
-            btnPickProduct.Click += btnPickProduct_Click;
-            var pnlProductPicker = MakePickerCell(btnPickProduct, lblProductPicked);
-            pnlProductPicker.Dock = DockStyle.Fill;
-
-            txtQty      = MakeTextBox();
-            txtQty.Text = "1";
-
             const int ItemBtnW = 210;
             const int ItemBtnH = 60;
 
-            btnAddLine    = MakePrimaryBtn("+ Add Item", Point.Empty, ItemBtnW, ItemBtnH);
-            btnRemoveLine = MakeOutlineBtn("− Remove",   Point.Empty, ItemBtnW, ItemBtnH);
-            btnAddLine.Anchor    = AnchorStyles.None;
-            btnRemoveLine.Anchor = AnchorStyles.None;
-            // ✅ Fixed: was btnAddLine_Click (missing handler) → now btnPickProduct_Click
-            btnAddLine.Click    += btnPickProduct_Click;
-            btnRemoveLine.Click += btnRemoveLine_Click;
+            btnPickProduct = MakePrimaryBtn("➕  Add Item", Point.Empty, ItemBtnW, ItemBtnH);
+            btnRemoveLine  = MakeOutlineBtn("−  Remove",   Point.Empty, ItemBtnW, ItemBtnH);
+            btnPickProduct.Anchor = AnchorStyles.None;
+            btnRemoveLine.Anchor  = AnchorStyles.None;
+            btnPickProduct.Click += btnPickProduct_Click;
+            btnRemoveLine.Click  += btnRemoveLine_Click;
 
             var tblToolbar = new TableLayoutPanel
             {
-                Dock = DockStyle.Fill, ColumnCount = 5, RowCount = 1,
-                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+                Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 1,
+                BackColor = Color.Transparent,
+                CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
             tblToolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
-            tblToolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,  70f));
-            tblToolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,  90f));
             tblToolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 218f));
-            tblToolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 210f));
+            tblToolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 218f));
             tblToolbar.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-
-            var lblQty = new Label { Text = "Qty:", Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleRight, Padding = new Padding(0, 0, 6, 0) };
-            txtQty.Dock = DockStyle.Fill;
 
             var pnlAddBtn = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             var pnlRemBtn = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
@@ -316,16 +334,15 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 int left = (pnl.Width  - ItemBtnW) / 2; if (left < 0) left = 0;
                 btn.Location = new Point(left, top);
             }
-            pnlAddBtn.Controls.Add(btnAddLine);
+            pnlAddBtn.Controls.Add(btnPickProduct);
             pnlRemBtn.Controls.Add(btnRemoveLine);
-            pnlAddBtn.Resize += (s, e) => CentreItemBtn(pnlAddBtn, btnAddLine);
+            pnlAddBtn.Resize += (s, e) => CentreItemBtn(pnlAddBtn, btnPickProduct);
             pnlRemBtn.Resize += (s, e) => CentreItemBtn(pnlRemBtn, btnRemoveLine);
 
-            tblToolbar.Controls.Add(pnlProductPicker, 0, 0);
-            tblToolbar.Controls.Add(lblQty,           1, 0);
-            tblToolbar.Controls.Add(txtQty,           2, 0);
-            tblToolbar.Controls.Add(pnlAddBtn,        3, 0);
-            tblToolbar.Controls.Add(pnlRemBtn,        4, 0);
+            // empty filler so buttons sit on the right
+            tblToolbar.Controls.Add(new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent }, 0, 0);
+            tblToolbar.Controls.Add(pnlAddBtn, 1, 0);
+            tblToolbar.Controls.Add(pnlRemBtn, 2, 0);
 
             var pnlToolbar = new Panel { Dock = DockStyle.Top, Height = 76, BackColor = Color.Transparent, Padding = new Padding(18, 8, 18, 8) };
             pnlToolbar.Controls.Add(tblToolbar);
@@ -373,7 +390,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             this.ResumeLayout(false);
         }
 
-        // ── Picker cell builder ───────────────────────────────────────────────────
+        // ── Picker cell builder ───────────────────────────────────────────────
         private static Panel MakePickerCell(Button btn, Label lbl)
         {
             btn.Dock = DockStyle.Left; btn.Width = 160; lbl.Dock = DockStyle.Fill;
@@ -387,8 +404,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             b.FlatAppearance.BorderSize = 0; b.FlatAppearance.MouseOverBackColor = Color.FromArgb(26, 77, 192); b.FlatAppearance.MouseDownBackColor = Color.FromArgb(21, 60, 155);
             return b;
         }
-        private static Label MakePickerLabel(string placeholder)
-            => new Label { Text = placeholder, Font = new Font("Segoe UI", 11f), ForeColor = Color.FromArgb(98, 112, 135), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(10, 0, 0, 0) };
+        private static Label   MakePickerLabel(string placeholder) => new Label { Text = placeholder, Font = new Font("Segoe UI", 11f), ForeColor = Color.FromArgb(98, 112, 135), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(10, 0, 0, 0) };
         private static TextBox  MakeTextBox() => new TextBox  { Font = new Font("Segoe UI", 12f), BorderStyle = BorderStyle.FixedSingle, Dock = DockStyle.Fill };
         private static ComboBox MakeCombo()   => new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 12f), Dock = DockStyle.Fill };
         private static Panel Pad(Control ctrl) { ctrl.Dock = DockStyle.Fill; var p = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(0, 8, 12, 8) }; p.Controls.Add(ctrl); return p; }
@@ -400,9 +416,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             var div = new Panel { Dock = DockStyle.Bottom, Height = 1, BackColor = Palette.BorderColor };
             pnl.Controls.Add(lbl); pnl.Controls.Add(div); return pnl;
         }
-        private static Button MakeGreenBtn(string text, Point loc, int w, int h) { var b = new Button { Text = text, Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.White, BackColor = Color.FromArgb(34, 139, 34), FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand }; b.FlatAppearance.BorderSize = 0; b.FlatAppearance.MouseOverBackColor = Color.FromArgb(22, 111, 22); b.FlatAppearance.MouseDownBackColor = Color.FromArgb(14, 85, 14); return b; }
-        private static Button MakeRedBtn(string text, Point loc, int w, int h) { var b = new Button { Text = text, Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.White, BackColor = Color.FromArgb(192, 57, 43), FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand }; b.FlatAppearance.BorderSize = 0; b.FlatAppearance.MouseOverBackColor = Color.FromArgb(160, 40, 30); b.FlatAppearance.MouseDownBackColor = Color.FromArgb(125, 28, 20); return b; }
-        private static Button MakePrimaryBtn(string text, Point loc, int w, int h) { var b = new Button { Text = text, Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.White, BackColor = Color.FromArgb(47, 111, 237), FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand }; b.FlatAppearance.BorderSize = 0; b.FlatAppearance.MouseOverBackColor = Color.FromArgb(26, 77, 192); b.FlatAppearance.MouseDownBackColor = Color.FromArgb(21, 60, 155); return b; }
-        private static Button MakeOutlineBtn(string text, Point loc, int w, int h) { var b = new Button { Text = text, Font = new Font("Segoe UI", 12f), ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White, FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand }; b.FlatAppearance.BorderColor = Color.FromArgb(221, 227, 236); b.FlatAppearance.BorderSize = 1; b.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249); return b; }
+        private static Button MakeGreenBtn(string text, Point loc, int w, int h)   { var b = new Button { Text = text, Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.White, BackColor = Color.FromArgb(34, 139, 34),   FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand }; b.FlatAppearance.BorderSize = 0; b.FlatAppearance.MouseOverBackColor = Color.FromArgb(22, 111, 22);  b.FlatAppearance.MouseDownBackColor = Color.FromArgb(14, 85, 14);   return b; }
+        private static Button MakeRedBtn(string text, Point loc, int w, int h)     { var b = new Button { Text = text, Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.White, BackColor = Color.FromArgb(192, 57, 43),   FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand }; b.FlatAppearance.BorderSize = 0; b.FlatAppearance.MouseOverBackColor = Color.FromArgb(160, 40, 30); b.FlatAppearance.MouseDownBackColor = Color.FromArgb(125, 28, 20); return b; }
+        private static Button MakePrimaryBtn(string text, Point loc, int w, int h) { var b = new Button { Text = text, Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.White, BackColor = Color.FromArgb(47, 111, 237),  FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand }; b.FlatAppearance.BorderSize = 0; b.FlatAppearance.MouseOverBackColor = Color.FromArgb(26, 77, 192);  b.FlatAppearance.MouseDownBackColor = Color.FromArgb(21, 60, 155);  return b; }
+        private static Button MakeOutlineBtn(string text, Point loc, int w, int h) { var b = new Button { Text = text, Font = new Font("Segoe UI", 12f),               ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White,              FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand }; b.FlatAppearance.BorderColor = Color.FromArgb(221, 227, 236); b.FlatAppearance.BorderSize = 1; b.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249); return b; }
     }
 }
