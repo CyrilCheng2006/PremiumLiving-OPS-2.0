@@ -10,14 +10,12 @@ using System.Windows.Forms;
 namespace PremiumLivingOPS.Views.OrderProcessing
 {
     /// <summary>
-    /// Modify Order — Tab 4 of Order Processing Management.
+    /// Modify Order — View layer.
     ///
-    /// MVC contract (View layer):
+    /// MVC contract:
     ///   • Calls OrderProcessingController for all data and business operations.
-    ///   • Uses AppShell (TopNavBar + UserBar) for navigation chrome.
-    ///   • Contains NO business logic and NO direct DB calls.
-    ///
-    /// Customer is displayed read-only (cannot be changed after order creation).
+    ///   • Customer is read-only (cannot be changed after order creation).
+    ///   • Order Item + Qty + Add are handled by AddOrderItemDialog.
     /// </summary>
     public partial class ModifyOrderForm : Form
     {
@@ -31,10 +29,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         private List<AddressLookup>   _allAddresses = new List<AddressLookup>();
         private List<QuotationEntity> _quotations   = new List<QuotationEntity>();
 
-        // Picker state — Quotation and Product only (Customer is read-only)
+        // Picker state — Quotation only (Customer read-only, Product via AddOrderItemDialog)
         private string _selectedQuotationId = "";
-        private string _selectedProductId   = "";
-        private string _selectedProductName = "";
 
         public ModifyOrderForm()
         {
@@ -42,7 +38,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             this.Load += ModifyOrderForm_Load;
         }
 
-        // ── Load ────────────────────────────────────────────────────────────
+        // ── Load ─────────────────────────────────────────────────────────────────
         private void ModifyOrderForm_Load(object sender, EventArgs e)
         {
             _shell.MenuItemClicked += OnTopNavMenuItemClicked;
@@ -71,7 +67,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             }
         }
 
-        // ── Picker: Linked Quotation ───────────────────────────────────────────
+        // ── Picker: Linked Quotation ──────────────────────────────────────────────
         private void btnPickQuotation_Click(object sender, EventArgs e)
         {
             var items = new List<SearchPickerDialog.PickerItem>
@@ -96,25 +92,32 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 : Color.FromArgb(15, 31, 53);
         }
 
-        // ── Picker: Product / Item ────────────────────────────────────────────
+        // ── "+ Add Item" → opens AddOrderItemDialog ───────────────────────────────
         private void btnPickProduct_Click(object sender, EventArgs e)
         {
-            var items = _products.Select(p => new SearchPickerDialog.PickerItem
-            {
-                Id      = p.ItemID,
-                Display = $"{p.ItemID}  –  {p.ItemName}  (HK$ {p.SalesPrice:N2})"
-            }).ToList();
+            using var dlg = new AddOrderItemDialog(_products);
+            if (dlg.ShowDialog(this) != DialogResult.OK || dlg.SelectedProduct == null) return;
 
-            using var dlg = new SearchPickerDialog("Select Item", items);
-            if (dlg.ShowDialog(this) != DialogResult.OK || dlg.SelectedItem == null) return;
+            var product = dlg.SelectedProduct;
+            int qty     = dlg.SelectedQty;
 
-            _selectedProductId         = dlg.SelectedItem.Id;
-            _selectedProductName       = dlg.SelectedItem.Display;
-            lblProductPicked.Text      = dlg.SelectedItem.Display;
-            lblProductPicked.ForeColor = Color.FromArgb(15, 31, 53);
+            var existing = _lines.Find(l => l.ItemID == product.ItemID);
+            if (existing != null)
+                existing.Quantity += qty;
+            else
+                _lines.Add(new OrderLineEntity
+                {
+                    OrderID  = _currentOrder?.OrderID ?? "",
+                    ItemID   = product.ItemID,
+                    ItemName = product.ItemName,
+                    Quantity = qty,
+                    Price    = product.SalesPrice
+                });
+
+            RefreshLineGrid();
         }
 
-        // ── Load Order button ────────────────────────────────────────────────
+        // ── Load Order button ─────────────────────────────────────────────────────
         private void btnLoadOrder_Click(object sender, EventArgs e)
         {
             var sel = cboSearchOrder.SelectedItem as ComboItem;
@@ -147,26 +150,24 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             RefreshLineGrid();
 
             bool isCancelled = _currentOrder.OrderStatus == "Cancelled";
-            btnSaveChanges.Enabled = !isCancelled;
-            btnAddLine.Enabled     = !isCancelled;
-            btnRemoveLine.Enabled  = !isCancelled;
-            txtQty.Enabled         = !isCancelled;
-            btnPickProduct.Enabled = !isCancelled;
-            btnCancelOrder.Enabled = !isCancelled;
+            btnSaveChanges.Enabled  = !isCancelled;
+            btnPickProduct.Enabled  = !isCancelled;
+            btnAddLine.Enabled      = !isCancelled;
+            btnRemoveLine.Enabled   = !isCancelled;
+            btnCancelOrder.Enabled  = !isCancelled;
         }
 
-        // ── Populate header from loaded order ──────────────────────────────────
+        // ── Populate header from loaded order ─────────────────────────────────────
         private void PopulateHeader(OrderEntity o)
         {
             lblOrderIdValue.Text = o.OrderID;
 
-            // Quotation picker label
             _selectedQuotationId         = o.QuotationID ?? "";
             lblQuotationPicked.Text      = string.IsNullOrEmpty(o.QuotationID) ? "(None)" : o.QuotationID;
             lblQuotationPicked.ForeColor = string.IsNullOrEmpty(o.QuotationID)
                 ? Color.FromArgb(98, 112, 135) : Color.FromArgb(15, 31, 53);
 
-            // Customer — read-only: display name from order
+            // Customer — read-only
             lblCustomerValue.Text = string.IsNullOrEmpty(o.CustomerName)
                 ? o.CustomerID ?? "—"
                 : $"{o.CustomerID}  –  {o.CustomerName}";
@@ -204,15 +205,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 txtDiscountValue.Enabled      = true;
                 lblDiscountUnit.Text          = o.DiscountType == "Rate (%)" ? "%" : "HK$";
             }
-
-            // Reset product picker
-            _selectedProductId         = "";
-            _selectedProductName       = "";
-            lblProductPicked.Text      = "(None selected)";
-            lblProductPicked.ForeColor = Color.FromArgb(98, 112, 135);
         }
 
-        // ── Address helpers ───────────────────────────────────────────────────
+        // ── Address helpers ───────────────────────────────────────────────────────
         private void LoadAddressCombos(string customerId)
         {
             cboAddressId.Items.Clear();
@@ -244,16 +239,17 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             if (same) txtBillingAddr.Text = txtShippingAddr.Text;
         }
 
-        // ── Combo helper ───────────────────────────────────────────────────────────
-        private static void SelectComboByValue(ComboBox cbo, string value)
+        // ── Remove line ───────────────────────────────────────────────────────────
+        private void btnRemoveLine_Click(object sender, EventArgs e)
         {
-            if (string.IsNullOrEmpty(value)) return;
-            for (int i = 0; i < cbo.Items.Count; i++)
-                if (cbo.Items[i] is ComboItem ci && ci.Value == value)
-                { cbo.SelectedIndex = i; return; }
+            if (dgvLines.SelectedRows.Count == 0)
+            { MessageBox.Show("Please select a line to remove.", "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+            string itemId = dgvLines.SelectedRows[0].Cells["colLineItemID"].Value?.ToString();
+            _lines.RemoveAll(l => l.ItemID == itemId);
+            RefreshLineGrid();
         }
 
-        // ── Line-item helpers ───────────────────────────────────────────────────
+        // ── Line grid & summary ───────────────────────────────────────────────────
         private void RefreshLineGrid()
         {
             dgvLines.Rows.Clear();
@@ -280,37 +276,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlFooterContent.PerformLayout();
         }
 
-        private void btnAddLine_Click(object sender, EventArgs e)
-        {
-            if (string.IsNullOrEmpty(_selectedProductId))
-            { MessageBox.Show("Please select a product first (click \"Select Item\").", "No Product", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
-            if (!int.TryParse(txtQty.Text, out int qty) || qty <= 0)
-            { MessageBox.Show("Please enter a valid quantity.", "Invalid Qty", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
-
-            var product = _products.Find(p => p.ItemID == _selectedProductId);
-            if (product == null) return;
-
-            var existing = _lines.Find(l => l.ItemID == product.ItemID);
-            if (existing != null) existing.Quantity += qty;
-            else _lines.Add(new OrderLineEntity { OrderID = _currentOrder?.OrderID ?? "", ItemID = product.ItemID, ItemName = product.ItemName, Quantity = qty, Price = product.SalesPrice });
-
-            _selectedProductId         = "";
-            _selectedProductName       = "";
-            lblProductPicked.Text      = "(None selected)";
-            lblProductPicked.ForeColor = Color.FromArgb(98, 112, 135);
-            txtQty.Text = "1";
-            RefreshLineGrid();
-        }
-
-        private void btnRemoveLine_Click(object sender, EventArgs e)
-        {
-            if (dgvLines.SelectedRows.Count == 0)
-            { MessageBox.Show("Please select a line to remove.", "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
-            string itemId = dgvLines.SelectedRows[0].Cells["colLineItemID"].Value?.ToString();
-            _lines.RemoveAll(l => l.ItemID == itemId);
-            RefreshLineGrid();
-        }
-
         private void cboDiscountType_SelectedIndexChanged(object sender, EventArgs e)
         {
             string dtype = cboDiscountType.SelectedItem?.ToString() ?? "None";
@@ -323,7 +288,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
         private void txtDiscountValue_TextChanged(object sender, EventArgs e) => UpdateSummary();
 
-        // ── Save Changes ───────────────────────────────────────────────────────────
+        // ── Save Changes ──────────────────────────────────────────────────────────
         private void btnSaveChanges_Click(object sender, EventArgs e)
         {
             if (_currentOrder == null)
@@ -345,8 +310,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             var header = new OrderEntity
             {
                 OrderID          = _currentOrder.OrderID,
-                CustomerID       = _currentOrder.CustomerID,   // always preserved
-                CustomerName     = _currentOrder.CustomerName, // always preserved
+                CustomerID       = _currentOrder.CustomerID,
+                CustomerName     = _currentOrder.CustomerName,
                 AddressID        = selAddr?.Value ?? _currentOrder.AddressID,
                 QuotationID      = string.IsNullOrEmpty(_selectedQuotationId)
                                        ? _currentOrder.QuotationID
@@ -391,13 +356,12 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             if (ok)
             {
                 MessageBox.Show("Order has been cancelled.", "Cancelled", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                _currentOrder.OrderStatus = "Cancelled";
-                btnSaveChanges.Enabled = false;
-                btnCancelOrder.Enabled = false;
-                btnAddLine.Enabled     = false;
-                btnRemoveLine.Enabled  = false;
-                txtQty.Enabled         = false;
-                btnPickProduct.Enabled = false;
+                _currentOrder.OrderStatus  = "Cancelled";
+                btnSaveChanges.Enabled     = false;
+                btnCancelOrder.Enabled     = false;
+                btnPickProduct.Enabled     = false;
+                btnAddLine.Enabled         = false;
+                btnRemoveLine.Enabled      = false;
                 int idx = cboStatus.FindStringExact("Cancelled");
                 if (idx >= 0) cboStatus.SelectedIndex = idx;
                 ReloadOrderCombo();
@@ -421,6 +385,14 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     { cboSearchOrder.SelectedIndex = i; break; }
             else
                 cboSearchOrder.SelectedIndex = 0;
+        }
+
+        private static void SelectComboByValue(ComboBox cbo, string value)
+        {
+            if (string.IsNullOrEmpty(value)) return;
+            for (int i = 0; i < cbo.Items.Count; i++)
+                if (cbo.Items[i] is ComboItem ci && ci.Value == value)
+                { cbo.SelectedIndex = i; return; }
         }
 
         private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
