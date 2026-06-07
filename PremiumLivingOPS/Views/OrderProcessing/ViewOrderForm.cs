@@ -122,10 +122,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Padding = new Padding(0), AutoScroll = false
             };
 
-            const int PillW    = 290;
-            const int PillH    = 60;
-            const int Gap      = 8;
-            const int NumColW  = 80;
+            const int PillW   = 290;
+            const int PillH   = 60;
+            const int Gap     = 8;
+            const int NumColW = 80;
 
             foreach (var (label, count, fg, bg, filterItem) in pills)
             {
@@ -293,20 +293,17 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 5,
                 BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
-            // Percent-based: Key 15%, Value 35% for each half
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));  // left Key
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));  // left Value
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));  // right Key
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));  // right Value
 
-            // Row heights: address row taller
             tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 15f)); // row 0
             tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 15f)); // row 1
             tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 15f)); // row 2
             tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 40f)); // row 3 — addresses
             tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 15f)); // row 4
 
-            // Left column: Order ID, Sales Name, Delivery Date, Billing Address
             var leftFields = new[]
             {
                 ("Order ID",       o.OrderID),
@@ -323,13 +320,12 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     1, i);
             }
 
-            // Right column: Quotation ID, Customer Name, Contact Name, Shipping Address (row3), Issued Date (row4)
             var rightFields = new[]
             {
                 ("Quotation ID",    o.QuotationID,                       false),
                 ("Customer Name",   o.CustomerName,                      false),
                 ("Contact Name",    o.OrderContactName,                  false),
-                ("Shipping Address",o.ShippingAddress,                   true ),  // row 3 multi-line
+                ("Shipping Address",o.ShippingAddress,                   true ),
                 ("Issued Date",     o.IssuedTime.ToString("yyyy-MM-dd"), false),
             };
             for (int i = 0; i < rightFields.Length; i++)
@@ -358,7 +354,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     Dock = DockStyle.Fill, ColumnCount = 6, RowCount = 1,
                     BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
                 };
-                // Percent-based: Key(12%) Value(21.3%) ×3
                 tblDisc.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 12f));
                 tblDisc.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 21.3f));
                 tblDisc.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 12f));
@@ -367,12 +362,12 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 tblDisc.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 21.4f));
                 tblDisc.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
-                tblDisc.Controls.Add(MakeLabelKey("Discount Type"),               0, 0);
-                tblDisc.Controls.Add(MakeLabelVal(o.DiscountType),                1, 0);
-                tblDisc.Controls.Add(MakeLabelKey("Discount Value"),              2, 0);
-                tblDisc.Controls.Add(MakeLabelVal(o.DiscountValue.ToString("N2")),3, 0);
-                tblDisc.Controls.Add(MakeLabelKey("Discount Amount"),             4, 0);
-                tblDisc.Controls.Add(MakeLabelVal($"HK$ {o.DiscountAmount:N2}"),  5, 0);
+                tblDisc.Controls.Add(MakeLabelKey("Discount Type"),                0, 0);
+                tblDisc.Controls.Add(MakeLabelVal(o.DiscountType),                 1, 0);
+                tblDisc.Controls.Add(MakeLabelKey("Discount Value"),               2, 0);
+                tblDisc.Controls.Add(MakeLabelVal(o.DiscountValue.ToString("N2")), 3, 0);
+                tblDisc.Controls.Add(MakeLabelKey("Discount Amount"),              4, 0);
+                tblDisc.Controls.Add(MakeLabelVal($"HK$ {o.DiscountAmount:N2}"),   5, 0);
                 pnlDiscount.Controls.Add(tblDisc);
             }
 
@@ -403,9 +398,46 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             foreach (var l in detail.Lines)
                 dgv.Rows.Add(l.ItemID, l.ItemName, l.Quantity, $"HK$ {l.Price:N2}", $"HK$ {l.LineTotal:N2}");
 
-            // ── Grand Total row
-            var pnlTotalRow = new Panel { Dock = DockStyle.Bottom, Height = 50, BackColor = Color.FromArgb(246, 249, 255), Padding = new Padding(0, 0, 28, 0) };
-            pnlTotalRow.Controls.Add(new Label { Text = $"Grand Total:   HK$ {o.GrandTotal:N2}", Font = new Font("Segoe UI", 13f, FontStyle.Bold), ForeColor = Color.FromArgb(15, 31, 53), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleRight });
+            // ── Grand Total row — 2-column TableLayoutPanel
+            // Left: Subtotal (muted label + value)   Right: Grand Total (bold)
+            var pnlTotalRow = new Panel
+            {
+                Dock = DockStyle.Bottom, Height = 50,
+                BackColor = Color.FromArgb(246, 249, 255),
+                Padding = new Padding(28, 0, 28, 0)
+            };
+            var tblTotal = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
+                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+            };
+            tblTotal.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f)); // left — Subtotal
+            tblTotal.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f)); // right — Grand Total
+            tblTotal.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+
+            // Left: "Subtotal:  HK$ x,xxx.xx" — muted, normal weight
+            tblTotal.Controls.Add(new Label
+            {
+                Text      = $"Subtotal:   HK$ {o.SubTotal:N2}",
+                Font      = new Font("Segoe UI", 12f),
+                ForeColor = Color.FromArgb(98, 112, 135),
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft,
+                AutoSize  = false
+            }, 0, 0);
+
+            // Right: "Grand Total:  HK$ x,xxx.xx" — bold, dark
+            tblTotal.Controls.Add(new Label
+            {
+                Text      = $"Grand Total:   HK$ {o.GrandTotal:N2}",
+                Font      = new Font("Segoe UI", 13f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(15, 31, 53),
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleRight,
+                AutoSize  = false
+            }, 1, 0);
+
+            pnlTotalRow.Controls.Add(tblTotal);
 
             // ── Footer
             var pnlFooter = new Panel { Dock = DockStyle.Bottom, Height = 80, BackColor = Color.White, Padding = new Padding(0, 10, 28, 10) };
