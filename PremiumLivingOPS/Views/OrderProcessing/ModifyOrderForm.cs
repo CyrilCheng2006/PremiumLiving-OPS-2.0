@@ -25,7 +25,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
         private readonly OrderProcessingController _ctrl = new OrderProcessingController();
 
-        private OrderEntity           _currentOrder;          // last successfully loaded snapshot
+        private OrderEntity           _currentOrder;
         private List<OrderLineEntity> _lines        = new List<OrderLineEntity>();
         private List<ProductLookup>   _products     = new List<ProductLookup>();
         private List<AddressLookup>   _allAddresses = new List<AddressLookup>();
@@ -154,10 +154,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             btnSaveChanges.Enabled    = !isCancelled;
             btnPickProduct.Enabled    = !isCancelled;
             btnRemoveLine.Enabled     = !isCancelled;
-            btnDiscardChanges.Enabled = true;  // always available once an order is loaded
+            btnDiscardChanges.Enabled = true;
         }
 
-        // ── Populate header from loaded order ──────────────────────────────────────
+        // ── Populate header from loaded order ─────────────────────────────────────
         private void PopulateHeader(OrderEntity o)
         {
             lblOrderIdValue.Text = o.OrderID;
@@ -248,7 +248,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             RefreshLineGrid();
         }
 
-        // ── Line grid & summary ────────────────────────────────────────────────────
+        // ── Line grid & summary ───────────────────────────────────────────────────
         private void RefreshLineGrid()
         {
             dgvLines.Rows.Clear();
@@ -354,7 +354,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 "Discard Changes", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
             if (confirm != DialogResult.Yes) return;
 
-            // Re-fetch from controller to get the clean DB state
             SelectAndLoadOrder(_currentOrder.OrderID);
         }
 
@@ -365,8 +364,16 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             var listVm = _ctrl.GetViewOrderVM();
             cboSearchOrder.Items.Clear();
             cboSearchOrder.Items.Add(new ComboItem("-- Select Order --", ""));
-            foreach (var o in listVm.Orders)
-                cboSearchOrder.Items.Add(new ComboItem($"{o.OrderID}  –  {o.CustomerName}  [{o.OrderStatus}]", o.OrderID));
+
+            // Sort by OrderID ascending before populating
+            var sorted = listVm.Orders
+                .OrderBy(o => o.OrderID, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            foreach (var o in sorted)
+                cboSearchOrder.Items.Add(new ComboItem(
+                    $"{o.OrderID}  –  {o.CustomerName}  [{o.OrderStatus}]", o.OrderID));
+
             if (!string.IsNullOrEmpty(currentId))
                 for (int i = 1; i < cboSearchOrder.Items.Count; i++)
                     if (cboSearchOrder.Items[i] is ComboItem ci && ci.Value == currentId)
