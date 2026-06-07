@@ -3,6 +3,7 @@ using PremiumLivingOPS.Models.Entities;
 using PremiumLivingOPS.Views.Shared;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Windows.Forms;
 
 namespace PremiumLivingOPS.Views.OrderProcessing
@@ -17,7 +18,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
     ///   • CardPanel three-layer card structure throughout.
     ///
     /// Picker fields:
-    ///   Customer, Linked Quotation, and Order Item are now opened via PickerDialog
+    ///   Customer, Linked Quotation, and Order Item are opened via SearchPickerDialog
     ///   (searchable popup) rather than a plain ComboBox drop-down.
     /// </summary>
     public partial class CreateOrderForm : Form
@@ -25,13 +26,13 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         private readonly OrderProcessingController _ctrl = new OrderProcessingController();
 
         private string                         _orderId;
-        private readonly List<OrderLineEntity> _lines    = new List<OrderLineEntity>();
-        private List<ProductLookup>            _products = new List<ProductLookup>();
+        private readonly List<OrderLineEntity> _lines        = new List<OrderLineEntity>();
+        private List<ProductLookup>            _products     = new List<ProductLookup>();
         private List<AddressLookup>            _allAddresses = new List<AddressLookup>();
 
-        // ── Picker backing data ──────────────────────────────────────────────────────────
-        private List<CustomerEntity>   _customers   = new List<CustomerEntity>();
-        private List<QuotationLookup>  _quotations  = new List<QuotationLookup>();
+        // ── Picker backing data ─────────────────────────────────────────────────
+        private List<CustomerEntity>   _customers  = new List<CustomerEntity>();
+        private List<QuotationEntity>  _quotations = new List<QuotationEntity>();
 
         // Currently-selected values from pickers
         private string _selectedCustomerId   = "";
@@ -46,7 +47,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             this.Load += CreateOrderForm_Load;
         }
 
-        // ── Load ──────────────────────────────────────────────────────────────────
+        // ── Load ────────────────────────────────────────────────────────────────
         private void CreateOrderForm_Load(object sender, EventArgs e)
         {
             _shell.MenuItemClicked += OnTopNavMenuItemClicked;
@@ -61,98 +62,86 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             _orderId             = vm.NextOrderId;
             lblOrderIdValue.Text = _orderId;
 
-            _allAddresses = vm.Addresses ?? new List<AddressLookup>();
-            _customers    = vm.Customers ?? new List<CustomerEntity>();
-            _quotations   = vm.PendingQuotations ?? new List<QuotationLookup>();
-            _products     = vm.Products ?? new List<ProductLookup>();
+            _allAddresses = vm.Addresses         ?? new List<AddressLookup>();
+            _customers    = vm.Customers          ?? new List<CustomerEntity>();
+            _quotations   = vm.PendingQuotations  ?? new List<QuotationEntity>();
+            _products     = vm.Products           ?? new List<ProductLookup>();
 
-            // Address ComboBox — still a drop-down (filtered per customer)
+            // Address ComboBox — filtered per customer
             cboAddressId.Items.Clear();
             cboAddressId.Items.Add(new ComboItem("-- Select Address --", ""));
             cboAddressId.SelectedIndex = 0;
 
-            // Discount
             cboDiscountType.SelectedIndex = 0;
-
             dtpDelivery.Value = DateTime.Today.AddDays(14);
             RefreshLineGrid();
-
-            // Reset picker label displays
             ResetPickerLabels();
         }
 
-        // ── Picker button handlers ────────────────────────────────────────────────────
-
-        /// <summary>Opens the Customer picker popup.</summary>
+        // ── Picker: Customer ────────────────────────────────────────────────────
         private void btnPickCustomer_Click(object sender, EventArgs e)
         {
-            var rows = new List<PickerRow>();
-            foreach (var c in _customers)
-                rows.Add(new PickerRow(c.CustomerID, c.CustomerName, c.CustomerID));
+            var items = _customers
+                .Select(c => new SearchPickerDialog.PickerItem
+                {
+                    Id      = c.CustomerID,
+                    Display = $"{c.CustomerID}  –  {c.CustomerName}"
+                }).ToList();
 
-            using var dlg = new PickerDialog(
-                "Select Customer",
-                new[] { "Customer ID", "Customer Name" },
-                rows);
+            using var dlg = new SearchPickerDialog("Select Customer", items);
+            if (dlg.ShowDialog(this) != DialogResult.OK || dlg.SelectedItem == null) return;
 
-            if (dlg.ShowDialog(this) != DialogResult.OK) return;
-
-            _selectedCustomerId   = dlg.SelectedId;
-            _selectedCustomerName = dlg.SelectedText;
-            lblCustomerPicked.Text = $"{_selectedCustomerId}  —  {_selectedCustomerName}";
+            _selectedCustomerId   = dlg.SelectedItem.Id;
+            _selectedCustomerName = dlg.SelectedItem.Display;
+            lblCustomerPicked.Text      = dlg.SelectedItem.Display;
+            lblCustomerPicked.ForeColor = System.Drawing.Color.FromArgb(15, 31, 53);
             PopulateAddresses(_selectedCustomerId);
         }
 
-        /// <summary>Opens the Linked Quotation picker popup.</summary>
+        // ── Picker: Linked Quotation ────────────────────────────────────────────
         private void btnPickQuotation_Click(object sender, EventArgs e)
         {
-            var rows = new List<PickerRow>();
-            // Blank option first
-            rows.Add(new PickerRow("", "(None)", "", ""));
-            foreach (var q in _quotations)
-                rows.Add(new PickerRow(
-                    q.QuotationID,
-                    q.CustomerName,
-                    q.QuotationID,
-                    $"HK$ {q.TotalAmount:N0}"));
+            var items = new List<SearchPickerDialog.PickerItem>
+            {
+                new SearchPickerDialog.PickerItem { Id = "", Display = "(None)" }
+            };
+            items.AddRange(_quotations.Select(q => new SearchPickerDialog.PickerItem
+            {
+                Id      = q.QuotationID,
+                Display = $"{q.QuotationID}  –  {q.CustomerName}  (HK$ {q.TotalAmount:N0})  [{q.QuotationStatus}]"
+            }));
 
-            using var dlg = new PickerDialog(
-                "Link Quotation",
-                new[] { "Quotation ID", "Customer", "Ref ID", "Total" },
-                rows);
+            using var dlg = new SearchPickerDialog("Link Quotation", items);
+            if (dlg.ShowDialog(this) != DialogResult.OK || dlg.SelectedItem == null) return;
 
-            if (dlg.ShowDialog(this) != DialogResult.OK) return;
-
-            _selectedQuotationId      = dlg.SelectedId;
-            lblQuotationPicked.Text   = string.IsNullOrEmpty(dlg.SelectedId)
+            _selectedQuotationId        = dlg.SelectedItem.Id;
+            lblQuotationPicked.Text     = string.IsNullOrEmpty(dlg.SelectedItem.Id)
                 ? "(None)"
-                : $"{dlg.SelectedId}  –  {dlg.SelectedText}";
+                : dlg.SelectedItem.Display;
+            lblQuotationPicked.ForeColor = string.IsNullOrEmpty(dlg.SelectedItem.Id)
+                ? System.Drawing.Color.FromArgb(98, 112, 135)
+                : System.Drawing.Color.FromArgb(15, 31, 53);
         }
 
-        /// <summary>Opens the Product (Select Item) picker popup.</summary>
+        // ── Picker: Product / Select Item ───────────────────────────────────────
         private void btnPickProduct_Click(object sender, EventArgs e)
         {
-            var rows = new List<PickerRow>();
-            foreach (var p in _products)
-                rows.Add(new PickerRow(
-                    p.ItemID,
-                    p.ItemName,
-                    p.ItemID,
-                    $"HK$ {p.SalesPrice:N2}"));
+            var items = _products.Select(p => new SearchPickerDialog.PickerItem
+            {
+                Id      = p.ItemID,
+                Display = $"{p.ItemID}  –  {p.ItemName}  (HK$ {p.SalesPrice:N2})"
+            }).ToList();
 
-            using var dlg = new PickerDialog(
-                "Select Item",
-                new[] { "Item ID", "Item Name", "Ref ID", "Sales Price" },
-                rows);
+            using var dlg = new SearchPickerDialog("Select Item", items);
+            if (dlg.ShowDialog(this) != DialogResult.OK || dlg.SelectedItem == null) return;
 
-            if (dlg.ShowDialog(this) != DialogResult.OK) return;
-
-            _selectedProductId   = dlg.SelectedId;
-            _selectedProductName = dlg.SelectedText;
-            lblProductPicked.Text = $"{_selectedProductId}  —  {_selectedProductName}";
+            _selectedProductId   = dlg.SelectedItem.Id;
+            _selectedProductName = dlg.SelectedItem.Display;
+            lblProductPicked.Text      = dlg.SelectedItem.Display;
+            lblProductPicked.ForeColor = System.Drawing.Color.FromArgb(15, 31, 53);
         }
 
-        // ── Customer selection → populate Address ComboBox ─────────────────────────────
+        // ── Customer → populate Address ComboBox ────────────────────────────────
         private void PopulateAddresses(string customerId)
         {
             cboAddressId.Items.Clear();
@@ -166,7 +155,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             txtShippingAddr.Text = string.Empty;
         }
 
-        // ── AddressID selection → auto-fill Shipping Address ──────────────────────────
+        // ── AddressID → auto-fill Shipping Address ──────────────────────────────
         private void cboAddressId_SelectedIndexChanged(object sender, EventArgs e)
         {
             var sel = cboAddressId.SelectedItem as ComboItem;
@@ -184,7 +173,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             }
         }
 
-        // ── Same-address checkbox ──────────────────────────────────────────────────
+        // ── Same-address checkbox ───────────────────────────────────────────────
         private void chkSameAddress_CheckedChanged(object sender, EventArgs e)
         {
             if (chkSameAddress.Checked)
@@ -206,7 +195,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 txtBillingAddr.Text = txtShippingAddr.Text;
         }
 
-        // ── Line-item helpers ──────────────────────────────────────────────────────
+        // ── Line-item helpers ───────────────────────────────────────────────────
         private void RefreshLineGrid()
         {
             dgvLines.Rows.Clear();
@@ -238,7 +227,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlFooterContent.PerformLayout();
         }
 
-        // ── Add / Remove line ────────────────────────────────────────────────────
+        // ── Add / Remove line ───────────────────────────────────────────────────
         private void btnAddLine_Click(object sender, EventArgs e)
         {
             if (string.IsNullOrEmpty(_selectedProductId))
@@ -262,10 +251,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     Price    = product.SalesPrice
                 });
 
-            // Reset product picker
-            _selectedProductId   = "";
-            _selectedProductName = "";
-            lblProductPicked.Text = "(None selected)";
+            _selectedProductId        = "";
+            _selectedProductName      = "";
+            lblProductPicked.Text     = "(None selected)";
+            lblProductPicked.ForeColor = System.Drawing.Color.FromArgb(98, 112, 135);
             txtQty.Text = "1";
             RefreshLineGrid();
         }
@@ -280,7 +269,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             RefreshLineGrid();
         }
 
-        // ── Discount ─────────────────────────────────────────────────────────────────
+        // ── Discount ────────────────────────────────────────────────────────────
         private void cboDiscountType_SelectedIndexChanged(object sender, EventArgs e)
         {
             string dtype     = cboDiscountType.SelectedItem?.ToString() ?? "None";
@@ -301,7 +290,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         private void txtDiscountValue_TextChanged(object sender, EventArgs e)
             => UpdateSummary();
 
-        // ── Submit ───────────────────────────────────────────────────────────────────
+        // ── Submit ──────────────────────────────────────────────────────────────
         private void btnSubmit_Click(object sender, EventArgs e)
         {
             if (string.IsNullOrEmpty(_selectedCustomerId))
@@ -368,7 +357,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             }
         }
 
-        // ── Clear ────────────────────────────────────────────────────────────────────
+        // ── Clear ───────────────────────────────────────────────────────────────
         private void btnClear_Click(object sender, EventArgs e)
         {
             if (MessageBox.Show("Clear all entered data?", "Confirm Clear",
@@ -404,15 +393,18 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
         private void ResetPickerLabels()
         {
-            lblCustomerPicked.Text  = "(None selected)";
-            lblQuotationPicked.Text = "(None)";
-            lblProductPicked.Text   = "(None selected)";
+            lblCustomerPicked.Text       = "(None selected)";
+            lblCustomerPicked.ForeColor  = System.Drawing.Color.FromArgb(98, 112, 135);
+            lblQuotationPicked.Text      = "(None)";
+            lblQuotationPicked.ForeColor = System.Drawing.Color.FromArgb(98, 112, 135);
+            lblProductPicked.Text        = "(None selected)";
+            lblProductPicked.ForeColor   = System.Drawing.Color.FromArgb(98, 112, 135);
         }
 
         private static void ShowWarning(string msg)
             => MessageBox.Show(msg, "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
 
-        // ── Nav / Logout ───────────────────────────────────────────────────────────────
+        // ── Nav / Logout ────────────────────────────────────────────────────────
         private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
             => FormNavigator.NavigateTo(this, menuLabel, subItem);
 
@@ -422,7 +414,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             Application.Restart();
         }
 
-        // ── ComboItem helper (Address drop-down only) ───────────────────────────────────
+        // ── ComboItem helper (Address drop-down only) ───────────────────────────
         private class ComboItem
         {
             public string Text  { get; }

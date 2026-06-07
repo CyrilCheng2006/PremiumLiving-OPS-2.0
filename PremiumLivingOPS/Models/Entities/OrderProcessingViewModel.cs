@@ -41,15 +41,16 @@ namespace PremiumLivingOPS.Models.Entities
         public string          QuotationID       { get; set; }
         public string          CustomerID        { get; set; }
         public string          CustomerName      { get; set; }
-        public System.DateTime IssuedDate        { get; set; }  // from quotation.IssuedDate
+        public System.DateTime IssuedDate        { get; set; }
         public System.DateTime ExpiryDate        { get; set; }
         public double          TotalAmount       { get; set; }
         public double          DepositRequired   { get; set; }
         public string          LeadTimeEstimated { get; set; }
         public string          TermsandCondition { get; set; }
         public string          QuotationStatus   { get; set; }
-        public string          SalesStaffName    { get; set; }  // joined from Staff table
-        public string          Notes             { get; set; }  // from quotation.Notes
+        public string          Status            => QuotationStatus;  // picker-friendly alias
+        public string          SalesStaffName    { get; set; }
+        public string          Notes             { get; set; }
 
         /// <summary>Line items — populated only by GetQuotationDetail, null in list queries.</summary>
         public List<QuotationItemEntity> Items   { get; set; }
@@ -88,7 +89,7 @@ namespace PremiumLivingOPS.Models.Entities
         /// <summary>PK from Address table (e.g. ADDR-0001).</summary>
         public string AddressId   { get; set; }
 
-        /// <summary>FK \u2014 which customer owns this address.</summary>
+        /// <summary>FK — which customer owns this address.</summary>
         public string CustomerId  { get; set; }
 
         /// <summary>Address text as stored in Address.AddressName.</summary>
@@ -102,14 +103,14 @@ namespace PremiumLivingOPS.Models.Entities
 
         /// <summary>
         /// ComboBox display text.
-        /// Format: "ADDR-0001  \u2013  Residential  \u2013  123 Main St  [\u2605 Default]"
+        /// Format: "ADDR-0001  –  Residential  –  123 Main St  [★ Default]"
         /// </summary>
         public string DisplayText =>
             $"{AddressId}  \u2013  {Label}  \u2013  {FullAddress}"
             + (IsDefault ? "  [\u2605 Default]" : "");
     }
 
-    // ── ViewModels (passed from Controller \u2192 View) ─────────────────────────────
+    // ── ViewModels (passed from Controller → View) ─────────────────────────────
     // NOTE: UserBarViewModel is defined in AfterServiceViewModels.cs (shared).
     // NOTE: CustomerEntity is defined in CustomerEntity.cs (canonical).
 
@@ -159,5 +160,8 @@ namespace PremiumLivingOPS.Models.Entities
         public List<ProductLookup>   Products      { get; set; }
         public List<CustomerEntity>  Customers     { get; set; }
         public List<AddressLookup>   Addresses     { get; set; }
+
+        /// <summary>All quotations available for linking (used by Modify Order picker).</summary>
+        public List<QuotationEntity> Quotations    { get; set; }
     }
 }
