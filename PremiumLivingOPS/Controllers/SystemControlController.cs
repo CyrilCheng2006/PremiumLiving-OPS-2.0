@@ -12,7 +12,7 @@ namespace PremiumLivingOPS.Controllers
     {
         private readonly SystemControlRepo _repo = new SystemControlRepo();
 
-        // ── Staff List ────────────────────────────────────────────────
+        // ── Staff List ─────────────────────────────────────────────
 
         /// <summary>
         /// Returns ViewModel for the Staff List page.
@@ -33,7 +33,21 @@ namespace PremiumLivingOPS.Controllers
             };
         }
 
-        // ── Log List ──────────────────────────────────────────────────
+        /// <summary>
+        /// Updates the password for a staff member.
+        /// Returns true on success.
+        /// </summary>
+        public bool ChangeStaffPassword(string staffId, string newPassword)
+            => _repo.UpdateStaffPassword(staffId, newPassword);
+
+        /// <summary>
+        /// Updates the department for a staff member.
+        /// Returns true on success.
+        /// </summary>
+        public bool ChangeStaffDepartment(string staffId, string newDepartment)
+            => _repo.UpdateStaffDepartment(staffId, newDepartment);
+
+        // ── Log List ─────────────────────────────────────────────
 
         /// <summary>
         /// Returns ViewModel for the Log List page.

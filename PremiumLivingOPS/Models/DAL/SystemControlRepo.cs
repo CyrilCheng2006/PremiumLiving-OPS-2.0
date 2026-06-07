@@ -11,7 +11,7 @@ namespace PremiumLivingOPS.Models.DAL
     public class SystemControlRepo
     {
         // ═══════════════════════════════════════════════════════════════
-        //  STAFF
+        //  STAFF — READ
         // ═══════════════════════════════════════════════════════════════
 
         /// <summary>
@@ -68,6 +68,50 @@ namespace PremiumLivingOPS.Models.DAL
                 }
             }
             return list;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        //  STAFF — WRITE
+        // ═══════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Updates the StaffPassword for the given staffId.
+        /// Returns true if exactly one row was affected.
+        /// </summary>
+        public bool UpdateStaffPassword(string staffId, string newPassword)
+        {
+            using (MySqlConnection conn = DatabaseHelper.GetConnection())
+            {
+                conn.Open();
+                const string sql =
+                    "UPDATE Staff SET StaffPassword = @pwd WHERE StaffID = @id";
+                using (var cmd = new MySqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@pwd", newPassword);
+                    cmd.Parameters.AddWithValue("@id",  staffId);
+                    return cmd.ExecuteNonQuery() == 1;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Updates the Department for the given staffId.
+        /// Returns true if exactly one row was affected.
+        /// </summary>
+        public bool UpdateStaffDepartment(string staffId, string newDepartment)
+        {
+            using (MySqlConnection conn = DatabaseHelper.GetConnection())
+            {
+                conn.Open();
+                const string sql =
+                    "UPDATE Staff SET Department = @dept WHERE StaffID = @id";
+                using (var cmd = new MySqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@dept", newDepartment);
+                    cmd.Parameters.AddWithValue("@id",   staffId);
+                    return cmd.ExecuteNonQuery() == 1;
+                }
+            }
         }
 
         // ═══════════════════════════════════════════════════════════════
