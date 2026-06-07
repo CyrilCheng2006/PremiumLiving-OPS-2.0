@@ -16,10 +16,11 @@ namespace PremiumLivingOPS.Views.OrderProcessing
     ///   • Calls OrderProcessingController for all data and business operations.
     ///   • Uses AppShell (TopNavBar + UserBar) for navigation chrome.
     ///   • Contains NO business logic and NO direct DB calls.
+    ///
+    /// Customer is displayed read-only (cannot be changed after order creation).
     /// </summary>
     public partial class ModifyOrderForm : Form
     {
-        // ── Static entry point: ViewOrderForm passes OrderID here before navigating ──
         public static string PendingOrderId { get; set; } = null;
 
         private readonly OrderProcessingController _ctrl = new OrderProcessingController();
@@ -28,15 +29,12 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         private List<OrderLineEntity> _lines        = new List<OrderLineEntity>();
         private List<ProductLookup>   _products     = new List<ProductLookup>();
         private List<AddressLookup>   _allAddresses = new List<AddressLookup>();
-        private List<CustomerEntity>  _customers    = new List<CustomerEntity>();
         private List<QuotationEntity> _quotations   = new List<QuotationEntity>();
 
-        // ── Currently selected picker values ──
-        private string _selectedCustomerId   = "";
-        private string _selectedCustomerName = "";
-        private string _selectedQuotationId  = "";
-        private string _selectedProductId    = "";
-        private string _selectedProductName  = "";
+        // Picker state — Quotation and Product only (Customer is read-only)
+        private string _selectedQuotationId = "";
+        private string _selectedProductId   = "";
+        private string _selectedProductName = "";
 
         public ModifyOrderForm()
         {
@@ -44,7 +42,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             this.Load += ModifyOrderForm_Load;
         }
 
-        // ── Load ─────────────────────────────────────────────────────────────────────
+        // ── Load ────────────────────────────────────────────────────────────
         private void ModifyOrderForm_Load(object sender, EventArgs e)
         {
             _shell.MenuItemClicked += OnTopNavMenuItemClicked;
@@ -56,10 +54,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             _shell.SetVisibleMenus(vm.AllowedMenus);
             _shell.SetBreadcrumb("Order Processing  ›  Modify Order");
 
-            _products     = vm.Products     ?? new List<ProductLookup>();
-            _allAddresses = vm.Addresses    ?? new List<AddressLookup>();
-            _customers    = vm.Customers    ?? new List<CustomerEntity>();
-            _quotations   = vm.Quotations   ?? new List<QuotationEntity>();
+            _products     = vm.Products   ?? new List<ProductLookup>();
+            _allAddresses = vm.Addresses  ?? new List<AddressLookup>();
+            _quotations   = vm.Quotations ?? new List<QuotationEntity>();
 
             cboAddressId.Items.Clear();
             cboAddressId.Items.Add(new ComboItem("-- Select Address --", ""));
@@ -74,28 +71,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             }
         }
 
-        // ── Picker: Customer ──────────────────────────────────────────────────────────
-        private void btnPickCustomer_Click(object sender, EventArgs e)
-        {
-            var items = _customers
-                .Select(c => new SearchPickerDialog.PickerItem
-                {
-                    Id      = c.CustomerID,
-                    Display = $"{c.CustomerID}  –  {c.CustomerName}"
-                }).ToList();
-
-            using var dlg = new SearchPickerDialog("Select Customer", items);
-            if (dlg.ShowDialog(this) == DialogResult.OK && dlg.SelectedItem != null)
-            {
-                _selectedCustomerId   = dlg.SelectedItem.Id;
-                _selectedCustomerName = dlg.SelectedItem.Display;
-                lblCustomerPicked.Text      = dlg.SelectedItem.Display;
-                lblCustomerPicked.ForeColor = Color.FromArgb(15, 31, 53);
-                LoadAddressCombos(_selectedCustomerId);
-            }
-        }
-
-        // ── Picker: Linked Quotation ──────────────────────────────────────────────────
+        // ── Picker: Linked Quotation ───────────────────────────────────────────
         private void btnPickQuotation_Click(object sender, EventArgs e)
         {
             var items = new List<SearchPickerDialog.PickerItem>
@@ -105,23 +81,22 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             items.AddRange(_quotations.Select(q => new SearchPickerDialog.PickerItem
             {
                 Id      = q.QuotationID,
-                Display = $"{q.QuotationID}  –  {q.CustomerName}  [{q.Status}]"
+                Display = $"{q.QuotationID}  –  {q.CustomerName}  [{q.QuotationStatus}]"
             }));
 
             using var dlg = new SearchPickerDialog("Link Quotation", items);
-            if (dlg.ShowDialog(this) == DialogResult.OK && dlg.SelectedItem != null)
-            {
-                _selectedQuotationId       = dlg.SelectedItem.Id;
-                lblQuotationPicked.Text      = string.IsNullOrEmpty(dlg.SelectedItem.Id)
-                    ? "(None)"
-                    : dlg.SelectedItem.Display;
-                lblQuotationPicked.ForeColor = string.IsNullOrEmpty(dlg.SelectedItem.Id)
-                    ? Color.FromArgb(98, 112, 135)
-                    : Color.FromArgb(15, 31, 53);
-            }
+            if (dlg.ShowDialog(this) != DialogResult.OK || dlg.SelectedItem == null) return;
+
+            _selectedQuotationId         = dlg.SelectedItem.Id;
+            lblQuotationPicked.Text      = string.IsNullOrEmpty(dlg.SelectedItem.Id)
+                ? "(None)"
+                : dlg.SelectedItem.Display;
+            lblQuotationPicked.ForeColor = string.IsNullOrEmpty(dlg.SelectedItem.Id)
+                ? Color.FromArgb(98, 112, 135)
+                : Color.FromArgb(15, 31, 53);
         }
 
-        // ── Picker: Product / Item ────────────────────────────────────────────────────
+        // ── Picker: Product / Item ────────────────────────────────────────────
         private void btnPickProduct_Click(object sender, EventArgs e)
         {
             var items = _products.Select(p => new SearchPickerDialog.PickerItem
@@ -131,16 +106,15 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             }).ToList();
 
             using var dlg = new SearchPickerDialog("Select Item", items);
-            if (dlg.ShowDialog(this) == DialogResult.OK && dlg.SelectedItem != null)
-            {
-                _selectedProductId   = dlg.SelectedItem.Id;
-                _selectedProductName = dlg.SelectedItem.Display;
-                lblProductPicked.Text      = dlg.SelectedItem.Display;
-                lblProductPicked.ForeColor = Color.FromArgb(15, 31, 53);
-            }
+            if (dlg.ShowDialog(this) != DialogResult.OK || dlg.SelectedItem == null) return;
+
+            _selectedProductId         = dlg.SelectedItem.Id;
+            _selectedProductName       = dlg.SelectedItem.Display;
+            lblProductPicked.Text      = dlg.SelectedItem.Display;
+            lblProductPicked.ForeColor = Color.FromArgb(15, 31, 53);
         }
 
-        // ── Load Order button ─────────────────────────────────────────────────────────
+        // ── Load Order button ────────────────────────────────────────────────
         private void btnLoadOrder_Click(object sender, EventArgs e)
         {
             var sel = cboSearchOrder.SelectedItem as ComboItem;
@@ -166,10 +140,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             _lines = vm.Lines ?? new List<OrderLineEntity>();
 
             for (int i = 0; i < cboSearchOrder.Items.Count; i++)
-            {
                 if (cboSearchOrder.Items[i] is ComboItem ci && ci.Value == orderId)
                 { cboSearchOrder.SelectedIndex = i; break; }
-            }
 
             PopulateHeader(_currentOrder);
             RefreshLineGrid();
@@ -183,28 +155,21 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             btnCancelOrder.Enabled = !isCancelled;
         }
 
-        // ── Populate header fields from loaded order ──────────────────────────────────
+        // ── Populate header from loaded order ──────────────────────────────────
         private void PopulateHeader(OrderEntity o)
         {
             lblOrderIdValue.Text = o.OrderID;
 
             // Quotation picker label
-            _selectedQuotationId = o.QuotationID ?? "";
-            lblQuotationPicked.Text = string.IsNullOrEmpty(o.QuotationID)
-                ? "(None)"
-                : o.QuotationID;
+            _selectedQuotationId         = o.QuotationID ?? "";
+            lblQuotationPicked.Text      = string.IsNullOrEmpty(o.QuotationID) ? "(None)" : o.QuotationID;
             lblQuotationPicked.ForeColor = string.IsNullOrEmpty(o.QuotationID)
-                ? Color.FromArgb(98, 112, 135)
-                : Color.FromArgb(15, 31, 53);
+                ? Color.FromArgb(98, 112, 135) : Color.FromArgb(15, 31, 53);
 
-            // Customer picker label
-            _selectedCustomerId = o.CustomerID ?? "";
-            var cust = _customers.Find(c => c.CustomerID == o.CustomerID);
-            _selectedCustomerName = cust != null
-                ? $"{cust.CustomerID}  –  {cust.CustomerName}"
-                : o.CustomerID ?? "(Unknown)";
-            lblCustomerPicked.Text      = _selectedCustomerName;
-            lblCustomerPicked.ForeColor = Color.FromArgb(15, 31, 53);
+            // Customer — read-only: display name from order
+            lblCustomerValue.Text = string.IsNullOrEmpty(o.CustomerName)
+                ? o.CustomerID ?? "—"
+                : $"{o.CustomerID}  –  {o.CustomerName}";
 
             LoadAddressCombos(o.CustomerID);
             SelectComboByValue(cboAddressId, o.AddressID);
@@ -216,13 +181,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                      && o.ShippingAddress == o.BillingAddress;
             chkSameAddress.Checked   = same;
             txtBillingAddr.Enabled   = !same;
-            txtBillingAddr.BackColor = same
-                ? Color.FromArgb(235, 240, 250)
-                : System.Drawing.SystemColors.Window;
+            txtBillingAddr.BackColor = same ? Color.FromArgb(235, 240, 250) : SystemColors.Window;
 
             txtContactName.Text = o.OrderContactName;
-            dtpDelivery.Value   = o.DeliveryDate > DateTime.MinValue
-                                      ? o.DeliveryDate : DateTime.Today;
+            dtpDelivery.Value   = o.DeliveryDate > DateTime.MinValue ? o.DeliveryDate : DateTime.Today;
 
             int statusIdx = cboStatus.FindStringExact(o.OrderStatus);
             cboStatus.SelectedIndex = statusIdx >= 0 ? statusIdx : 0;
@@ -244,13 +206,13 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             }
 
             // Reset product picker
-            _selectedProductId   = "";
-            _selectedProductName = "";
+            _selectedProductId         = "";
+            _selectedProductName       = "";
             lblProductPicked.Text      = "(None selected)";
             lblProductPicked.ForeColor = Color.FromArgb(98, 112, 135);
         }
 
-        // ── Address combo helpers ─────────────────────────────────────────────────────
+        // ── Address helpers ───────────────────────────────────────────────────
         private void LoadAddressCombos(string customerId)
         {
             cboAddressId.Items.Clear();
@@ -268,71 +230,50 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             var addr = _allAddresses.Find(a => a.AddressId == sel.Value);
             if (addr == null) return;
             txtShippingAddr.Text = addr.FullAddress;
-            if (chkSameAddress.Checked)
-                txtBillingAddr.Text = addr.FullAddress;
+            if (chkSameAddress.Checked) txtBillingAddr.Text = addr.FullAddress;
         }
 
         private void txtShippingAddr_TextChanged(object sender, EventArgs e)
-        {
-            if (chkSameAddress.Checked)
-                txtBillingAddr.Text = txtShippingAddr.Text;
-        }
+        { if (chkSameAddress.Checked) txtBillingAddr.Text = txtShippingAddr.Text; }
 
         private void chkSameAddress_CheckedChanged(object sender, EventArgs e)
         {
             bool same = chkSameAddress.Checked;
             txtBillingAddr.Enabled   = !same;
-            txtBillingAddr.BackColor = same
-                ? Color.FromArgb(235, 240, 250)
-                : System.Drawing.SystemColors.Window;
-            if (same)
-                txtBillingAddr.Text = txtShippingAddr.Text;
+            txtBillingAddr.BackColor = same ? Color.FromArgb(235, 240, 250) : SystemColors.Window;
+            if (same) txtBillingAddr.Text = txtShippingAddr.Text;
         }
 
-        // ── Combo helper ──────────────────────────────────────────────────────────────
+        // ── Combo helper ───────────────────────────────────────────────────────────
         private static void SelectComboByValue(ComboBox cbo, string value)
         {
             if (string.IsNullOrEmpty(value)) return;
             for (int i = 0; i < cbo.Items.Count; i++)
-            {
                 if (cbo.Items[i] is ComboItem ci && ci.Value == value)
                 { cbo.SelectedIndex = i; return; }
-            }
         }
 
-        // ── Line-item helpers ─────────────────────────────────────────────────────────
+        // ── Line-item helpers ───────────────────────────────────────────────────
         private void RefreshLineGrid()
         {
             dgvLines.Rows.Clear();
             foreach (var l in _lines)
-                dgvLines.Rows.Add(l.ItemID, l.ItemName, l.Quantity,
-                                  $"HK$ {l.Price:N2}", $"HK$ {l.LineTotal:N2}");
+                dgvLines.Rows.Add(l.ItemID, l.ItemName, l.Quantity, $"HK$ {l.Price:N2}", $"HK$ {l.LineTotal:N2}");
             UpdateSummary();
         }
 
-        /// <summary>
-        /// Unified summary recalculation.
-        /// Subtotal  = sum of all line totals.
-        /// GrandTotal = Subtotal − discount (clamped to ≥ 0).
-        /// </summary>
         private void UpdateSummary()
         {
             double subtotal = 0;
             foreach (var l in _lines) subtotal += l.LineTotal;
-
             lblSubtotalValue.Text = $"HK$ {subtotal:N2}";
 
-            string dtype    = cboDiscountType.SelectedItem?.ToString() ?? "None";
+            string dtype = cboDiscountType.SelectedItem?.ToString() ?? "None";
             double discount = 0;
-            if (dtype == "Amount")
-                double.TryParse(txtDiscountValue.Text, out discount);
-            else if (dtype == "Rate (%)")
-            {
-                if (double.TryParse(txtDiscountValue.Text, out double rate))
-                    discount = subtotal * rate / 100.0;
-            }
-
-            if (discount < 0)        discount = 0;
+            if (dtype == "Amount") double.TryParse(txtDiscountValue.Text, out discount);
+            else if (dtype == "Rate (%)" && double.TryParse(txtDiscountValue.Text, out double rate))
+                discount = subtotal * rate / 100.0;
+            if (discount < 0) discount = 0;
             if (discount > subtotal) discount = subtotal;
 
             lblGrandTotalValue.Text = $"HK$ {subtotal - discount:N2}";
@@ -342,37 +283,19 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         private void btnAddLine_Click(object sender, EventArgs e)
         {
             if (string.IsNullOrEmpty(_selectedProductId))
-            {
-                MessageBox.Show("Please select a product first (click \"Select Item\").",
-                    "No Product", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
+            { MessageBox.Show("Please select a product first (click \"Select Item\").", "No Product", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
             if (!int.TryParse(txtQty.Text, out int qty) || qty <= 0)
-            {
-                MessageBox.Show("Please enter a valid quantity.",
-                    "Invalid Qty", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
+            { MessageBox.Show("Please enter a valid quantity.", "Invalid Qty", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
 
             var product = _products.Find(p => p.ItemID == _selectedProductId);
             if (product == null) return;
 
             var existing = _lines.Find(l => l.ItemID == product.ItemID);
-            if (existing != null)
-                existing.Quantity += qty;
-            else
-                _lines.Add(new OrderLineEntity
-                {
-                    OrderID  = _currentOrder?.OrderID ?? "",
-                    ItemID   = product.ItemID,
-                    ItemName = product.ItemName,
-                    Quantity = qty,
-                    Price    = product.SalesPrice
-                });
+            if (existing != null) existing.Quantity += qty;
+            else _lines.Add(new OrderLineEntity { OrderID = _currentOrder?.OrderID ?? "", ItemID = product.ItemID, ItemName = product.ItemName, Quantity = qty, Price = product.SalesPrice });
 
-            // Reset product picker after add
-            _selectedProductId   = "";
-            _selectedProductName = "";
+            _selectedProductId         = "";
+            _selectedProductName       = "";
             lblProductPicked.Text      = "(None selected)";
             lblProductPicked.ForeColor = Color.FromArgb(98, 112, 135);
             txtQty.Text = "1";
@@ -382,13 +305,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         private void btnRemoveLine_Click(object sender, EventArgs e)
         {
             if (dgvLines.SelectedRows.Count == 0)
-            {
-                MessageBox.Show("Please select a line to remove.",
-                    "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-            string itemId = dgvLines.SelectedRows[0]
-                .Cells["colLineItemID"].Value?.ToString();
+            { MessageBox.Show("Please select a line to remove.", "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+            string itemId = dgvLines.SelectedRows[0].Cells["colLineItemID"].Value?.ToString();
             _lines.RemoveAll(l => l.ItemID == itemId);
             RefreshLineGrid();
         }
@@ -399,27 +317,19 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             bool   has   = dtype != "None";
             txtDiscountValue.Enabled = has;
             if (!has) txtDiscountValue.Text = "0";
-            lblDiscountUnit.Text = dtype == "Rate (%)" ? "%"
-                                 : dtype == "Amount"  ? "HK$"
-                                 : "";
+            lblDiscountUnit.Text = dtype == "Rate (%)" ? "%" : dtype == "Amount" ? "HK$" : "";
             UpdateSummary();
         }
 
-        private void txtDiscountValue_TextChanged(object sender, EventArgs e)
-            => UpdateSummary();
+        private void txtDiscountValue_TextChanged(object sender, EventArgs e) => UpdateSummary();
 
-        // ── Save Changes ──────────────────────────────────────────────────────────────
+        // ── Save Changes ───────────────────────────────────────────────────────────
         private void btnSaveChanges_Click(object sender, EventArgs e)
         {
             if (_currentOrder == null)
-            {
-                MessageBox.Show("No order is loaded.",
-                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
+            { MessageBox.Show("No order is loaded.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
 
             var selAddr = cboAddressId.SelectedItem as ComboItem;
-
             string dtype = cboDiscountType.SelectedItem?.ToString() ?? "None";
             double.TryParse(txtDiscountValue.Text, out double discountValue);
 
@@ -435,9 +345,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             var header = new OrderEntity
             {
                 OrderID          = _currentOrder.OrderID,
-                CustomerID       = string.IsNullOrEmpty(_selectedCustomerId)
-                                       ? _currentOrder.CustomerID
-                                       : _selectedCustomerId,
+                CustomerID       = _currentOrder.CustomerID,   // always preserved
+                CustomerName     = _currentOrder.CustomerName, // always preserved
                 AddressID        = selAddr?.Value ?? _currentOrder.AddressID,
                 QuotationID      = string.IsNullOrEmpty(_selectedQuotationId)
                                        ? _currentOrder.QuotationID
@@ -459,43 +368,29 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             bool ok = _ctrl.SaveOrderChanges(header, new List<OrderLineEntity>(_lines));
             if (ok)
             {
-                MessageBox.Show("Order updated successfully.", "Success",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("Order updated successfully.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 _currentOrder = header;
                 ReloadOrderCombo();
             }
             else
-            {
-                MessageBox.Show("Failed to save changes. Please try again.", "Error",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
+                MessageBox.Show("Failed to save changes. Please try again.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
 
-        // ── Cancel Order ──────────────────────────────────────────────────────────────
+        // ── Cancel Order ──────────────────────────────────────────────────────────
         private void btnCancelOrder_Click(object sender, EventArgs e)
         {
             if (_currentOrder == null)
-            {
-                MessageBox.Show("No order is loaded.",
-                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
+            { MessageBox.Show("No order is loaded.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
 
             var confirm = MessageBox.Show(
-                $"Are you sure you want to CANCEL order '{_currentOrder.OrderID}'?\n"
-              + "This action cannot be undone.",
-                "Confirm Cancellation",
-                MessageBoxButtons.YesNo,
-                MessageBoxIcon.Warning);
-
+                $"Are you sure you want to CANCEL order '{_currentOrder.OrderID}'?\nThis action cannot be undone.",
+                "Confirm Cancellation", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
             if (confirm != DialogResult.Yes) return;
 
             bool ok = _ctrl.CancelOrder(_currentOrder.OrderID);
             if (ok)
             {
-                MessageBox.Show("Order has been cancelled.", "Cancelled",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
-
+                MessageBox.Show("Order has been cancelled.", "Cancelled", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 _currentOrder.OrderStatus = "Cancelled";
                 btnSaveChanges.Enabled = false;
                 btnCancelOrder.Enabled = false;
@@ -503,40 +398,27 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 btnRemoveLine.Enabled  = false;
                 txtQty.Enabled         = false;
                 btnPickProduct.Enabled = false;
-
                 int idx = cboStatus.FindStringExact("Cancelled");
                 if (idx >= 0) cboStatus.SelectedIndex = idx;
-
                 ReloadOrderCombo();
             }
             else
-            {
-                MessageBox.Show("Failed to cancel order. Please try again.", "Error",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
+                MessageBox.Show("Failed to cancel order. Please try again.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
 
-        // ── Helpers ───────────────────────────────────────────────────────────────────
+        // ── Helpers ───────────────────────────────────────────────────────────────
         private void ReloadOrderCombo()
         {
             string currentId = _currentOrder?.OrderID;
             var listVm = _ctrl.GetViewOrderVM();
-
             cboSearchOrder.Items.Clear();
             cboSearchOrder.Items.Add(new ComboItem("-- Select Order --", ""));
             foreach (var o in listVm.Orders)
-                cboSearchOrder.Items.Add(new ComboItem(
-                    $"{o.OrderID}  –  {o.CustomerName}  [{o.OrderStatus}]",
-                    o.OrderID));
-
+                cboSearchOrder.Items.Add(new ComboItem($"{o.OrderID}  –  {o.CustomerName}  [{o.OrderStatus}]", o.OrderID));
             if (!string.IsNullOrEmpty(currentId))
-            {
                 for (int i = 1; i < cboSearchOrder.Items.Count; i++)
-                {
                     if (cboSearchOrder.Items[i] is ComboItem ci && ci.Value == currentId)
                     { cboSearchOrder.SelectedIndex = i; break; }
-                }
-            }
             else
                 cboSearchOrder.SelectedIndex = 0;
         }
@@ -545,10 +427,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             => FormNavigator.NavigateTo(this, menuLabel, subItem);
 
         private void btnLogout_Click(object sender, EventArgs e)
-        {
-            SessionManager.Clear();
-            Application.Restart();
-        }
+        { SessionManager.Clear(); Application.Restart(); }
 
         private class ComboItem
         {
