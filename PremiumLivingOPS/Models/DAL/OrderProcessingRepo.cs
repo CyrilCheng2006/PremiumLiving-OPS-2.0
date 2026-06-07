@@ -347,20 +347,24 @@ namespace PremiumLivingOPS.Models.DAL
         }
 
         /// <summary>
-        /// Returns a single QuotationEntity by QuotationID, including SalesStaffName,
-        /// IssuedDate, and Notes. Returns null if not found.
+        /// Returns a single QuotationEntity by QuotationID.
+        /// Only queries columns that actually exist in the Quotation table per the DB schema.
+        /// IssuedDate is not in the schema — ExpiryDate is used as the display date instead.
+        /// SalesID and Notes are also absent from the Quotation table.
+        /// Returns null if not found.
         /// </summary>
         public QuotationEntity GetQuotationById(string quotationId)
         {
+            // NOTE: Quotation table columns (from schema):
+            //   QuotationID, CustomerID, ExpiryDate, TotalAmount,
+            //   DepositRequired, LeadTimeEstimated, TermsandCondition, QuotationStatus
+            // Columns NOT present: IssuedDate, SalesID, Notes
             const string sql =
                 @"SELECT q.QuotationID, q.CustomerID, c.CustomerName,
-                         q.IssuedDate, q.ExpiryDate, q.TotalAmount, q.DepositRequired,
-                         q.LeadTimeEstimated, q.TermsandCondition, q.QuotationStatus,
-                         q.Notes,
-                         CONCAT(s.FirstName, ' ', s.LastName) AS SalesStaffName
+                         q.ExpiryDate, q.TotalAmount, q.DepositRequired,
+                         q.LeadTimeEstimated, q.TermsandCondition, q.QuotationStatus
                   FROM Quotation q
                   LEFT JOIN Customer c ON c.CustomerID = q.CustomerID
-                  LEFT JOIN Staff    s ON s.StaffID    = q.SalesID
                   WHERE q.QuotationID = @qid
                   LIMIT 1";
 
@@ -373,41 +377,40 @@ namespace PremiumLivingOPS.Models.DAL
                     using (var rdr = cmd.ExecuteReader())
                     {
                         if (!rdr.Read()) return null;
-                        return new QuotationEntity
-                        {
-                            QuotationID       = rdr["QuotationID"].ToString(),
-                            CustomerID        = rdr["CustomerID"].ToString(),
-                            CustomerName      = rdr["CustomerName"].ToString(),
-                            IssuedDate        = rdr["IssuedDate"]        == DBNull.Value ? DateTime.MinValue : Convert.ToDateTime(rdr["IssuedDate"]),
-                            ExpiryDate        = rdr["ExpiryDate"]        == DBNull.Value ? DateTime.MinValue : Convert.ToDateTime(rdr["ExpiryDate"]),
-                            TotalAmount       = rdr["TotalAmount"]       == DBNull.Value ? 0 : Convert.ToDouble(rdr["TotalAmount"]),
-                            DepositRequired   = rdr["DepositRequired"]   == DBNull.Value ? 0 : Convert.ToDouble(rdr["DepositRequired"]),
-                            LeadTimeEstimated = rdr["LeadTimeEstimated"].ToString(),
-                            TermsandCondition = rdr["TermsandCondition"].ToString(),
-                            QuotationStatus   = rdr["QuotationStatus"].ToString(),
-                            Notes             = rdr["Notes"].ToString(),
-                            SalesStaffName    = rdr["SalesStaffName"].ToString()
-                        };
+                        var entity = MapQuotation(rdr);
+                        // IssuedDate and Notes are not stored in DB; provide safe defaults
+                        entity.IssuedDate     = entity.ExpiryDate;   // fallback display value
+                        entity.Notes         = string.Empty;
+                        entity.SalesStaffName = string.Empty;
+                        return entity;
                     }
                 }
             }
         }
 
-        /// <summary>Returns all line items belonging to a Quotation (QuotationItem table).</summary>
+        /// <summary>
+        /// Returns line items for a Quotation.
+        /// The schema has no QuotationItem table; quotation-linked order lines
+        /// are sourced from OrderLine joined to Item via a linked Order.
+        /// Returns an empty list when no linked order exists yet.
+        /// </summary>
         public List<QuotationItemEntity> GetQuotationItems(string quotationId)
         {
+            // QuotationItem table does not exist in the current schema.
+            // Retrieve items via the Order that references this QuotationID (if any).
             const string sql =
-                @"SELECT qi.QuotationID,
-                         p.ItemName      AS ProductName,
-                         qi.Quantity,
-                         qi.Unit,
-                         qi.UnitPrice,
-                         qi.DiscountPercent,
-                         qi.ItemNote
-                  FROM QuotationItem qi
-                  LEFT JOIN Product p ON p.ItemID = qi.ItemID
-                  WHERE qi.QuotationID = @qid
-                  ORDER BY qi.LineNo";
+                @"SELECT ol.OrderID,
+                         i.ItemName      AS ProductName,
+                         ol.Quantity,
+                         '' AS Unit,
+                         ol.Price        AS UnitPrice,
+                         0               AS DiscountPercent,
+                         ''              AS ItemNote
+                  FROM `Order` o
+                  JOIN OrderLine ol ON ol.OrderID = o.OrderID
+                  JOIN Item      i  ON i.ItemID   = ol.ItemID
+                  WHERE o.QuotationID = @qid
+                  ORDER BY ol.ItemID";
 
             var list = new List<QuotationItemEntity>();
             using (var conn = DatabaseHelper.GetConnection())
@@ -420,12 +423,12 @@ namespace PremiumLivingOPS.Models.DAL
                         while (rdr.Read())
                             list.Add(new QuotationItemEntity
                             {
-                                QuotationID     = rdr["QuotationID"].ToString(),
+                                QuotationID     = quotationId,
                                 ProductName     = rdr["ProductName"].ToString(),
                                 Quantity        = rdr["Quantity"]        == DBNull.Value ? 0 : Convert.ToInt32(rdr["Quantity"]),
                                 Unit            = rdr["Unit"].ToString(),
                                 UnitPrice       = rdr["UnitPrice"]       == DBNull.Value ? 0 : Convert.ToDouble(rdr["UnitPrice"]),
-                                DiscountPercent = rdr["DiscountPercent"]  == DBNull.Value ? 0 : Convert.ToDouble(rdr["DiscountPercent"]),
+                                DiscountPercent = 0,
                                 ItemNote        = rdr["ItemNote"].ToString()
                             });
                 }
