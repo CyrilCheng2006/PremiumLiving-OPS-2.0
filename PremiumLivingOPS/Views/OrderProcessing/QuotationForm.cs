@@ -236,6 +236,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             string qid = SelectedQuotationId();
             if (qid == null) return;
 
+            // GetQuotationDetail already populates q.Items via the Repo —
+            // no separate GetQuotationItems call is needed or exposed on the Controller.
             var q = _ctrl.GetQuotationDetail(qid);
             if (q == null)
             {
@@ -244,8 +246,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 return;
             }
 
-            var items = _ctrl.GetQuotationItems(qid);
-            ShowDetailDialog(q, items);
+            ShowDetailDialog(q, q.Items);
         }
 
         // ──────────────────────────────────────────────────────────────────
