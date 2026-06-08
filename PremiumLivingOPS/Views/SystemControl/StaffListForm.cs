@@ -155,6 +155,9 @@ namespace PremiumLivingOPS.Views.SystemControl
         }
 
         // ── Modify Detail popup dialog  (1000 × 600)
+        // Buttons are stacked vertically, centred in the body panel.
+        // Change Password  → Purple  (#7C3AED)
+        // Change Department → Orange  (#EA580C)
         private void ShowModifyDialog(Staff staff)
         {
             using var dlg = new Form
@@ -198,50 +201,53 @@ namespace PremiumLivingOPS.Views.SystemControl
                 Padding   = new Padding(32, 0, 0, 0)
             });
 
-            // ── Body — two large buttons (500×120) centred side-by-side
+            // ── Body — two large buttons (500×120) stacked vertically, centred
             const int BtnW   = 500;
             const int BtnH   = 120;
-            const int BtnGap = 40;
+            const int BtnGap = 24;   // vertical gap between the two buttons
 
             var pnlBody = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
 
+            // Change Password — Purple
             var btnChangePwd = new Button
             {
                 Text      = "\uD83D\uDD11  Change Password",
                 Font      = new Font("Segoe UI", 15f, FontStyle.Bold),
                 ForeColor = Color.White,
-                BackColor = Color.FromArgb(47, 111, 237),
+                BackColor = Color.FromArgb(124, 58, 237),   // #7C3AED violet-600
                 FlatStyle = FlatStyle.Flat,
                 Size      = new Size(BtnW, BtnH),
                 Cursor    = Cursors.Hand
             };
             btnChangePwd.FlatAppearance.BorderSize         = 0;
-            btnChangePwd.FlatAppearance.MouseOverBackColor = Color.FromArgb(26, 77, 192);
-            btnChangePwd.FlatAppearance.MouseDownBackColor = Color.FromArgb(21, 60, 155);
+            btnChangePwd.FlatAppearance.MouseOverBackColor = Color.FromArgb(109, 40, 217);  // violet-700
+            btnChangePwd.FlatAppearance.MouseDownBackColor = Color.FromArgb( 91, 33, 182);  // violet-800
             btnChangePwd.Click += (s, ev) => { dlg.Close(); ShowChangePasswordDialog(staff); };
 
+            // Change Department — Orange
             var btnChangeDept = new Button
             {
                 Text      = "\uD83C\uDFE2  Change Department",
                 Font      = new Font("Segoe UI", 15f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(15, 31, 53),
-                BackColor = Color.White,
+                ForeColor = Color.White,
+                BackColor = Color.FromArgb(234, 88, 12),    // #EA580C orange-600
                 FlatStyle = FlatStyle.Flat,
                 Size      = new Size(BtnW, BtnH),
                 Cursor    = Cursors.Hand
             };
-            btnChangeDept.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
-            btnChangeDept.FlatAppearance.BorderSize         = 2;
-            btnChangeDept.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
+            btnChangeDept.FlatAppearance.BorderSize         = 0;
+            btnChangeDept.FlatAppearance.MouseOverBackColor = Color.FromArgb(194, 65,  12); // orange-700
+            btnChangeDept.FlatAppearance.MouseDownBackColor = Color.FromArgb(154, 52,  18); // orange-800
             btnChangeDept.Click += (s, ev) => { dlg.Close(); ShowChangeDepartmentDialog(staff); };
 
+            // Vertical stacking: centre the two buttons + gap as a block
             pnlBody.Layout += (s, ev) =>
             {
-                int totalW = BtnW * 2 + BtnGap;
-                int startX = (pnlBody.ClientSize.Width  - totalW) / 2;
-                int startY = (pnlBody.ClientSize.Height - BtnH)   / 2;
-                btnChangePwd.Location  = new Point(startX,                 startY);
-                btnChangeDept.Location = new Point(startX + BtnW + BtnGap, startY);
+                int totalH = BtnH * 2 + BtnGap;
+                int startX = (pnlBody.ClientSize.Width  - BtnW)   / 2;
+                int startY = (pnlBody.ClientSize.Height - totalH) / 2;
+                btnChangePwd.Location  = new Point(startX, startY);
+                btnChangeDept.Location = new Point(startX, startY + BtnH + BtnGap);
             };
 
             pnlBody.Controls.Add(btnChangePwd);
@@ -343,7 +349,6 @@ namespace PremiumLivingOPS.Views.SystemControl
             tbl.Controls.Add(txtConfirmPwd,                  0, 3);
             pnlBody.Controls.Add(tbl);
 
-            // Footer: height 80 to comfortably fit 60px buttons
             var pnlFtr = new Panel { Dock = DockStyle.Bottom, Height = 80, BackColor = Color.White, Padding = new Padding(0, 10, 20, 10) };
             pnlFtr.Paint += (s, ev) =>
             {
@@ -367,19 +372,21 @@ namespace PremiumLivingOPS.Views.SystemControl
             btnCancel.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
             btnCancel.Click += (s, ev) => dlg.Close();
 
+            // Save — Green (#16A34A  green-600)
             var btnSave = new Button
             {
                 Text      = "Save",
                 Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
                 ForeColor = Color.White,
-                BackColor = Color.FromArgb(47, 111, 237),
+                BackColor = Color.FromArgb(22, 163, 74),    // #16A34A green-600
                 FlatStyle = FlatStyle.Flat,
                 Size      = new Size(210, 60),
                 Dock      = DockStyle.Right,
                 Cursor    = Cursors.Hand
             };
             btnSave.FlatAppearance.BorderSize         = 0;
-            btnSave.FlatAppearance.MouseOverBackColor = Color.FromArgb(26, 77, 192);
+            btnSave.FlatAppearance.MouseOverBackColor = Color.FromArgb(21, 128, 61);   // green-700
+            btnSave.FlatAppearance.MouseDownBackColor = Color.FromArgb(20,  83, 45);   // green-800
             btnSave.Click += (s, ev) =>
             {
                 if (string.IsNullOrWhiteSpace(txtNewPwd.Text))
@@ -468,7 +475,6 @@ namespace PremiumLivingOPS.Views.SystemControl
             tbl.Controls.Add(cbo,                             0, 1);
             pnlBody.Controls.Add(tbl);
 
-            // Footer: height 80 to comfortably fit 60px buttons
             var pnlFtr = new Panel { Dock = DockStyle.Bottom, Height = 80, BackColor = Color.White, Padding = new Padding(0, 10, 20, 10) };
             pnlFtr.Paint += (s, ev) =>
             {
@@ -478,8 +484,8 @@ namespace PremiumLivingOPS.Views.SystemControl
 
             var btnCancel = new Button
             {
-                Text = "Cancel",
-                Font = new Font("Segoe UI", 12f),
+                Text      = "Cancel",
+                Font      = new Font("Segoe UI", 12f),
                 ForeColor = Color.FromArgb(15, 31, 53),
                 BackColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
@@ -492,19 +498,21 @@ namespace PremiumLivingOPS.Views.SystemControl
             btnCancel.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
             btnCancel.Click += (s, ev) => dlg.Close();
 
+            // Save — Green (#16A34A  green-600)
             var btnSave = new Button
             {
                 Text      = "Save",
                 Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
                 ForeColor = Color.White,
-                BackColor = Color.FromArgb(47, 111, 237),
+                BackColor = Color.FromArgb(22, 163, 74),    // #16A34A green-600
                 FlatStyle = FlatStyle.Flat,
                 Size      = new Size(210, 60),
                 Dock      = DockStyle.Right,
                 Cursor    = Cursors.Hand
             };
             btnSave.FlatAppearance.BorderSize         = 0;
-            btnSave.FlatAppearance.MouseOverBackColor = Color.FromArgb(26, 77, 192);
+            btnSave.FlatAppearance.MouseOverBackColor = Color.FromArgb(21, 128, 61);   // green-700
+            btnSave.FlatAppearance.MouseDownBackColor = Color.FromArgb(20,  83, 45);   // green-800
             btnSave.Click += (s, ev) =>
             {
                 if (cbo.SelectedItem == null) return;
