@@ -199,17 +199,12 @@ namespace PremiumLivingOPS.Views.SystemControl
             });
 
             // ── Body — two fixed-size buttons (210×60) centred side-by-side
-            const int BtnW = 210;
-            const int BtnH = 60;
-            const int BtnGap = 32;   // gap between the two buttons
+            const int BtnW   = 210;
+            const int BtnH   = 60;
+            const int BtnGap = 32;
 
-            var pnlBody = new Panel
-            {
-                Dock      = DockStyle.Fill,
-                BackColor = Color.White
-            };
+            var pnlBody = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
 
-            // Change Password button
             var btnChangePwd = new Button
             {
                 Text      = "\uD83D\uDD11  Change Password",
@@ -225,7 +220,6 @@ namespace PremiumLivingOPS.Views.SystemControl
             btnChangePwd.FlatAppearance.MouseDownBackColor = Color.FromArgb(21, 60, 155);
             btnChangePwd.Click += (s, ev) => { dlg.Close(); ShowChangePasswordDialog(staff); };
 
-            // Change Department button
             var btnChangeDept = new Button
             {
                 Text      = "\uD83C\uDFE2  Change Department",
@@ -241,14 +235,12 @@ namespace PremiumLivingOPS.Views.SystemControl
             btnChangeDept.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
             btnChangeDept.Click += (s, ev) => { dlg.Close(); ShowChangeDepartmentDialog(staff); };
 
-            // Centre both buttons vertically and horizontally in pnlBody
             pnlBody.Layout += (s, ev) =>
             {
                 int totalW = BtnW * 2 + BtnGap;
                 int startX = (pnlBody.ClientSize.Width  - totalW) / 2;
                 int startY = (pnlBody.ClientSize.Height - BtnH)   / 2;
-
-                btnChangePwd.Location  = new Point(startX,             startY);
+                btnChangePwd.Location  = new Point(startX,                 startY);
                 btnChangeDept.Location = new Point(startX + BtnW + BtnGap, startY);
             };
 
@@ -350,7 +342,8 @@ namespace PremiumLivingOPS.Views.SystemControl
             tbl.Controls.Add(txtConfirmPwd,                  0, 3);
             pnlBody.Controls.Add(tbl);
 
-            var pnlFtr = new Panel { Dock = DockStyle.Bottom, Height = 64, BackColor = Color.White, Padding = new Padding(0, 8, 20, 8) };
+            // Footer: height 80 to comfortably fit 60px buttons
+            var pnlFtr = new Panel { Dock = DockStyle.Bottom, Height = 80, BackColor = Color.White, Padding = new Padding(0, 10, 20, 10) };
             pnlFtr.Paint += (s, ev) =>
             {
                 using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
@@ -359,19 +352,30 @@ namespace PremiumLivingOPS.Views.SystemControl
 
             var btnCancel = new Button
             {
-                Text = "Cancel", Font = new Font("Segoe UI", 12f),
-                ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White,
-                FlatStyle = FlatStyle.Flat, Dock = DockStyle.Right, Width = 130, Cursor = Cursors.Hand
+                Text      = "Cancel",
+                Font      = new Font("Segoe UI", 12f),
+                ForeColor = Color.FromArgb(15, 31, 53),
+                BackColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Size      = new Size(210, 60),
+                Dock      = DockStyle.Right,
+                Cursor    = Cursors.Hand
             };
             btnCancel.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
+            btnCancel.FlatAppearance.BorderSize         = 1;
             btnCancel.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
             btnCancel.Click += (s, ev) => dlg.Close();
 
             var btnSave = new Button
             {
-                Text = "Save", Font = new Font("Segoe UI", 12f, FontStyle.Bold),
-                ForeColor = Color.White, BackColor = Color.FromArgb(47, 111, 237),
-                FlatStyle = FlatStyle.Flat, Dock = DockStyle.Right, Width = 130, Cursor = Cursors.Hand
+                Text      = "Save",
+                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.White,
+                BackColor = Color.FromArgb(47, 111, 237),
+                FlatStyle = FlatStyle.Flat,
+                Size      = new Size(210, 60),
+                Dock      = DockStyle.Right,
+                Cursor    = Cursors.Hand
             };
             btnSave.FlatAppearance.BorderSize         = 0;
             btnSave.FlatAppearance.MouseOverBackColor = Color.FromArgb(26, 77, 192);
@@ -463,7 +467,8 @@ namespace PremiumLivingOPS.Views.SystemControl
             tbl.Controls.Add(cbo,                             0, 1);
             pnlBody.Controls.Add(tbl);
 
-            var pnlFtr = new Panel { Dock = DockStyle.Bottom, Height = 64, BackColor = Color.White, Padding = new Padding(0, 8, 20, 8) };
+            // Footer: height 80 to comfortably fit 60px buttons
+            var pnlFtr = new Panel { Dock = DockStyle.Bottom, Height = 80, BackColor = Color.White, Padding = new Padding(0, 10, 20, 10) };
             pnlFtr.Paint += (s, ev) =>
             {
                 using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
@@ -472,19 +477,30 @@ namespace PremiumLivingOPS.Views.SystemControl
 
             var btnCancel = new Button
             {
-                Text = "Cancel", Font = new Font("Segoe UI", 12f),
-                ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White,
-                FlatStyle = FlatStyle.Flat, Dock = DockStyle.Right, Width = 130, Cursor = Cursors.Hand
+                Text      = "Cancel",
+                Font      = new Font("Segoe UI", 12f),
+                ForeColor = Color.FromArgb(15, 31, 53),
+                BackColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Size      = new Size(210, 60),
+                Dock      = DockStyle.Right,
+                Cursor    = Cursors.Hand
             };
             btnCancel.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
+            btnCancel.FlatAppearance.BorderSize         = 1;
             btnCancel.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
             btnCancel.Click += (s, ev) => dlg.Close();
 
             var btnSave = new Button
             {
-                Text = "Save", Font = new Font("Segoe UI", 12f, FontStyle.Bold),
-                ForeColor = Color.White, BackColor = Color.FromArgb(47, 111, 237),
-                FlatStyle = FlatStyle.Flat, Dock = DockStyle.Right, Width = 130, Cursor = Cursors.Hand
+                Text      = "Save",
+                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.White,
+                BackColor = Color.FromArgb(47, 111, 237),
+                FlatStyle = FlatStyle.Flat,
+                Size      = new Size(210, 60),
+                Dock      = DockStyle.Right,
+                Cursor    = Cursors.Hand
             };
             btnSave.FlatAppearance.BorderSize         = 0;
             btnSave.FlatAppearance.MouseOverBackColor = Color.FromArgb(26, 77, 192);
