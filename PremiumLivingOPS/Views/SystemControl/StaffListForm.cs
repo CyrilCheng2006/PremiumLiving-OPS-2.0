@@ -151,19 +151,16 @@ namespace PremiumLivingOPS.Views.SystemControl
             try   { nextId = _ctrl.GetNextStaffId(); }
             catch { nextId = "S-???"; }
 
-            // ── Sizing constants ──────────────────────────────────────────
-            // LblH and GapLI scaled ×1.2 from previous values (28→34, 12→14)
-            // to guarantee the label never overlaps the input beneath it.
-            const int LblH     = 34;   // label row height  (28 × 1.2 = 33.6 → 34)
-            const int GapLI    = 14;   // label→input gap   (12 × 1.2 = 14.4 → 14)
-            const int InputH   = 36;   // nominal input height (fallback only – WinForms overrides)
-            const int GapGrp   = 32;   // gap between field groups
-            const int ColGap   = 16;   // horizontal gap between left / right columns
-            const int BodyPadH = 28;   // left & right body padding
-            const int BodyPadT = 28;   // top body padding
-            const int SuffixW  = 170;  // width of the "@plf.com" label
+            // ── Sizing constants
+            const int LblH     = 34;
+            const int GapLI    = 14;
+            const int InputH   = 36;
+            const int GapGrp   = 32;
+            const int ColGap   = 16;
+            const int BodyPadH = 28;
+            const int BodyPadT = 28;
+            const int SuffixW  = 170;
 
-            // ── Dialog ───────────────────────────────────────────────────
             using var dlg = new Form
             {
                 Text            = "Add New Staff",
@@ -236,19 +233,16 @@ namespace PremiumLivingOPS.Views.SystemControl
             pnlFtr.Controls.Add(btnCancel);
             pnlFtr.Controls.Add(btnSave);
 
-            // ── Body: scrollable container ────────────────────────────────
+            // ── Body
             var pnlBody = new Panel
             {
                 Dock       = DockStyle.Fill,
                 BackColor  = Color.White,
                 AutoScroll = true
             };
-
             var pnlCanvas = new Panel { BackColor = Color.White, Left = 0, Top = 0 };
 
-            // ── Input controls ────────────────────────────────────────────
-
-            // Row 0 ─ Staff ID (read-only) | Full Name
+            // ── Input controls
             var txtStaffId = new TextBox
             {
                 Font        = new Font("Segoe UI", 12f),
@@ -266,30 +260,30 @@ namespace PremiumLivingOPS.Views.SystemControl
                 PlaceholderText = "Full name"
             };
 
-            // Row 1 ─ Role | Department
+            // Role — must match schema ENUM exactly:
+            // ENUM('Administrator','Manager','Clerk','Staff','Deliverer')
             var cboRole = new ComboBox
             {
                 Font          = new Font("Segoe UI", 12f),
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 FlatStyle     = FlatStyle.Flat
             };
-            foreach (var r in new[] { "Admin", "Sales", "Warehouse", "Manager", "Accountant" })
+            foreach (var r in new[] { "Administrator", "Manager", "Clerk", "Staff", "Deliverer" })
                 cboRole.Items.Add(r);
             if (cboRole.Items.Count > 0) cboRole.SelectedIndex = 0;
 
+            // Department — must match schema ENUM exactly:
+            // ENUM('IT','Production','Sales','Inventory','Finance','Logistics')
             var cboDept = new ComboBox
             {
                 Font          = new Font("Segoe UI", 12f),
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 FlatStyle     = FlatStyle.Flat
             };
-            var depts = _allStaff.Select(s => s.Department)
-                .Where(d => !string.IsNullOrWhiteSpace(d))
-                .Distinct().OrderBy(d => d).ToList();
-            foreach (var d in depts) cboDept.Items.Add(d);
+            foreach (var d in new[] { "IT", "Production", "Sales", "Inventory", "Finance", "Logistics" })
+                cboDept.Items.Add(d);
             if (cboDept.Items.Count > 0) cboDept.SelectedIndex = 0;
 
-            // Row 2 ─ Email (full width)
             var txtEmailLocal = new TextBox
             {
                 Font            = new Font("Segoe UI", 12f),
@@ -304,23 +298,17 @@ namespace PremiumLivingOPS.Views.SystemControl
                 BackColor   = Color.FromArgb(240, 244, 249),
                 BorderStyle = BorderStyle.FixedSingle,
                 TextAlign   = ContentAlignment.MiddleCenter,
-                AutoSize    = false   // MUST be false so SetBounds is respected
+                AutoSize    = false
             };
 
-            // ── Per-field labels (pre-created with AutoSize=false) ────────
-            // Labels are created once here and repositioned in the Resize handler.
-            // Using direct references avoids the text-match reuse bug where two
-            // labels with different positions could be confused.
+            // ── Field labels (AutoSize=false so SetBounds is never overridden)
             var lblStaffId  = MakeFieldLabel("Staff ID");
             var lblFullName = MakeFieldLabel("Full Name *");
             var lblRole     = MakeFieldLabel("Role *");
             var lblDept     = MakeFieldLabel("Department *");
             var lblEmail    = MakeFieldLabel("Email *");
 
-            // ── Layout engine ─────────────────────────────────────────────
-            // Recalculates all positions on every resize of pnlBody.
-            // Uses the controls' ACTUAL rendered heights (set by WinForms from font
-            // metrics) so label and input never overlap regardless of DPI or scaling.
+            // ── Layout engine
             pnlBody.Resize += (rs, re) =>
             {
                 int totalW = pnlBody.ClientSize.Width;
@@ -331,20 +319,19 @@ namespace PremiumLivingOPS.Views.SystemControl
 
                 pnlCanvas.Width = totalW;
 
-                // Actual heights after WinForms font measurement; fall back to InputH.
-                int txH  = txtStaffId.Height   > 0 ? txtStaffId.Height   : InputH;
-                int cboH = cboRole.Height      > 0 ? cboRole.Height      : InputH;
-                int emH  = txtEmailLocal.Height > 0 ? txtEmailLocal.Height : InputH;
+                int txH  = txtStaffId.Height    > 0 ? txtStaffId.Height    : InputH;
+                int cboH = cboRole.Height       > 0 ? cboRole.Height       : InputH;
+                int emH  = txtEmailLocal.Height  > 0 ? txtEmailLocal.Height  : InputH;
 
-                // ─ Row 0: Staff ID | Full Name
+                // Row 0: Staff ID | Full Name
                 int y0  = BodyPadT;
-                lblStaffId .SetBounds(xLeft,  y0, colW,  LblH);
-                lblFullName.SetBounds(xRight, y0, colW,  LblH);
+                lblStaffId .SetBounds(xLeft,  y0, colW, LblH);
+                lblFullName.SetBounds(xRight, y0, colW, LblH);
                 int y0i = y0 + LblH + GapLI;
                 txtStaffId.SetBounds(xLeft,  y0i, colW, txH);
                 txtName   .SetBounds(xRight, y0i, colW, txH);
 
-                // ─ Row 1: Role | Department
+                // Row 1: Role | Department
                 int y1  = y0i + txH + GapGrp;
                 lblRole.SetBounds(xLeft,  y1, colW, LblH);
                 lblDept.SetBounds(xRight, y1, colW, LblH);
@@ -352,13 +339,13 @@ namespace PremiumLivingOPS.Views.SystemControl
                 cboRole.SetBounds(xLeft,  y1i, colW, cboH);
                 cboDept.SetBounds(xRight, y1i, colW, cboH);
 
-                // ─ Row 2: Email (full width)
+                // Row 2: Email (full width)
                 int y2  = y1i + cboH + GapGrp;
                 lblEmail.SetBounds(xLeft, y2, innerW, LblH);
                 int y2i         = y2 + LblH + GapLI;
                 int emailInputW = innerW - SuffixW;
-                txtEmailLocal.SetBounds(xLeft,                y2i, emailInputW, emH);
-                lblSuffix    .SetBounds(xLeft + emailInputW,  y2i, SuffixW,     emH);
+                txtEmailLocal.SetBounds(xLeft,               y2i, emailInputW, emH);
+                lblSuffix    .SetBounds(xLeft + emailInputW, y2i, SuffixW,     emH);
 
                 pnlCanvas.Height = y2i + emH + BodyPadT;
             };
@@ -368,10 +355,9 @@ namespace PremiumLivingOPS.Views.SystemControl
                 lblStaffId, lblFullName, lblRole, lblDept, lblEmail,
                 txtStaffId, txtName, cboRole, cboDept, txtEmailLocal, lblSuffix
             });
-
             pnlBody.Controls.Add(pnlCanvas);
 
-            // ── Save logic ────────────────────────────────────────────────
+            // ── Save logic
             btnSave.Click += (bss, bse) =>
             {
                 string id        = txtStaffId.Text.Trim();
@@ -390,23 +376,35 @@ namespace PremiumLivingOPS.Views.SystemControl
                 if (string.IsNullOrEmpty(dept))
                 { MessageBox.Show("Department is required.",       "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
 
-                bool ok = _ctrl.AddStaff(new Staff
+                try
                 {
-                    StaffId    = id,
-                    StaffName  = name,
-                    Email      = email,
-                    Role       = role,
-                    Department = dept
-                });
+                    bool ok = _ctrl.AddStaffWithException(new Staff
+                    {
+                        StaffId    = id,
+                        StaffName  = name,
+                        Email      = email,
+                        Role       = role,
+                        Department = dept
+                    });
 
-                if (ok)
-                {
-                    MessageBox.Show($"Staff {id} added successfully.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    dlg.Close();
-                    RefreshGrid();
+                    if (ok)
+                    {
+                        MessageBox.Show($"Staff {id} added successfully.", "Success",
+                            MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        dlg.Close();
+                        RefreshGrid();
+                    }
+                    else
+                    {
+                        MessageBox.Show("Insert returned 0 rows affected. The Staff ID may already exist.",
+                            "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
                 }
-                else
-                    MessageBox.Show("Failed to add staff. The Staff ID may already exist.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Failed to add staff.\n\nDetail: {ex.Message}",
+                        "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             };
 
             dlg.Controls.Add(pnlBody);
@@ -415,7 +413,6 @@ namespace PremiumLivingOPS.Views.SystemControl
             dlg.ShowDialog(this);
         }
 
-        // Creates a field label with AutoSize=false so SetBounds is never overridden.
         private static Label MakeFieldLabel(string text) => new Label
         {
             Text      = text,
@@ -594,7 +591,8 @@ namespace PremiumLivingOPS.Views.SystemControl
 
         private void ShowChangeDepartmentDialog(Staff staff)
         {
-            var departments = _allStaff.Select(s => s.Department).Where(d => !string.IsNullOrWhiteSpace(d)).Distinct().OrderBy(d => d).ToList();
+            // Department options must match schema ENUM exactly
+            var departments = new[] { "IT", "Production", "Sales", "Inventory", "Finance", "Logistics" };
 
             using var dlg = new Form
             {
@@ -614,9 +612,8 @@ namespace PremiumLivingOPS.Views.SystemControl
 
             var cbo = new ComboBox { Dock = DockStyle.Fill, Font = new Font("Segoe UI", 12f), DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat };
             foreach (var d in departments) cbo.Items.Add(d);
-            int cur = cbo.Items.IndexOf(staff.Department);
-            if (cur >= 0) cbo.SelectedIndex = cur;
-            else if (cbo.Items.Count > 0) cbo.SelectedIndex = 0;
+            int cur = Array.IndexOf(departments, staff.Department);
+            cbo.SelectedIndex = cur >= 0 ? cur : 0;
 
             tbl.Controls.Add(MakeLblKey("Select Department"), 0, 0);
             tbl.Controls.Add(cbo, 0, 1);
