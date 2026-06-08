@@ -10,6 +10,7 @@ namespace PremiumLivingOPS.Views.SystemControl
         private System.ComponentModel.IContainer components = null;
 
         private AppShell     _shell;
+        private Panel        pnlKpi;
         private TextBox      txtSearch;
         private Button       btnSearch;
         private Button       btnRefresh;
