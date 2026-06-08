@@ -164,7 +164,7 @@ namespace PremiumLivingOPS.Views.SystemControl
             using var dlg = new Form
             {
                 Text            = "Add New Staff",
-                Size            = new Size(1000, 760),
+                Size            = new Size(1000, 920),
                 StartPosition   = FormStartPosition.CenterParent,
                 BackColor       = Color.White,
                 Font            = new Font("Segoe UI", 12f),
@@ -260,8 +260,7 @@ namespace PremiumLivingOPS.Views.SystemControl
                 PlaceholderText = "Full name"
             };
 
-            // Role — must match schema ENUM exactly:
-            // ENUM('Administrator','Manager','Clerk','Staff','Deliverer')
+            // Role — ENUM('Administrator','Manager','Clerk','Staff','Deliverer')
             var cboRole = new ComboBox
             {
                 Font          = new Font("Segoe UI", 12f),
@@ -272,8 +271,7 @@ namespace PremiumLivingOPS.Views.SystemControl
                 cboRole.Items.Add(r);
             if (cboRole.Items.Count > 0) cboRole.SelectedIndex = 0;
 
-            // Department — must match schema ENUM exactly:
-            // ENUM('IT','Production','Sales','Inventory','Finance','Logistics')
+            // Department — ENUM('IT','Production','Sales','Inventory','Finance','Logistics')
             var cboDept = new ComboBox
             {
                 Font          = new Font("Segoe UI", 12f),
@@ -301,12 +299,30 @@ namespace PremiumLivingOPS.Views.SystemControl
                 AutoSize    = false
             };
 
-            // ── Field labels (AutoSize=false so SetBounds is never overridden)
+            // Password fields
+            var txtPassword = new TextBox
+            {
+                Font                  = new Font("Segoe UI", 12f),
+                BorderStyle           = BorderStyle.FixedSingle,
+                UseSystemPasswordChar = true,
+                PlaceholderText       = "Enter password"
+            };
+            var txtConfirm = new TextBox
+            {
+                Font                  = new Font("Segoe UI", 12f),
+                BorderStyle           = BorderStyle.FixedSingle,
+                UseSystemPasswordChar = true,
+                PlaceholderText       = "Confirm password"
+            };
+
+            // ── Field labels
             var lblStaffId  = MakeFieldLabel("Staff ID");
             var lblFullName = MakeFieldLabel("Full Name *");
             var lblRole     = MakeFieldLabel("Role *");
             var lblDept     = MakeFieldLabel("Department *");
             var lblEmail    = MakeFieldLabel("Email *");
+            var lblPassword = MakeFieldLabel("Password *");
+            var lblConfirm  = MakeFieldLabel("Confirm Password *");
 
             // ── Layout engine
             pnlBody.Resize += (rs, re) =>
@@ -321,7 +337,8 @@ namespace PremiumLivingOPS.Views.SystemControl
 
                 int txH  = txtStaffId.Height    > 0 ? txtStaffId.Height    : InputH;
                 int cboH = cboRole.Height       > 0 ? cboRole.Height       : InputH;
-                int emH  = txtEmailLocal.Height  > 0 ? txtEmailLocal.Height  : InputH;
+                int emH  = txtEmailLocal.Height > 0 ? txtEmailLocal.Height : InputH;
+                int pwH  = txtPassword.Height   > 0 ? txtPassword.Height   : InputH;
 
                 // Row 0: Staff ID | Full Name
                 int y0  = BodyPadT;
@@ -347,13 +364,22 @@ namespace PremiumLivingOPS.Views.SystemControl
                 txtEmailLocal.SetBounds(xLeft,               y2i, emailInputW, emH);
                 lblSuffix    .SetBounds(xLeft + emailInputW, y2i, SuffixW,     emH);
 
-                pnlCanvas.Height = y2i + emH + BodyPadT;
+                // Row 3: Password | Confirm Password
+                int y3  = y2i + emH + GapGrp;
+                lblPassword.SetBounds(xLeft,  y3, colW, LblH);
+                lblConfirm .SetBounds(xRight, y3, colW, LblH);
+                int y3i = y3 + LblH + GapLI;
+                txtPassword.SetBounds(xLeft,  y3i, colW, pwH);
+                txtConfirm .SetBounds(xRight, y3i, colW, pwH);
+
+                pnlCanvas.Height = y3i + pwH + BodyPadT;
             };
 
             pnlCanvas.Controls.AddRange(new Control[]
             {
-                lblStaffId, lblFullName, lblRole, lblDept, lblEmail,
-                txtStaffId, txtName, cboRole, cboDept, txtEmailLocal, lblSuffix
+                lblStaffId, lblFullName, lblRole, lblDept, lblEmail, lblPassword, lblConfirm,
+                txtStaffId, txtName, cboRole, cboDept, txtEmailLocal, lblSuffix,
+                txtPassword, txtConfirm
             });
             pnlBody.Controls.Add(pnlCanvas);
 
@@ -366,6 +392,8 @@ namespace PremiumLivingOPS.Views.SystemControl
                 string email     = string.IsNullOrEmpty(localPart) ? "" : localPart + "@plf.com";
                 string role      = cboRole.SelectedItem?.ToString();
                 string dept      = cboDept.SelectedItem?.ToString();
+                string pwd       = txtPassword.Text;
+                string confirm   = txtConfirm.Text;
 
                 if (string.IsNullOrEmpty(name))
                 { MessageBox.Show("Full Name is required.",        "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
@@ -375,6 +403,10 @@ namespace PremiumLivingOPS.Views.SystemControl
                 { MessageBox.Show("Role is required.",             "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
                 if (string.IsNullOrEmpty(dept))
                 { MessageBox.Show("Department is required.",       "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+                if (string.IsNullOrWhiteSpace(pwd))
+                { MessageBox.Show("Password is required.",         "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+                if (pwd != confirm)
+                { MessageBox.Show("Passwords do not match.",       "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
 
                 try
                 {
@@ -384,7 +416,8 @@ namespace PremiumLivingOPS.Views.SystemControl
                         StaffName  = name,
                         Email      = email,
                         Role       = role,
-                        Department = dept
+                        Department = dept,
+                        Password   = pwd
                     });
 
                     if (ok)
@@ -591,7 +624,6 @@ namespace PremiumLivingOPS.Views.SystemControl
 
         private void ShowChangeDepartmentDialog(Staff staff)
         {
-            // Department options must match schema ENUM exactly
             var departments = new[] { "IT", "Production", "Sales", "Inventory", "Finance", "Logistics" };
 
             using var dlg = new Form
