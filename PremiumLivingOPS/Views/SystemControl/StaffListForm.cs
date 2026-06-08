@@ -145,12 +145,33 @@ namespace PremiumLivingOPS.Views.SystemControl
         private void btnAddStaff_Click(object sender, EventArgs e) => ShowAddStaffDialog();
 
         // ── Add Staff dialog
+        // Layout strategy: manual positioning inside a scrollable body panel.
+        // Every label and input is placed with explicit Top/Height so Windows Forms
+        // layout engine can never stretch, compress, or clip any control.
         private void ShowAddStaffDialog()
         {
             string nextId;
             try   { nextId = _ctrl.GetNextStaffId(); }
             catch { nextId = "S-???"; }
 
+            // ──────────────────────────────────────────────────
+            // Sizing constants
+            // ──────────────────────────────────────────────────
+            const int LblH     = 22;   // label height
+            const int GapLI    = 8;    // label → input gap  (prev 6 ×1.2 = 7.2 → 8)
+            const int InputH   = 36;   // input height
+            const int GapGrp   = 28;   // gap between field groups
+            const int ColGap   = 16;   // horizontal gap between left and right columns
+            const int BodyPadH = 28;   // horizontal body padding (left & right)
+            const int BodyPadT = 24;   // top body padding
+            const int SuffixW  = 170;  // width of "@plf.com" suffix label
+
+            // Vertical step for one field group  = LblH + GapLI + InputH + GapGrp
+            int groupH = LblH + GapLI + InputH + GapGrp;
+
+            // ──────────────────────────────────────────────────
+            // Dialog
+            // ──────────────────────────────────────────────────
             using var dlg = new Form
             {
                 Text            = "Add New Staff",
@@ -176,7 +197,13 @@ namespace PremiumLivingOPS.Views.SystemControl
             });
 
             // ── Footer
-            var pnlFtr = new Panel { Dock = DockStyle.Bottom, Height = 80, BackColor = Color.White, Padding = new Padding(0, 10, 20, 10) };
+            var pnlFtr = new Panel
+            {
+                Dock      = DockStyle.Bottom,
+                Height    = 80,
+                BackColor = Color.White,
+                Padding   = new Padding(0, 10, 20, 10)
+            };
             pnlFtr.Paint += (fps, fpe) =>
             {
                 using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
@@ -214,87 +241,62 @@ namespace PremiumLivingOPS.Views.SystemControl
             btnSave.FlatAppearance.MouseOverBackColor = Color.FromArgb(21, 128, 61);
             btnSave.FlatAppearance.MouseDownBackColor = Color.FromArgb(20,  83, 45);
 
-            // ── Body: ScrollablePanel (top-aligned, no Dock=Fill on inner table)
-            // Using a Panel with AutoScroll prevents content being stretched/clipped
-            // when the dialog has more vertical space than the fields need.
-            //
-            // Row layout (all pixels):
-            //   RowLabel   28  – field label
-            //   RowGapLbl   8  – gap between label & input (≈ previous 6 × 1.2 = 7.2 → 8)
-            //   RowInput   42  – tall enough for TextBox/ComboBox at 12pt + breathing room
-            //   RowGapBot  28  – between field groups
-            //
-            // Each TextBox/ComboBox: Anchor=Left|Right, explicit Height=36
-            // so Windows Forms AutoSize never clips them inside the cell.
-            const int RowLabel  = 28;
-            const int RowGapLbl =  8;   // ×1.2 vs previous 6 px
-            const int RowInput  = 42;
-            const int RowGapBot = 28;
-            const int InputH    = 36;
+            pnlFtr.Controls.Add(btnCancel);
+            pnlFtr.Controls.Add(btnSave);
 
-            // Total height of all rows: 3 groups × (28+8+42+28) = 3 × 106 = 318 px
-            int tblHeight = 3 * (RowLabel + RowGapLbl + RowInput + RowGapBot);
-
-            var tbl = new TableLayoutPanel
+            // ──────────────────────────────────────────────────
+            // Body: scrollable container
+            // ──────────────────────────────────────────────────
+            // pnlBody fills the space between header and footer.
+            // An inner canvas (pnlCanvas) is sized exactly to its content so
+            // AutoScroll only appears when the window is too small.
+            var pnlBody = new Panel
             {
-                // NOT Dock=Fill – fixed size so it sits at the top of pnlBody
-                Left            = 0,
-                Top             = 0,
-                Width           = 940,   // filled via Layout event below
-                Height          = tblHeight,
-                Anchor          = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
-                ColumnCount     = 2,
-                RowCount        = 12,
-                BackColor       = Color.Transparent,
-                CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+                Dock       = DockStyle.Fill,
+                BackColor  = Color.White,
+                AutoScroll = true
             };
-            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
-            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
 
-            // Group 1 — rows 0-3
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowLabel));   // 0  label
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowGapLbl));  // 1  gap
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowInput));   // 2  input
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowGapBot));  // 3  bottom gap
-            // Group 2 — rows 4-7
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowLabel));   // 4
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowGapLbl));  // 5
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowInput));   // 6
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowGapBot));  // 7
-            // Group 3 (email, full-width) — rows 8-11
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowLabel));   // 8
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowGapLbl));  // 9
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowInput));   // 10
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowGapBot));  // 11
+            // Canvas holds all fields; sized by content, not by the parent.
+            var pnlCanvas = new Panel
+            {
+                BackColor = Color.White,
+                Left      = 0,
+                Top       = 0
+            };
 
-            // ── Group 1: Staff ID (ReadOnly) | Full Name
+            // ──────────────────────────────────────────────────
+            // Input controls
+            // ──────────────────────────────────────────────────
+
+            // Row 0 ─ Staff ID (left col, read-only) | Full Name (right col)
             var txtStaffId = new TextBox
             {
-                Anchor      = AnchorStyles.Left | AnchorStyles.Right,
-                Height      = InputH,
                 Font        = new Font("Segoe UI", 12f),
                 BorderStyle = BorderStyle.FixedSingle,
                 Text        = nextId,
                 ReadOnly    = true,
                 TabStop     = false,
                 BackColor   = Color.FromArgb(240, 244, 249),
-                ForeColor   = Color.FromArgb(98, 112, 135)
+                ForeColor   = Color.FromArgb(98, 112, 135),
+                Height      = InputH
             };
-            var txtName = MakeTextInput("Full name", InputH);
 
-            tbl.Controls.Add(MakeFieldLabel("Staff ID"),    0, 0);
-            tbl.Controls.Add(txtStaffId,                    0, 2);
-            tbl.Controls.Add(MakeFieldLabel("Full Name *"), 1, 0);
-            tbl.Controls.Add(txtName,                       1, 2);
+            var txtName = new TextBox
+            {
+                Font            = new Font("Segoe UI", 12f),
+                BorderStyle     = BorderStyle.FixedSingle,
+                PlaceholderText = "Full name",
+                Height          = InputH
+            };
 
-            // ── Group 2: Role | Department
+            // Row 1 ─ Role (left col) | Department (right col)
             var cboRole = new ComboBox
             {
-                Anchor        = AnchorStyles.Left | AnchorStyles.Right,
-                Height        = InputH,
                 Font          = new Font("Segoe UI", 12f),
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                FlatStyle     = FlatStyle.Flat
+                FlatStyle     = FlatStyle.Flat,
+                Height        = InputH
             };
             foreach (var r in new[] { "Admin", "Sales", "Warehouse", "Manager", "Accountant" })
                 cboRole.Items.Add(r);
@@ -302,11 +304,10 @@ namespace PremiumLivingOPS.Views.SystemControl
 
             var cboDept = new ComboBox
             {
-                Anchor        = AnchorStyles.Left | AnchorStyles.Right,
-                Height        = InputH,
                 Font          = new Font("Segoe UI", 12f),
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                FlatStyle     = FlatStyle.Flat
+                FlatStyle     = FlatStyle.Flat,
+                Height        = InputH
             };
             var depts = _allStaff.Select(s => s.Department)
                 .Where(d => !string.IsNullOrWhiteSpace(d))
@@ -314,26 +315,13 @@ namespace PremiumLivingOPS.Views.SystemControl
             foreach (var d in depts) cboDept.Items.Add(d);
             if (cboDept.Items.Count > 0) cboDept.SelectedIndex = 0;
 
-            tbl.Controls.Add(MakeFieldLabel("Role *"),       0, 4);
-            tbl.Controls.Add(cboRole,                        0, 6);
-            tbl.Controls.Add(MakeFieldLabel("Department *"), 1, 4);
-            tbl.Controls.Add(cboDept,                        1, 6);
-
-            // ── Group 3: Email label (row 8, full-width)
-            var lblEmailKey = MakeFieldLabel("Email *");
-            tbl.Controls.Add(lblEmailKey, 0, 8);
-            tbl.SetColumnSpan(lblEmailKey, 2);
-
-            // ── Group 3: Email input (row 10, full-width)
-            // pnlEmail hosts txtEmailLocal (left) + lblSuffix (right).
-            // Suffix width is generous so "@plf.com" never wraps or shifts.
-            const int SuffixW = 170;
-
-            var pnlEmail = new Panel
+            // Row 2 ─ Email (full width)
+            var txtEmailLocal = new TextBox
             {
-                Dock      = DockStyle.Fill,
-                BackColor = Color.White,
-                Padding   = new Padding(0)
+                Font            = new Font("Segoe UI", 12f),
+                BorderStyle     = BorderStyle.FixedSingle,
+                PlaceholderText = "e.g. john.doe",
+                Height          = InputH
             };
 
             var lblSuffix = new Label
@@ -345,54 +333,63 @@ namespace PremiumLivingOPS.Views.SystemControl
                 BorderStyle = BorderStyle.FixedSingle,
                 TextAlign   = ContentAlignment.MiddleCenter,
                 AutoSize    = false,
-                Dock        = DockStyle.Right,
-                Width       = SuffixW
+                Height      = InputH
             };
 
-            var txtEmailLocal = new TextBox
+            // ──────────────────────────────────────────────────
+            // Layout engine: recalculate all positions whenever pnlBody resizes
+            // ──────────────────────────────────────────────────
+            pnlBody.Resize += (rs, re) =>
             {
-                Anchor          = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right,
-                Top             = 0,
-                Left            = 0,
-                Height          = InputH,
-                Font            = new Font("Segoe UI", 12f),
-                BorderStyle     = BorderStyle.FixedSingle,
-                PlaceholderText = "e.g. john.doe"
+                int totalW  = pnlBody.ClientSize.Width;         // full available width
+                int innerW  = totalW - BodyPadH * 2;            // width after left+right padding
+                int colW    = (innerW - ColGap) / 2;            // half-width column
+                int xLeft   = BodyPadH;                         // left column X
+                int xRight  = BodyPadH + colW + ColGap;         // right column X
+
+                // Update canvas width to match body
+                pnlCanvas.Width = totalW;
+
+                // ─ Row 0: Staff ID | Full Name
+                int y0 = BodyPadT;
+                PlaceLabel(pnlCanvas, "Staff ID",    xLeft,  y0, colW,   LblH);
+                PlaceLabel(pnlCanvas, "Full Name *", xRight, y0, colW,   LblH);
+
+                int y0i = y0 + LblH + GapLI;
+                txtStaffId.SetBounds(xLeft,  y0i, colW, InputH);
+                txtName   .SetBounds(xRight, y0i, colW, InputH);
+
+                // ─ Row 1: Role | Department
+                int y1 = y0i + InputH + GapGrp;
+                PlaceLabel(pnlCanvas, "Role *",       xLeft,  y1, colW, LblH);
+                PlaceLabel(pnlCanvas, "Department *", xRight, y1, colW, LblH);
+
+                int y1i = y1 + LblH + GapLI;
+                cboRole.SetBounds(xLeft,  y1i, colW, InputH);
+                cboDept.SetBounds(xRight, y1i, colW, InputH);
+
+                // ─ Row 2: Email (full width)
+                int y2 = y1i + InputH + GapGrp;
+                PlaceLabel(pnlCanvas, "Email *", xLeft, y2, innerW, LblH);
+
+                int y2i = y2 + LblH + GapLI;
+                int emailInputW = innerW - SuffixW;
+                txtEmailLocal.SetBounds(xLeft,              y2i, emailInputW, InputH);
+                lblSuffix    .SetBounds(xLeft + emailInputW, y2i, SuffixW,    InputH);
+
+                // Size canvas to exact content height
+                pnlCanvas.Height = y2i + InputH + BodyPadT;
             };
 
-            // Keep txtEmailLocal width and vertical centering in sync with panel size
-            pnlEmail.Layout += (ps, pe) =>
-            {
-                int availW = pnlEmail.ClientSize.Width - SuffixW;
-                txtEmailLocal.Width  = availW > 0 ? availW : 0;
-                txtEmailLocal.Top    = (pnlEmail.ClientSize.Height - txtEmailLocal.Height) / 2;
-                lblSuffix.Height     = txtEmailLocal.Height;
-            };
+            // Add controls to canvas
+            pnlCanvas.Controls.Add(txtStaffId);
+            pnlCanvas.Controls.Add(txtName);
+            pnlCanvas.Controls.Add(cboRole);
+            pnlCanvas.Controls.Add(cboDept);
+            pnlCanvas.Controls.Add(txtEmailLocal);
+            pnlCanvas.Controls.Add(lblSuffix);
 
-            // Suffix added first so Dock=Right reserves its space before the TextBox fills left
-            pnlEmail.Controls.Add(lblSuffix);
-            pnlEmail.Controls.Add(txtEmailLocal);
-
-            tbl.Controls.Add(pnlEmail, 0, 10);
-            tbl.SetColumnSpan(pnlEmail, 2);
-
-            // ── Body panel: fixed padding, AutoScroll, table sits at top
-            var pnlBody = new Panel
-            {
-                Dock        = DockStyle.Fill,
-                BackColor   = Color.White,
-                Padding     = new Padding(28, 24, 28, 8),
-                AutoScroll  = true
-            };
-
-            // Keep tbl width in sync with pnlBody client area (minus padding)
-            pnlBody.Layout += (bls, ble) =>
-            {
-                int w = pnlBody.ClientSize.Width - pnlBody.Padding.Horizontal;
-                if (w > 0) tbl.Width = w;
-            };
-
-            pnlBody.Controls.Add(tbl);
+            pnlBody.Controls.Add(pnlCanvas);
 
             // ── Save logic
             btnSave.Click += (bss, bse) =>
@@ -405,13 +402,13 @@ namespace PremiumLivingOPS.Views.SystemControl
                 string dept      = cboDept.SelectedItem?.ToString();
 
                 if (string.IsNullOrEmpty(name))
-                { MessageBox.Show("Full Name is required.",  "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+                { MessageBox.Show("Full Name is required.",          "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
                 if (string.IsNullOrEmpty(localPart))
-                { MessageBox.Show("Email local part is required.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+                { MessageBox.Show("Email local part is required.",   "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
                 if (string.IsNullOrEmpty(role))
-                { MessageBox.Show("Role is required.",       "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+                { MessageBox.Show("Role is required.",               "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
                 if (string.IsNullOrEmpty(dept))
-                { MessageBox.Show("Department is required.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+                { MessageBox.Show("Department is required.",         "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
 
                 bool ok = _ctrl.AddStaff(new Staff
                 {
@@ -432,12 +429,32 @@ namespace PremiumLivingOPS.Views.SystemControl
                     MessageBox.Show("Failed to add staff. The Staff ID may already exist.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             };
 
-            pnlFtr.Controls.Add(btnCancel);
-            pnlFtr.Controls.Add(btnSave);
             dlg.Controls.Add(pnlBody);
             dlg.Controls.Add(pnlHdr);
             dlg.Controls.Add(pnlFtr);
             dlg.ShowDialog(this);
+        }
+
+        // PlaceLabel: create or reuse a label on the canvas at the given position.
+        // Labels with the same Text are matched; extras are removed on subsequent calls.
+        private static void PlaceLabel(Panel canvas, string text, int x, int y, int w, int h)
+        {
+            Label lbl = null;
+            foreach (Control c in canvas.Controls)
+                if (c is Label l && l.Text == text) { lbl = l; break; }
+
+            if (lbl == null)
+            {
+                lbl = new Label
+                {
+                    Text      = text,
+                    Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
+                    ForeColor = Color.FromArgb(98, 112, 135),
+                    AutoSize  = false
+                };
+                canvas.Controls.Add(lbl);
+            }
+            lbl.SetBounds(x, y, w, h);
         }
 
         // ── Modify Detail button
@@ -710,31 +727,8 @@ namespace PremiumLivingOPS.Views.SystemControl
         }
 
         // ── Helpers
-
-        // MakeFieldLabel — Add Staff dialog: BottomLeft so text sits just above input
-        private static Label MakeFieldLabel(string text) => new Label
-        {
-            Text      = text,
-            Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
-            ForeColor = Color.FromArgb(98, 112, 135),
-            Dock      = DockStyle.Fill,
-            TextAlign = ContentAlignment.BottomLeft,
-            Padding   = new Padding(0, 0, 8, 2)
-        };
-
-        // MakeLblKey — readonly/detail dialogs
         private static Label MakeLblKey(string text) => new Label { Text = text, Font = new Font("Segoe UI", 10f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(0, 0, 8, 0) };
         private static Label MakeLblVal(string text) => new Label { Text = text ?? "\u2014", Font = new Font("Segoe UI", 12f), ForeColor = Color.FromArgb(15, 31, 53), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoEllipsis = true };
-
-        // MakeTextInput — Anchor+Height so Windows Forms AutoSize never clips the control
-        private static TextBox MakeTextInput(string placeholder, int height = 36) => new TextBox
-        {
-            Anchor          = AnchorStyles.Left | AnchorStyles.Right,
-            Height          = height,
-            Font            = new Font("Segoe UI", 12f),
-            BorderStyle     = BorderStyle.FixedSingle,
-            PlaceholderText = placeholder
-        };
 
         // ── Navigation & Logout
         private void OnTopNavMenuItemClicked(string menuLabel, string subItem) => FormNavigator.NavigateTo(this, menuLabel, subItem);
