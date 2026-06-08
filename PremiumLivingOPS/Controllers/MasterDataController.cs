@@ -12,7 +12,7 @@ namespace PremiumLivingOPS.Controllers
     {
         private readonly MasterDataRepo _repo = new MasterDataRepo();
 
-        // ── Supplier List ──────────────────────────────────────────────
+        // ── Supplier List ────────────────────────────────────────────
 
         /// <summary>
         /// Returns ViewModel for the Supplier List page.
@@ -33,7 +33,30 @@ namespace PremiumLivingOPS.Controllers
             };
         }
 
-        // ── Customer List ──────────────────────────────────────────────
+        /// <summary>
+        /// Returns the next available SupplierID in SP-XXX format.
+        /// </summary>
+        public string GetNextSupplierID()
+            => _repo.GetNextSupplierID();
+
+        /// <summary>
+        /// Inserts a new supplier.
+        /// Returns true on success.
+        /// </summary>
+        public bool AddSupplier(SupplierEntity supplier)
+        {
+            try   { return _repo.InsertSupplier(supplier); }
+            catch { return false; }
+        }
+
+        /// <summary>
+        /// Updates an existing supplier's editable fields.
+        /// Returns true on success.
+        /// </summary>
+        public bool UpdateSupplier(string supplierId, string name, string phone, string address)
+            => _repo.UpdateSupplier(supplierId, name, phone, address);
+
+        // ── Customer List ────────────────────────────────────────────
 
         /// <summary>
         /// Returns ViewModel for the Customer List page.

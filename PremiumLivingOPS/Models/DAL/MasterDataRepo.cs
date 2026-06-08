@@ -12,7 +12,7 @@ namespace PremiumLivingOPS.Models.DAL
     public class MasterDataRepo
     {
         // ════════════════════════════════════════════════════════════════
-        //  SUPPLIER
+        //  SUPPLIER — READ
         // ════════════════════════════════════════════════════════════════
 
         /// <summary>
@@ -51,6 +51,33 @@ namespace PremiumLivingOPS.Models.DAL
         /// <summary>Returns all suppliers (no filter).</summary>
         public List<SupplierEntity> GetAllSuppliers() => SearchSuppliers();
 
+        /// <summary>
+        /// Generates the next available SupplierID in SP-XXX format.
+        /// Fills the lowest unused number (gap-free).
+        /// </summary>
+        public string GetNextSupplierID()
+        {
+            using (var conn = DatabaseHelper.GetConnection())
+            {
+                conn.Open();
+                const string sql =
+                    "SELECT SupplierID FROM Supplier " +
+                    "WHERE SupplierID REGEXP '^SP-[0-9]+$' " +
+                    "ORDER BY CAST(SUBSTRING(SupplierID, 4) AS UNSIGNED)";
+
+                var used = new System.Collections.Generic.HashSet<int>();
+                using (var cmd = new MySqlCommand(sql, conn))
+                using (var rdr = cmd.ExecuteReader())
+                    while (rdr.Read())
+                        if (int.TryParse(rdr.GetString(0).Substring(3), out int n))
+                            used.Add(n);
+
+                int next = 1;
+                while (used.Contains(next)) next++;
+                return $"SP-{next:D3}";
+            }
+        }
+
         private static SupplierEntity MapSupplier(MySqlDataReader rdr) => new SupplierEntity
         {
             SupplierID      = rdr["SupplierID"]?.ToString(),
@@ -58,6 +85,56 @@ namespace PremiumLivingOPS.Models.DAL
             PhoneNumber     = rdr["PhoneNumber"]?.ToString(),
             SupplierAddress = rdr["SupplierAddress"]?.ToString()
         };
+
+        // ════════════════════════════════════════════════════════════════
+        //  SUPPLIER — WRITE
+        // ════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Inserts a new supplier. Returns true if exactly one row inserted.
+        /// </summary>
+        public bool InsertSupplier(SupplierEntity s)
+        {
+            using (var conn = DatabaseHelper.GetConnection())
+            {
+                conn.Open();
+                const string sql =
+                    "INSERT INTO Supplier (SupplierID, SupplierName, PhoneNumber, SupplierAddress) " +
+                    "VALUES (@id, @name, @phone, @addr)";
+                using (var cmd = new MySqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@id",    s.SupplierID);
+                    cmd.Parameters.AddWithValue("@name",  s.SupplierName);
+                    cmd.Parameters.AddWithValue("@phone", s.PhoneNumber);
+                    cmd.Parameters.AddWithValue("@addr",  s.SupplierAddress);
+                    return cmd.ExecuteNonQuery() == 1;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Updates an existing supplier's name, phone, and address.
+        /// Returns true if exactly one row updated.
+        /// </summary>
+        public bool UpdateSupplier(string supplierId, string name, string phone, string address)
+        {
+            using (var conn = DatabaseHelper.GetConnection())
+            {
+                conn.Open();
+                const string sql =
+                    "UPDATE Supplier " +
+                    "SET SupplierName = @name, PhoneNumber = @phone, SupplierAddress = @addr " +
+                    "WHERE SupplierID = @id";
+                using (var cmd = new MySqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@name",  name);
+                    cmd.Parameters.AddWithValue("@phone", phone);
+                    cmd.Parameters.AddWithValue("@addr",  address);
+                    cmd.Parameters.AddWithValue("@id",    supplierId);
+                    return cmd.ExecuteNonQuery() == 1;
+                }
+            }
+        }
 
         // ════════════════════════════════════════════════════════════════
         //  CUSTOMER
