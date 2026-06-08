@@ -148,6 +148,9 @@ namespace PremiumLivingOPS.Views.SystemControl
                 };
 
                 // ─ Inner 2-column TableLayoutPanel
+                //   Padding is horizontal only (left/right).
+                //   RowStyles uses Percent 100 so the single row fills the full height,
+                //   ensuring Dock=Fill labels can vertically centre their text.
                 var tlp = new TableLayoutPanel
                 {
                     Dock            = DockStyle.Fill,
@@ -155,38 +158,45 @@ namespace PremiumLivingOPS.Views.SystemControl
                     RowCount        = 1,
                     BackColor       = Color.Transparent,
                     CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                    Padding         = new Padding(10, 0, 8, 0)
+                    Padding         = new Padding(10, 0, 8, 0),  // top/bottom = 0 — keep vertical space intact
+                    Margin          = new Padding(0)
                 };
                 tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, NumColW));
                 tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
+                // Explicitly set the single row to fill 100% of TLP height
                 tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
-                // Col 0: count (Segoe UI 14pt Bold, centred)
-                tlp.Controls.Add(new Label
+                // Col 0 — count number (large bold, vertically + horizontally centred)
+                var lblCount = new Label
                 {
                     Text      = count,
                     Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
                     ForeColor = fg,
                     BackColor = Color.Transparent,
-                    Dock      = DockStyle.Fill,
+                    Dock      = DockStyle.Fill,   // fill the TLP cell completely
                     TextAlign = ContentAlignment.MiddleCenter,
-                    AutoSize  = false
-                }, 0, 0);
+                    AutoSize  = false,
+                    Margin    = new Padding(0)
+                };
 
-                // Col 1: label name (Segoe UI 12pt, left-aligned, ellipsis on overflow)
-                tlp.Controls.Add(new Label
+                // Col 1 — department/category label (vertically centred, ellipsis on overflow)
+                var lblName = new Label
                 {
                     Text         = label,
                     Font         = new Font("Segoe UI", 12f),
                     ForeColor    = fg,
                     BackColor    = Color.Transparent,
-                    Dock         = DockStyle.Fill,
+                    Dock         = DockStyle.Fill,   // fill the TLP cell completely
                     TextAlign    = ContentAlignment.MiddleLeft,
                     AutoSize     = false,
-                    AutoEllipsis = true
-                }, 1, 0);
+                    AutoEllipsis = true,
+                    Margin       = new Padding(0)
+                };
 
-                // ─ Click handler on pill + tlp + every child label (3-layer, same as ViewOrderForm)
+                tlp.Controls.Add(lblCount, 0, 0);
+                tlp.Controls.Add(lblName,  1, 0);
+
+                // ─ Click handler on pill + tlp + every child label (3-layer)
                 string localDept = dept;
                 EventHandler clickHandler = (s, e) =>
                 {
