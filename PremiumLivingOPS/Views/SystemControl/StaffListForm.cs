@@ -160,7 +160,7 @@ namespace PremiumLivingOPS.Views.SystemControl
             using var dlg = new Form
             {
                 Text            = $"Modify Detail  \u2014  {staff.StaffId}",
-                Size            = new Size(1000, 600),          // <—— 1000×600
+                Size            = new Size(1000, 600),
                 StartPosition   = FormStartPosition.CenterParent,
                 BackColor       = Color.White,
                 Font            = new Font("Segoe UI", 12f),
@@ -198,31 +198,26 @@ namespace PremiumLivingOPS.Views.SystemControl
                 Padding   = new Padding(32, 0, 0, 0)
             });
 
-            // ── Body  — two large action buttons side-by-side
-            //   TableLayoutPanel 2-col so each button fills half the width
-            var tblBody = new TableLayoutPanel
-            {
-                Dock            = DockStyle.Fill,
-                ColumnCount     = 2,
-                RowCount        = 1,
-                BackColor       = Color.White,
-                CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                Padding         = new Padding(40, 40, 40, 20)
-            };
-            tblBody.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
-            tblBody.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
-            tblBody.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+            // ── Body — two fixed-size buttons (210×60) centred side-by-side
+            const int BtnW = 210;
+            const int BtnH = 60;
+            const int BtnGap = 32;   // gap between the two buttons
 
-            // Change Password tile
+            var pnlBody = new Panel
+            {
+                Dock      = DockStyle.Fill,
+                BackColor = Color.White
+            };
+
+            // Change Password button
             var btnChangePwd = new Button
             {
-                Text      = "\uD83D\uDD11\r\nChange Password",
-                Font      = new Font("Segoe UI", 15f, FontStyle.Bold),
+                Text      = "\uD83D\uDD11  Change Password",
+                Font      = new Font("Segoe UI", 13f, FontStyle.Bold),
                 ForeColor = Color.White,
                 BackColor = Color.FromArgb(47, 111, 237),
                 FlatStyle = FlatStyle.Flat,
-                Dock      = DockStyle.Fill,
-                Margin    = new Padding(0, 0, 16, 0),
+                Size      = new Size(BtnW, BtnH),
                 Cursor    = Cursors.Hand
             };
             btnChangePwd.FlatAppearance.BorderSize         = 0;
@@ -230,16 +225,15 @@ namespace PremiumLivingOPS.Views.SystemControl
             btnChangePwd.FlatAppearance.MouseDownBackColor = Color.FromArgb(21, 60, 155);
             btnChangePwd.Click += (s, ev) => { dlg.Close(); ShowChangePasswordDialog(staff); };
 
-            // Change Department tile
+            // Change Department button
             var btnChangeDept = new Button
             {
-                Text      = "\uD83C\uDFE2\r\nChange Department",
-                Font      = new Font("Segoe UI", 15f, FontStyle.Bold),
+                Text      = "\uD83C\uDFE2  Change Department",
+                Font      = new Font("Segoe UI", 13f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(15, 31, 53),
                 BackColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Dock      = DockStyle.Fill,
-                Margin    = new Padding(16, 0, 0, 0),
+                Size      = new Size(BtnW, BtnH),
                 Cursor    = Cursors.Hand
             };
             btnChangeDept.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
@@ -247,8 +241,19 @@ namespace PremiumLivingOPS.Views.SystemControl
             btnChangeDept.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
             btnChangeDept.Click += (s, ev) => { dlg.Close(); ShowChangeDepartmentDialog(staff); };
 
-            tblBody.Controls.Add(btnChangePwd,  0, 0);
-            tblBody.Controls.Add(btnChangeDept, 1, 0);
+            // Centre both buttons vertically and horizontally in pnlBody
+            pnlBody.Layout += (s, ev) =>
+            {
+                int totalW = BtnW * 2 + BtnGap;
+                int startX = (pnlBody.ClientSize.Width  - totalW) / 2;
+                int startY = (pnlBody.ClientSize.Height - BtnH)   / 2;
+
+                btnChangePwd.Location  = new Point(startX,             startY);
+                btnChangeDept.Location = new Point(startX + BtnW + BtnGap, startY);
+            };
+
+            pnlBody.Controls.Add(btnChangePwd);
+            pnlBody.Controls.Add(btnChangeDept);
 
             // ── Footer
             var pnlFtr = new Panel { Dock = DockStyle.Bottom, Height = 64, BackColor = Color.White, Padding = new Padding(0, 10, 28, 10) };
@@ -273,7 +278,7 @@ namespace PremiumLivingOPS.Views.SystemControl
             btnCancel.Click += (s, ev) => dlg.Close();
             pnlFtr.Controls.Add(btnCancel);
 
-            dlg.Controls.Add(tblBody);
+            dlg.Controls.Add(pnlBody);
             dlg.Controls.Add(pnlSub);
             dlg.Controls.Add(pnlHdr);
             dlg.Controls.Add(pnlFtr);
