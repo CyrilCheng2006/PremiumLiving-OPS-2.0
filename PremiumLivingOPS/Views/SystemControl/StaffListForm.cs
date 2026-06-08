@@ -129,11 +129,7 @@ namespace PremiumLivingOPS.Views.SystemControl
                 tlp.Controls.Add(new Label { Text = label, Font = new Font("Segoe UI", 12f),                ForeColor = fg, BackColor = Color.Transparent, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft,   AutoSize = false, AutoEllipsis = true }, 1, 0);
 
                 string localDept = dept;
-                EventHandler clickHandler = (cs, ce) =>
-                {
-                    _deptFilter = localDept;
-                    RefreshGrid();
-                };
+                EventHandler clickHandler = (cs, ce) => { _deptFilter = localDept; RefreshGrid(); };
                 pill.Click += clickHandler;
                 tlp.Click  += clickHandler;
                 foreach (Control c in tlp.Controls) c.Click += clickHandler;
@@ -183,19 +179,16 @@ namespace PremiumLivingOPS.Views.SystemControl
             var pnlBody = new Panel { Dock = DockStyle.Fill, BackColor = Color.White, Padding = new Padding(28, 20, 28, 8) };
 
             // ---------------------------------------------------------------
-            // Row layout per field group:
-            //
-            //   RowLabel  36px  — label (BottomLeft + Padding bottom 4px)
-            //                     text anchored to bottom → clear gap above input
-            //   RowInput  36px  — TextBox / ComboBox / pnlEmail (Dock=Fill)
-            //                     36px gives enough room for 12pt controls
-            //   RowGapBot 28px  — breathing room before next group
+            // Row layout:
+            //   RowLabel  36px — label (BottomLeft, Padding bottom 4px)
+            //   RowInput  36px — all inputs use Multiline=true so Dock=Fill
+            //                    controls the actual height (AutoSize bypassed)
+            //   RowGapBot 28px — breathing room
             // ---------------------------------------------------------------
             const int RowLabel  = 36;
             const int RowInput  = 36;
             const int RowGapBot = 28;
 
-            // 3 groups × 3 rows = 9 rows total
             var tbl = new TableLayoutPanel
             {
                 Dock            = DockStyle.Fill,
@@ -207,22 +200,21 @@ namespace PremiumLivingOPS.Views.SystemControl
             tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
             tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
 
-            // Group 1 — Staff ID | Full Name  (rows 0–2)
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowLabel));   // 0
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowInput));   // 1
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowGapBot));  // 2
-
-            // Group 2 — Role | Department  (rows 3–5)
+            // Group 1 — rows 0-2
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowLabel));   // 0 label
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowInput));   // 1 input
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowGapBot));  // 2 gap
+            // Group 2 — rows 3-5
             tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowLabel));   // 3
             tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowInput));   // 4
             tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowGapBot));  // 5
-
-            // Group 3 — Email full-width  (rows 6–8)
+            // Group 3 — rows 6-8
             tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowLabel));   // 6
             tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowInput));   // 7
             tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowGapBot));  // 8
 
             // ── Group 1: Staff ID (ReadOnly) | Full Name
+            // Multiline=true disables AutoSize so Dock=Fill controls height.
             var txtStaffId = new TextBox
             {
                 Dock        = DockStyle.Fill,
@@ -231,6 +223,7 @@ namespace PremiumLivingOPS.Views.SystemControl
                 Text        = nextId,
                 ReadOnly    = true,
                 TabStop     = false,
+                Multiline   = true,
                 BackColor   = Color.FromArgb(240, 244, 249),
                 ForeColor   = Color.FromArgb(98, 112, 135)
             };
@@ -276,10 +269,9 @@ namespace PremiumLivingOPS.Views.SystemControl
             tbl.Controls.Add(lblEmailKey, 0, 6);
             tbl.SetColumnSpan(lblEmailKey, 2);
 
-            // ── Group 3: Email input row (row 7, full-width)
-            // pnlEmail uses absolute layout so both TextBox and suffix Label
-            // are explicitly sized — avoids any clipping that Dock=Fill+Right
-            // can cause inside a fixed-height TLP cell.
+            // ── Group 3: Email input (row 7, full-width)
+            // Both txtEmailLocal (Multiline=true) and lblSuffix share the same
+            // 36px row via Dock, so heights are always identical — no clipping.
             const int SuffixW = 160;
 
             var pnlEmail = new Panel
@@ -307,10 +299,11 @@ namespace PremiumLivingOPS.Views.SystemControl
                 Dock            = DockStyle.Fill,
                 Font            = new Font("Segoe UI", 12f),
                 BorderStyle     = BorderStyle.FixedSingle,
-                PlaceholderText = "e.g. john.doe"
+                PlaceholderText = "e.g. john.doe",
+                Multiline       = true   // bypass AutoSize → height = Dock=Fill = 36px
             };
 
-            // Suffix must be added first so Dock=Right is processed before Dock=Fill
+            // Suffix added first so Dock=Right is processed before Dock=Fill
             pnlEmail.Controls.Add(lblSuffix);
             pnlEmail.Controls.Add(txtEmailLocal);
 
@@ -453,48 +446,37 @@ namespace PremiumLivingOPS.Views.SystemControl
                 TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(32, 0, 0, 0)
             });
 
-            const int BtnW   = 500;
-            const int BtnH   = 100;
-            const int BtnGap = 24;
-
+            const int BtnW = 500, BtnH = 100, BtnGap = 24;
             var pnlBody = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
 
             var btnChangePwd = new Button
             {
-                Text      = "\uD83D\uDD11  Change Password",
-                Font      = new Font("Segoe UI", 15f, FontStyle.Bold),
-                ForeColor = Color.White,
-                BackColor = Color.FromArgb(124, 58, 237),
-                FlatStyle = FlatStyle.Flat,
-                Size      = new Size(BtnW, BtnH),
-                Cursor    = Cursors.Hand
+                Text = "\uD83D\uDD11  Change Password", Font = new Font("Segoe UI", 15f, FontStyle.Bold),
+                ForeColor = Color.White, BackColor = Color.FromArgb(124, 58, 237),
+                FlatStyle = FlatStyle.Flat, Size = new Size(BtnW, BtnH), Cursor = Cursors.Hand
             };
             btnChangePwd.FlatAppearance.BorderSize         = 0;
             btnChangePwd.FlatAppearance.MouseOverBackColor = Color.FromArgb(109, 40, 217);
-            btnChangePwd.FlatAppearance.MouseDownBackColor = Color.FromArgb( 91, 33, 182);
+            btnChangePwd.FlatAppearance.MouseDownBackColor = Color.FromArgb(91, 33, 182);
             btnChangePwd.Click += (bps, bpe) => { dlg.Close(); ShowChangePasswordDialog(staff); };
 
             var btnChangeDept = new Button
             {
-                Text      = "\uD83C\uDFE2  Change Department",
-                Font      = new Font("Segoe UI", 15f, FontStyle.Bold),
+                Text = "\uD83C\uDFE2  Change Department", Font = new Font("Segoe UI", 15f, FontStyle.Bold),
                 ForeColor = isSelf ? Color.FromArgb(160, 160, 160) : Color.White,
                 BackColor = isSelf ? Color.FromArgb(230, 230, 230) : Color.FromArgb(234, 88, 12),
-                FlatStyle = FlatStyle.Flat,
-                Size      = new Size(BtnW, BtnH),
-                Enabled   = !isSelf,
-                Cursor    = isSelf ? Cursors.No : Cursors.Hand
+                FlatStyle = FlatStyle.Flat, Size = new Size(BtnW, BtnH),
+                Enabled = !isSelf, Cursor = isSelf ? Cursors.No : Cursors.Hand
             };
             btnChangeDept.FlatAppearance.BorderSize         = 0;
             btnChangeDept.FlatAppearance.MouseOverBackColor = isSelf ? Color.FromArgb(230, 230, 230) : Color.FromArgb(194, 65, 12);
             btnChangeDept.FlatAppearance.MouseDownBackColor = Color.FromArgb(154, 52, 18);
-            if (!isSelf)
-                btnChangeDept.Click += (bds, bde) => { dlg.Close(); ShowChangeDepartmentDialog(staff); };
+            if (!isSelf) btnChangeDept.Click += (bds, bde) => { dlg.Close(); ShowChangeDepartmentDialog(staff); };
 
             pnlBody.Layout += (bls, ble) =>
             {
                 int totalH = BtnH * 2 + BtnGap;
-                int startX = (pnlBody.ClientSize.Width  - BtnW)   / 2;
+                int startX = (pnlBody.ClientSize.Width - BtnW) / 2;
                 int startY = (pnlBody.ClientSize.Height - totalH) / 2;
                 btnChangePwd.Location  = new Point(startX, startY);
                 btnChangeDept.Location = new Point(startX, startY + BtnH + BtnGap);
@@ -502,14 +484,7 @@ namespace PremiumLivingOPS.Views.SystemControl
 
             if (isSelf)
             {
-                var lblNotice = new Label
-                {
-                    Text      = "You cannot change your own department.",
-                    Font      = new Font("Segoe UI", 10f, FontStyle.Italic),
-                    ForeColor = Color.FromArgb(185, 28, 28),
-                    AutoSize  = true,
-                    BackColor = Color.Transparent
-                };
+                var lblNotice = new Label { Text = "You cannot change your own department.", Font = new Font("Segoe UI", 10f, FontStyle.Italic), ForeColor = Color.FromArgb(185, 28, 28), AutoSize = true, BackColor = Color.Transparent };
                 pnlBody.Controls.Add(lblNotice);
                 pnlBody.Layout += (nls, nle) =>
                 {
@@ -524,24 +499,10 @@ namespace PremiumLivingOPS.Views.SystemControl
             pnlBody.Controls.Add(btnChangeDept);
 
             var pnlFtr = new Panel { Dock = DockStyle.Bottom, Height = 80, BackColor = Color.White, Padding = new Padding(0, 10, 28, 10) };
-            pnlFtr.Paint += (fps, fpe) =>
-            {
-                using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
-                fpe.Graphics.DrawLine(pen, 0, 0, ((Panel)fps).Width, 0);
-            };
-            var btnCancel = new Button
-            {
-                Text      = "Cancel",
-                Font      = new Font("Segoe UI", 12f),
-                ForeColor = Color.FromArgb(15, 31, 53),
-                BackColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Size      = new Size(210, 60),
-                Dock      = DockStyle.Right,
-                Cursor    = Cursors.Hand
-            };
-            btnCancel.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
-            btnCancel.FlatAppearance.BorderSize         = 1;
+            pnlFtr.Paint += (fps, fpe) => { using var pen = new Pen(Color.FromArgb(221, 227, 236), 1); fpe.Graphics.DrawLine(pen, 0, 0, ((Panel)fps).Width, 0); };
+            var btnCancel = new Button { Text = "Cancel", Font = new Font("Segoe UI", 12f), ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White, FlatStyle = FlatStyle.Flat, Size = new Size(210, 60), Dock = DockStyle.Right, Cursor = Cursors.Hand };
+            btnCancel.FlatAppearance.BorderColor = Color.FromArgb(221, 227, 236);
+            btnCancel.FlatAppearance.BorderSize  = 1;
             btnCancel.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
             btnCancel.Click += (bcs, bce) => dlg.Close();
             pnlFtr.Controls.Add(btnCancel);
@@ -557,35 +518,16 @@ namespace PremiumLivingOPS.Views.SystemControl
         {
             using var dlg = new Form
             {
-                Text            = $"Change Password  \u2014  {staff.StaffId}",
-                Size            = new Size(1000, 600),
-                StartPosition   = FormStartPosition.CenterParent,
-                BackColor       = Color.White,
-                Font            = new Font("Segoe UI", 12f),
-                FormBorderStyle = FormBorderStyle.FixedDialog,
-                MaximizeBox     = false,
-                MinimizeBox     = false
+                Text = $"Change Password  \u2014  {staff.StaffId}", Size = new Size(1000, 600),
+                StartPosition = FormStartPosition.CenterParent, BackColor = Color.White,
+                Font = new Font("Segoe UI", 12f), FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox = false, MinimizeBox = false
             };
             var pnlHdr = new Panel { Dock = DockStyle.Top, Height = 64, BackColor = Color.FromArgb(19, 35, 61) };
-            pnlHdr.Controls.Add(new Label
-            {
-                Text      = $"Change Password  \u2014  {staff.StaffName}",
-                Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
-                ForeColor = Color.White,
-                Dock      = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleLeft,
-                Padding   = new Padding(24, 0, 0, 0)
-            });
+            pnlHdr.Controls.Add(new Label { Text = $"Change Password  \u2014  {staff.StaffName}", Font = new Font("Segoe UI", 14f, FontStyle.Bold), ForeColor = Color.White, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(24, 0, 0, 0) });
 
             var pnlBody = new Panel { Dock = DockStyle.Fill, BackColor = Color.White, Padding = new Padding(28, 24, 28, 8) };
-            var tbl = new TableLayoutPanel
-            {
-                Dock            = DockStyle.Fill,
-                ColumnCount     = 1,
-                RowCount        = 4,
-                BackColor       = Color.Transparent,
-                CellBorderStyle = TableLayoutPanelCellBorderStyle.None
-            };
+            var tbl = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4, BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None };
             tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
             tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 28f));
             tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 52f));
@@ -601,96 +543,46 @@ namespace PremiumLivingOPS.Views.SystemControl
             pnlBody.Controls.Add(tbl);
 
             var pnlFtr = new Panel { Dock = DockStyle.Bottom, Height = 80, BackColor = Color.White, Padding = new Padding(0, 10, 20, 10) };
-            pnlFtr.Paint += (fps, fpe) =>
-            {
-                using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
-                fpe.Graphics.DrawLine(pen, 0, 0, ((Panel)fps).Width, 0);
-            };
-
+            pnlFtr.Paint += (fps, fpe) => { using var pen = new Pen(Color.FromArgb(221, 227, 236), 1); fpe.Graphics.DrawLine(pen, 0, 0, ((Panel)fps).Width, 0); };
             var btnCancel = new Button { Text = "Cancel", Font = new Font("Segoe UI", 12f), ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White, FlatStyle = FlatStyle.Flat, Size = new Size(210, 60), Dock = DockStyle.Right, Cursor = Cursors.Hand };
-            btnCancel.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
-            btnCancel.FlatAppearance.BorderSize         = 1;
-            btnCancel.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
+            btnCancel.FlatAppearance.BorderColor = Color.FromArgb(221, 227, 236); btnCancel.FlatAppearance.BorderSize = 1; btnCancel.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
             btnCancel.Click += (bcs, bce) => dlg.Close();
-
             var btnSave = new Button { Text = "Save", Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.White, BackColor = Color.FromArgb(22, 163, 74), FlatStyle = FlatStyle.Flat, Size = new Size(210, 60), Dock = DockStyle.Right, Cursor = Cursors.Hand };
-            btnSave.FlatAppearance.BorderSize         = 0;
-            btnSave.FlatAppearance.MouseOverBackColor = Color.FromArgb(21, 128, 61);
-            btnSave.FlatAppearance.MouseDownBackColor = Color.FromArgb(20, 83, 45);
+            btnSave.FlatAppearance.BorderSize = 0; btnSave.FlatAppearance.MouseOverBackColor = Color.FromArgb(21, 128, 61); btnSave.FlatAppearance.MouseDownBackColor = Color.FromArgb(20, 83, 45);
             btnSave.Click += (bss, bse) =>
             {
-                if (string.IsNullOrWhiteSpace(txtNewPwd.Text))
-                { MessageBox.Show("Password cannot be empty.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
-                if (txtNewPwd.Text != txtConfirmPwd.Text)
-                { MessageBox.Show("Passwords do not match.",   "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
-
+                if (string.IsNullOrWhiteSpace(txtNewPwd.Text)) { MessageBox.Show("Password cannot be empty.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+                if (txtNewPwd.Text != txtConfirmPwd.Text)       { MessageBox.Show("Passwords do not match.",   "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
                 bool ok = _ctrl.ChangeStaffPassword(staff.StaffId, txtNewPwd.Text);
-                if (ok)
-                {
-                    MessageBox.Show("Password updated successfully.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    dlg.Close();
-                }
-                else
-                    MessageBox.Show("Failed to update password. Please try again.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                if (ok) { MessageBox.Show("Password updated successfully.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information); dlg.Close(); }
+                else      MessageBox.Show("Failed to update password. Please try again.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             };
-
-            pnlFtr.Controls.Add(btnCancel);
-            pnlFtr.Controls.Add(btnSave);
-            dlg.Controls.Add(pnlBody);
-            dlg.Controls.Add(pnlHdr);
-            dlg.Controls.Add(pnlFtr);
+            pnlFtr.Controls.Add(btnCancel); pnlFtr.Controls.Add(btnSave);
+            dlg.Controls.Add(pnlBody); dlg.Controls.Add(pnlHdr); dlg.Controls.Add(pnlFtr);
             dlg.ShowDialog(this);
         }
 
         private void ShowChangeDepartmentDialog(Staff staff)
         {
-            var departments = _allStaff
-                .Select(s => s.Department)
-                .Where(d => !string.IsNullOrWhiteSpace(d))
-                .Distinct().OrderBy(d => d).ToList();
+            var departments = _allStaff.Select(s => s.Department).Where(d => !string.IsNullOrWhiteSpace(d)).Distinct().OrderBy(d => d).ToList();
 
             using var dlg = new Form
             {
-                Text            = $"Change Department  \u2014  {staff.StaffId}",
-                Size            = new Size(1000, 600),
-                StartPosition   = FormStartPosition.CenterParent,
-                BackColor       = Color.White,
-                Font            = new Font("Segoe UI", 12f),
-                FormBorderStyle = FormBorderStyle.FixedDialog,
-                MaximizeBox     = false,
-                MinimizeBox     = false
+                Text = $"Change Department  \u2014  {staff.StaffId}", Size = new Size(1000, 600),
+                StartPosition = FormStartPosition.CenterParent, BackColor = Color.White,
+                Font = new Font("Segoe UI", 12f), FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox = false, MinimizeBox = false
             };
             var pnlHdr = new Panel { Dock = DockStyle.Top, Height = 64, BackColor = Color.FromArgb(19, 35, 61) };
-            pnlHdr.Controls.Add(new Label
-            {
-                Text      = $"Change Department  \u2014  {staff.StaffName}",
-                Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
-                ForeColor = Color.White,
-                Dock      = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleLeft,
-                Padding   = new Padding(24, 0, 0, 0)
-            });
+            pnlHdr.Controls.Add(new Label { Text = $"Change Department  \u2014  {staff.StaffName}", Font = new Font("Segoe UI", 14f, FontStyle.Bold), ForeColor = Color.White, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(24, 0, 0, 0) });
 
             var pnlBody = new Panel { Dock = DockStyle.Fill, BackColor = Color.White, Padding = new Padding(28, 24, 28, 8) };
-            var tbl = new TableLayoutPanel
-            {
-                Dock            = DockStyle.Fill,
-                ColumnCount     = 1,
-                RowCount        = 2,
-                BackColor       = Color.Transparent,
-                CellBorderStyle = TableLayoutPanelCellBorderStyle.None
-            };
+            var tbl = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None };
             tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
             tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 28f));
             tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 52f));
 
-            var cbo = new ComboBox
-            {
-                Dock          = DockStyle.Fill,
-                Font          = new Font("Segoe UI", 12f),
-                DropDownStyle = ComboBoxStyle.DropDownList,
-                FlatStyle     = FlatStyle.Flat
-            };
+            var cbo = new ComboBox { Dock = DockStyle.Fill, Font = new Font("Segoe UI", 12f), DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat };
             foreach (var d in departments) cbo.Items.Add(d);
             int cur = cbo.Items.IndexOf(staff.Department);
             if (cur >= 0) cbo.SelectedIndex = cur;
@@ -701,41 +593,21 @@ namespace PremiumLivingOPS.Views.SystemControl
             pnlBody.Controls.Add(tbl);
 
             var pnlFtr = new Panel { Dock = DockStyle.Bottom, Height = 80, BackColor = Color.White, Padding = new Padding(0, 10, 20, 10) };
-            pnlFtr.Paint += (fps, fpe) =>
-            {
-                using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
-                fpe.Graphics.DrawLine(pen, 0, 0, ((Panel)fps).Width, 0);
-            };
-
+            pnlFtr.Paint += (fps, fpe) => { using var pen = new Pen(Color.FromArgb(221, 227, 236), 1); fpe.Graphics.DrawLine(pen, 0, 0, ((Panel)fps).Width, 0); };
             var btnCancel = new Button { Text = "Cancel", Font = new Font("Segoe UI", 12f), ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White, FlatStyle = FlatStyle.Flat, Size = new Size(210, 60), Dock = DockStyle.Right, Cursor = Cursors.Hand };
-            btnCancel.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
-            btnCancel.FlatAppearance.BorderSize         = 1;
-            btnCancel.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
+            btnCancel.FlatAppearance.BorderColor = Color.FromArgb(221, 227, 236); btnCancel.FlatAppearance.BorderSize = 1; btnCancel.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
             btnCancel.Click += (bcs, bce) => dlg.Close();
-
             var btnSave = new Button { Text = "Save", Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.White, BackColor = Color.FromArgb(22, 163, 74), FlatStyle = FlatStyle.Flat, Size = new Size(210, 60), Dock = DockStyle.Right, Cursor = Cursors.Hand };
-            btnSave.FlatAppearance.BorderSize         = 0;
-            btnSave.FlatAppearance.MouseOverBackColor = Color.FromArgb(21, 128, 61);
-            btnSave.FlatAppearance.MouseDownBackColor = Color.FromArgb(20, 83, 45);
+            btnSave.FlatAppearance.BorderSize = 0; btnSave.FlatAppearance.MouseOverBackColor = Color.FromArgb(21, 128, 61); btnSave.FlatAppearance.MouseDownBackColor = Color.FromArgb(20, 83, 45);
             btnSave.Click += (bss, bse) =>
             {
                 if (cbo.SelectedItem == null) return;
                 bool ok = _ctrl.ChangeStaffDepartment(staff.StaffId, cbo.SelectedItem.ToString());
-                if (ok)
-                {
-                    MessageBox.Show("Department updated successfully.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    dlg.Close();
-                    RefreshGrid();
-                }
-                else
-                    MessageBox.Show("Failed to update department. Please try again.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                if (ok) { MessageBox.Show("Department updated successfully.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information); dlg.Close(); RefreshGrid(); }
+                else      MessageBox.Show("Failed to update department. Please try again.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             };
-
-            pnlFtr.Controls.Add(btnCancel);
-            pnlFtr.Controls.Add(btnSave);
-            dlg.Controls.Add(pnlBody);
-            dlg.Controls.Add(pnlHdr);
-            dlg.Controls.Add(pnlFtr);
+            pnlFtr.Controls.Add(btnCancel); pnlFtr.Controls.Add(btnSave);
+            dlg.Controls.Add(pnlBody); dlg.Controls.Add(pnlHdr); dlg.Controls.Add(pnlFtr);
             dlg.ShowDialog(this);
         }
 
@@ -750,78 +622,32 @@ namespace PremiumLivingOPS.Views.SystemControl
 
             using var dlg = new Form
             {
-                Text            = $"Staff \u2014 {rec.StaffId}",
-                Size            = new Size(640, 400),
-                StartPosition   = FormStartPosition.CenterParent,
-                BackColor       = Color.White,
-                Font            = new Font("Segoe UI", 12f),
-                FormBorderStyle = FormBorderStyle.FixedDialog,
-                MaximizeBox     = false,
-                MinimizeBox     = false
+                Text = $"Staff \u2014 {rec.StaffId}", Size = new Size(640, 400),
+                StartPosition = FormStartPosition.CenterParent, BackColor = Color.White,
+                Font = new Font("Segoe UI", 12f), FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox = false, MinimizeBox = false
             };
             var pnlHdr = new Panel { Dock = DockStyle.Top, Height = 60, BackColor = Color.FromArgb(19, 35, 61) };
-            pnlHdr.Controls.Add(new Label
-            {
-                Text      = $"Staff Details  \u2014  {rec.StaffId}",
-                Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
-                ForeColor = Color.White,
-                Dock      = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleLeft,
-                Padding   = new Padding(20, 0, 0, 0)
-            });
+            pnlHdr.Controls.Add(new Label { Text = $"Staff Details  \u2014  {rec.StaffId}", Font = new Font("Segoe UI", 14f, FontStyle.Bold), ForeColor = Color.White, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(20, 0, 0, 0) });
 
             var pnlBody = new Panel { Dock = DockStyle.Fill, Padding = new Padding(24, 16, 24, 8), BackColor = Color.White };
-            var tbl = new TableLayoutPanel
-            {
-                Dock            = DockStyle.Fill,
-                ColumnCount     = 2,
-                RowCount        = 5,
-                BackColor       = Color.Transparent,
-                CellBorderStyle = TableLayoutPanelCellBorderStyle.None
-            };
+            var tbl = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 5, BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None };
             tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 160f));
             tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
             for (int r = 0; r < 5; r++) tbl.RowStyles.Add(new RowStyle(SizeType.Percent, 20f));
 
-            var fields = new[] {
-                ("Staff ID",   rec.StaffId),
-                ("Name",       rec.StaffName),
-                ("Role",       rec.Role),
-                ("Department", rec.Department),
-                ("Email",      rec.Email)
-            };
-            for (int i = 0; i < fields.Length; i++)
-            {
-                tbl.Controls.Add(MakeLblKey(fields[i].Item1), 0, i);
-                tbl.Controls.Add(MakeLblVal(fields[i].Item2), 1, i);
-            }
+            var fields = new[] { ("Staff ID", rec.StaffId), ("Name", rec.StaffName), ("Role", rec.Role), ("Department", rec.Department), ("Email", rec.Email) };
+            for (int i = 0; i < fields.Length; i++) { tbl.Controls.Add(MakeLblKey(fields[i].Item1), 0, i); tbl.Controls.Add(MakeLblVal(fields[i].Item2), 1, i); }
             pnlBody.Controls.Add(tbl);
 
             var pnlFtr = new Panel { Dock = DockStyle.Bottom, Height = 60, BackColor = Color.White, Padding = new Padding(0, 8, 20, 8) };
-            pnlFtr.Paint += (fps, fpe) =>
-            {
-                using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
-                fpe.Graphics.DrawLine(pen, 0, 0, ((Panel)fps).Width, 0);
-            };
-            var btnClose = new Button
-            {
-                Text      = "Close",
-                Font      = new Font("Segoe UI", 12f),
-                ForeColor = Color.FromArgb(15, 31, 53),
-                BackColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Dock      = DockStyle.Right,
-                Width     = 130,
-                Cursor    = Cursors.Hand
-            };
-            btnClose.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
-            btnClose.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
+            pnlFtr.Paint += (fps, fpe) => { using var pen = new Pen(Color.FromArgb(221, 227, 236), 1); fpe.Graphics.DrawLine(pen, 0, 0, ((Panel)fps).Width, 0); };
+            var btnClose = new Button { Text = "Close", Font = new Font("Segoe UI", 12f), ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White, FlatStyle = FlatStyle.Flat, Dock = DockStyle.Right, Width = 130, Cursor = Cursors.Hand };
+            btnClose.FlatAppearance.BorderColor = Color.FromArgb(221, 227, 236); btnClose.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
             btnClose.Click += (bcs, bce) => dlg.Close();
             pnlFtr.Controls.Add(btnClose);
 
-            dlg.Controls.Add(pnlBody);
-            dlg.Controls.Add(pnlHdr);
-            dlg.Controls.Add(pnlFtr);
+            dlg.Controls.Add(pnlBody); dlg.Controls.Add(pnlHdr); dlg.Controls.Add(pnlFtr);
             dlg.ShowDialog(this);
         }
 
@@ -838,9 +664,8 @@ namespace PremiumLivingOPS.Views.SystemControl
             return path;
         }
 
-        // ── Label / input helpers
-        // MakeFieldLabel: Add Staff dialog — BottomLeft + bottom padding 4px
-        // so label text sits flush above input with a clear visual gap.
+        // ── Helpers
+        // MakeFieldLabel — Add Staff dialog: BottomLeft so text sits just above input
         private static Label MakeFieldLabel(string text) => new Label
         {
             Text      = text,
@@ -851,10 +676,19 @@ namespace PremiumLivingOPS.Views.SystemControl
             Padding   = new Padding(0, 0, 8, 4)
         };
 
-        // MakeLblKey: readonly/detail dialogs — MiddleLeft
+        // MakeLblKey — readonly/detail dialogs
         private static Label MakeLblKey(string text) => new Label { Text = text, Font = new Font("Segoe UI", 10f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(0, 0, 8, 0) };
         private static Label MakeLblVal(string text) => new Label { Text = text ?? "\u2014", Font = new Font("Segoe UI", 12f), ForeColor = Color.FromArgb(15, 31, 53), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoEllipsis = true };
-        private static TextBox MakeTextInput(string placeholder) => new TextBox { Dock = DockStyle.Fill, Font = new Font("Segoe UI", 12f), BorderStyle = BorderStyle.FixedSingle, PlaceholderText = placeholder };
+
+        // MakeTextInput — Multiline=true bypasses AutoSize so Dock=Fill controls height
+        private static TextBox MakeTextInput(string placeholder) => new TextBox
+        {
+            Dock            = DockStyle.Fill,
+            Font            = new Font("Segoe UI", 12f),
+            BorderStyle     = BorderStyle.FixedSingle,
+            PlaceholderText = placeholder,
+            Multiline       = true
+        };
 
         // ── Navigation & Logout
         private void OnTopNavMenuItemClicked(string menuLabel, string subItem) => FormNavigator.NavigateTo(this, menuLabel, subItem);
