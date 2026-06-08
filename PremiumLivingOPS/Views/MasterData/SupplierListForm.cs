@@ -75,7 +75,7 @@ namespace PremiumLivingOPS.Views.MasterData
             int total = allVm.Suppliers.Count;
             int shown = _currentSuppliers.Count;
 
-            // ── outer flow: pills left, buttons right ──────────────────
+            // ── outer flow: pills left ─────────────────────────────────
             var outerFlow = new FlowLayoutPanel
             {
                 Dock          = DockStyle.Fill,
@@ -86,7 +86,7 @@ namespace PremiumLivingOPS.Views.MasterData
                 AutoScroll    = false
             };
 
-            // ── KPI pills ──────────────────────────────────────────────
+            // ── KPI pills ─────────────────────────────────────────────
             var pills = new[]
             {
                 ("Total Suppliers", total.ToString(),
@@ -142,20 +142,10 @@ namespace PremiumLivingOPS.Views.MasterData
                 outerFlow.Controls.Add(pill);
             }
 
-            // ── spacer to push buttons to the right ────────────────────
-            var spacer = new Panel
-            {
-                BackColor = Color.Transparent,
-                Size      = new Size(10, 50),
-                Margin    = new Padding(0)
-            };
-            // Use AutoSize trick: the spacer stretches via the flow's remaining space
-            // We instead anchor the buttons inside a right-docked panel added to pnlKpi directly.
-
-            outerFlow.Controls.Add(spacer);
+            outerFlow.Controls.Add(new Panel { BackColor = Color.Transparent, Size = new Size(10, 50), Margin = new Padding(0) });
             pnlKpi.Controls.Add(outerFlow);
 
-            // ── action buttons (right-docked to pnlKpi) ────────────────
+            // ── action buttons (right-docked, 290×60) ─────────────────
             var pnlBtns = new FlowLayoutPanel
             {
                 FlowDirection = FlowDirection.LeftToRight,
@@ -170,7 +160,7 @@ namespace PremiumLivingOPS.Views.MasterData
             var btnModify = MakeKpiButton("Modify",
                 Color.FromArgb(234, 88, 12),
                 Color.FromArgb(255, 247, 237));
-            btnModify.Enabled = false;   // enabled only when a row is selected
+            btnModify.Enabled = false;
             btnModify.Click  += (s, e) =>
             {
                 int idx = dgvSuppliers.CurrentRow?.Index ?? -1;
@@ -178,7 +168,7 @@ namespace PremiumLivingOPS.Views.MasterData
                 ShowModifyDialog(idx);
             };
 
-            // Add New button (teal / brand blue)
+            // Add New button (brand navy)
             var btnAdd = MakeKpiButton("+ Add New",
                 Color.FromArgb(19, 35, 61),
                 Color.FromArgb(219, 234, 254));
@@ -193,17 +183,17 @@ namespace PremiumLivingOPS.Views.MasterData
                 btnModify.Enabled = dgvSuppliers.CurrentRow != null;
         }
 
-        // ── KPI button factory ─────────────────────────────────────────────
+        // ── KPI button factory  (290 × 60) ───────────────────────────────────
         private static Button MakeKpiButton(string text, Color fg, Color bg)
         {
             var btn = new Button
             {
                 Text      = text,
-                Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
+                Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
                 ForeColor = fg,
                 BackColor = bg,
                 FlatStyle = FlatStyle.Flat,
-                Size      = new Size(120, 38),
+                Size      = new Size(290, 60),
                 Margin    = new Padding(0, 0, 8, 0),
                 Cursor    = Cursors.Hand
             };
@@ -212,7 +202,7 @@ namespace PremiumLivingOPS.Views.MasterData
             return btn;
         }
 
-        // ── Add New dialog ────────────────────────────────────────────────
+        // ── Add New dialog  (1000 × 700) ──────────────────────────────────────
         private void ShowAddDialog()
         {
             string nextId = _ctrl.GetNextSupplierID();
@@ -220,7 +210,7 @@ namespace PremiumLivingOPS.Views.MasterData
             using var dlg = new Form
             {
                 Text            = "Add New Supplier",
-                Size            = new Size(500, 460),
+                Size            = new Size(1000, 700),
                 StartPosition   = FormStartPosition.CenterParent,
                 BackColor       = Color.White,
                 Font            = new Font("Segoe UI", 11f),
@@ -229,13 +219,9 @@ namespace PremiumLivingOPS.Views.MasterData
                 MinimizeBox     = false
             };
 
-            // Header
             var pnlHdr = BuildDialogHeader("Add New Supplier");
+            var (pnlBody, tbl) = BuildDialogBody(4);
 
-            // Body
-            var (pnlBody, tbl) = BuildDialogBody(5);
-
-            // Supplier ID (read-only, auto)
             var txtId = new TextBox
             {
                 Text      = nextId,
@@ -245,7 +231,6 @@ namespace PremiumLivingOPS.Views.MasterData
                 Dock      = DockStyle.Fill
             };
 
-            // Supplier Name
             var txtName    = MakeTextInput();
             var txtPhone   = MakeTextInput();
             var txtAddress = MakeTextInput();
@@ -265,7 +250,6 @@ namespace PremiumLivingOPS.Views.MasterData
                 tbl.SetRow(rows[i].Ctrl, i);
             }
 
-            // Footer
             var pnlFtr = BuildDialogFooter(dlg, () =>
             {
                 if (string.IsNullOrWhiteSpace(txtName.Text))
@@ -275,15 +259,13 @@ namespace PremiumLivingOPS.Views.MasterData
                 if (string.IsNullOrWhiteSpace(txtAddress.Text))
                 { MessageBox.Show("Address is required.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning); return false; }
 
-                var entity = new SupplierEntity
+                bool ok = _ctrl.AddSupplier(new SupplierEntity
                 {
                     SupplierID      = nextId,
                     SupplierName    = txtName.Text.Trim(),
                     PhoneNumber     = txtPhone.Text.Trim(),
                     SupplierAddress = txtAddress.Text.Trim()
-                };
-
-                bool ok = _ctrl.AddSupplier(entity);
+                });
                 if (!ok) { MessageBox.Show("Failed to add supplier. Please try again.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error); return false; }
                 return true;
             });
@@ -295,7 +277,7 @@ namespace PremiumLivingOPS.Views.MasterData
                 RefreshGrid();
         }
 
-        // ── Modify dialog ─────────────────────────────────────────────────
+        // ── Modify dialog  (1000 × 700) ───────────────────────────────────────
         private void ShowModifyDialog(int rowIndex)
         {
             if (rowIndex < 0 || rowIndex >= _currentSuppliers.Count) return;
@@ -304,7 +286,7 @@ namespace PremiumLivingOPS.Views.MasterData
             using var dlg = new Form
             {
                 Text            = $"Modify Supplier — {s.SupplierID}",
-                Size            = new Size(500, 420),
+                Size            = new Size(1000, 700),
                 StartPosition   = FormStartPosition.CenterParent,
                 BackColor       = Color.White,
                 Font            = new Font("Segoe UI", 11f),
@@ -313,13 +295,9 @@ namespace PremiumLivingOPS.Views.MasterData
                 MinimizeBox     = false
             };
 
-            // Header
             var pnlHdr = BuildDialogHeader($"Modify Supplier  —  {s.SupplierID}");
-
-            // Body
             var (pnlBody, tbl) = BuildDialogBody(4);
 
-            // Supplier ID (read-only)
             var txtId = new TextBox
             {
                 Text      = s.SupplierID,
@@ -348,7 +326,6 @@ namespace PremiumLivingOPS.Views.MasterData
                 tbl.SetRow(rows[i].Ctrl, i);
             }
 
-            // Footer
             var pnlFtr = BuildDialogFooter(dlg, () =>
             {
                 if (string.IsNullOrWhiteSpace(txtName.Text))
@@ -402,13 +379,7 @@ namespace PremiumLivingOPS.Views.MasterData
 
             var pnlHdr = BuildDialogHeader($"Supplier Details  —  {s.SupplierID}");
 
-            var pnlBody = new Panel
-            {
-                Dock      = DockStyle.Fill,
-                Padding   = new Padding(24, 16, 24, 8),
-                BackColor = Color.White
-            };
-
+            var pnlBody = new Panel { Dock = DockStyle.Fill, Padding = new Padding(24, 16, 24, 8), BackColor = Color.White };
             var tbl = new TableLayoutPanel
             {
                 Dock            = DockStyle.Fill,
@@ -435,13 +406,7 @@ namespace PremiumLivingOPS.Views.MasterData
             }
             pnlBody.Controls.Add(tbl);
 
-            var pnlFtr = new Panel
-            {
-                Dock      = DockStyle.Bottom,
-                Height    = 60,
-                BackColor = Color.White,
-                Padding   = new Padding(0, 8, 20, 8)
-            };
+            var pnlFtr = new Panel { Dock = DockStyle.Bottom, Height = 60, BackColor = Color.White, Padding = new Padding(0, 8, 20, 8) };
             pnlFtr.Paint += (snd, ev) =>
             {
                 using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
@@ -509,10 +474,6 @@ namespace PremiumLivingOPS.Views.MasterData
             return (pnlBody, tbl);
         }
 
-        /// <summary>
-        /// Builds a standard footer with Cancel + Save buttons.
-        /// onSave() returns true on success (closes dialog), false to keep dialog open.
-        /// </summary>
         private static Panel BuildDialogFooter(Form dlg, Func<bool> onSave)
         {
             var pnl = new Panel
@@ -554,8 +515,8 @@ namespace PremiumLivingOPS.Views.MasterData
                 Width     = 110,
                 Cursor    = Cursors.Hand
             };
-            btnSave.FlatAppearance.BorderSize          = 0;
-            btnSave.FlatAppearance.MouseOverBackColor  = Color.FromArgb(37, 60, 96);
+            btnSave.FlatAppearance.BorderSize         = 0;
+            btnSave.FlatAppearance.MouseOverBackColor = Color.FromArgb(37, 60, 96);
             btnSave.Click += (s, e) =>
             {
                 if (onSave()) dlg.DialogResult = DialogResult.OK;
@@ -591,10 +552,10 @@ namespace PremiumLivingOPS.Views.MasterData
         {
             var tb = new TextBox
             {
-                Text      = initial,
-                Font      = new Font("Segoe UI", 11f),
-                Dock      = DockStyle.Fill,
-                BackColor = Color.White,
+                Text        = initial,
+                Font        = new Font("Segoe UI", 11f),
+                Dock        = DockStyle.Fill,
+                BackColor   = Color.White,
                 BorderStyle = BorderStyle.FixedSingle
             };
             tb.Margin = new Padding(0, 6, 0, 6);
