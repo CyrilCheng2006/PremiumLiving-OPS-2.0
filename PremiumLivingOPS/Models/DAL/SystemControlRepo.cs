@@ -1,5 +1,6 @@
 using MySql.Data.MySqlClient;
 using PremiumLivingOPS.Models.Entities;
+using System;
 using System.Collections.Generic;
 
 namespace PremiumLivingOPS.Models.DAL
@@ -68,6 +69,44 @@ namespace PremiumLivingOPS.Models.DAL
                 }
             }
             return list;
+        }
+
+        /// <summary>
+        /// Generates the next available StaffID in the format S-XXX.
+        /// Finds all existing IDs matching S-\d+, picks the highest number,
+        /// and returns the next one (e.g. if S-010 exists, returns S-011).
+        /// If no matching IDs exist, returns S-001.
+        /// </summary>
+        public string GetNextStaffId()
+        {
+            using (MySqlConnection conn = DatabaseHelper.GetConnection())
+            {
+                conn.Open();
+                // Retrieve all IDs matching S-<digits> so we can find gaps and the max
+                const string sql =
+                    "SELECT StaffID FROM Staff " +
+                    "WHERE StaffID REGEXP '^S-[0-9]+$' " +
+                    "ORDER BY CAST(SUBSTRING(StaffID, 3) AS UNSIGNED)";
+
+                var usedNumbers = new System.Collections.Generic.HashSet<int>();
+                using (var cmd = new MySqlCommand(sql, conn))
+                using (var reader = cmd.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        string id = reader.GetString(0); // e.g. "S-007"
+                        if (int.TryParse(id.Substring(2), out int n))
+                            usedNumbers.Add(n);
+                    }
+                }
+
+                // Find the lowest unused number starting from 1
+                int next = 1;
+                while (usedNumbers.Contains(next))
+                    next++;
+
+                return $"S-{next:D3}";
+            }
         }
 
         // ═══════════════════════════════════════════════════════════════

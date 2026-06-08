@@ -34,6 +34,13 @@ namespace PremiumLivingOPS.Controllers
         }
 
         /// <summary>
+        /// Returns the next available StaffID in S-XXX format,
+        /// filling the lowest unused number (no gaps left behind).
+        /// </summary>
+        public string GetNextStaffId()
+            => _repo.GetNextStaffId();
+
+        /// <summary>
         /// Inserts a new staff member.
         /// Returns true on success, false if the StaffID already exists or a DB error occurs.
         /// </summary>

@@ -164,13 +164,18 @@ namespace PremiumLivingOPS.Views.SystemControl
         // ── Add Staff button
         private void btnAddStaff_Click(object sender, EventArgs e) => ShowAddStaffDialog();
 
-        // ── Add Staff dialog  (1000 × 600)
+        // ── Add Staff dialog  (1000 × 680)
         private void ShowAddStaffDialog()
         {
+            // Auto-generate next Staff ID from DB
+            string nextId;
+            try   { nextId = _ctrl.GetNextStaffId(); }
+            catch { nextId = "S-???"; }
+
             using var dlg = new Form
             {
                 Text            = "Add New Staff",
-                Size            = new Size(1000, 600),
+                Size            = new Size(1000, 680),
                 StartPosition   = FormStartPosition.CenterParent,
                 BackColor       = Color.White,
                 Font            = new Font("Segoe UI", 12f),
@@ -194,30 +199,66 @@ namespace PremiumLivingOPS.Views.SystemControl
             // Body
             var pnlBody = new Panel { Dock = DockStyle.Fill, BackColor = Color.White, Padding = new Padding(28, 20, 28, 8) };
 
+            // Row heights: label = 28, input = 52 (original). 1.5x spacing means
+            // we add a 26px gap row between each label+input pair.
+            // Layout (7 rows):
+            //   row 0 — label  28px   Staff ID
+            //   row 1 — input  52px
+            //   row 2 — gap    26px
+            //   row 3 — label  28px   Full Name / Role / Department (2-col)
+            //   row 4 — input  52px
+            //   row 5 — gap    26px
+            //   row 6 — label  28px   Email
+            //   row 7 — input  52px
+
             var tbl = new TableLayoutPanel
             {
                 Dock            = DockStyle.Fill,
                 ColumnCount     = 2,
-                RowCount        = 5,
+                RowCount        = 8,
                 BackColor       = Color.Transparent,
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
             tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
             tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
-            for (int r = 0; r < 5; r++)
-                tbl.RowStyles.Add(r % 2 == 0
-                    ? new RowStyle(SizeType.Absolute, 28f)   // label row
-                    : new RowStyle(SizeType.Absolute, 52f)); // input row
 
-            // Fields
-            var txtStaffId   = MakeTextInput("e.g. S001");
-            var txtName      = MakeTextInput("Full name");
-            var txtEmail     = MakeTextInput("email@example.com");
+            // Row heights
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 28f));  // 0 label
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 52f));  // 1 input
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 26f));  // 2 gap
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 28f));  // 3 label
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 52f));  // 4 input
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 26f));  // 5 gap
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 28f));  // 6 label
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 52f));  // 7 input
 
+            // ── Row 0/1: Staff ID (read-only, auto) | Full Name
+            var txtStaffId = new TextBox
+            {
+                Dock          = DockStyle.Fill,
+                Font          = new Font("Segoe UI", 12f),
+                BorderStyle   = BorderStyle.FixedSingle,
+                Text          = nextId,
+                ReadOnly      = true,
+                BackColor     = Color.FromArgb(240, 244, 249),   // grey-tint — signals read-only
+                ForeColor     = Color.FromArgb(98, 112, 135)
+            };
+            var txtName = MakeTextInput("Full name");
+
+            tbl.Controls.Add(MakeLblKey("Staff ID (auto-generated)"), 0, 0);
+            tbl.Controls.Add(txtStaffId,                              0, 1);
+            tbl.Controls.Add(MakeLblKey("Full Name *"),               1, 0);
+            tbl.Controls.Add(txtName,                                 1, 1);
+
+            // Row 2: gap (empty)
+
+            // ── Row 3/4: Role | Department
             var cboRole = new ComboBox
             {
-                Dock = DockStyle.Fill, Font = new Font("Segoe UI", 12f),
-                DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat
+                Dock          = DockStyle.Fill,
+                Font          = new Font("Segoe UI", 12f),
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                FlatStyle     = FlatStyle.Flat
             };
             foreach (var r in new[] { "Admin", "Sales", "Warehouse", "Manager", "Accountant" })
                 cboRole.Items.Add(r);
@@ -225,8 +266,10 @@ namespace PremiumLivingOPS.Views.SystemControl
 
             var cboDept = new ComboBox
             {
-                Dock = DockStyle.Fill, Font = new Font("Segoe UI", 12f),
-                DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat
+                Dock          = DockStyle.Fill,
+                Font          = new Font("Segoe UI", 12f),
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                FlatStyle     = FlatStyle.Flat
             };
             var depts = _allStaff.Select(s => s.Department)
                 .Where(d => !string.IsNullOrWhiteSpace(d))
@@ -234,28 +277,49 @@ namespace PremiumLivingOPS.Views.SystemControl
             foreach (var d in depts) cboDept.Items.Add(d);
             if (cboDept.Items.Count > 0) cboDept.SelectedIndex = 0;
 
-            // Row 0/1 — Staff ID (left) | Name (right)
-            tbl.Controls.Add(MakeLblKey("Staff ID *"),  0, 0);
-            tbl.Controls.Add(txtStaffId,                0, 1);
-            tbl.Controls.Add(MakeLblKey("Full Name *"), 1, 0);
-            tbl.Controls.Add(txtName,                   1, 1);
+            tbl.Controls.Add(MakeLblKey("Role *"),       0, 3);
+            tbl.Controls.Add(cboRole,                    0, 4);
+            tbl.Controls.Add(MakeLblKey("Department *"), 1, 3);
+            tbl.Controls.Add(cboDept,                    1, 4);
 
-            // Row 2/3 — Role (left) | Department (right)
-            tbl.Controls.Add(MakeLblKey("Role *"),       0, 2);
-            tbl.Controls.Add(cboRole,                    0, 3);
-            tbl.Controls.Add(MakeLblKey("Department *"), 1, 2);
-            tbl.Controls.Add(cboDept,                    1, 3);
+            // Row 5: gap (empty)
 
-            // Row 4 — Email (full width)
-            tbl.SetColumnSpan(MakeLblKey("Email *"), 2);
-            var lblEmail = MakeLblKey("Email *");
-            tbl.Controls.Add(lblEmail,  0, 4);
-            tbl.SetColumnSpan(lblEmail, 2);
-            // email input spans 2 cols — add in row 4+1... use an extra row
-            tbl.RowCount = 6;
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 52f));
-            tbl.Controls.Add(txtEmail, 0, 5);
-            tbl.SetColumnSpan(txtEmail, 2);
+            // ── Row 6/7: Email (full-width)
+            // Email field: user types the local part; @plf.com is shown as a
+            // suffix label docked to the right of a Panel that holds both.
+            var lblEmailKey = MakeLblKey("Email * (local part only — @plf.com will be appended)");
+            tbl.Controls.Add(lblEmailKey, 0, 6);
+            tbl.SetColumnSpan(lblEmailKey, 2);
+
+            // Email input panel: [TextBox ............] [@plf.com]
+            var pnlEmail = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
+
+            var lblSuffix = new Label
+            {
+                Text      = "@plf.com",
+                Font      = new Font("Segoe UI", 12f),
+                ForeColor = Color.FromArgb(98, 112, 135),
+                BackColor = Color.FromArgb(240, 244, 249),
+                BorderStyle = BorderStyle.FixedSingle,
+                TextAlign = ContentAlignment.MiddleCenter,
+                Dock      = DockStyle.Right,
+                Width     = 110,
+                AutoSize  = false
+            };
+
+            var txtEmailLocal = new TextBox
+            {
+                Dock        = DockStyle.Fill,
+                Font        = new Font("Segoe UI", 12f),
+                BorderStyle = BorderStyle.FixedSingle,
+                PlaceholderText = "e.g. john.doe"
+            };
+
+            pnlEmail.Controls.Add(txtEmailLocal);
+            pnlEmail.Controls.Add(lblSuffix);
+
+            tbl.Controls.Add(pnlEmail, 0, 7);
+            tbl.SetColumnSpan(pnlEmail, 2);
 
             pnlBody.Controls.Add(tbl);
 
@@ -269,9 +333,14 @@ namespace PremiumLivingOPS.Views.SystemControl
 
             var btnCancel = new Button
             {
-                Text = "Cancel", Font = new Font("Segoe UI", 12f),
-                ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White,
-                FlatStyle = FlatStyle.Flat, Size = new Size(210, 60), Dock = DockStyle.Right, Cursor = Cursors.Hand
+                Text      = "Cancel",
+                Font      = new Font("Segoe UI", 12f),
+                ForeColor = Color.FromArgb(15, 31, 53),
+                BackColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Size      = new Size(210, 60),
+                Dock      = DockStyle.Right,
+                Cursor    = Cursors.Hand
             };
             btnCancel.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
             btnCancel.FlatAppearance.BorderSize         = 1;
@@ -280,26 +349,35 @@ namespace PremiumLivingOPS.Views.SystemControl
 
             var btnSave = new Button
             {
-                Text = "Save", Font = new Font("Segoe UI", 12f, FontStyle.Bold),
-                ForeColor = Color.White, BackColor = Color.FromArgb(22, 163, 74),
-                FlatStyle = FlatStyle.Flat, Size = new Size(210, 60), Dock = DockStyle.Right, Cursor = Cursors.Hand
+                Text      = "Save",
+                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.White,
+                BackColor = Color.FromArgb(22, 163, 74),
+                FlatStyle = FlatStyle.Flat,
+                Size      = new Size(210, 60),
+                Dock      = DockStyle.Right,
+                Cursor    = Cursors.Hand
             };
             btnSave.FlatAppearance.BorderSize         = 0;
             btnSave.FlatAppearance.MouseOverBackColor = Color.FromArgb(21, 128, 61);
             btnSave.FlatAppearance.MouseDownBackColor = Color.FromArgb(20,  83, 45);
             btnSave.Click += (s, ev) =>
             {
-                string id    = txtStaffId.Text.Trim();
-                string name  = txtName.Text.Trim();
-                string email = txtEmail.Text.Trim();
-                string role  = cboRole.SelectedItem?.ToString();
-                string dept  = cboDept.SelectedItem?.ToString();
+                string id        = txtStaffId.Text.Trim();          // always valid (auto-gen)
+                string name      = txtName.Text.Trim();
+                string localPart = txtEmailLocal.Text.Trim();
+                string email     = string.IsNullOrEmpty(localPart) ? "" : localPart + "@plf.com";
+                string role      = cboRole.SelectedItem?.ToString();
+                string dept      = cboDept.SelectedItem?.ToString();
 
-                if (string.IsNullOrEmpty(id))    { MessageBox.Show("Staff ID is required.",   "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
-                if (string.IsNullOrEmpty(name))  { MessageBox.Show("Full Name is required.",  "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
-                if (string.IsNullOrEmpty(email)) { MessageBox.Show("Email is required.",      "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
-                if (string.IsNullOrEmpty(role))  { MessageBox.Show("Role is required.",       "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
-                if (string.IsNullOrEmpty(dept))  { MessageBox.Show("Department is required.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+                if (string.IsNullOrEmpty(name))
+                { MessageBox.Show("Full Name is required.",  "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+                if (string.IsNullOrEmpty(localPart))
+                { MessageBox.Show("Email local part is required.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+                if (string.IsNullOrEmpty(role))
+                { MessageBox.Show("Role is required.",       "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+                if (string.IsNullOrEmpty(dept))
+                { MessageBox.Show("Department is required.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
 
                 bool ok = _ctrl.AddStaff(new Staff
                 {
@@ -312,7 +390,7 @@ namespace PremiumLivingOPS.Views.SystemControl
 
                 if (ok)
                 {
-                    MessageBox.Show("Staff added successfully.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    MessageBox.Show($"Staff {id} added successfully.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     dlg.Close();
                     RefreshGrid();
                 }
