@@ -206,19 +206,20 @@ namespace PremiumLivingOPS.Views.SystemControl
             tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
             tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
 
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 10f));  // 0  top gap
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 26f));  // 1  label
+            // FIX 1: Increased spacing between label and field rows (label: 26→30, gap: 20→28, top gap: 10→14)
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 14f));  // 0  top gap
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 30f));  // 1  label
             tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 52f));  // 2  input
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 20f));  // 3  gap
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 10f));  // 4  top gap
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 26f));  // 5  label
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 28f));  // 3  gap
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 14f));  // 4  top gap
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 30f));  // 5  label
             tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 52f));  // 6  input
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 20f));  // 7  gap
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 10f));  // 8  top gap
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 26f));  // 9  label
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 28f));  // 7  gap
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 14f));  // 8  top gap
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 30f));  // 9  label
             tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 52f));  // 10 input
 
-            // Row 1/2: Staff ID (read-only) | Full Name
+            // FIX 3: Staff ID — ReadOnly field, no parenthetical note on label
             var txtStaffId = new TextBox
             {
                 Dock        = DockStyle.Fill,
@@ -226,6 +227,7 @@ namespace PremiumLivingOPS.Views.SystemControl
                 BorderStyle = BorderStyle.FixedSingle,
                 Text        = nextId,
                 ReadOnly    = true,
+                TabStop     = false,
                 BackColor   = Color.FromArgb(240, 244, 249),
                 ForeColor   = Color.FromArgb(98, 112, 135)
             };
@@ -273,6 +275,7 @@ namespace PremiumLivingOPS.Views.SystemControl
 
             var pnlEmail = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
 
+            // FIX 2: Increased @plf.com suffix width from 140 to 180 to prevent layout shift
             var lblSuffix = new Label
             {
                 Text        = "@plf.com",
@@ -282,7 +285,7 @@ namespace PremiumLivingOPS.Views.SystemControl
                 BorderStyle = BorderStyle.FixedSingle,
                 TextAlign   = ContentAlignment.MiddleCenter,
                 Dock        = DockStyle.Right,
-                Width       = 140,
+                Width       = 180,
                 AutoSize    = false
             };
 
