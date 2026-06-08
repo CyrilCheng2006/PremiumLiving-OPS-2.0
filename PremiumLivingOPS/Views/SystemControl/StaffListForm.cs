@@ -79,7 +79,7 @@ namespace PremiumLivingOPS.Views.SystemControl
             btnModifyDetail.Enabled = dgvStaff.SelectedRows.Count > 0;
         }
 
-        // ── KPI strip — structure 1:1 identical to ViewOrderForm.RefreshKpi()
+        // ── KPI strip
         private void RefreshKpi()
         {
             pnlKpi.Controls.Clear();
@@ -268,44 +268,20 @@ namespace PremiumLivingOPS.Views.SystemControl
             tbl.SetColumnSpan(lblEmailKey, 2);
 
             // ----------------------------------------------------------------
-            // Email row: outer pnlEmail (Dock=Fill) → Layout event positions:
-            //   • pnlEmailInput  — Panel that draws the border and hosts the
-            //                       borderless TextBox, vertically centered.
-            //                       Its height is controlled by us, so the
-            //                       suffix Label can match it exactly.
-            //   • lblSuffix      — same top/height as pnlEmailInput.
+            // Email row:
+            //   pnlEmail (Dock=Fill, 52px cell)
+            //   ├── pnlEmailInput  Dock=Fill  — draws border, hosts borderless TextBox
+            //   └── lblSuffix      Dock=Right — same height because both Dock inside pnlEmail
+            //
+            // Using Dock instead of manual SetBounds so pnlEmailInput naturally
+            // fills the full cell height, matching every other input row.
             // ----------------------------------------------------------------
-            const int SuffixW   = 180;
-            const int InputH    = 34;   // desired visual height of the input row
+            const int SuffixW = 180;
 
-            var pnlEmail = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
-
-            // Border-drawing wrapper for the TextBox
-            var pnlEmailInput = new Panel
+            var pnlEmail = new Panel
             {
-                BackColor   = Color.White,
-                Cursor      = Cursors.IBeam
-            };
-            pnlEmailInput.Paint += (ps, pe) =>
-            {
-                using var pen = new Pen(Color.FromArgb(180, 180, 180), 1);
-                pe.Graphics.DrawRectangle(pen, 0, 0, ((Panel)ps).Width - 1, ((Panel)ps).Height - 1);
-            };
-
-            var txtEmailLocal = new TextBox
-            {
-                Font            = new Font("Segoe UI", 12f),
-                BorderStyle     = BorderStyle.None,   // border drawn by parent panel
-                PlaceholderText = "e.g. john.doe",
-                BackColor       = Color.White
-            };
-            // Centre the borderless TextBox vertically inside pnlEmailInput
-            pnlEmailInput.Controls.Add(txtEmailLocal);
-            pnlEmailInput.Layout += (ps, pe) =>
-            {
-                int innerW = pnlEmailInput.ClientSize.Width - 8;
-                int ty     = (pnlEmailInput.ClientSize.Height - txtEmailLocal.Height) / 2;
-                txtEmailLocal.SetBounds(6, ty, innerW, txtEmailLocal.Height);
+                Dock      = DockStyle.Fill,
+                BackColor = Color.White
             };
 
             var lblSuffix = new Label
@@ -316,26 +292,44 @@ namespace PremiumLivingOPS.Views.SystemControl
                 BackColor   = Color.FromArgb(240, 244, 249),
                 BorderStyle = BorderStyle.FixedSingle,
                 TextAlign   = ContentAlignment.MiddleCenter,
-                AutoSize    = false
+                AutoSize    = false,
+                Dock        = DockStyle.Right,
+                Width       = SuffixW
             };
 
-            pnlEmail.Controls.Add(pnlEmailInput);
-            pnlEmail.Controls.Add(lblSuffix);
-
-            // Single Layout handler: both siblings get the same top offset and
-            // the same height (InputH), vertically centred inside the cell.
-            pnlEmail.Layout += (ps, pe) =>
+            // pnlEmailInput fills whatever space remains after lblSuffix is docked right.
+            // It draws its own border and vertically centres the borderless TextBox inside.
+            var pnlEmailInput = new Panel
             {
-                int w    = pnlEmail.ClientSize.Width;
-                int cellH = pnlEmail.ClientSize.Height;
-                int top  = (cellH - InputH) / 2;          // vertically centre within the 52px cell
-                if (top < 0) top = 0;
-
-                // suffix on the right
-                lblSuffix.SetBounds(w - SuffixW, top, SuffixW, InputH);
-                // input wrapper fills the left portion
-                pnlEmailInput.SetBounds(0, top, w - SuffixW, InputH);
+                Dock      = DockStyle.Fill,
+                BackColor = Color.White,
+                Cursor    = Cursors.IBeam
             };
+            pnlEmailInput.Paint += (ps, pe) =>
+            {
+                using var pen = new Pen(Color.FromArgb(180, 180, 180), 1);
+                pe.Graphics.DrawRectangle(pen, 0, 0, ((Panel)ps).Width - 1, ((Panel)ps).Height - 1);
+            };
+
+            var txtEmailLocal = new TextBox
+            {
+                Font            = new Font("Segoe UI", 12f),
+                BorderStyle     = BorderStyle.None,
+                PlaceholderText = "e.g. john.doe",
+                BackColor       = Color.White
+            };
+            pnlEmailInput.Controls.Add(txtEmailLocal);
+            // Vertically centre the borderless TextBox inside its wrapper
+            pnlEmailInput.Layout += (ps, pe) =>
+            {
+                int ty = (pnlEmailInput.ClientSize.Height - txtEmailLocal.Height) / 2;
+                if (ty < 0) ty = 0;
+                txtEmailLocal.SetBounds(6, ty, pnlEmailInput.ClientSize.Width - 12, txtEmailLocal.Height);
+            };
+
+            // Add suffix first so Dock=Right is processed before Dock=Fill
+            pnlEmail.Controls.Add(lblSuffix);
+            pnlEmail.Controls.Add(pnlEmailInput);
 
             tbl.Controls.Add(pnlEmail, 0, 10);
             tbl.SetColumnSpan(pnlEmail, 2);
