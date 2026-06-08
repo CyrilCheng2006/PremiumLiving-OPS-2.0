@@ -209,9 +209,9 @@ namespace PremiumLivingOPS.Views.SystemControl
                 Padding   = new Padding(32, 0, 0, 0)
             });
 
-            // ── Body — two large buttons (500×120) stacked vertically, centred
+            // ── Body — two large buttons (500×100) stacked vertically, centred
             const int BtnW   = 500;
-            const int BtnH   = 120;
+            const int BtnH   = 100;
             const int BtnGap = 24;
 
             var pnlBody = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
@@ -222,7 +222,7 @@ namespace PremiumLivingOPS.Views.SystemControl
                 Text      = "\uD83D\uDD11  Change Password",
                 Font      = new Font("Segoe UI", 15f, FontStyle.Bold),
                 ForeColor = Color.White,
-                BackColor = Color.FromArgb(124, 58, 237),   // #7C3AED violet-600
+                BackColor = Color.FromArgb(124, 58, 237),
                 FlatStyle = FlatStyle.Flat,
                 Size      = new Size(BtnW, BtnH),
                 Cursor    = Cursors.Hand
