@@ -13,6 +13,7 @@ namespace PremiumLivingOPS.Views.SystemControl
         private TextBox      txtSearch;
         private Button       btnSearch;
         private Button       btnRefresh;
+        private Button       btnAddStaff;
         private Button       btnModifyDetail;
         private DataGridView dgvStaff;
 
@@ -54,7 +55,7 @@ namespace PremiumLivingOPS.Views.SystemControl
                 Font            = new Font("Segoe UI", 12f),
                 BorderStyle     = BorderStyle.FixedSingle,
                 Dock            = DockStyle.Fill,
-                PlaceholderText = "Search by Staff ID, Name, Role, Department or Email…"
+                PlaceholderText = "Search by Staff ID, Name, Role, Department or Email\u2026"
             };
             txtSearch.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) RefreshGrid(); };
 
@@ -111,11 +112,12 @@ namespace PremiumLivingOPS.Views.SystemControl
             pnlSearchOuter.Controls.Add(pnlSearchWhite);
 
             // ════════════════════════════════════════════════════════════════
-            //  CARD 2 — KPI strip  (Pills ——— [Modify Detail btn])
+            //  CARD 2 — KPI strip
             //
-            //  Layout: TableLayoutPanel 2-col
+            //  Layout: TableLayoutPanel 3-col
             //    col 0  Percent 100%  →  pnlKpi  (FlowLayoutPanel pills)
-            //    col 1  Absolute 310  →  Modify Detail button (290×60, centred)
+            //    col 1  Absolute 310  →  Add Staff button  (290×60, green)
+            //    col 2  Absolute 310  →  Modify Detail button (290×60, blue)
             // ════════════════════════════════════════════════════════════════
             pnlKpi = new Panel
             {
@@ -124,15 +126,27 @@ namespace PremiumLivingOPS.Views.SystemControl
                 Padding   = new Padding(12, 10, 12, 10)
             };
 
-            // Modify Detail button
+            // Add Staff button (green)
+            btnAddStaff = MakeGreenBtn("\u2795  Add Staff", Point.Empty, 290, 60);
+            btnAddStaff.Click += btnAddStaff_Click;
+
+            var pnlAddCell = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
+            pnlAddCell.Controls.Add(btnAddStaff);
+            pnlAddCell.Layout += (s, e) =>
+            {
+                var p = (Panel)s;
+                btnAddStaff.Left = (p.Width  - btnAddStaff.Width)  / 2;
+                btnAddStaff.Top  = (p.Height - btnAddStaff.Height) / 2;
+            };
+
+            // Modify Detail button (blue)
             btnModifyDetail = MakePrimaryBtn("\u270F\uFE0F  Modify Detail", Point.Empty, 290, 60);
             btnModifyDetail.Enabled = false;
             btnModifyDetail.Click  += btnModifyDetail_Click;
 
-            // Centre the button vertically inside its cell
-            var pnlBtnCell = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            pnlBtnCell.Controls.Add(btnModifyDetail);
-            pnlBtnCell.Layout += (s, e) =>
+            var pnlModifyCell = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
+            pnlModifyCell.Controls.Add(btnModifyDetail);
+            pnlModifyCell.Layout += (s, e) =>
             {
                 var p = (Panel)s;
                 btnModifyDetail.Left = (p.Width  - btnModifyDetail.Width)  / 2;
@@ -142,17 +156,19 @@ namespace PremiumLivingOPS.Views.SystemControl
             var tblKpi = new TableLayoutPanel
             {
                 Dock            = DockStyle.Fill,
-                ColumnCount     = 2,
+                ColumnCount     = 3,
                 RowCount        = 1,
                 BackColor       = Color.Transparent,
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
                 Padding         = new Padding(0)
             };
             tblKpi.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f)); // pills
-            tblKpi.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 310f)); // button
+            tblKpi.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 310f)); // Add Staff
+            tblKpi.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 310f)); // Modify Detail
             tblKpi.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-            tblKpi.Controls.Add(pnlKpi,    0, 0);
-            tblKpi.Controls.Add(pnlBtnCell, 1, 0);
+            tblKpi.Controls.Add(pnlKpi,        0, 0);
+            tblKpi.Controls.Add(pnlAddCell,    1, 0);
+            tblKpi.Controls.Add(pnlModifyCell, 2, 0);
 
             var pnlKpiWhite = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
             pnlKpiWhite.Paint += PaintCardBorder;
@@ -254,6 +270,24 @@ namespace PremiumLivingOPS.Views.SystemControl
             b.FlatAppearance.BorderSize         = 0;
             b.FlatAppearance.MouseOverBackColor = Color.FromArgb(26, 77, 192);
             b.FlatAppearance.MouseDownBackColor = Color.FromArgb(21, 60, 155);
+            return b;
+        }
+
+        private static Button MakeGreenBtn(string text, Point loc, int w, int h)
+        {
+            var b = new Button
+            {
+                Text      = text,
+                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.White,
+                BackColor = Color.FromArgb(22, 163, 74),
+                FlatStyle = FlatStyle.Flat,
+                Location  = loc, Width = w, Height = h,
+                Cursor    = Cursors.Hand
+            };
+            b.FlatAppearance.BorderSize         = 0;
+            b.FlatAppearance.MouseOverBackColor = Color.FromArgb(21, 128, 61);
+            b.FlatAppearance.MouseDownBackColor = Color.FromArgb(20,  83, 45);
             return b;
         }
 
