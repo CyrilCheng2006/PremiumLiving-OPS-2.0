@@ -12,7 +12,7 @@ namespace PremiumLivingOPS.Controllers
     {
         private readonly SystemControlRepo _repo = new SystemControlRepo();
 
-        // ── Staff List ─────────────────────────────────────────────
+        // ── Staff List ───────────────────────────────────────────────────────────
 
         /// <summary>
         /// Returns ViewModel for the Staff List page.
@@ -34,6 +34,16 @@ namespace PremiumLivingOPS.Controllers
         }
 
         /// <summary>
+        /// Inserts a new staff member.
+        /// Returns true on success, false if the StaffID already exists or a DB error occurs.
+        /// </summary>
+        public bool AddStaff(Staff staff)
+        {
+            try   { return _repo.InsertStaff(staff); }
+            catch { return false; }
+        }
+
+        /// <summary>
         /// Updates the password for a staff member.
         /// Returns true on success.
         /// </summary>
@@ -47,7 +57,7 @@ namespace PremiumLivingOPS.Controllers
         public bool ChangeStaffDepartment(string staffId, string newDepartment)
             => _repo.UpdateStaffDepartment(staffId, newDepartment);
 
-        // ── Log List ─────────────────────────────────────────────
+        // ── Log List ───────────────────────────────────────────────────────────
 
         /// <summary>
         /// Returns ViewModel for the Log List page.

@@ -75,6 +75,33 @@ namespace PremiumLivingOPS.Models.DAL
         // ═══════════════════════════════════════════════════════════════
 
         /// <summary>
+        /// Inserts a new staff member into the Staff table.
+        /// StaffPassword defaults to "changeme" if not supplied.
+        /// Returns true if exactly one row was inserted.
+        /// </summary>
+        public bool InsertStaff(Staff staff)
+        {
+            using (MySqlConnection conn = DatabaseHelper.GetConnection())
+            {
+                conn.Open();
+                const string sql =
+                    "INSERT INTO Staff (StaffID, StaffName, StaffRole, Department, Email, StaffPassword) " +
+                    "VALUES (@id, @name, @role, @dept, @email, @pwd)";
+                using (var cmd = new MySqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@id",   staff.StaffId);
+                    cmd.Parameters.AddWithValue("@name", staff.StaffName);
+                    cmd.Parameters.AddWithValue("@role", staff.Role);
+                    cmd.Parameters.AddWithValue("@dept", staff.Department);
+                    cmd.Parameters.AddWithValue("@email",staff.Email);
+                    cmd.Parameters.AddWithValue("@pwd",
+                        string.IsNullOrWhiteSpace(staff.Password) ? "changeme" : staff.Password);
+                    return cmd.ExecuteNonQuery() == 1;
+                }
+            }
+        }
+
+        /// <summary>
         /// Updates the StaffPassword for the given staffId.
         /// Returns true if exactly one row was affected.
         /// </summary>
