@@ -12,12 +12,8 @@ namespace PremiumLivingOPS.Controllers
     {
         private readonly MasterDataRepo _repo = new MasterDataRepo();
 
-        // ── Supplier List ────────────────────────────────────────────
+        // ── Supplier ───────────────────────────────────────────────────────────────
 
-        /// <summary>
-        /// Returns ViewModel for the Supplier List page.
-        /// Supports optional keyword search (SupplierID or SupplierName).
-        /// </summary>
         public SupplierListViewModel GetSupplierListVM(string keyword = null)
         {
             var user = SessionManager.CurrentUser;
@@ -33,35 +29,19 @@ namespace PremiumLivingOPS.Controllers
             };
         }
 
-        /// <summary>
-        /// Returns the next available SupplierID in SP-XXX format.
-        /// </summary>
-        public string GetNextSupplierID()
-            => _repo.GetNextSupplierID();
+        public string GetNextSupplierID() => _repo.GetNextSupplierID();
 
-        /// <summary>
-        /// Inserts a new supplier.
-        /// Returns true on success.
-        /// </summary>
         public bool AddSupplier(SupplierEntity supplier)
         {
             try   { return _repo.InsertSupplier(supplier); }
             catch { return false; }
         }
 
-        /// <summary>
-        /// Updates an existing supplier's editable fields.
-        /// Returns true on success.
-        /// </summary>
         public bool UpdateSupplier(string supplierId, string name, string phone, string address)
             => _repo.UpdateSupplier(supplierId, name, phone, address);
 
-        // ── Customer List ────────────────────────────────────────────
+        // ── Customer ───────────────────────────────────────────────────────────────
 
-        /// <summary>
-        /// Returns ViewModel for the Customer List page.
-        /// Supports optional keyword search (CustomerID, CustomerName, or EmailAddress).
-        /// </summary>
         public CustomerListViewModel GetCustomerListVM(string keyword = null)
         {
             var user = SessionManager.CurrentUser;
@@ -76,5 +56,19 @@ namespace PremiumLivingOPS.Controllers
                 Customers    = _repo.SearchCustomers(keyword)
             };
         }
+
+        /// <summary>Returns the next available CustomerID in C-XXXX format.</summary>
+        public string GetNextCustomerID() => _repo.GetNextCustomerID();
+
+        /// <summary>Inserts a new customer. Returns true on success.</summary>
+        public bool AddCustomer(CustomerEntity customer)
+        {
+            try   { return _repo.InsertCustomer(customer); }
+            catch { return false; }
+        }
+
+        /// <summary>Updates an existing customer's editable fields. Returns true on success.</summary>
+        public bool UpdateCustomer(string customerId, string name, string email, string phone)
+            => _repo.UpdateCustomer(customerId, name, email, phone);
     }
 }

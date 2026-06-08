@@ -16,10 +16,6 @@ namespace PremiumLivingOPS.Models.DAL
         //  SUPPLIER — READ
         // ════════════════════════════════════════════════════════════════
 
-        /// <summary>
-        /// Returns all suppliers, optionally filtered by a keyword that matches
-        /// SupplierID or SupplierName (case-insensitive LIKE).
-        /// </summary>
         public List<SupplierEntity> SearchSuppliers(string keyword = null)
         {
             var list = new List<SupplierEntity>();
@@ -27,66 +23,47 @@ namespace PremiumLivingOPS.Models.DAL
             {
                 conn.Open();
                 var sql = @"SELECT SupplierID, SupplierName, PhoneNumber, SupplierAddress
-                            FROM Supplier
-                            WHERE 1=1";
-
+                            FROM Supplier WHERE 1=1";
                 if (!string.IsNullOrWhiteSpace(keyword))
-                    sql += @" AND (SupplierID   LIKE @kw
-                               OR  SupplierName LIKE @kw)";
-
+                    sql += " AND (SupplierID LIKE @kw OR SupplierName LIKE @kw)";
                 sql += " ORDER BY SupplierName ASC";
-
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
                     if (!string.IsNullOrWhiteSpace(keyword))
                         cmd.Parameters.AddWithValue("@kw", "%" + keyword.Trim() + "%");
-
                     using (var rdr = cmd.ExecuteReader())
-                        while (rdr.Read())
-                            list.Add(MapSupplier(rdr));
+                        while (rdr.Read()) list.Add(MapSupplier(rdr));
                 }
             }
             return list;
         }
 
-        /// <summary>Returns all suppliers (no filter).</summary>
         public List<SupplierEntity> GetAllSuppliers() => SearchSuppliers();
 
         /// <summary>
-        /// Generates the next available SupplierID in SUP-YYYYMMDD-XXX format.
-        /// XXX is a zero-padded 3-digit sequence number scoped to the current date.
-        /// Finds the lowest unused sequence number for today.
+        /// Generates the next SupplierID in SUP-YYYYMMDD-XXX format.
+        /// Sequence is scoped to the current date; fills the lowest unused slot.
         /// </summary>
         public string GetNextSupplierID()
         {
             string dateTag = DateTime.Today.ToString("yyyyMMdd");
             string prefix  = $"SUP-{dateTag}-";
-
             using (var conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
-                // Fetch all IDs that match today's prefix
-                string sql =
-                    "SELECT SupplierID FROM Supplier " +
-                    "WHERE SupplierID LIKE @prefix " +
-                    "ORDER BY SupplierID ASC";
-
                 var used = new HashSet<int>();
-                using (var cmd = new MySqlCommand(sql, conn))
+                using (var cmd = new MySqlCommand(
+                    "SELECT SupplierID FROM Supplier WHERE SupplierID LIKE @p ORDER BY SupplierID", conn))
                 {
-                    cmd.Parameters.AddWithValue("@prefix", prefix + "%");
+                    cmd.Parameters.AddWithValue("@p", prefix + "%");
                     using (var rdr = cmd.ExecuteReader())
                         while (rdr.Read())
                         {
                             string id  = rdr.GetString(0);
-                            string seq = id.Length > prefix.Length
-                                ? id.Substring(prefix.Length)
-                                : string.Empty;
-                            if (int.TryParse(seq, out int n))
-                                used.Add(n);
+                            string seq = id.Length > prefix.Length ? id.Substring(prefix.Length) : "";
+                            if (int.TryParse(seq, out int n)) used.Add(n);
                         }
                 }
-
                 int next = 1;
                 while (used.Contains(next)) next++;
                 return $"{prefix}{next:D3}";
@@ -105,9 +82,6 @@ namespace PremiumLivingOPS.Models.DAL
         //  SUPPLIER — WRITE
         // ════════════════════════════════════════════════════════════════
 
-        /// <summary>
-        /// Inserts a new supplier. Returns true if exactly one row inserted.
-        /// </summary>
         public bool InsertSupplier(SupplierEntity s)
         {
             using (var conn = DatabaseHelper.GetConnection())
@@ -127,19 +101,14 @@ namespace PremiumLivingOPS.Models.DAL
             }
         }
 
-        /// <summary>
-        /// Updates an existing supplier's name, phone, and address.
-        /// Returns true if exactly one row updated.
-        /// </summary>
         public bool UpdateSupplier(string supplierId, string name, string phone, string address)
         {
             using (var conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
                 const string sql =
-                    "UPDATE Supplier " +
-                    "SET SupplierName = @name, PhoneNumber = @phone, SupplierAddress = @addr " +
-                    "WHERE SupplierID = @id";
+                    "UPDATE Supplier SET SupplierName=@name, PhoneNumber=@phone, SupplierAddress=@addr " +
+                    "WHERE SupplierID=@id";
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
                     cmd.Parameters.AddWithValue("@name",  name);
@@ -152,13 +121,9 @@ namespace PremiumLivingOPS.Models.DAL
         }
 
         // ════════════════════════════════════════════════════════════════
-        //  CUSTOMER
+        //  CUSTOMER — READ
         // ════════════════════════════════════════════════════════════════
 
-        /// <summary>
-        /// Returns all customers, optionally filtered by a keyword that matches
-        /// CustomerID, CustomerName, or EmailAddress (case-insensitive LIKE).
-        /// </summary>
         public List<CustomerEntity> SearchCustomers(string keyword = null)
         {
             var list = new List<CustomerEntity>();
@@ -166,31 +131,52 @@ namespace PremiumLivingOPS.Models.DAL
             {
                 conn.Open();
                 var sql = @"SELECT CustomerID, CustomerName, EmailAddress, PhoneNumber
-                            FROM Customer
-                            WHERE 1=1";
-
+                            FROM Customer WHERE 1=1";
                 if (!string.IsNullOrWhiteSpace(keyword))
-                    sql += @" AND (CustomerID   LIKE @kw
-                               OR  CustomerName LIKE @kw
-                               OR  EmailAddress LIKE @kw)";
-
+                    sql += " AND (CustomerID LIKE @kw OR CustomerName LIKE @kw OR EmailAddress LIKE @kw)";
                 sql += " ORDER BY CustomerName ASC";
-
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
                     if (!string.IsNullOrWhiteSpace(keyword))
                         cmd.Parameters.AddWithValue("@kw", "%" + keyword.Trim() + "%");
-
                     using (var rdr = cmd.ExecuteReader())
-                        while (rdr.Read())
-                            list.Add(MapCustomer(rdr));
+                        while (rdr.Read()) list.Add(MapCustomer(rdr));
                 }
             }
             return list;
         }
 
-        /// <summary>Returns all customers (no filter).</summary>
         public List<CustomerEntity> GetAllCustomers() => SearchCustomers();
+
+        /// <summary>
+        /// Generates the next available CustomerID in C-XXXX format.
+        /// Fills the lowest unused 4-digit sequence number.
+        /// </summary>
+        public string GetNextCustomerID()
+        {
+            using (var conn = DatabaseHelper.GetConnection())
+            {
+                conn.Open();
+                const string sql =
+                    "SELECT CustomerID FROM Customer " +
+                    "WHERE CustomerID REGEXP '^C-[0-9]+$' " +
+                    "ORDER BY CAST(SUBSTRING(CustomerID, 3) AS UNSIGNED)";
+
+                var used = new HashSet<int>();
+                using (var cmd = new MySqlCommand(sql, conn))
+                using (var rdr = cmd.ExecuteReader())
+                    while (rdr.Read())
+                    {
+                        string id  = rdr.GetString(0);
+                        string seq = id.Length > 2 ? id.Substring(2) : "";
+                        if (int.TryParse(seq, out int n)) used.Add(n);
+                    }
+
+                int next = 1;
+                while (used.Contains(next)) next++;
+                return $"C-{next:D4}";
+            }
+        }
 
         private static CustomerEntity MapCustomer(MySqlDataReader rdr) => new CustomerEntity
         {
@@ -199,5 +185,53 @@ namespace PremiumLivingOPS.Models.DAL
             EmailAddress = rdr["EmailAddress"]?.ToString(),
             PhoneNumber  = rdr["PhoneNumber"]?.ToString()
         };
+
+        // ════════════════════════════════════════════════════════════════
+        //  CUSTOMER — WRITE
+        // ════════════════════════════════════════════════════════════════
+
+        /// <summary>Inserts a new customer. Returns true if exactly one row inserted.</summary>
+        public bool InsertCustomer(CustomerEntity c)
+        {
+            using (var conn = DatabaseHelper.GetConnection())
+            {
+                conn.Open();
+                const string sql =
+                    "INSERT INTO Customer (CustomerID, CustomerName, EmailAddress, PhoneNumber) " +
+                    "VALUES (@id, @name, @email, @phone)";
+                using (var cmd = new MySqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@id",    c.CustomerID);
+                    cmd.Parameters.AddWithValue("@name",  c.CustomerName);
+                    cmd.Parameters.AddWithValue("@email", c.EmailAddress);
+                    cmd.Parameters.AddWithValue("@phone", c.PhoneNumber);
+                    return cmd.ExecuteNonQuery() == 1;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Updates an existing customer's name, email, and phone.
+        /// Returns true if exactly one row updated.
+        /// </summary>
+        public bool UpdateCustomer(string customerId, string name, string email, string phone)
+        {
+            using (var conn = DatabaseHelper.GetConnection())
+            {
+                conn.Open();
+                const string sql =
+                    "UPDATE Customer " +
+                    "SET CustomerName=@name, EmailAddress=@email, PhoneNumber=@phone " +
+                    "WHERE CustomerID=@id";
+                using (var cmd = new MySqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@name",  name);
+                    cmd.Parameters.AddWithValue("@email", email);
+                    cmd.Parameters.AddWithValue("@phone", phone);
+                    cmd.Parameters.AddWithValue("@id",    customerId);
+                    return cmd.ExecuteNonQuery() == 1;
+                }
+            }
+        }
     }
 }
