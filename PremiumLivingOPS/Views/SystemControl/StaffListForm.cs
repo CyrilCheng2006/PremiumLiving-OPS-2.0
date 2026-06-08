@@ -155,11 +155,18 @@ namespace PremiumLivingOPS.Views.SystemControl
         }
 
         // ── Modify Detail popup dialog  (1000 × 600)
-        // Buttons are stacked vertically, centred in the body panel.
         // Change Password  → Purple  (#7C3AED)
         // Change Department → Orange  (#EA580C)
+        //
+        // Rule: the currently logged-in user is NOT allowed to change their own department.
+        //       When isSelf == true the Change Department button is disabled and a note is shown.
         private void ShowModifyDialog(Staff staff)
         {
+            bool isSelf = string.Equals(
+                staff.StaffId,
+                SessionManager.CurrentUser?.StaffId,
+                StringComparison.OrdinalIgnoreCase);
+
             using var dlg = new Form
             {
                 Text            = $"Modify Detail  \u2014  {staff.StaffId}",
@@ -224,21 +231,27 @@ namespace PremiumLivingOPS.Views.SystemControl
             btnChangePwd.FlatAppearance.MouseDownBackColor = Color.FromArgb( 91, 33, 182);  // violet-800
             btnChangePwd.Click += (s, ev) => { dlg.Close(); ShowChangePasswordDialog(staff); };
 
-            // Change Department — Orange
+            // Change Department — Orange (disabled + grey when isSelf)
             var btnChangeDept = new Button
             {
-                Text      = "\uD83C\uDFE2  Change Department",
+                Text      = isSelf
+                    ? "\uD83C\uDFE2  Change Department  (Not allowed for your own account)"
+                    : "\uD83C\uDFE2  Change Department",
                 Font      = new Font("Segoe UI", 15f, FontStyle.Bold),
-                ForeColor = Color.White,
-                BackColor = Color.FromArgb(234, 88, 12),    // #EA580C orange-600
+                ForeColor = isSelf ? Color.FromArgb(160, 160, 160) : Color.White,
+                BackColor = isSelf ? Color.FromArgb(230, 230, 230) : Color.FromArgb(234, 88, 12),  // grey : #EA580C
                 FlatStyle = FlatStyle.Flat,
                 Size      = new Size(BtnW, BtnH),
-                Cursor    = Cursors.Hand
+                Enabled   = !isSelf,
+                Cursor    = isSelf ? Cursors.No : Cursors.Hand
             };
             btnChangeDept.FlatAppearance.BorderSize         = 0;
-            btnChangeDept.FlatAppearance.MouseOverBackColor = Color.FromArgb(194, 65,  12); // orange-700
-            btnChangeDept.FlatAppearance.MouseDownBackColor = Color.FromArgb(154, 52,  18); // orange-800
-            btnChangeDept.Click += (s, ev) => { dlg.Close(); ShowChangeDepartmentDialog(staff); };
+            btnChangeDept.FlatAppearance.MouseOverBackColor = isSelf
+                ? Color.FromArgb(230, 230, 230)
+                : Color.FromArgb(194, 65, 12);  // orange-700
+            btnChangeDept.FlatAppearance.MouseDownBackColor = Color.FromArgb(154, 52, 18);  // orange-800
+            if (!isSelf)
+                btnChangeDept.Click += (s, ev) => { dlg.Close(); ShowChangeDepartmentDialog(staff); };
 
             // Vertical stacking: centre the two buttons + gap as a block
             pnlBody.Layout += (s, ev) =>
@@ -249,6 +262,29 @@ namespace PremiumLivingOPS.Views.SystemControl
                 btnChangePwd.Location  = new Point(startX, startY);
                 btnChangeDept.Location = new Point(startX, startY + BtnH + BtnGap);
             };
+
+            // Optional: a small notice label below the disabled button when isSelf
+            if (isSelf)
+            {
+                var lblNotice = new Label
+                {
+                    Text      = "You cannot change your own department.",
+                    Font      = new Font("Segoe UI", 10f, FontStyle.Italic),
+                    ForeColor = Color.FromArgb(185, 28, 28),  // red-700
+                    AutoSize  = true,
+                    BackColor = Color.Transparent
+                };
+                pnlBody.Controls.Add(lblNotice);
+                pnlBody.Layout += (s, ev) =>
+                {
+                    int startX = (pnlBody.ClientSize.Width - BtnW) / 2;
+                    int totalH = BtnH * 2 + BtnGap;
+                    int startY = (pnlBody.ClientSize.Height - totalH) / 2;
+                    lblNotice.Location = new Point(
+                        startX + (BtnW - lblNotice.Width) / 2,
+                        startY + totalH + 8);
+                };
+            }
 
             pnlBody.Controls.Add(btnChangePwd);
             pnlBody.Controls.Add(btnChangeDept);
@@ -378,15 +414,15 @@ namespace PremiumLivingOPS.Views.SystemControl
                 Text      = "Save",
                 Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
                 ForeColor = Color.White,
-                BackColor = Color.FromArgb(22, 163, 74),    // #16A34A green-600
+                BackColor = Color.FromArgb(22, 163, 74),
                 FlatStyle = FlatStyle.Flat,
                 Size      = new Size(210, 60),
                 Dock      = DockStyle.Right,
                 Cursor    = Cursors.Hand
             };
             btnSave.FlatAppearance.BorderSize         = 0;
-            btnSave.FlatAppearance.MouseOverBackColor = Color.FromArgb(21, 128, 61);   // green-700
-            btnSave.FlatAppearance.MouseDownBackColor = Color.FromArgb(20,  83, 45);   // green-800
+            btnSave.FlatAppearance.MouseOverBackColor = Color.FromArgb(21, 128, 61);
+            btnSave.FlatAppearance.MouseDownBackColor = Color.FromArgb(20,  83, 45);
             btnSave.Click += (s, ev) =>
             {
                 if (string.IsNullOrWhiteSpace(txtNewPwd.Text))
@@ -504,15 +540,15 @@ namespace PremiumLivingOPS.Views.SystemControl
                 Text      = "Save",
                 Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
                 ForeColor = Color.White,
-                BackColor = Color.FromArgb(22, 163, 74),    // #16A34A green-600
+                BackColor = Color.FromArgb(22, 163, 74),
                 FlatStyle = FlatStyle.Flat,
                 Size      = new Size(210, 60),
                 Dock      = DockStyle.Right,
                 Cursor    = Cursors.Hand
             };
             btnSave.FlatAppearance.BorderSize         = 0;
-            btnSave.FlatAppearance.MouseOverBackColor = Color.FromArgb(21, 128, 61);   // green-700
-            btnSave.FlatAppearance.MouseDownBackColor = Color.FromArgb(20,  83, 45);   // green-800
+            btnSave.FlatAppearance.MouseOverBackColor = Color.FromArgb(21, 128, 61);
+            btnSave.FlatAppearance.MouseDownBackColor = Color.FromArgb(20,  83, 45);
             btnSave.Click += (s, ev) =>
             {
                 if (cbo.SelectedItem == null) return;
