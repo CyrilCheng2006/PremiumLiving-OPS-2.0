@@ -13,8 +13,8 @@ namespace PremiumLivingOPS.Views.SystemControl
     /// <summary>
     /// View — Staff List page (System Control module).
     ///
-    /// KPI bar: Pills (left) + “Modify Detail” button (right).
-    /// Modify Detail opens a popup with two options:
+    /// KPI bar: Pills (left) + "Modify Detail" button (right).
+    /// Modify Detail opens a 1000x600 popup with two options:
     ///   · Change Password
     ///   · Change Department
     /// </summary>
@@ -154,13 +154,13 @@ namespace PremiumLivingOPS.Views.SystemControl
             ShowModifyDialog(staff);
         }
 
-        // ── Modify Detail popup dialog
+        // ── Modify Detail popup dialog  (1000 × 600)
         private void ShowModifyDialog(Staff staff)
         {
             using var dlg = new Form
             {
                 Text            = $"Modify Detail  \u2014  {staff.StaffId}",
-                Size            = new Size(520, 380),
+                Size            = new Size(1000, 600),          // <—— 1000×600
                 StartPosition   = FormStartPosition.CenterParent,
                 BackColor       = Color.White,
                 Font            = new Font("Segoe UI", 12f),
@@ -169,20 +169,20 @@ namespace PremiumLivingOPS.Views.SystemControl
                 MinimizeBox     = false
             };
 
-            // Header
-            var pnlHdr = new Panel { Dock = DockStyle.Top, Height = 64, BackColor = Color.FromArgb(19, 35, 61) };
+            // ── Header
+            var pnlHdr = new Panel { Dock = DockStyle.Top, Height = 72, BackColor = Color.FromArgb(19, 35, 61) };
             pnlHdr.Controls.Add(new Label
             {
                 Text      = $"Modify Detail  \u2014  {staff.StaffName}",
-                Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
+                Font      = new Font("Segoe UI", 16f, FontStyle.Bold),
                 ForeColor = Color.White,
                 Dock      = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft,
-                Padding   = new Padding(24, 0, 0, 0)
+                Padding   = new Padding(32, 0, 0, 0)
             });
 
-            // Sub-title
-            var pnlSub = new Panel { Dock = DockStyle.Top, Height = 44, BackColor = Color.FromArgb(246, 249, 255) };
+            // ── Sub-title
+            var pnlSub = new Panel { Dock = DockStyle.Top, Height = 48, BackColor = Color.FromArgb(246, 249, 255) };
             pnlSub.Paint += (s, ev) =>
             {
                 using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
@@ -191,66 +191,67 @@ namespace PremiumLivingOPS.Views.SystemControl
             pnlSub.Controls.Add(new Label
             {
                 Text      = "Select an action to perform on this staff record:",
-                Font      = new Font("Segoe UI", 10f),
+                Font      = new Font("Segoe UI", 11f),
                 ForeColor = Color.FromArgb(98, 112, 135),
                 Dock      = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft,
-                Padding   = new Padding(24, 0, 0, 0)
+                Padding   = new Padding(32, 0, 0, 0)
             });
 
-            // Action buttons area
-            var pnlBody = new Panel
+            // ── Body  — two large action buttons side-by-side
+            //   TableLayoutPanel 2-col so each button fills half the width
+            var tblBody = new TableLayoutPanel
             {
-                Dock      = DockStyle.Fill,
-                BackColor = Color.White,
-                Padding   = new Padding(28, 28, 28, 12)
+                Dock            = DockStyle.Fill,
+                ColumnCount     = 2,
+                RowCount        = 1,
+                BackColor       = Color.White,
+                CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                Padding         = new Padding(40, 40, 40, 20)
             };
+            tblBody.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
+            tblBody.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
+            tblBody.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
-            // Change Password button
+            // Change Password tile
             var btnChangePwd = new Button
             {
-                Text      = "\uD83D\uDD11  Change Password",
-                Font      = new Font("Segoe UI", 13f, FontStyle.Bold),
+                Text      = "\uD83D\uDD11\r\nChange Password",
+                Font      = new Font("Segoe UI", 15f, FontStyle.Bold),
                 ForeColor = Color.White,
                 BackColor = Color.FromArgb(47, 111, 237),
                 FlatStyle = FlatStyle.Flat,
-                Dock      = DockStyle.Top,
-                Height    = 64,
-                Cursor    = Cursors.Hand,
-                Margin    = new Padding(0, 0, 0, 12)
+                Dock      = DockStyle.Fill,
+                Margin    = new Padding(0, 0, 16, 0),
+                Cursor    = Cursors.Hand
             };
             btnChangePwd.FlatAppearance.BorderSize         = 0;
             btnChangePwd.FlatAppearance.MouseOverBackColor = Color.FromArgb(26, 77, 192);
             btnChangePwd.FlatAppearance.MouseDownBackColor = Color.FromArgb(21, 60, 155);
             btnChangePwd.Click += (s, ev) => { dlg.Close(); ShowChangePasswordDialog(staff); };
 
-            // Spacer
-            var spacer = new Panel { Dock = DockStyle.Top, Height = 12, BackColor = Color.Transparent };
-
-            // Change Department button
+            // Change Department tile
             var btnChangeDept = new Button
             {
-                Text      = "\uD83C\uDFE2  Change Department",
-                Font      = new Font("Segoe UI", 13f, FontStyle.Bold),
+                Text      = "\uD83C\uDFE2\r\nChange Department",
+                Font      = new Font("Segoe UI", 15f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(15, 31, 53),
                 BackColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Dock      = DockStyle.Top,
-                Height    = 64,
+                Dock      = DockStyle.Fill,
+                Margin    = new Padding(16, 0, 0, 0),
                 Cursor    = Cursors.Hand
             };
             btnChangeDept.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
-            btnChangeDept.FlatAppearance.BorderSize         = 1;
+            btnChangeDept.FlatAppearance.BorderSize         = 2;
             btnChangeDept.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
             btnChangeDept.Click += (s, ev) => { dlg.Close(); ShowChangeDepartmentDialog(staff); };
 
-            // Add in reverse (Dock=Top stacks bottom-up)
-            pnlBody.Controls.Add(btnChangeDept);
-            pnlBody.Controls.Add(spacer);
-            pnlBody.Controls.Add(btnChangePwd);
+            tblBody.Controls.Add(btnChangePwd,  0, 0);
+            tblBody.Controls.Add(btnChangeDept, 1, 0);
 
-            // Footer
-            var pnlFtr = new Panel { Dock = DockStyle.Bottom, Height = 56, BackColor = Color.White, Padding = new Padding(0, 8, 20, 8) };
+            // ── Footer
+            var pnlFtr = new Panel { Dock = DockStyle.Bottom, Height = 64, BackColor = Color.White, Padding = new Padding(0, 10, 28, 10) };
             pnlFtr.Paint += (s, ev) =>
             {
                 using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
@@ -264,7 +265,7 @@ namespace PremiumLivingOPS.Views.SystemControl
                 BackColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
                 Dock      = DockStyle.Right,
-                Width     = 130,
+                Width     = 150,
                 Cursor    = Cursors.Hand
             };
             btnCancel.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
@@ -272,7 +273,7 @@ namespace PremiumLivingOPS.Views.SystemControl
             btnCancel.Click += (s, ev) => dlg.Close();
             pnlFtr.Controls.Add(btnCancel);
 
-            dlg.Controls.Add(pnlBody);
+            dlg.Controls.Add(tblBody);
             dlg.Controls.Add(pnlSub);
             dlg.Controls.Add(pnlHdr);
             dlg.Controls.Add(pnlFtr);
@@ -316,10 +317,10 @@ namespace PremiumLivingOPS.Views.SystemControl
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
             tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 28f));   // label new
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 52f));   // input new
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 28f));   // label confirm
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 52f));   // input confirm
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 28f));
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 52f));
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 28f));
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 52f));
 
             var txtNewPwd = new TextBox
             {
@@ -397,7 +398,6 @@ namespace PremiumLivingOPS.Views.SystemControl
         // ── Change Department dialog
         private void ShowChangeDepartmentDialog(Staff staff)
         {
-            // Derive available departments from the full staff list
             var departments = _allStaff
                 .Select(s => s.Department)
                 .Where(d => !string.IsNullOrWhiteSpace(d))
@@ -439,8 +439,8 @@ namespace PremiumLivingOPS.Views.SystemControl
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
             tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 28f));   // label
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 52f));   // combobox
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 28f));
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 52f));
 
             var cbo = new ComboBox
             {
@@ -579,7 +579,7 @@ namespace PremiumLivingOPS.Views.SystemControl
             dlg.ShowDialog(this);
         }
 
-        // ── Pill factory (View Order baseline)
+        // ── Pill factory
         private static Panel MakePill(string label, string count, Color fg, Color bg, int width, int height, int gap, int numColW)
         {
             var pill = new Panel { BackColor = bg, Size = new Size(width, height), Margin = new Padding(0, 0, gap, 0), Cursor = Cursors.Hand };
