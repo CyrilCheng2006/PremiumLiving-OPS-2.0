@@ -145,33 +145,23 @@ namespace PremiumLivingOPS.Views.SystemControl
         private void btnAddStaff_Click(object sender, EventArgs e) => ShowAddStaffDialog();
 
         // ── Add Staff dialog
-        // Layout strategy: manual positioning inside a scrollable body panel.
-        // Every label and input is placed with explicit Top/Height so Windows Forms
-        // layout engine can never stretch, compress, or clip any control.
         private void ShowAddStaffDialog()
         {
             string nextId;
             try   { nextId = _ctrl.GetNextStaffId(); }
             catch { nextId = "S-???"; }
 
-            // ──────────────────────────────────────────────────
-            // Sizing constants
-            // ──────────────────────────────────────────────────
-            const int LblH     = 22;   // label height
-            const int GapLI    = 8;    // label → input gap  (prev 6 ×1.2 = 7.2 → 8)
-            const int InputH   = 36;   // input height
-            const int GapGrp   = 28;   // gap between field groups
-            const int ColGap   = 16;   // horizontal gap between left and right columns
-            const int BodyPadH = 28;   // horizontal body padding (left & right)
-            const int BodyPadT = 24;   // top body padding
-            const int SuffixW  = 170;  // width of "@plf.com" suffix label
+            // ── Sizing constants ──────────────────────────────
+            const int LblH     = 28;   // label row height (increased for breathing room)
+            const int GapLI    = 12;   // label → input gap (increased to prevent overlap)
+            const int InputH   = 36;   // nominal input height (TextBox ignores this; used for layout maths)
+            const int GapGrp   = 32;   // vertical gap between field groups
+            const int ColGap   = 16;   // horizontal gap between the two columns
+            const int BodyPadH = 28;   // left & right body padding
+            const int BodyPadT = 28;   // top body padding
+            const int SuffixW  = 170;  // width of the "@plf.com" suffix label
 
-            // Vertical step for one field group  = LblH + GapLI + InputH + GapGrp
-            int groupH = LblH + GapLI + InputH + GapGrp;
-
-            // ──────────────────────────────────────────────────
-            // Dialog
-            // ──────────────────────────────────────────────────
+            // ── Dialog ───────────────────────────────────────
             using var dlg = new Form
             {
                 Text            = "Add New Staff",
@@ -244,12 +234,7 @@ namespace PremiumLivingOPS.Views.SystemControl
             pnlFtr.Controls.Add(btnCancel);
             pnlFtr.Controls.Add(btnSave);
 
-            // ──────────────────────────────────────────────────
-            // Body: scrollable container
-            // ──────────────────────────────────────────────────
-            // pnlBody fills the space between header and footer.
-            // An inner canvas (pnlCanvas) is sized exactly to its content so
-            // AutoScroll only appears when the window is too small.
+            // ── Body: scrollable container ────────────────────
             var pnlBody = new Panel
             {
                 Dock       = DockStyle.Fill,
@@ -257,19 +242,12 @@ namespace PremiumLivingOPS.Views.SystemControl
                 AutoScroll = true
             };
 
-            // Canvas holds all fields; sized by content, not by the parent.
-            var pnlCanvas = new Panel
-            {
-                BackColor = Color.White,
-                Left      = 0,
-                Top       = 0
-            };
+            // pnlCanvas is sized to its content; pnlBody only scrolls when window is too short.
+            var pnlCanvas = new Panel { BackColor = Color.White, Left = 0, Top = 0 };
 
-            // ──────────────────────────────────────────────────
-            // Input controls
-            // ──────────────────────────────────────────────────
+            // ── Input controls ────────────────────────────────
 
-            // Row 0 ─ Staff ID (left col, read-only) | Full Name (right col)
+            // Row 0 ─ Staff ID (read-only) | Full Name
             var txtStaffId = new TextBox
             {
                 Font        = new Font("Segoe UI", 12f),
@@ -278,25 +256,24 @@ namespace PremiumLivingOPS.Views.SystemControl
                 ReadOnly    = true,
                 TabStop     = false,
                 BackColor   = Color.FromArgb(240, 244, 249),
-                ForeColor   = Color.FromArgb(98, 112, 135),
-                Height      = InputH
+                ForeColor   = Color.FromArgb(98, 112, 135)
+                // Height intentionally omitted: WinForms TextBox auto-sizes to font;
+                // we read the rendered height in the Resize handler below.
             };
 
             var txtName = new TextBox
             {
                 Font            = new Font("Segoe UI", 12f),
                 BorderStyle     = BorderStyle.FixedSingle,
-                PlaceholderText = "Full name",
-                Height          = InputH
+                PlaceholderText = "Full name"
             };
 
-            // Row 1 ─ Role (left col) | Department (right col)
+            // Row 1 ─ Role | Department
             var cboRole = new ComboBox
             {
                 Font          = new Font("Segoe UI", 12f),
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                FlatStyle     = FlatStyle.Flat,
-                Height        = InputH
+                FlatStyle     = FlatStyle.Flat
             };
             foreach (var r in new[] { "Admin", "Sales", "Warehouse", "Manager", "Accountant" })
                 cboRole.Items.Add(r);
@@ -306,8 +283,7 @@ namespace PremiumLivingOPS.Views.SystemControl
             {
                 Font          = new Font("Segoe UI", 12f),
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                FlatStyle     = FlatStyle.Flat,
-                Height        = InputH
+                FlatStyle     = FlatStyle.Flat
             };
             var depts = _allStaff.Select(s => s.Department)
                 .Where(d => !string.IsNullOrWhiteSpace(d))
@@ -315,15 +291,16 @@ namespace PremiumLivingOPS.Views.SystemControl
             foreach (var d in depts) cboDept.Items.Add(d);
             if (cboDept.Items.Count > 0) cboDept.SelectedIndex = 0;
 
-            // Row 2 ─ Email (full width)
+            // Row 2 ─ Email (full width): local part + "@plf.com" suffix
             var txtEmailLocal = new TextBox
             {
                 Font            = new Font("Segoe UI", 12f),
                 BorderStyle     = BorderStyle.FixedSingle,
-                PlaceholderText = "e.g. john.doe",
-                Height          = InputH
+                PlaceholderText = "e.g. john.doe"
             };
 
+            // Suffix label — height is synced to txtEmailLocal's ACTUAL rendered height
+            // inside the Resize handler so the two controls are always flush.
             var lblSuffix = new Label
             {
                 Text        = "@plf.com",
@@ -332,56 +309,56 @@ namespace PremiumLivingOPS.Views.SystemControl
                 BackColor   = Color.FromArgb(240, 244, 249),
                 BorderStyle = BorderStyle.FixedSingle,
                 TextAlign   = ContentAlignment.MiddleCenter,
-                AutoSize    = false,
-                Height      = InputH
+                AutoSize    = false
             };
 
-            // ──────────────────────────────────────────────────
-            // Layout engine: recalculate all positions whenever pnlBody resizes
-            // ──────────────────────────────────────────────────
+            // ── Layout engine ─────────────────────────────────
+            // Fires on every resize of pnlBody; uses the TextBox's ACTUAL Height
+            // (set by WinForms after font measurement) so nothing ever overlaps.
             pnlBody.Resize += (rs, re) =>
             {
-                int totalW  = pnlBody.ClientSize.Width;         // full available width
-                int innerW  = totalW - BodyPadH * 2;            // width after left+right padding
-                int colW    = (innerW - ColGap) / 2;            // half-width column
-                int xLeft   = BodyPadH;                         // left column X
-                int xRight  = BodyPadH + colW + ColGap;         // right column X
+                int totalW = pnlBody.ClientSize.Width;
+                int innerW = totalW - BodyPadH * 2;
+                int colW   = (innerW - ColGap) / 2;
+                int xLeft  = BodyPadH;
+                int xRight = BodyPadH + colW + ColGap;
 
-                // Update canvas width to match body
                 pnlCanvas.Width = totalW;
 
-                // ─ Row 0: Staff ID | Full Name
-                int y0 = BodyPadT;
-                PlaceLabel(pnlCanvas, "Staff ID",    xLeft,  y0, colW,   LblH);
-                PlaceLabel(pnlCanvas, "Full Name *", xRight, y0, colW,   LblH);
+                // Read the actual rendered heights AFTER the controls have been shown
+                // at least once.  On first call they may still be 0; fall back to InputH.
+                int txH  = txtStaffId.Height  > 0 ? txtStaffId.Height  : InputH;
+                int cboH = cboRole.Height     > 0 ? cboRole.Height     : InputH;
+                int emH  = txtEmailLocal.Height > 0 ? txtEmailLocal.Height : InputH;
 
+                // ─ Row 0: Staff ID | Full Name
+                int y0  = BodyPadT;
+                PlaceLabel(pnlCanvas, "Staff ID",    xLeft,  y0, colW,  LblH);
+                PlaceLabel(pnlCanvas, "Full Name *", xRight, y0, colW,  LblH);
                 int y0i = y0 + LblH + GapLI;
-                txtStaffId.SetBounds(xLeft,  y0i, colW, InputH);
-                txtName   .SetBounds(xRight, y0i, colW, InputH);
+                txtStaffId.SetBounds(xLeft,  y0i, colW, txH);
+                txtName   .SetBounds(xRight, y0i, colW, txH);
 
                 // ─ Row 1: Role | Department
-                int y1 = y0i + InputH + GapGrp;
+                int y1  = y0i + txH + GapGrp;
                 PlaceLabel(pnlCanvas, "Role *",       xLeft,  y1, colW, LblH);
                 PlaceLabel(pnlCanvas, "Department *", xRight, y1, colW, LblH);
-
                 int y1i = y1 + LblH + GapLI;
-                cboRole.SetBounds(xLeft,  y1i, colW, InputH);
-                cboDept.SetBounds(xRight, y1i, colW, InputH);
+                cboRole.SetBounds(xLeft,  y1i, colW, cboH);
+                cboDept.SetBounds(xRight, y1i, colW, cboH);
 
                 // ─ Row 2: Email (full width)
-                int y2 = y1i + InputH + GapGrp;
+                int y2  = y1i + cboH + GapGrp;
                 PlaceLabel(pnlCanvas, "Email *", xLeft, y2, innerW, LblH);
-
-                int y2i = y2 + LblH + GapLI;
+                int y2i        = y2 + LblH + GapLI;
                 int emailInputW = innerW - SuffixW;
-                txtEmailLocal.SetBounds(xLeft,              y2i, emailInputW, InputH);
-                lblSuffix    .SetBounds(xLeft + emailInputW, y2i, SuffixW,    InputH);
+                txtEmailLocal.SetBounds(xLeft,               y2i, emailInputW, emH);
+                // Suffix uses the SAME top and height as the text box — guaranteed flush.
+                lblSuffix    .SetBounds(xLeft + emailInputW, y2i, SuffixW,     emH);
 
-                // Size canvas to exact content height
-                pnlCanvas.Height = y2i + InputH + BodyPadT;
+                pnlCanvas.Height = y2i + emH + BodyPadT;
             };
 
-            // Add controls to canvas
             pnlCanvas.Controls.Add(txtStaffId);
             pnlCanvas.Controls.Add(txtName);
             pnlCanvas.Controls.Add(cboRole);
@@ -391,7 +368,7 @@ namespace PremiumLivingOPS.Views.SystemControl
 
             pnlBody.Controls.Add(pnlCanvas);
 
-            // ── Save logic
+            // ── Save logic ────────────────────────────────────
             btnSave.Click += (bss, bse) =>
             {
                 string id        = txtStaffId.Text.Trim();
@@ -435,8 +412,7 @@ namespace PremiumLivingOPS.Views.SystemControl
             dlg.ShowDialog(this);
         }
 
-        // PlaceLabel: create or reuse a label on the canvas at the given position.
-        // Labels with the same Text are matched; extras are removed on subsequent calls.
+        // PlaceLabel: create or reuse a label on the canvas at the given absolute position.
         private static void PlaceLabel(Panel canvas, string text, int x, int y, int w, int h)
         {
             Label lbl = null;
