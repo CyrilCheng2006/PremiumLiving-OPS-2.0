@@ -71,6 +71,13 @@ namespace PremiumLivingOPS.Controllers
         public bool ChangeStaffDepartment(string staffId, string newDepartment)
             => _repo.UpdateStaffDepartment(staffId, newDepartment);
 
+        /// <summary>
+        /// Updates the role (StaffRole) for a staff member.
+        /// Returns true on success.
+        /// </summary>
+        public bool ChangeStaffRole(string staffId, string newRole)
+            => _repo.UpdateStaffRole(staffId, newRole);
+
         // ── Log List ───────────────────────────────────────────────────────────
 
         /// <summary>

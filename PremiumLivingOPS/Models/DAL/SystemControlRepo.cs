@@ -182,6 +182,26 @@ namespace PremiumLivingOPS.Models.DAL
             }
         }
 
+        /// <summary>
+        /// Updates the StaffRole for the given staffId.
+        /// Returns true if exactly one row was affected.
+        /// </summary>
+        public bool UpdateStaffRole(string staffId, string newRole)
+        {
+            using (MySqlConnection conn = DatabaseHelper.GetConnection())
+            {
+                conn.Open();
+                const string sql =
+                    "UPDATE Staff SET StaffRole = @role WHERE StaffID = @id";
+                using (var cmd = new MySqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@role", newRole);
+                    cmd.Parameters.AddWithValue("@id",   staffId);
+                    return cmd.ExecuteNonQuery() == 1;
+                }
+            }
+        }
+
         // ═══════════════════════════════════════════════════════════════
         //  LOG
         // ═══════════════════════════════════════════════════════════════
