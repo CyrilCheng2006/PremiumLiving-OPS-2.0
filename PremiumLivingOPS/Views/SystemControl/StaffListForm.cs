@@ -179,65 +179,74 @@ namespace PremiumLivingOPS.Views.SystemControl
             var pnlBody = new Panel { Dock = DockStyle.Fill, BackColor = Color.White, Padding = new Padding(28, 20, 28, 8) };
 
             // ---------------------------------------------------------------
-            // Row layout:
-            //   RowLabel  36px — label (BottomLeft, Padding bottom 4px)
-            //   RowInput  36px — all inputs use Multiline=true so Dock=Fill
-            //                    controls the actual height (AutoSize bypassed)
-            //   RowGapBot 28px — breathing room
+            // Row layout (all Absolute):
+            //   RowLabel  28px  – field label
+            //   RowGapLbl  6px  – gap between label bottom and input top
+            //   RowInput  38px  – tall enough for TextBox/ComboBox at 12pt
+            //   RowGapBot 24px  – breathing room between field groups
+            //
+            // TextBox/ComboBox use Anchor = Left|Right + explicit Height = 34
+            // so Windows Forms AutoSize never clips them inside the cell.
             // ---------------------------------------------------------------
-            const int RowLabel  = 36;
-            const int RowInput  = 36;
-            const int RowGapBot = 28;
+            const int RowLabel  = 28;
+            const int RowGapLbl =  6;
+            const int RowInput  = 38;
+            const int RowGapBot = 24;
+            const int InputH    = 34;   // explicit height for every input control
 
+            // 9 rows: [lbl, gap, input, gap] × 2 groups + [lbl, gap, input, gap] for email
             var tbl = new TableLayoutPanel
             {
                 Dock            = DockStyle.Fill,
                 ColumnCount     = 2,
-                RowCount        = 9,
+                RowCount        = 12,
                 BackColor       = Color.Transparent,
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
             tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
             tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
 
-            // Group 1 — rows 0-2
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowLabel));   // 0 label
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowInput));   // 1 input
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowGapBot));  // 2 gap
-            // Group 2 — rows 3-5
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowLabel));   // 3
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowInput));   // 4
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowGapBot));  // 5
-            // Group 3 — rows 6-8
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowLabel));   // 6
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowInput));   // 7
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowGapBot));  // 8
+            // Group 1 — rows 0-3
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowLabel));   // 0  label
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowGapLbl));  // 1  gap
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowInput));   // 2  input
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowGapBot));  // 3  bottom gap
+            // Group 2 — rows 4-7
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowLabel));   // 4
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowGapLbl));  // 5
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowInput));   // 6
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowGapBot));  // 7
+            // Group 3 (email, full-width) — rows 8-11
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowLabel));   // 8
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowGapLbl));  // 9
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowInput));   // 10
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowGapBot));  // 11
 
             // ── Group 1: Staff ID (ReadOnly) | Full Name
-            // Multiline=true disables AutoSize so Dock=Fill controls height.
             var txtStaffId = new TextBox
             {
-                Dock        = DockStyle.Fill,
+                Anchor      = AnchorStyles.Left | AnchorStyles.Right,
+                Height      = InputH,
                 Font        = new Font("Segoe UI", 12f),
                 BorderStyle = BorderStyle.FixedSingle,
                 Text        = nextId,
                 ReadOnly    = true,
                 TabStop     = false,
-                Multiline   = true,
                 BackColor   = Color.FromArgb(240, 244, 249),
                 ForeColor   = Color.FromArgb(98, 112, 135)
             };
-            var txtName = MakeTextInput("Full name");
+            var txtName = MakeTextInput("Full name", InputH);
 
             tbl.Controls.Add(MakeFieldLabel("Staff ID"),    0, 0);
-            tbl.Controls.Add(txtStaffId,                    0, 1);
+            tbl.Controls.Add(txtStaffId,                    0, 2);
             tbl.Controls.Add(MakeFieldLabel("Full Name *"), 1, 0);
-            tbl.Controls.Add(txtName,                       1, 1);
+            tbl.Controls.Add(txtName,                       1, 2);
 
             // ── Group 2: Role | Department
             var cboRole = new ComboBox
             {
-                Dock          = DockStyle.Fill,
+                Anchor        = AnchorStyles.Left | AnchorStyles.Right,
+                Height        = InputH,
                 Font          = new Font("Segoe UI", 12f),
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 FlatStyle     = FlatStyle.Flat
@@ -248,7 +257,8 @@ namespace PremiumLivingOPS.Views.SystemControl
 
             var cboDept = new ComboBox
             {
-                Dock          = DockStyle.Fill,
+                Anchor        = AnchorStyles.Left | AnchorStyles.Right,
+                Height        = InputH,
                 Font          = new Font("Segoe UI", 12f),
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 FlatStyle     = FlatStyle.Flat
@@ -259,19 +269,20 @@ namespace PremiumLivingOPS.Views.SystemControl
             foreach (var d in depts) cboDept.Items.Add(d);
             if (cboDept.Items.Count > 0) cboDept.SelectedIndex = 0;
 
-            tbl.Controls.Add(MakeFieldLabel("Role *"),       0, 3);
-            tbl.Controls.Add(cboRole,                        0, 4);
-            tbl.Controls.Add(MakeFieldLabel("Department *"), 1, 3);
-            tbl.Controls.Add(cboDept,                        1, 4);
+            tbl.Controls.Add(MakeFieldLabel("Role *"),       0, 4);
+            tbl.Controls.Add(cboRole,                        0, 6);
+            tbl.Controls.Add(MakeFieldLabel("Department *"), 1, 4);
+            tbl.Controls.Add(cboDept,                        1, 6);
 
-            // ── Group 3: Email label (row 6, full-width)
+            // ── Group 3: Email label (row 8, full-width)
             var lblEmailKey = MakeFieldLabel("Email *");
-            tbl.Controls.Add(lblEmailKey, 0, 6);
+            tbl.Controls.Add(lblEmailKey, 0, 8);
             tbl.SetColumnSpan(lblEmailKey, 2);
 
-            // ── Group 3: Email input (row 7, full-width)
-            // Both txtEmailLocal (Multiline=true) and lblSuffix share the same
-            // 36px row via Dock, so heights are always identical — no clipping.
+            // ── Group 3: Email input (row 10, full-width)
+            // Panel hosts txtEmailLocal (left) + lblSuffix (right).
+            // Both are Anchor=Top|Bottom|Left|Right / Dock=Right so heights
+            // are always controlled by the panel, never by TextBox AutoSize.
             const int SuffixW = 160;
 
             var pnlEmail = new Panel
@@ -296,18 +307,28 @@ namespace PremiumLivingOPS.Views.SystemControl
 
             var txtEmailLocal = new TextBox
             {
-                Dock            = DockStyle.Fill,
+                Anchor          = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right,
+                Top             = 0,
+                Left            = 0,
+                Height          = InputH,
                 Font            = new Font("Segoe UI", 12f),
                 BorderStyle     = BorderStyle.FixedSingle,
-                PlaceholderText = "e.g. john.doe",
-                Multiline       = true   // bypass AutoSize → height = Dock=Fill = 36px
+                PlaceholderText = "e.g. john.doe"
             };
 
-            // Suffix added first so Dock=Right is processed before Dock=Fill
+            // Wire up width after panel is sized
+            pnlEmail.Layout += (ps, pe) =>
+            {
+                txtEmailLocal.Width = pnlEmail.ClientSize.Width - SuffixW;
+                txtEmailLocal.Top   = (pnlEmail.ClientSize.Height - txtEmailLocal.Height) / 2;
+                lblSuffix.Height    = txtEmailLocal.Height;
+            };
+
+            // Suffix added first so Dock=Right reserves space before Fill
             pnlEmail.Controls.Add(lblSuffix);
             pnlEmail.Controls.Add(txtEmailLocal);
 
-            tbl.Controls.Add(pnlEmail, 0, 7);
+            tbl.Controls.Add(pnlEmail, 0, 10);
             tbl.SetColumnSpan(pnlEmail, 2);
 
             pnlBody.Controls.Add(tbl);
@@ -665,6 +686,7 @@ namespace PremiumLivingOPS.Views.SystemControl
         }
 
         // ── Helpers
+
         // MakeFieldLabel — Add Staff dialog: BottomLeft so text sits just above input
         private static Label MakeFieldLabel(string text) => new Label
         {
@@ -673,21 +695,21 @@ namespace PremiumLivingOPS.Views.SystemControl
             ForeColor = Color.FromArgb(98, 112, 135),
             Dock      = DockStyle.Fill,
             TextAlign = ContentAlignment.BottomLeft,
-            Padding   = new Padding(0, 0, 8, 4)
+            Padding   = new Padding(0, 0, 8, 2)
         };
 
         // MakeLblKey — readonly/detail dialogs
         private static Label MakeLblKey(string text) => new Label { Text = text, Font = new Font("Segoe UI", 10f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(0, 0, 8, 0) };
         private static Label MakeLblVal(string text) => new Label { Text = text ?? "\u2014", Font = new Font("Segoe UI", 12f), ForeColor = Color.FromArgb(15, 31, 53), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoEllipsis = true };
 
-        // MakeTextInput — Multiline=true bypasses AutoSize so Dock=Fill controls height
-        private static TextBox MakeTextInput(string placeholder) => new TextBox
+        // MakeTextInput — Anchor+Height so Windows Forms AutoSize never clips the control
+        private static TextBox MakeTextInput(string placeholder, int height = 34) => new TextBox
         {
-            Dock            = DockStyle.Fill,
+            Anchor          = AnchorStyles.Left | AnchorStyles.Right,
+            Height          = height,
             Font            = new Font("Segoe UI", 12f),
             BorderStyle     = BorderStyle.FixedSingle,
-            PlaceholderText = placeholder,
-            Multiline       = true
+            PlaceholderText = placeholder
         };
 
         // ── Navigation & Logout
