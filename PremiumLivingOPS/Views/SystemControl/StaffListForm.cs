@@ -163,7 +163,7 @@ namespace PremiumLivingOPS.Views.SystemControl
                 MinimizeBox     = false
             };
 
-            // Header
+            // ── Header
             var pnlHdr = new Panel { Dock = DockStyle.Top, Height = 64, BackColor = Color.FromArgb(19, 35, 61) };
             pnlHdr.Controls.Add(new Label
             {
@@ -175,29 +175,74 @@ namespace PremiumLivingOPS.Views.SystemControl
                 Padding   = new Padding(24, 0, 0, 0)
             });
 
-            // Body
-            var pnlBody = new Panel { Dock = DockStyle.Fill, BackColor = Color.White, Padding = new Padding(28, 20, 28, 8) };
+            // ── Footer
+            var pnlFtr = new Panel { Dock = DockStyle.Bottom, Height = 80, BackColor = Color.White, Padding = new Padding(0, 10, 20, 10) };
+            pnlFtr.Paint += (fps, fpe) =>
+            {
+                using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
+                fpe.Graphics.DrawLine(pen, 0, 0, ((Panel)fps).Width, 0);
+            };
 
-            // ---------------------------------------------------------------
-            // Row layout (all Absolute):
-            //   RowLabel  28px  – field label
-            //   RowGapLbl  6px  – gap between label bottom and input top
-            //   RowInput  38px  – tall enough for TextBox/ComboBox at 12pt
-            //   RowGapBot 24px  – breathing room between field groups
+            var btnCancel = new Button
+            {
+                Text      = "Cancel",
+                Font      = new Font("Segoe UI", 12f),
+                ForeColor = Color.FromArgb(15, 31, 53),
+                BackColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Size      = new Size(210, 60),
+                Dock      = DockStyle.Right,
+                Cursor    = Cursors.Hand
+            };
+            btnCancel.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
+            btnCancel.FlatAppearance.BorderSize         = 1;
+            btnCancel.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
+            btnCancel.Click += (bcs, bce) => dlg.Close();
+
+            var btnSave = new Button
+            {
+                Text      = "Save",
+                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.White,
+                BackColor = Color.FromArgb(22, 163, 74),
+                FlatStyle = FlatStyle.Flat,
+                Size      = new Size(210, 60),
+                Dock      = DockStyle.Right,
+                Cursor    = Cursors.Hand
+            };
+            btnSave.FlatAppearance.BorderSize         = 0;
+            btnSave.FlatAppearance.MouseOverBackColor = Color.FromArgb(21, 128, 61);
+            btnSave.FlatAppearance.MouseDownBackColor = Color.FromArgb(20,  83, 45);
+
+            // ── Body: ScrollablePanel (top-aligned, no Dock=Fill on inner table)
+            // Using a Panel with AutoScroll prevents content being stretched/clipped
+            // when the dialog has more vertical space than the fields need.
             //
-            // TextBox/ComboBox use Anchor = Left|Right + explicit Height = 34
+            // Row layout (all pixels):
+            //   RowLabel   28  – field label
+            //   RowGapLbl   8  – gap between label & input (≈ previous 6 × 1.2 = 7.2 → 8)
+            //   RowInput   42  – tall enough for TextBox/ComboBox at 12pt + breathing room
+            //   RowGapBot  28  – between field groups
+            //
+            // Each TextBox/ComboBox: Anchor=Left|Right, explicit Height=36
             // so Windows Forms AutoSize never clips them inside the cell.
-            // ---------------------------------------------------------------
             const int RowLabel  = 28;
-            const int RowGapLbl =  6;
-            const int RowInput  = 38;
-            const int RowGapBot = 24;
-            const int InputH    = 34;   // explicit height for every input control
+            const int RowGapLbl =  8;   // ×1.2 vs previous 6 px
+            const int RowInput  = 42;
+            const int RowGapBot = 28;
+            const int InputH    = 36;
 
-            // 9 rows: [lbl, gap, input, gap] × 2 groups + [lbl, gap, input, gap] for email
+            // Total height of all rows: 3 groups × (28+8+42+28) = 3 × 106 = 318 px
+            int tblHeight = 3 * (RowLabel + RowGapLbl + RowInput + RowGapBot);
+
             var tbl = new TableLayoutPanel
             {
-                Dock            = DockStyle.Fill,
+                // NOT Dock=Fill – fixed size so it sits at the top of pnlBody
+                Left            = 0,
+                Top             = 0,
+                Width           = 940,   // filled via Layout event below
+                Height          = tblHeight,
+                Anchor          = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
                 ColumnCount     = 2,
                 RowCount        = 12,
                 BackColor       = Color.Transparent,
@@ -280,10 +325,9 @@ namespace PremiumLivingOPS.Views.SystemControl
             tbl.SetColumnSpan(lblEmailKey, 2);
 
             // ── Group 3: Email input (row 10, full-width)
-            // Panel hosts txtEmailLocal (left) + lblSuffix (right).
-            // Both are Anchor=Top|Bottom|Left|Right / Dock=Right so heights
-            // are always controlled by the panel, never by TextBox AutoSize.
-            const int SuffixW = 160;
+            // pnlEmail hosts txtEmailLocal (left) + lblSuffix (right).
+            // Suffix width is generous so "@plf.com" never wraps or shifts.
+            const int SuffixW = 170;
 
             var pnlEmail = new Panel
             {
@@ -316,61 +360,41 @@ namespace PremiumLivingOPS.Views.SystemControl
                 PlaceholderText = "e.g. john.doe"
             };
 
-            // Wire up width after panel is sized
+            // Keep txtEmailLocal width and vertical centering in sync with panel size
             pnlEmail.Layout += (ps, pe) =>
             {
-                txtEmailLocal.Width = pnlEmail.ClientSize.Width - SuffixW;
-                txtEmailLocal.Top   = (pnlEmail.ClientSize.Height - txtEmailLocal.Height) / 2;
-                lblSuffix.Height    = txtEmailLocal.Height;
+                int availW = pnlEmail.ClientSize.Width - SuffixW;
+                txtEmailLocal.Width  = availW > 0 ? availW : 0;
+                txtEmailLocal.Top    = (pnlEmail.ClientSize.Height - txtEmailLocal.Height) / 2;
+                lblSuffix.Height     = txtEmailLocal.Height;
             };
 
-            // Suffix added first so Dock=Right reserves space before Fill
+            // Suffix added first so Dock=Right reserves its space before the TextBox fills left
             pnlEmail.Controls.Add(lblSuffix);
             pnlEmail.Controls.Add(txtEmailLocal);
 
             tbl.Controls.Add(pnlEmail, 0, 10);
             tbl.SetColumnSpan(pnlEmail, 2);
 
+            // ── Body panel: fixed padding, AutoScroll, table sits at top
+            var pnlBody = new Panel
+            {
+                Dock        = DockStyle.Fill,
+                BackColor   = Color.White,
+                Padding     = new Padding(28, 24, 28, 8),
+                AutoScroll  = true
+            };
+
+            // Keep tbl width in sync with pnlBody client area (minus padding)
+            pnlBody.Layout += (bls, ble) =>
+            {
+                int w = pnlBody.ClientSize.Width - pnlBody.Padding.Horizontal;
+                if (w > 0) tbl.Width = w;
+            };
+
             pnlBody.Controls.Add(tbl);
 
-            // Footer
-            var pnlFtr = new Panel { Dock = DockStyle.Bottom, Height = 80, BackColor = Color.White, Padding = new Padding(0, 10, 20, 10) };
-            pnlFtr.Paint += (fps, fpe) =>
-            {
-                using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
-                fpe.Graphics.DrawLine(pen, 0, 0, ((Panel)fps).Width, 0);
-            };
-
-            var btnCancel = new Button
-            {
-                Text      = "Cancel",
-                Font      = new Font("Segoe UI", 12f),
-                ForeColor = Color.FromArgb(15, 31, 53),
-                BackColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Size      = new Size(210, 60),
-                Dock      = DockStyle.Right,
-                Cursor    = Cursors.Hand
-            };
-            btnCancel.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
-            btnCancel.FlatAppearance.BorderSize         = 1;
-            btnCancel.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
-            btnCancel.Click += (bcs, bce) => dlg.Close();
-
-            var btnSave = new Button
-            {
-                Text      = "Save",
-                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
-                ForeColor = Color.White,
-                BackColor = Color.FromArgb(22, 163, 74),
-                FlatStyle = FlatStyle.Flat,
-                Size      = new Size(210, 60),
-                Dock      = DockStyle.Right,
-                Cursor    = Cursors.Hand
-            };
-            btnSave.FlatAppearance.BorderSize         = 0;
-            btnSave.FlatAppearance.MouseOverBackColor = Color.FromArgb(21, 128, 61);
-            btnSave.FlatAppearance.MouseDownBackColor = Color.FromArgb(20,  83, 45);
+            // ── Save logic
             btnSave.Click += (bss, bse) =>
             {
                 string id        = txtStaffId.Text.Trim();
@@ -703,7 +727,7 @@ namespace PremiumLivingOPS.Views.SystemControl
         private static Label MakeLblVal(string text) => new Label { Text = text ?? "\u2014", Font = new Font("Segoe UI", 12f), ForeColor = Color.FromArgb(15, 31, 53), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoEllipsis = true };
 
         // MakeTextInput — Anchor+Height so Windows Forms AutoSize never clips the control
-        private static TextBox MakeTextInput(string placeholder, int height = 34) => new TextBox
+        private static TextBox MakeTextInput(string placeholder, int height = 36) => new TextBox
         {
             Anchor          = AnchorStyles.Left | AnchorStyles.Right,
             Height          = height,
