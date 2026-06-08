@@ -1,5 +1,6 @@
 using MySql.Data.MySqlClient;
 using PremiumLivingOPS.Models.Entities;
+using System;
 using System.Collections.Generic;
 
 namespace PremiumLivingOPS.Models.DAL
@@ -52,29 +53,43 @@ namespace PremiumLivingOPS.Models.DAL
         public List<SupplierEntity> GetAllSuppliers() => SearchSuppliers();
 
         /// <summary>
-        /// Generates the next available SupplierID in SP-XXX format.
-        /// Fills the lowest unused number (gap-free).
+        /// Generates the next available SupplierID in SUP-YYYYMMDD-XXX format.
+        /// XXX is a zero-padded 3-digit sequence number scoped to the current date.
+        /// Finds the lowest unused sequence number for today.
         /// </summary>
         public string GetNextSupplierID()
         {
+            string dateTag = DateTime.Today.ToString("yyyyMMdd");
+            string prefix  = $"SUP-{dateTag}-";
+
             using (var conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
-                const string sql =
+                // Fetch all IDs that match today's prefix
+                string sql =
                     "SELECT SupplierID FROM Supplier " +
-                    "WHERE SupplierID REGEXP '^SP-[0-9]+$' " +
-                    "ORDER BY CAST(SUBSTRING(SupplierID, 4) AS UNSIGNED)";
+                    "WHERE SupplierID LIKE @prefix " +
+                    "ORDER BY SupplierID ASC";
 
-                var used = new System.Collections.Generic.HashSet<int>();
+                var used = new HashSet<int>();
                 using (var cmd = new MySqlCommand(sql, conn))
-                using (var rdr = cmd.ExecuteReader())
-                    while (rdr.Read())
-                        if (int.TryParse(rdr.GetString(0).Substring(3), out int n))
-                            used.Add(n);
+                {
+                    cmd.Parameters.AddWithValue("@prefix", prefix + "%");
+                    using (var rdr = cmd.ExecuteReader())
+                        while (rdr.Read())
+                        {
+                            string id  = rdr.GetString(0);
+                            string seq = id.Length > prefix.Length
+                                ? id.Substring(prefix.Length)
+                                : string.Empty;
+                            if (int.TryParse(seq, out int n))
+                                used.Add(n);
+                        }
+                }
 
                 int next = 1;
                 while (used.Contains(next)) next++;
-                return $"SP-{next:D3}";
+                return $"{prefix}{next:D3}";
             }
         }
 
