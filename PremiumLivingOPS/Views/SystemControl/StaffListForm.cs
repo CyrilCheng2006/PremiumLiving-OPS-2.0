@@ -166,7 +166,7 @@ namespace PremiumLivingOPS.Views.SystemControl
             using var dlg = new Form
             {
                 Text            = "Add New Staff",
-                Size            = new Size(1000, 720),
+                Size            = new Size(1000, 760),
                 StartPosition   = FormStartPosition.CenterParent,
                 BackColor       = Color.White,
                 Font            = new Font("Segoe UI", 12f),
@@ -191,50 +191,54 @@ namespace PremiumLivingOPS.Views.SystemControl
             var pnlBody = new Panel { Dock = DockStyle.Fill, BackColor = Color.White, Padding = new Padding(28, 20, 28, 8) };
 
             // ----------------------------------------------------------------
-            // Row layout (identical for every field group):
-            //   gap row   14px  — breathing room before label
-            //   label row 26px  — field label
-            //   input row 26px  — actual TextBox / ComboBox height
-            //   gap row   20px  — space after input before next group
-            //
-            // Using the TextBox’s natural rendered height (~26px @ Segoe UI 12f)
-            // as the input row height means Dock=Fill always fills exactly the
-            // cell, matching the control’s own size with no extra white space.
-            // Email row uses the same numbers so its label–input gap is identical.
+            // Row layout per field group:
+            //   RowGapTop  20px  — space above the label (breathing room)
+            //   RowLabel   24px  — label text row
+            //   RowGapMid   6px  — gap between label and input box
+            //   RowInput   30px  — TextBox / ComboBox
+            //   RowGapBot  20px  — space below input before next group
             // ----------------------------------------------------------------
-            const int RowGapTop   = 14;
-            const int RowLabel    = 26;
-            const int RowInput    = 26;   // matches natural TextBox height
-            const int RowGapBot   = 20;
+            const int RowGapTop = 20;
+            const int RowLabel  = 24;
+            const int RowGapMid =  6;   // <── gap between label and input
+            const int RowInput  = 30;
+            const int RowGapBot = 20;
 
+            // Each field group occupies 5 rows: GapTop / Label / GapMid / Input / GapBot
+            // 3 groups × 5 rows = 15 rows total
             var tbl = new TableLayoutPanel
             {
                 Dock            = DockStyle.Fill,
                 ColumnCount     = 2,
-                RowCount        = 12,
+                RowCount        = 15,
                 BackColor       = Color.Transparent,
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
             tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
             tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
 
-            // Row 0–3 : Staff ID | Full Name
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowGapTop));   // 0
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowLabel));    // 1
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowInput));    // 2
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowGapBot));   // 3
-            // Row 4–7 : Role | Department
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowGapTop));   // 4
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowLabel));    // 5
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowInput));    // 6
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowGapBot));   // 7
-            // Row 8–11 : Email (full-width)
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowGapTop));   // 8
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowLabel));    // 9
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowInput));    // 10
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowGapBot));   // 11
+            // Group 1 — Staff ID | Full Name  (rows 0–4)
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowGapTop));  // 0
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowLabel));   // 1  label
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowGapMid));  // 2
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowInput));   // 3  input
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowGapBot));  // 4
 
-            // Staff ID — ReadOnly
+            // Group 2 — Role | Department  (rows 5–9)
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowGapTop));  // 5
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowLabel));   // 6  label
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowGapMid));  // 7
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowInput));   // 8  input
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowGapBot));  // 9
+
+            // Group 3 — Email (full-width)  (rows 10–14)
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowGapTop));  // 10
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowLabel));   // 11 label
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowGapMid));  // 12
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowInput));   // 13 input
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowGapBot));  // 14
+
+            // ── Group 1: Staff ID (ReadOnly) | Full Name
             var txtStaffId = new TextBox
             {
                 Dock        = DockStyle.Fill,
@@ -249,11 +253,11 @@ namespace PremiumLivingOPS.Views.SystemControl
             var txtName = MakeTextInput("Full name");
 
             tbl.Controls.Add(MakeLblKey("Staff ID"),    0, 1);
-            tbl.Controls.Add(txtStaffId,                0, 2);
+            tbl.Controls.Add(txtStaffId,                0, 3);
             tbl.Controls.Add(MakeLblKey("Full Name *"), 1, 1);
-            tbl.Controls.Add(txtName,                   1, 2);
+            tbl.Controls.Add(txtName,                   1, 3);
 
-            // Row 5/6: Role | Department
+            // ── Group 2: Role | Department
             var cboRole = new ComboBox
             {
                 Dock          = DockStyle.Fill,
@@ -278,19 +282,17 @@ namespace PremiumLivingOPS.Views.SystemControl
             foreach (var d in depts) cboDept.Items.Add(d);
             if (cboDept.Items.Count > 0) cboDept.SelectedIndex = 0;
 
-            tbl.Controls.Add(MakeLblKey("Role *"),       0, 5);
-            tbl.Controls.Add(cboRole,                    0, 6);
-            tbl.Controls.Add(MakeLblKey("Department *"), 1, 5);
-            tbl.Controls.Add(cboDept,                    1, 6);
+            tbl.Controls.Add(MakeLblKey("Role *"),       0, 6);
+            tbl.Controls.Add(cboRole,                    0, 8);
+            tbl.Controls.Add(MakeLblKey("Department *"), 1, 6);
+            tbl.Controls.Add(cboDept,                    1, 8);
 
-            // Row 9: Email label (full-width)
+            // ── Group 3: Email label (full-width, row 11)
             var lblEmailKey = MakeLblKey("Email *");
-            tbl.Controls.Add(lblEmailKey, 0, 9);
+            tbl.Controls.Add(lblEmailKey, 0, 11);
             tbl.SetColumnSpan(lblEmailKey, 2);
 
-            // Row 10: Email input (full-width)
-            // pnlEmail hosts lblSuffix (Dock=Right) + txtEmailLocal (Dock=Fill),
-            // both naturally filling the 26px input row — same as every other field.
+            // ── Group 3: Email input (full-width, row 13)
             const int SuffixW = 180;
 
             var pnlEmail = new Panel
@@ -313,8 +315,6 @@ namespace PremiumLivingOPS.Views.SystemControl
                 Width       = SuffixW
             };
 
-            // Use a standard TextBox (BorderStyle.FixedSingle) so its rendered
-            // height and label-to-input visual gap are identical to Full Name.
             var txtEmailLocal = new TextBox
             {
                 Dock            = DockStyle.Fill,
@@ -327,7 +327,7 @@ namespace PremiumLivingOPS.Views.SystemControl
             pnlEmail.Controls.Add(lblSuffix);
             pnlEmail.Controls.Add(txtEmailLocal);
 
-            tbl.Controls.Add(pnlEmail, 0, 10);
+            tbl.Controls.Add(pnlEmail, 0, 13);
             tbl.SetColumnSpan(pnlEmail, 2);
 
             pnlBody.Controls.Add(tbl);
