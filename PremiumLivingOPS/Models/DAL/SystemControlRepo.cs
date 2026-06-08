@@ -73,34 +73,36 @@ namespace PremiumLivingOPS.Models.DAL
 
         /// <summary>
         /// Generates the next available StaffID in the format S-XXX.
-        /// Finds all existing IDs matching S-\d+, picks the highest number,
-        /// and returns the next one (e.g. if S-010 exists, returns S-011).
+        /// Finds all existing IDs matching S-\d+, picks the lowest unused number,
+        /// and returns it zero-padded to 3 digits (e.g. S-011).
         /// If no matching IDs exist, returns S-001.
+        /// 
+        /// FIX: use Substring(3) to skip the full "S-" prefix (indices 0-1 = 'S','-')
+        ///      so "S-007" → "007" → 7, not "-007" → -7 (negative) as Substring(2) produced.
         /// </summary>
         public string GetNextStaffId()
         {
             using (MySqlConnection conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
-                // Retrieve all IDs matching S-<digits> so we can find gaps and the max
                 const string sql =
                     "SELECT StaffID FROM Staff " +
                     "WHERE StaffID REGEXP '^S-[0-9]+$' " +
                     "ORDER BY CAST(SUBSTRING(StaffID, 3) AS UNSIGNED)";
 
-                var usedNumbers = new System.Collections.Generic.HashSet<int>();
+                var usedNumbers = new HashSet<int>();
                 using (var cmd = new MySqlCommand(sql, conn))
                 using (var reader = cmd.ExecuteReader())
                 {
                     while (reader.Read())
                     {
-                        string id = reader.GetString(0); // e.g. "S-007"
-                        if (int.TryParse(id.Substring(2), out int n))
+                        string id = reader.GetString(0);           // e.g. "S-007"
+                        // Substring(3): skip 'S'(0), '-'(1), '0'... → "007"
+                        if (int.TryParse(id.Substring(3), out int n))
                             usedNumbers.Add(n);
                     }
                 }
 
-                // Find the lowest unused number starting from 1
                 int next = 1;
                 while (usedNumbers.Contains(next))
                     next++;
