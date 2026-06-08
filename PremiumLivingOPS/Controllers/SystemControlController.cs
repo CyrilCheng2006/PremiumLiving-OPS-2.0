@@ -51,6 +51,13 @@ namespace PremiumLivingOPS.Controllers
         }
 
         /// <summary>
+        /// Inserts a new staff member.
+        /// Throws the underlying exception so the caller can display the real error message.
+        /// </summary>
+        public bool AddStaffWithException(Staff staff)
+            => _repo.InsertStaff(staff);
+
+        /// <summary>
         /// Updates the password for a staff member.
         /// Returns true on success.
         /// </summary>
