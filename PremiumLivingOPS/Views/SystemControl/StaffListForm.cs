@@ -151,17 +151,19 @@ namespace PremiumLivingOPS.Views.SystemControl
             try   { nextId = _ctrl.GetNextStaffId(); }
             catch { nextId = "S-???"; }
 
-            // ── Sizing constants ──────────────────────────────
-            const int LblH     = 28;   // label row height (increased for breathing room)
-            const int GapLI    = 12;   // label → input gap (increased to prevent overlap)
-            const int InputH   = 36;   // nominal input height (TextBox ignores this; used for layout maths)
-            const int GapGrp   = 32;   // vertical gap between field groups
-            const int ColGap   = 16;   // horizontal gap between the two columns
+            // ── Sizing constants ──────────────────────────────────────────
+            // LblH and GapLI scaled ×1.2 from previous values (28→34, 12→14)
+            // to guarantee the label never overlaps the input beneath it.
+            const int LblH     = 34;   // label row height  (28 × 1.2 = 33.6 → 34)
+            const int GapLI    = 14;   // label→input gap   (12 × 1.2 = 14.4 → 14)
+            const int InputH   = 36;   // nominal input height (fallback only – WinForms overrides)
+            const int GapGrp   = 32;   // gap between field groups
+            const int ColGap   = 16;   // horizontal gap between left / right columns
             const int BodyPadH = 28;   // left & right body padding
             const int BodyPadT = 28;   // top body padding
-            const int SuffixW  = 170;  // width of the "@plf.com" suffix label
+            const int SuffixW  = 170;  // width of the "@plf.com" label
 
-            // ── Dialog ───────────────────────────────────────
+            // ── Dialog ───────────────────────────────────────────────────
             using var dlg = new Form
             {
                 Text            = "Add New Staff",
@@ -234,7 +236,7 @@ namespace PremiumLivingOPS.Views.SystemControl
             pnlFtr.Controls.Add(btnCancel);
             pnlFtr.Controls.Add(btnSave);
 
-            // ── Body: scrollable container ────────────────────
+            // ── Body: scrollable container ────────────────────────────────
             var pnlBody = new Panel
             {
                 Dock       = DockStyle.Fill,
@@ -242,10 +244,9 @@ namespace PremiumLivingOPS.Views.SystemControl
                 AutoScroll = true
             };
 
-            // pnlCanvas is sized to its content; pnlBody only scrolls when window is too short.
             var pnlCanvas = new Panel { BackColor = Color.White, Left = 0, Top = 0 };
 
-            // ── Input controls ────────────────────────────────
+            // ── Input controls ────────────────────────────────────────────
 
             // Row 0 ─ Staff ID (read-only) | Full Name
             var txtStaffId = new TextBox
@@ -257,10 +258,7 @@ namespace PremiumLivingOPS.Views.SystemControl
                 TabStop     = false,
                 BackColor   = Color.FromArgb(240, 244, 249),
                 ForeColor   = Color.FromArgb(98, 112, 135)
-                // Height intentionally omitted: WinForms TextBox auto-sizes to font;
-                // we read the rendered height in the Resize handler below.
             };
-
             var txtName = new TextBox
             {
                 Font            = new Font("Segoe UI", 12f),
@@ -291,16 +289,13 @@ namespace PremiumLivingOPS.Views.SystemControl
             foreach (var d in depts) cboDept.Items.Add(d);
             if (cboDept.Items.Count > 0) cboDept.SelectedIndex = 0;
 
-            // Row 2 ─ Email (full width): local part + "@plf.com" suffix
+            // Row 2 ─ Email (full width)
             var txtEmailLocal = new TextBox
             {
                 Font            = new Font("Segoe UI", 12f),
                 BorderStyle     = BorderStyle.FixedSingle,
                 PlaceholderText = "e.g. john.doe"
             };
-
-            // Suffix label — height is synced to txtEmailLocal's ACTUAL rendered height
-            // inside the Resize handler so the two controls are always flush.
             var lblSuffix = new Label
             {
                 Text        = "@plf.com",
@@ -309,12 +304,23 @@ namespace PremiumLivingOPS.Views.SystemControl
                 BackColor   = Color.FromArgb(240, 244, 249),
                 BorderStyle = BorderStyle.FixedSingle,
                 TextAlign   = ContentAlignment.MiddleCenter,
-                AutoSize    = false
+                AutoSize    = false   // MUST be false so SetBounds is respected
             };
 
-            // ── Layout engine ─────────────────────────────────
-            // Fires on every resize of pnlBody; uses the TextBox's ACTUAL Height
-            // (set by WinForms after font measurement) so nothing ever overlaps.
+            // ── Per-field labels (pre-created with AutoSize=false) ────────
+            // Labels are created once here and repositioned in the Resize handler.
+            // Using direct references avoids the text-match reuse bug where two
+            // labels with different positions could be confused.
+            var lblStaffId  = MakeFieldLabel("Staff ID");
+            var lblFullName = MakeFieldLabel("Full Name *");
+            var lblRole     = MakeFieldLabel("Role *");
+            var lblDept     = MakeFieldLabel("Department *");
+            var lblEmail    = MakeFieldLabel("Email *");
+
+            // ── Layout engine ─────────────────────────────────────────────
+            // Recalculates all positions on every resize of pnlBody.
+            // Uses the controls' ACTUAL rendered heights (set by WinForms from font
+            // metrics) so label and input never overlap regardless of DPI or scaling.
             pnlBody.Resize += (rs, re) =>
             {
                 int totalW = pnlBody.ClientSize.Width;
@@ -325,50 +331,47 @@ namespace PremiumLivingOPS.Views.SystemControl
 
                 pnlCanvas.Width = totalW;
 
-                // Read the actual rendered heights AFTER the controls have been shown
-                // at least once.  On first call they may still be 0; fall back to InputH.
-                int txH  = txtStaffId.Height  > 0 ? txtStaffId.Height  : InputH;
-                int cboH = cboRole.Height     > 0 ? cboRole.Height     : InputH;
+                // Actual heights after WinForms font measurement; fall back to InputH.
+                int txH  = txtStaffId.Height   > 0 ? txtStaffId.Height   : InputH;
+                int cboH = cboRole.Height      > 0 ? cboRole.Height      : InputH;
                 int emH  = txtEmailLocal.Height > 0 ? txtEmailLocal.Height : InputH;
 
                 // ─ Row 0: Staff ID | Full Name
                 int y0  = BodyPadT;
-                PlaceLabel(pnlCanvas, "Staff ID",    xLeft,  y0, colW,  LblH);
-                PlaceLabel(pnlCanvas, "Full Name *", xRight, y0, colW,  LblH);
+                lblStaffId .SetBounds(xLeft,  y0, colW,  LblH);
+                lblFullName.SetBounds(xRight, y0, colW,  LblH);
                 int y0i = y0 + LblH + GapLI;
                 txtStaffId.SetBounds(xLeft,  y0i, colW, txH);
                 txtName   .SetBounds(xRight, y0i, colW, txH);
 
                 // ─ Row 1: Role | Department
                 int y1  = y0i + txH + GapGrp;
-                PlaceLabel(pnlCanvas, "Role *",       xLeft,  y1, colW, LblH);
-                PlaceLabel(pnlCanvas, "Department *", xRight, y1, colW, LblH);
+                lblRole.SetBounds(xLeft,  y1, colW, LblH);
+                lblDept.SetBounds(xRight, y1, colW, LblH);
                 int y1i = y1 + LblH + GapLI;
                 cboRole.SetBounds(xLeft,  y1i, colW, cboH);
                 cboDept.SetBounds(xRight, y1i, colW, cboH);
 
                 // ─ Row 2: Email (full width)
                 int y2  = y1i + cboH + GapGrp;
-                PlaceLabel(pnlCanvas, "Email *", xLeft, y2, innerW, LblH);
-                int y2i        = y2 + LblH + GapLI;
+                lblEmail.SetBounds(xLeft, y2, innerW, LblH);
+                int y2i         = y2 + LblH + GapLI;
                 int emailInputW = innerW - SuffixW;
-                txtEmailLocal.SetBounds(xLeft,               y2i, emailInputW, emH);
-                // Suffix uses the SAME top and height as the text box — guaranteed flush.
-                lblSuffix    .SetBounds(xLeft + emailInputW, y2i, SuffixW,     emH);
+                txtEmailLocal.SetBounds(xLeft,                y2i, emailInputW, emH);
+                lblSuffix    .SetBounds(xLeft + emailInputW,  y2i, SuffixW,     emH);
 
                 pnlCanvas.Height = y2i + emH + BodyPadT;
             };
 
-            pnlCanvas.Controls.Add(txtStaffId);
-            pnlCanvas.Controls.Add(txtName);
-            pnlCanvas.Controls.Add(cboRole);
-            pnlCanvas.Controls.Add(cboDept);
-            pnlCanvas.Controls.Add(txtEmailLocal);
-            pnlCanvas.Controls.Add(lblSuffix);
+            pnlCanvas.Controls.AddRange(new Control[]
+            {
+                lblStaffId, lblFullName, lblRole, lblDept, lblEmail,
+                txtStaffId, txtName, cboRole, cboDept, txtEmailLocal, lblSuffix
+            });
 
             pnlBody.Controls.Add(pnlCanvas);
 
-            // ── Save logic ────────────────────────────────────
+            // ── Save logic ────────────────────────────────────────────────
             btnSave.Click += (bss, bse) =>
             {
                 string id        = txtStaffId.Text.Trim();
@@ -379,13 +382,13 @@ namespace PremiumLivingOPS.Views.SystemControl
                 string dept      = cboDept.SelectedItem?.ToString();
 
                 if (string.IsNullOrEmpty(name))
-                { MessageBox.Show("Full Name is required.",          "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+                { MessageBox.Show("Full Name is required.",        "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
                 if (string.IsNullOrEmpty(localPart))
-                { MessageBox.Show("Email local part is required.",   "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+                { MessageBox.Show("Email local part is required.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
                 if (string.IsNullOrEmpty(role))
-                { MessageBox.Show("Role is required.",               "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+                { MessageBox.Show("Role is required.",             "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
                 if (string.IsNullOrEmpty(dept))
-                { MessageBox.Show("Department is required.",         "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+                { MessageBox.Show("Department is required.",       "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
 
                 bool ok = _ctrl.AddStaff(new Staff
                 {
@@ -412,26 +415,15 @@ namespace PremiumLivingOPS.Views.SystemControl
             dlg.ShowDialog(this);
         }
 
-        // PlaceLabel: create or reuse a label on the canvas at the given absolute position.
-        private static void PlaceLabel(Panel canvas, string text, int x, int y, int w, int h)
+        // Creates a field label with AutoSize=false so SetBounds is never overridden.
+        private static Label MakeFieldLabel(string text) => new Label
         {
-            Label lbl = null;
-            foreach (Control c in canvas.Controls)
-                if (c is Label l && l.Text == text) { lbl = l; break; }
-
-            if (lbl == null)
-            {
-                lbl = new Label
-                {
-                    Text      = text,
-                    Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
-                    ForeColor = Color.FromArgb(98, 112, 135),
-                    AutoSize  = false
-                };
-                canvas.Controls.Add(lbl);
-            }
-            lbl.SetBounds(x, y, w, h);
-        }
+            Text      = text,
+            Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
+            ForeColor = Color.FromArgb(98, 112, 135),
+            AutoSize  = false,
+            TextAlign = ContentAlignment.BottomLeft
+        };
 
         // ── Modify Detail button
         private void btnModifyDetail_Click(object sender, EventArgs e)
