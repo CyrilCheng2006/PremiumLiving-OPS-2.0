@@ -206,7 +206,6 @@ namespace PremiumLivingOPS.Views.SystemControl
             tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
             tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
 
-            // FIX 1: Increased spacing between label and field rows (label: 26→30, gap: 20→28, top gap: 10→14)
             tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 14f));  // 0  top gap
             tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 30f));  // 1  label
             tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 52f));  // 2  input
@@ -219,7 +218,7 @@ namespace PremiumLivingOPS.Views.SystemControl
             tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 30f));  // 9  label
             tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 52f));  // 10 input
 
-            // FIX 3: Staff ID — ReadOnly field, no parenthetical note on label
+            // Staff ID — ReadOnly, no parenthetical note
             var txtStaffId = new TextBox
             {
                 Dock        = DockStyle.Fill,
@@ -273,9 +272,11 @@ namespace PremiumLivingOPS.Views.SystemControl
             tbl.Controls.Add(lblEmailKey, 0, 9);
             tbl.SetColumnSpan(lblEmailKey, 2);
 
+            // Email row: pnlEmail uses Layout event so lblSuffix height always equals txtEmailLocal height
             var pnlEmail = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
 
-            // FIX 2: Increased @plf.com suffix width from 140 to 180 to prevent layout shift
+            const int SuffixW = 180;
+
             var lblSuffix = new Label
             {
                 Text        = "@plf.com",
@@ -284,14 +285,11 @@ namespace PremiumLivingOPS.Views.SystemControl
                 BackColor   = Color.FromArgb(240, 244, 249),
                 BorderStyle = BorderStyle.FixedSingle,
                 TextAlign   = ContentAlignment.MiddleCenter,
-                Dock        = DockStyle.Right,
-                Width       = 180,
                 AutoSize    = false
             };
 
             var txtEmailLocal = new TextBox
             {
-                Dock            = DockStyle.Fill,
                 Font            = new Font("Segoe UI", 12f),
                 BorderStyle     = BorderStyle.FixedSingle,
                 PlaceholderText = "e.g. john.doe"
@@ -299,6 +297,15 @@ namespace PremiumLivingOPS.Views.SystemControl
 
             pnlEmail.Controls.Add(txtEmailLocal);
             pnlEmail.Controls.Add(lblSuffix);
+
+            // Layout event: position both controls so they share the same top/height
+            pnlEmail.Layout += (ps, pe) =>
+            {
+                int h = pnlEmail.ClientSize.Height;
+                int w = pnlEmail.ClientSize.Width;
+                lblSuffix.SetBounds(w - SuffixW, 0, SuffixW, h);
+                txtEmailLocal.SetBounds(0, 0, w - SuffixW, h);
+            };
 
             tbl.Controls.Add(pnlEmail, 0, 10);
             tbl.SetColumnSpan(pnlEmail, 2);
