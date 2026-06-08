@@ -159,7 +159,8 @@ namespace PremiumLivingOPS.Views.SystemControl
         // Change Department → Orange  (#EA580C)
         //
         // Rule: the currently logged-in user is NOT allowed to change their own department.
-        //       When isSelf == true the Change Department button is disabled and a note is shown.
+        //       When isSelf == true the Change Department button is disabled (greyed out)
+        //       and a notice label is shown below it.
         private void ShowModifyDialog(Staff staff)
         {
             bool isSelf = string.Equals(
@@ -211,7 +212,7 @@ namespace PremiumLivingOPS.Views.SystemControl
             // ── Body — two large buttons (500×120) stacked vertically, centred
             const int BtnW   = 500;
             const int BtnH   = 120;
-            const int BtnGap = 24;   // vertical gap between the two buttons
+            const int BtnGap = 24;
 
             var pnlBody = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
 
@@ -227,19 +228,17 @@ namespace PremiumLivingOPS.Views.SystemControl
                 Cursor    = Cursors.Hand
             };
             btnChangePwd.FlatAppearance.BorderSize         = 0;
-            btnChangePwd.FlatAppearance.MouseOverBackColor = Color.FromArgb(109, 40, 217);  // violet-700
-            btnChangePwd.FlatAppearance.MouseDownBackColor = Color.FromArgb( 91, 33, 182);  // violet-800
+            btnChangePwd.FlatAppearance.MouseOverBackColor = Color.FromArgb(109, 40, 217);
+            btnChangePwd.FlatAppearance.MouseDownBackColor = Color.FromArgb( 91, 33, 182);
             btnChangePwd.Click += (s, ev) => { dlg.Close(); ShowChangePasswordDialog(staff); };
 
             // Change Department — Orange (disabled + grey when isSelf)
             var btnChangeDept = new Button
             {
-                Text      = isSelf
-                    ? "\uD83C\uDFE2  Change Department  (Not allowed for your own account)"
-                    : "\uD83C\uDFE2  Change Department",
+                Text      = "\uD83C\uDFE2  Change Department",
                 Font      = new Font("Segoe UI", 15f, FontStyle.Bold),
                 ForeColor = isSelf ? Color.FromArgb(160, 160, 160) : Color.White,
-                BackColor = isSelf ? Color.FromArgb(230, 230, 230) : Color.FromArgb(234, 88, 12),  // grey : #EA580C
+                BackColor = isSelf ? Color.FromArgb(230, 230, 230) : Color.FromArgb(234, 88, 12),
                 FlatStyle = FlatStyle.Flat,
                 Size      = new Size(BtnW, BtnH),
                 Enabled   = !isSelf,
@@ -248,8 +247,8 @@ namespace PremiumLivingOPS.Views.SystemControl
             btnChangeDept.FlatAppearance.BorderSize         = 0;
             btnChangeDept.FlatAppearance.MouseOverBackColor = isSelf
                 ? Color.FromArgb(230, 230, 230)
-                : Color.FromArgb(194, 65, 12);  // orange-700
-            btnChangeDept.FlatAppearance.MouseDownBackColor = Color.FromArgb(154, 52, 18);  // orange-800
+                : Color.FromArgb(194, 65, 12);
+            btnChangeDept.FlatAppearance.MouseDownBackColor = Color.FromArgb(154, 52, 18);
             if (!isSelf)
                 btnChangeDept.Click += (s, ev) => { dlg.Close(); ShowChangeDepartmentDialog(staff); };
 
@@ -263,14 +262,14 @@ namespace PremiumLivingOPS.Views.SystemControl
                 btnChangeDept.Location = new Point(startX, startY + BtnH + BtnGap);
             };
 
-            // Optional: a small notice label below the disabled button when isSelf
+            // Notice label below disabled button when isSelf
             if (isSelf)
             {
                 var lblNotice = new Label
                 {
                     Text      = "You cannot change your own department.",
                     Font      = new Font("Segoe UI", 10f, FontStyle.Italic),
-                    ForeColor = Color.FromArgb(185, 28, 28),  // red-700
+                    ForeColor = Color.FromArgb(185, 28, 28),
                     AutoSize  = true,
                     BackColor = Color.Transparent
                 };
@@ -408,7 +407,6 @@ namespace PremiumLivingOPS.Views.SystemControl
             btnCancel.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
             btnCancel.Click += (s, ev) => dlg.Close();
 
-            // Save — Green (#16A34A  green-600)
             var btnSave = new Button
             {
                 Text      = "Save",
@@ -534,7 +532,6 @@ namespace PremiumLivingOPS.Views.SystemControl
             btnCancel.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
             btnCancel.Click += (s, ev) => dlg.Close();
 
-            // Save — Green (#16A34A  green-600)
             var btnSave = new Button
             {
                 Text      = "Save",
