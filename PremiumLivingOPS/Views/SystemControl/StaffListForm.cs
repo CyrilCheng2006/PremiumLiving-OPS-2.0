@@ -10,11 +10,6 @@ using System.Windows.Forms;
 
 namespace PremiumLivingOPS.Views.SystemControl
 {
-    /// <summary>
-    /// View — Staff List page (System Control module).
-    ///
-    /// KPI bar: Pills (left) | Add Staff (green) | Modify Detail (blue).
-    /// </summary>
     public partial class StaffListForm : Form
     {
         private readonly SystemControlController _ctrl = new SystemControlController();
@@ -22,7 +17,6 @@ namespace PremiumLivingOPS.Views.SystemControl
         private List<Staff> _currentStaff = new List<Staff>();
         private string      _deptFilter   = null;
 
-        // Department colour palette — mirrors ViewOrderForm StatusColors
         private static readonly (Color fg, Color bg)[] DeptColors =
         {
             (Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199)),
@@ -40,10 +34,8 @@ namespace PremiumLivingOPS.Views.SystemControl
             this.Load += StaffListForm_Load;
         }
 
-        // ── Load
         private void StaffListForm_Load(object sender, EventArgs e) => RefreshGrid();
 
-        // ── Data refresh
         private void RefreshGrid()
         {
             string keyword = txtSearch.Text.Trim();
@@ -190,21 +182,17 @@ namespace PremiumLivingOPS.Views.SystemControl
             // Body
             var pnlBody = new Panel { Dock = DockStyle.Fill, BackColor = Color.White, Padding = new Padding(28, 20, 28, 8) };
 
-            // ----------------------------------------------------------------
-            // Row layout per field group (3 rows only — no hidden gap rows):
+            // ---------------------------------------------------------------
+            // Row layout per field group:
             //
-            //   RowLabel  30px  — label (TextAlign = BottomLeft → text sits at
-            //                     the bottom of the cell, leaving visual space
-            //                     above and naturally separating from input)
-            //   RowInput  30px  — TextBox / ComboBox (Dock=Fill)
+            //   RowLabel  36px  — label (BottomLeft + Padding bottom 4px)
+            //                     text anchored to bottom → clear gap above input
+            //   RowInput  36px  — TextBox / ComboBox / pnlEmail (Dock=Fill)
+            //                     36px gives enough room for 12pt controls
             //   RowGapBot 28px  — breathing room before next group
-            //
-            // TextAlign.BottomLeft is the key: the label text is anchored to
-            // the bottom of its cell so it reads as "caption above input" with
-            // a clear gap, never overlapping the control below it.
-            // ----------------------------------------------------------------
-            const int RowLabel  = 30;
-            const int RowInput  = 30;
+            // ---------------------------------------------------------------
+            const int RowLabel  = 36;
+            const int RowInput  = 36;
             const int RowGapBot = 28;
 
             // 3 groups × 3 rows = 9 rows total
@@ -220,18 +208,18 @@ namespace PremiumLivingOPS.Views.SystemControl
             tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
 
             // Group 1 — Staff ID | Full Name  (rows 0–2)
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowLabel));   // 0  label
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowInput));   // 1  input
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowLabel));   // 0
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowInput));   // 1
             tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowGapBot));  // 2
 
             // Group 2 — Role | Department  (rows 3–5)
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowLabel));   // 3  label
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowInput));   // 4  input
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowLabel));   // 3
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowInput));   // 4
             tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowGapBot));  // 5
 
             // Group 3 — Email full-width  (rows 6–8)
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowLabel));   // 6  label
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowInput));   // 7  input
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowLabel));   // 6
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowInput));   // 7
             tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, RowGapBot));  // 8
 
             // ── Group 1: Staff ID (ReadOnly) | Full Name
@@ -288,8 +276,11 @@ namespace PremiumLivingOPS.Views.SystemControl
             tbl.Controls.Add(lblEmailKey, 0, 6);
             tbl.SetColumnSpan(lblEmailKey, 2);
 
-            // ── Group 3: Email input (row 7, full-width)
-            const int SuffixW = 180;
+            // ── Group 3: Email input row (row 7, full-width)
+            // pnlEmail uses absolute layout so both TextBox and suffix Label
+            // are explicitly sized — avoids any clipping that Dock=Fill+Right
+            // can cause inside a fixed-height TLP cell.
+            const int SuffixW = 160;
 
             var pnlEmail = new Panel
             {
@@ -319,7 +310,7 @@ namespace PremiumLivingOPS.Views.SystemControl
                 PlaceholderText = "e.g. john.doe"
             };
 
-            // Add suffix first → Dock=Right processed before Dock=Fill
+            // Suffix must be added first so Dock=Right is processed before Dock=Fill
             pnlEmail.Controls.Add(lblSuffix);
             pnlEmail.Controls.Add(txtEmailLocal);
 
@@ -420,7 +411,6 @@ namespace PremiumLivingOPS.Views.SystemControl
             ShowModifyDialog(_currentStaff[rowIdx]);
         }
 
-        // ── Modify Detail popup dialog  (1000 × 600)
         private void ShowModifyDialog(Staff staff)
         {
             bool isSelf = string.Equals(
@@ -563,7 +553,6 @@ namespace PremiumLivingOPS.Views.SystemControl
             dlg.ShowDialog(this);
         }
 
-        // ── Change Password dialog  (1000 × 600)
         private void ShowChangePasswordDialog(Staff staff)
         {
             using var dlg = new Form
@@ -653,7 +642,6 @@ namespace PremiumLivingOPS.Views.SystemControl
             dlg.ShowDialog(this);
         }
 
-        // ── Change Department dialog  (1000 × 600)
         private void ShowChangeDepartmentDialog(Staff staff)
         {
             var departments = _allStaff
@@ -755,7 +743,6 @@ namespace PremiumLivingOPS.Views.SystemControl
         private void dgvStaff_SelectionChanged(object sender, EventArgs e) => UpdateActionButtons();
         private void dgvStaff_CellDoubleClick(object sender, DataGridViewCellEventArgs e) { if (e.RowIndex < 0) return; ShowDetailDialog(e.RowIndex); }
 
-        // ── Detail dialog (double-click)
         private void ShowDetailDialog(int rowIndex)
         {
             if (rowIndex < 0 || rowIndex >= _currentStaff.Count) return;
@@ -851,9 +838,9 @@ namespace PremiumLivingOPS.Views.SystemControl
             return path;
         }
 
-        // ── Label helpers
-        // MakeFieldLabel: used in Add Staff dialog — BottomLeft so text sits
-        // flush against the input below it, giving clear label-above-field layout.
+        // ── Label / input helpers
+        // MakeFieldLabel: Add Staff dialog — BottomLeft + bottom padding 4px
+        // so label text sits flush above input with a clear visual gap.
         private static Label MakeFieldLabel(string text) => new Label
         {
             Text      = text,
@@ -861,10 +848,10 @@ namespace PremiumLivingOPS.Views.SystemControl
             ForeColor = Color.FromArgb(98, 112, 135),
             Dock      = DockStyle.Fill,
             TextAlign = ContentAlignment.BottomLeft,
-            Padding   = new Padding(0, 0, 8, 2)
+            Padding   = new Padding(0, 0, 8, 4)
         };
 
-        // MakeLblKey: used in detail/readonly dialogs — MiddleLeft is fine there.
+        // MakeLblKey: readonly/detail dialogs — MiddleLeft
         private static Label MakeLblKey(string text) => new Label { Text = text, Font = new Font("Segoe UI", 10f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(0, 0, 8, 0) };
         private static Label MakeLblVal(string text) => new Label { Text = text ?? "\u2014", Font = new Font("Segoe UI", 12f), ForeColor = Color.FromArgb(15, 31, 53), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoEllipsis = true };
         private static TextBox MakeTextInput(string placeholder) => new TextBox { Dock = DockStyle.Fill, Font = new Font("Segoe UI", 12f), BorderStyle = BorderStyle.FixedSingle, PlaceholderText = placeholder };
