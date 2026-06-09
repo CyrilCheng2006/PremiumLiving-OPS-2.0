@@ -36,8 +36,9 @@ namespace PremiumLivingOPS.Views.AfterService
         {
             string statusSel    = cboStatus.SelectedItem?.ToString();
             string statusFilter = (statusSel == "All" || string.IsNullOrEmpty(statusSel)) ? null : statusSel;
+            string keyword      = txtKeyword.Text.Trim();
 
-            var vm = _ctrl.GetAccountPayableVM(statusFilter);
+            var vm = _ctrl.GetAccountPayableVM(statusFilter, string.IsNullOrEmpty(keyword) ? null : keyword);
 
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
@@ -56,6 +57,13 @@ namespace PremiumLivingOPS.Views.AfterService
                     item.ExpectedDate.ToString("yyyy-MM-dd"));
 
             RefreshKpi();
+        }
+
+        private void ResetSearch()
+        {
+            txtKeyword.Text         = string.Empty;
+            cboStatus.SelectedIndex = 0;
+            RefreshGrid();
         }
 
         // ── KPI Pills ────────────────────────────────────────────────────────

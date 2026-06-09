@@ -10,6 +10,7 @@ namespace PremiumLivingOPS.Views.AfterService
         private System.ComponentModel.IContainer components = null;
 
         private AppShell     _shell;
+        private TextBox      txtKeyword;
         private ComboBox     cboStatus;
         private Button       btnSearch;
         private Button       btnReset;
@@ -40,56 +41,66 @@ namespace PremiumLivingOPS.Views.AfterService
             _shell.MenuItemClicked += OnTopNavMenuItemClicked;
             _shell.LogoutClicked   += btnLogout_Click;
 
-            // ══════════════════════════════════════════════════════════════════
-            // CARD 1 — Filter Bar  (outerHeight 120)
-            // ══════════════════════════════════════════════════════════════════
-            var (filterOuter, filterInner) = CardPanel.Create(outerHeight: 120);
+            // ════════════════════════════════════════════════════════════════
+            // CARD 1 — Search Bar  (outerHeight 150)
+            // ════════════════════════════════════════════════════════════════
+            var (searchOuter, searchInner) = CardPanel.Create(outerHeight: 150);
+
+            txtKeyword = new TextBox
+            {
+                Font = new Font("Segoe UI", 12f), BorderStyle = BorderStyle.FixedSingle,
+                PlaceholderText = "Purchase Invoice ID / Purchase Order / Supplier"
+            };
+            txtKeyword.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) RefreshGrid(); };
 
             cboStatus = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 12f) };
             cboStatus.Items.AddRange(new object[] { "All", "Partial", "Full", "Overdue" });
             cboStatus.SelectedIndex = 0;
 
-            btnSearch = MakePrimaryBtn("🔍  Filter", Point.Empty, 190, 52);
+            btnSearch = MakePrimaryBtn("🔍  Search", Point.Empty, 190, 52);
             btnReset  = MakeOutlineBtn("↺  Reset",  Point.Empty, 190, 52);
             btnSearch.Click += (s, e) => RefreshGrid();
-            btnReset.Click  += (s, e) => { cboStatus.SelectedIndex = 0; RefreshGrid(); };
+            btnReset.Click  += (s, e) => ResetSearch();
 
-            var tblFilter = new TableLayoutPanel
+            var tblSearch = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 2,
                 BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                Padding = new Padding(18, 8, 18, 8)
+                Padding = new Padding(18, 10, 18, 10)
             };
-            tblFilter.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
-            tblFilter.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
-            tblFilter.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 205f));
-            tblFilter.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 205f));
-            tblFilter.RowStyles.Add(new RowStyle(SizeType.Absolute, 40f));
-            tblFilter.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+            tblSearch.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
+            tblSearch.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
+            tblSearch.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 205f));
+            tblSearch.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 205f));
+            tblSearch.RowStyles.Add(new RowStyle(SizeType.Absolute, 42f));
+            tblSearch.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
-            tblFilter.Controls.Add(MakeFieldLabel("Payment Status"), 0, 0);
-            cboStatus.Dock = DockStyle.Fill;
-            tblFilter.Controls.Add(cboStatus, 0, 1);
+            tblSearch.Controls.Add(MakeFieldLabel("Search"),         0, 0);
+            tblSearch.Controls.Add(MakeFieldLabel("Payment Status"), 1, 0);
+            txtKeyword.Dock = DockStyle.Fill;
+            cboStatus.Dock  = DockStyle.Fill;
+            tblSearch.Controls.Add(txtKeyword, 0, 1);
+            tblSearch.Controls.Add(cboStatus,  1, 1);
 
             var pnlBtns = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             btnSearch.Location = new Point(0, 0);
             btnReset.Location  = new Point(198, 0);
             pnlBtns.Controls.Add(btnSearch);
             pnlBtns.Controls.Add(btnReset);
-            tblFilter.SetColumnSpan(pnlBtns, 3);
-            tblFilter.Controls.Add(pnlBtns, 1, 1);
-            filterInner.Controls.Add(tblFilter);
+            tblSearch.SetColumnSpan(pnlBtns, 2);
+            tblSearch.Controls.Add(pnlBtns, 2, 1);
+            searchInner.Controls.Add(tblSearch);
 
-            // ══════════════════════════════════════════════════════════════════
+            // ════════════════════════════════════════════════════════════════
             // CARD 2 — KPI Summary  (outerHeight 90)
-            // ══════════════════════════════════════════════════════════════════
+            // ════════════════════════════════════════════════════════════════
             var (kpiOuter, kpiInner) = CardPanel.Create(outerHeight: 90);
             pnlKpi = new Panel { Dock = DockStyle.Fill, BackColor = Color.White, Padding = new Padding(12, 10, 12, 10) };
             kpiInner.Controls.Add(pnlKpi);
 
-            // ══════════════════════════════════════════════════════════════════
+            // ════════════════════════════════════════════════════════════════
             // CARD 3 — AP Grid  (Fill)
-            // ══════════════════════════════════════════════════════════════════
+            // ════════════════════════════════════════════════════════════════
             var (gridOuter, gridInner) = CardPanel.CreateFill();
 
             dgvAP = new DataGridView
@@ -128,7 +139,7 @@ namespace PremiumLivingOPS.Views.AfterService
             // ── Assemble
             pnlMain.Controls.Add(gridOuter);   // Fill
             pnlMain.Controls.Add(kpiOuter);    // Top
-            pnlMain.Controls.Add(filterOuter); // Top
+            pnlMain.Controls.Add(searchOuter); // Top
             pnlMain.Controls.Add(_shell);      // Top — topmost
 
             this.Controls.Add(pnlMain);
