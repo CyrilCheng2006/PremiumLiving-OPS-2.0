@@ -12,9 +12,9 @@ namespace PremiumLivingOPS.Models.DAL
     /// </summary>
     public class AfterServiceRepo
     {
-        // ════════════════════════════════════════════════════════════════════
+        // ══════════════════════════════════════════════════════════════════
         //  INVOICE queries
-        // ════════════════════════════════════════════════════════════════════
+        // ══════════════════════════════════════════════════════════════════
 
         /// <summary>Returns all invoices, with optional status / keyword filter.</summary>
         public List<InvoiceEntity> SearchInvoices(
@@ -139,9 +139,9 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
-        // ════════════════════════════════════════════════════════════════════
+        // ══════════════════════════════════════════════════════════════════
         //  COMPLAINT queries
-        // ════════════════════════════════════════════════════════════════════
+        // ══════════════════════════════════════════════════════════════════
 
         /// <summary>Returns complaints with optional status / keyword filter.</summary>
         public List<ComplaintEntity> SearchComplaints(
@@ -201,9 +201,9 @@ namespace PremiumLivingOPS.Models.DAL
             }
         }
 
-        // ════════════════════════════════════════════════════════════════════
+        // ══════════════════════════════════════════════════════════════════
         //  RETURN ORDER queries
-        // ════════════════════════════════════════════════════════════════════
+        // ══════════════════════════════════════════════════════════════════
 
         /// <summary>Returns return orders with optional status / keyword filter.</summary>
         public List<ReturnOrderEntity> SearchReturnOrders(
@@ -264,16 +264,19 @@ namespace PremiumLivingOPS.Models.DAL
             }
         }
 
-        // ════════════════════════════════════════════════════════════════════
+        // ══════════════════════════════════════════════════════════════════
         //  ACCOUNTS RECEIVABLE queries
-        // ════════════════════════════════════════════════════════════════════
+        // ══════════════════════════════════════════════════════════════════
 
         /// <summary>
-        /// Returns Account Receivable records.
-        /// IsOverdue = RemainingBalance > 0 AND DueDate &lt; CURDATE().
+        /// Returns Account Receivable records with optional status / keyword filter.
+        /// IsOverdue = RemainingBalance &gt; 0 AND DueDate &lt; CURDATE().
         /// status filter: 'Partial' | 'Full' | 'Overdue' (computed).
+        /// keyword: searches InvoiceID, OrderID, CustomerName.
         /// </summary>
-        public List<AccountReceivableEntity> GetAccountReceivables(string status = null)
+        public List<AccountReceivableEntity> SearchAccountReceivables(
+            string status  = null,
+            string keyword = null)
         {
             var list = new List<AccountReceivableEntity>();
             using (var conn = DatabaseHelper.GetConnection())
@@ -294,12 +297,19 @@ namespace PremiumLivingOPS.Models.DAL
                 else if (!string.IsNullOrEmpty(status))
                     sql += " AND i.PaymentStatus = @status";
 
+                if (!string.IsNullOrEmpty(keyword))
+                    sql += @" AND (i.InvoiceID   LIKE @kw
+                               OR i.OrderID      LIKE @kw
+                               OR c.CustomerName LIKE @kw)";
+
                 sql += " ORDER BY i.DueDate ASC";
 
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
                     if (!string.IsNullOrEmpty(status) && status != "Overdue")
                         cmd.Parameters.AddWithValue("@status", status);
+                    if (!string.IsNullOrEmpty(keyword))
+                        cmd.Parameters.AddWithValue("@kw", "%" + keyword + "%");
 
                     using (var rdr = cmd.ExecuteReader())
                     {
@@ -324,16 +334,23 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
-        // ════════════════════════════════════════════════════════════════════
+        /// <summary>Returns all AR records (no filter). Used by KPI panel.</summary>
+        public List<AccountReceivableEntity> GetAccountReceivables(string status = null)
+            => SearchAccountReceivables(status);
+
+        // ══════════════════════════════════════════════════════════════════
         //  ACCOUNTS PAYABLE queries
-        // ════════════════════════════════════════════════════════════════════
+        // ══════════════════════════════════════════════════════════════════
 
         /// <summary>
-        /// Returns Account Payable records.
+        /// Returns Account Payable records with optional status / keyword filter.
         /// IsOverdue = PaymentStatus != 'Full' AND ExpectedDate &lt; CURDATE().
         /// status filter: 'Partial' | 'Full' | 'Overdue' (computed).
+        /// keyword: searches PurInvoiceID, PurchaseID, SupplierName.
         /// </summary>
-        public List<AccountPayableEntity> GetAccountPayables(string status = null)
+        public List<AccountPayableEntity> SearchAccountPayables(
+            string status  = null,
+            string keyword = null)
         {
             var list = new List<AccountPayableEntity>();
             using (var conn = DatabaseHelper.GetConnection())
@@ -353,12 +370,19 @@ namespace PremiumLivingOPS.Models.DAL
                 else if (!string.IsNullOrEmpty(status))
                     sql += " AND pi.PaymentStatus = @status";
 
+                if (!string.IsNullOrEmpty(keyword))
+                    sql += @" AND (pi.PurInvoiceID LIKE @kw
+                               OR pi.PurchaseID   LIKE @kw
+                               OR sup.SupplierName LIKE @kw)";
+
                 sql += " ORDER BY pi.ExpectedDate ASC";
 
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
                     if (!string.IsNullOrEmpty(status) && status != "Overdue")
                         cmd.Parameters.AddWithValue("@status", status);
+                    if (!string.IsNullOrEmpty(keyword))
+                        cmd.Parameters.AddWithValue("@kw", "%" + keyword + "%");
 
                     using (var rdr = cmd.ExecuteReader())
                     {
@@ -381,9 +405,13 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
-        // ════════════════════════════════════════════════════════════════════
+        /// <summary>Returns all AP records (no filter). Used by KPI panel.</summary>
+        public List<AccountPayableEntity> GetAccountPayables(string status = null)
+            => SearchAccountPayables(status);
+
+        // ══════════════════════════════════════════════════════════════════
         //  Mapping helpers (private)
-        // ════════════════════════════════════════════════════════════════════
+        // ══════════════════════════════════════════════════════════════════
 
         private static InvoiceEntity MapInvoice(MySqlDataReader rdr) =>
             new InvoiceEntity

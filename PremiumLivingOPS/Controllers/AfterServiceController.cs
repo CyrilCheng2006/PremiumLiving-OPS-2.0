@@ -14,7 +14,7 @@ namespace PremiumLivingOPS.Controllers
     {
         private readonly AfterServiceRepo _repo = new AfterServiceRepo();
 
-        // ── Helper: current user ──────────────────────────────────────────────────
+        // ── Helper: current user ────────────────────────────────────────────────────────
         private static UserBarViewModel CurrentUserBar()
         {
             var u = SessionManager.CurrentUser;
@@ -28,9 +28,9 @@ namespace PremiumLivingOPS.Controllers
         private static string[] CurrentMenus()
             => NavAccessPolicy.GetAllowedMenus(SessionManager.CurrentUser?.Department ?? "");
 
-        // ════════════════════════════════════════════════════════════════════════
+        // ════════════════════════════════════════════════════════════════════
         //  Create Invoice
-        // ════════════════════════════════════════════════════════════════════════
+        // ════════════════════════════════════════════════════════════════════
 
         /// <summary>
         /// Returns ViewModel for the Create Invoice page.
@@ -83,9 +83,9 @@ namespace PremiumLivingOPS.Controllers
             return _repo.CreateInvoice(inv);
         }
 
-        // ════════════════════════════════════════════════════════════════════════
+        // ════════════════════════════════════════════════════════════════════
         //  Complaint List
-        // ════════════════════════════════════════════════════════════════════════
+        // ════════════════════════════════════════════════════════════════════
 
         /// <summary>
         /// Returns ViewModel for the Complaint List page.
@@ -107,9 +107,9 @@ namespace PremiumLivingOPS.Controllers
         public bool UpdateComplaintStatus(string complaintId, string newStatus)
             => _repo.UpdateComplaintStatus(complaintId, newStatus);
 
-        // ════════════════════════════════════════════════════════════════════════
+        // ════════════════════════════════════════════════════════════════════
         //  Return Order List
-        // ════════════════════════════════════════════════════════════════════════
+        // ════════════════════════════════════════════════════════════════════
 
         /// <summary>
         /// Returns ViewModel for the Return Order List page.
@@ -131,39 +131,45 @@ namespace PremiumLivingOPS.Controllers
         public bool UpdateReturnOrderStatus(string returnId, string newStatus)
             => _repo.UpdateReturnOrderStatus(returnId, newStatus);
 
-        // ════════════════════════════════════════════════════════════════════════
+        // ════════════════════════════════════════════════════════════════════
         //  Account Receivable
-        // ════════════════════════════════════════════════════════════════════════
+        // ════════════════════════════════════════════════════════════════════
 
         /// <summary>
         /// Returns ViewModel for the Accounts Receivable page.
         /// status: null = All | 'Partial' | 'Full' | 'Overdue'
+        /// keyword: searches InvoiceID, OrderID, CustomerName
         /// </summary>
-        public AccountReceivableViewModel GetAccountReceivableVM(string status = null)
+        public AccountReceivableViewModel GetAccountReceivableVM(
+            string status  = null,
+            string keyword = null)
         {
             return new AccountReceivableViewModel
             {
                 UserBar      = CurrentUserBar(),
                 AllowedMenus = CurrentMenus(),
-                Items        = _repo.GetAccountReceivables(status)
+                Items        = _repo.SearchAccountReceivables(status, keyword)
             };
         }
 
-        // ════════════════════════════════════════════════════════════════════════
+        // ════════════════════════════════════════════════════════════════════
         //  Account Payable
-        // ════════════════════════════════════════════════════════════════════════
+        // ════════════════════════════════════════════════════════════════════
 
         /// <summary>
         /// Returns ViewModel for the Accounts Payable page.
         /// status: null = All | 'Partial' | 'Full' | 'Overdue'
+        /// keyword: searches PurInvoiceID, PurchaseID, SupplierName
         /// </summary>
-        public AccountPayableViewModel GetAccountPayableVM(string status = null)
+        public AccountPayableViewModel GetAccountPayableVM(
+            string status  = null,
+            string keyword = null)
         {
             return new AccountPayableViewModel
             {
                 UserBar      = CurrentUserBar(),
                 AllowedMenus = CurrentMenus(),
-                Items        = _repo.GetAccountPayables(status)
+                Items        = _repo.SearchAccountPayables(status, keyword)
             };
         }
     }
