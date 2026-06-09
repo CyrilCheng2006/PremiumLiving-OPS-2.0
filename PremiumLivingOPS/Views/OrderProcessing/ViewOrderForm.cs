@@ -251,7 +251,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Padding = new Padding(24, 0, 24, 0)
             };
             tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
-            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 220f));
+            // Status badge column: 220 × 1.2 = 264
+            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 264f));
             tblHeader.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
             tblHeader.Controls.Add(new Label
@@ -398,8 +399,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             foreach (var l in detail.Lines)
                 dgv.Rows.Add(l.ItemID, l.ItemName, l.Quantity, $"HK$ {l.Price:N2}", $"HK$ {l.LineTotal:N2}");
 
-            // ── Grand Total row — 2-column TableLayoutPanel
-            // Left: Subtotal (muted label + value)   Right: Grand Total (bold)
+            // ── Grand Total row
             var pnlTotalRow = new Panel
             {
                 Dock = DockStyle.Bottom, Height = 50,
@@ -411,11 +411,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
                 BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
-            tblTotal.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f)); // left — Subtotal
-            tblTotal.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f)); // right — Grand Total
+            tblTotal.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
+            tblTotal.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
             tblTotal.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
-            // Left: "Subtotal:  HK$ x,xxx.xx" — muted, normal weight
             tblTotal.Controls.Add(new Label
             {
                 Text      = $"Subtotal:   HK$ {o.SubTotal:N2}",
@@ -426,7 +425,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 AutoSize  = false
             }, 0, 0);
 
-            // Right: "Grand Total:  HK$ x,xxx.xx" — bold, dark
             tblTotal.Controls.Add(new Label
             {
                 Text      = $"Grand Total:   HK$ {o.GrandTotal:N2}",
