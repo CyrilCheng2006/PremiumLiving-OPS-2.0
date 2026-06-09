@@ -100,7 +100,7 @@ namespace PremiumLivingOPS.Views.AfterService
                 AutoScroll    = false,
             };
 
-            const int PillW   = 220;
+            const int PillW   = 290;
             const int PillH   = 60;
             const int Gap     = 8;
             const int NumColW = 80;
@@ -109,7 +109,7 @@ namespace PremiumLivingOPS.Views.AfterService
             {
                 var pill = new Panel
                 {
-                    BackColor = bg,                     // 直接設定 bg 色値，對齊 ViewOrderForm 基準
+                    BackColor = bg,
                     Size      = new Size(PillW, PillH),
                     Margin    = new Padding(0, 0, Gap, 0),
                     Cursor    = Cursors.Hand,
@@ -117,7 +117,6 @@ namespace PremiumLivingOPS.Views.AfterService
 
                 pill.Paint += (s, e) =>
                 {
-                    // 無 Clear — 對齊 ViewOrderForm 基準，直接 FillPath 圓角矩形
                     e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
                     using var path  = RoundedRect(((Panel)s).ClientRectangle, 8);
                     using var brush = new SolidBrush(((Panel)s).BackColor);
@@ -140,7 +139,7 @@ namespace PremiumLivingOPS.Views.AfterService
                 tlp.Controls.Add(new Label
                 {
                     Text      = value,
-                    Font      = new Font("Segoe UI", 14f, FontStyle.Bold),   // 對齊 ViewOrderForm 14f Bold
+                    Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
                     ForeColor = fg,
                     BackColor = Color.Transparent,
                     Dock      = DockStyle.Fill,
@@ -151,7 +150,7 @@ namespace PremiumLivingOPS.Views.AfterService
                 tlp.Controls.Add(new Label
                 {
                     Text      = label,
-                    Font      = new Font("Segoe UI", 12f),                   // 對齊 ViewOrderForm 12f
+                    Font      = new Font("Segoe UI", 12f),
                     ForeColor = fg,
                     BackColor = Color.Transparent,
                     Dock      = DockStyle.Fill,

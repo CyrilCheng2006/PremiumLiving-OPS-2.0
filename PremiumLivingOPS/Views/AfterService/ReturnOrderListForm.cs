@@ -102,7 +102,7 @@ namespace PremiumLivingOPS.Views.AfterService
                 AutoScroll    = false,
             };
 
-            const int PillW   = 175;
+            const int PillW   = 290;
             const int PillH   = 60;
             const int Gap     = 8;
             const int NumColW = 70;
