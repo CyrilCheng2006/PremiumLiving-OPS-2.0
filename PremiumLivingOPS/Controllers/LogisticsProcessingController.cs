@@ -15,7 +15,7 @@ namespace PremiumLivingOPS.Controllers
     {
         private readonly LogisticsProcessingRepo _repo = new LogisticsProcessingRepo();
 
-        // ── View Shipment ──────────────────────────────────────────────────
+        // ── View Shipment ─────────────────────────────────────────────
         public ViewShipmentVM GetViewShipmentVM(
             string statusFilter = null,
             string keyword      = null,
@@ -46,7 +46,50 @@ namespace PremiumLivingOPS.Controllers
             };
         }
 
-        // ── Handling Goods Received ───────────────────────────────────────
+        // ── Edit Shipment ─────────────────────────────────────────────
+
+        /// <summary>
+        /// Updates ShipmentStatus. Validates that status is a known value.
+        /// Also upserts ReplySlip if actualRecipient is supplied and a DeliveryNote exists.
+        /// </summary>
+        public void UpdateShipment(string shipmentId,
+                                   string newStatus,
+                                   string actualRecipient,
+                                   string remark)
+        {
+            if (string.IsNullOrWhiteSpace(shipmentId))
+                throw new ArgumentException("Shipment ID is required.");
+
+            var validStatuses = new[] { "Pending", "In Transit", "Completed" };
+            if (System.Array.IndexOf(validStatuses, newStatus) < 0)
+                throw new ArgumentException($"Invalid status '{newStatus}'.");
+
+            // Update status
+            _repo.UpdateShipment(shipmentId, newStatus);
+
+            // Upsert ReplySlip if a recipient was provided and a DeliveryNote exists
+            if (!string.IsNullOrWhiteSpace(actualRecipient))
+            {
+                var dn = _repo.GetDeliveryNoteByShipment(shipmentId);
+                if (dn != null)
+                    _repo.UpsertReplySlip(dn.DeliveryID, actualRecipient, remark);
+            }
+        }
+
+        // ── Delete Shipment ───────────────────────────────────────────
+
+        /// <summary>
+        /// Permanently deletes a shipment and all its child records.
+        /// Throws if shipmentId is null/empty.
+        /// </summary>
+        public void DeleteShipment(string shipmentId)
+        {
+            if (string.IsNullOrWhiteSpace(shipmentId))
+                throw new ArgumentException("Shipment ID is required.");
+            _repo.DeleteShipment(shipmentId);
+        }
+
+        // ── Handling Goods Received ────────────────────────────────────
         public HandlingGoodsReceivedVM GetHandlingGoodsReceivedVM(
             string statusFilter = null,
             string keyword      = null,
