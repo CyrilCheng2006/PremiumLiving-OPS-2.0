@@ -42,7 +42,7 @@ namespace PremiumLivingOPS.Views.AfterService
 
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
-            _shell.SetBreadcrumb("After-Service  ›  Complaint List");
+            _shell.SetBreadcrumb("After-Service  \u203a  Complaint List");
 
             _currentComplaints = vm.Complaints;
 
@@ -50,9 +50,9 @@ namespace PremiumLivingOPS.Views.AfterService
             foreach (var c in _currentComplaints)
                 dgvComplaints.Rows.Add(
                     c.ComplaintID,
-                    c.OrderID ?? "—",
+                    c.OrderID ?? "\u2014",
                     c.StaffName,
-                    c.ComplaintDescription ?? "—",
+                    c.ComplaintDescription ?? "\u2014",
                     c.ComplaintStatus);
 
             RefreshKpi();
@@ -70,7 +70,6 @@ namespace PremiumLivingOPS.Views.AfterService
         private void RefreshKpi()
         {
             pnlKpi.Controls.Clear();
-            pnlKpi.BackColor = Color.Transparent;
 
             var all = _ctrl.GetComplaintListVM().Complaints;
 
@@ -99,17 +98,16 @@ namespace PremiumLivingOPS.Views.AfterService
                 AutoScroll    = false,
             };
 
-            const int PillW   = 200;
+            const int PillW   = 290;
             const int PillH   = 60;
             const int Gap     = 8;
-            const int NumColW = 70;
+            const int NumColW = 80;
 
             foreach (var (label, count, fg, bg, filterVal) in pills)
             {
-                Color pillBg = bg;
                 var pill = new Panel
                 {
-                    BackColor = Color.Transparent,   // Paint handles the rounded bg
+                    BackColor = bg,
                     Size      = new Size(PillW, PillH),
                     Margin    = new Padding(0, 0, Gap, 0),
                     Cursor    = Cursors.Hand,
@@ -117,13 +115,9 @@ namespace PremiumLivingOPS.Views.AfterService
 
                 pill.Paint += (s, e) =>
                 {
-                    var p = (Panel)s;
-                    // 1. clear to parent bg so no square corners bleed through
-                    e.Graphics.Clear(p.Parent?.BackColor ?? Color.White);
-                    // 2. fill rounded rect with captured pillBg
                     e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-                    using var path  = RoundedRect(p.ClientRectangle, 8);
-                    using var brush = new SolidBrush(pillBg);
+                    using var path  = RoundedRect(((Panel)s).ClientRectangle, 8);
+                    using var brush = new SolidBrush(((Panel)s).BackColor);
                     e.Graphics.FillPath(brush, path);
                 };
 
@@ -289,7 +283,7 @@ namespace PremiumLivingOPS.Views.AfterService
 
             using var dlg = new Form
             {
-                Text            = $"Complaint Detail — {c.ComplaintID}",
+                Text            = $"Complaint Detail \u2014 {c.ComplaintID}",
                 Size            = new Size(680, 380),
                 StartPosition   = FormStartPosition.CenterParent,
                 BackColor       = Color.White,
@@ -310,7 +304,7 @@ namespace PremiumLivingOPS.Views.AfterService
             tblHdr.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
             tblHdr.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140f));
             tblHdr.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-            tblHdr.Controls.Add(new Label { Text = $"Complaint  —  {c.ComplaintID}", Font = new Font("Segoe UI", 15f, FontStyle.Bold), ForeColor = Color.White, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft }, 0, 0);
+            tblHdr.Controls.Add(new Label { Text = $"Complaint  \u2014  {c.ComplaintID}", Font = new Font("Segoe UI", 15f, FontStyle.Bold), ForeColor = Color.White, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft }, 0, 0);
             tblHdr.Controls.Add(new Label { Text = c.ComplaintStatus, Font = new Font("Segoe UI", 11f, FontStyle.Bold), ForeColor = sc.fg != default ? sc.fg : Color.White, BackColor = sc.bg != default ? sc.bg : Color.Gray, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter }, 1, 0);
             pnlHdr.Controls.Add(tblHdr);
 
@@ -330,9 +324,9 @@ namespace PremiumLivingOPS.Views.AfterService
             var fields = new[]
             {
                 ("Complaint ID", c.ComplaintID),
-                ("Order No.",    c.OrderID ?? "—"),
+                ("Order No.",    c.OrderID ?? "\u2014"),
                 ("Handled By",   c.StaffName),
-                ("Description",  c.ComplaintDescription ?? "—"),
+                ("Description",  c.ComplaintDescription ?? "\u2014"),
             };
             for (int i = 0; i < fields.Length; i++)
             {
