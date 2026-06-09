@@ -34,14 +34,14 @@ namespace PremiumLivingOPS.Views.AfterService
 
         private void RefreshGrid()
         {
-            string statusSel = cboStatus.SelectedItem?.ToString();
+            string statusSel    = cboStatus.SelectedItem?.ToString();
             string statusFilter = (statusSel == "All" || string.IsNullOrEmpty(statusSel)) ? null : statusSel;
 
             var vm = _ctrl.GetAccountReceivableVM(statusFilter);
 
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
-            _shell.SetBreadcrumb("After-Service  ›  Account Receivable");
+            _shell.SetBreadcrumb("After-Service  \u203a  Account Receivable");
 
             _currentItems = vm.Items;
 
@@ -64,60 +64,108 @@ namespace PremiumLivingOPS.Views.AfterService
         private void RefreshKpi()
         {
             pnlKpi.Controls.Clear();
+            pnlKpi.BackColor = Color.Transparent;
 
             var all = _ctrl.GetAccountReceivableVM().Items;
 
-            int    totalCount    = all.Count;
-            double outstanding   = 0;
+            int    totalCount  = all.Count;
+            double outstanding = 0;
             int    overdueCount  = 0;
             int    partialCount  = 0;
             int    fullCount     = 0;
-            double totalAmount   = 0;
 
             foreach (var i in all)
             {
-                totalAmount += i.TotalAmount;
                 outstanding += i.RemainingBalance;
-                if (i.IsOverdue)    overdueCount++;
+                if (i.IsOverdue)                 overdueCount++;
                 if (i.PaymentStatus == "Partial") partialCount++;
                 if (i.PaymentStatus == "Full")    fullCount++;
             }
 
+            // (label, value, fg, bg) — all explicit Color.FromArgb, no Palette references
             var kpiItems = new[]
             {
-                ("Total Invoices",    totalCount.ToString(),         Palette.Primary,     Palette.TagBlueBg),
-                ("Outstanding (HK$)", $"{outstanding:N0}",           Palette.TagYellowFg, Palette.TagYellowBg),
-                ("Partial",           partialCount.ToString(),       Palette.TagBlueFg,   Palette.TagBlueBg),
-                ("Fully Paid",        fullCount.ToString(),          Palette.TagGreenFg,  Palette.TagGreenBg),
-                ("Overdue",           overdueCount.ToString(),       Palette.TagRedFg,    Palette.TagRedBg),
+                ("Total Invoices",    totalCount.ToString(),   Color.FromArgb( 19,  35,  61), Color.FromArgb(219, 234, 254)),
+                ("Outstanding (HK$)", $"{outstanding:N0}",     Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199)),
+                ("Partial",           partialCount.ToString(), Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254)),
+                ("Fully Paid",        fullCount.ToString(),    Color.FromArgb( 22, 101,  52), Color.FromArgb(220, 252, 231)),
+                ("Overdue",           overdueCount.ToString(), Color.FromArgb(185,  28,  28), Color.FromArgb(254, 226, 226)),
             };
 
             var flow = new FlowLayoutPanel
             {
-                Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight,
-                WrapContents = false, BackColor = Color.Transparent
+                Dock          = DockStyle.Fill,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents  = false,
+                AutoScroll    = false,
+                BackColor     = Color.Transparent,
             };
 
-            const int PillW = 220; const int PillH = 62; const int Gap = 8;
+            const int PillW   = 220;
+            const int PillH   = 60;
+            const int Gap     = 8;
+            const int NumColW = 80;
+
             foreach (var (label, value, fg, bg) in kpiItems)
             {
-                var pill = new Panel { BackColor = bg, Size = new Size(PillW, PillH), Margin = new Padding(0, 0, Gap, 0) };
+                Color pillBg = bg;
+                var pill = new Panel
+                {
+                    BackColor = Color.Transparent,
+                    Size      = new Size(PillW, PillH),
+                    Margin    = new Padding(0, 0, Gap, 0),
+                };
+
                 pill.Paint += (s, e) =>
                 {
+                    var p = (Panel)s;
+                    Color parentBg = p.Parent?.BackColor ?? Color.Transparent;
+                    e.Graphics.Clear(parentBg);
                     e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-                    using var path  = RoundedRect(((Panel)s).ClientRectangle, 8);
-                    using var brush = new SolidBrush(((Panel)s).BackColor);
+                    using var path  = RoundedRect(p.ClientRectangle, 8);
+                    using var brush = new SolidBrush(pillBg);
                     e.Graphics.FillPath(brush, path);
                 };
-                var tlp = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None, Padding = new Padding(10, 0, 8, 0) };
-                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 80f));
-                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+
+                var tlp = new TableLayoutPanel
+                {
+                    Dock            = DockStyle.Fill,
+                    ColumnCount     = 2,
+                    RowCount        = 1,
+                    BackColor       = Color.Transparent,
+                    CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                    Padding         = new Padding(10, 0, 8, 0),
+                };
+                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, NumColW));
+                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
                 tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-                tlp.Controls.Add(new Label { Text = value, Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = fg, BackColor = Color.Transparent, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, AutoSize = false }, 0, 0);
-                tlp.Controls.Add(new Label { Text = label, Font = new Font("Segoe UI", 10f), ForeColor = fg, BackColor = Color.Transparent, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false }, 1, 0);
+
+                tlp.Controls.Add(new Label
+                {
+                    Text      = value,
+                    Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                    ForeColor = fg,
+                    BackColor = Color.Transparent,
+                    Dock      = DockStyle.Fill,
+                    TextAlign = ContentAlignment.MiddleCenter,
+                    AutoSize  = false,
+                }, 0, 0);
+
+                tlp.Controls.Add(new Label
+                {
+                    Text      = label,
+                    Font      = new Font("Segoe UI", 10f),
+                    ForeColor = fg,
+                    BackColor = Color.Transparent,
+                    Dock      = DockStyle.Fill,
+                    TextAlign = ContentAlignment.MiddleLeft,
+                    AutoSize  = false,
+                }, 1, 0);
+
                 pill.Controls.Add(tlp);
                 flow.Controls.Add(pill);
             }
+
             pnlKpi.Controls.Add(flow);
         }
 
@@ -127,14 +175,12 @@ namespace PremiumLivingOPS.Views.AfterService
             if (e.RowIndex < 0 || e.RowIndex >= _currentItems.Count) return;
             var item = _currentItems[e.RowIndex];
 
-            // Overdue row background
             if (item.IsOverdue)
             {
                 e.CellStyle.BackColor          = OverdueBg;
                 e.CellStyle.SelectionBackColor = Color.FromArgb(255, 220, 220);
             }
 
-            // Status column badge
             if (dgvAR.Columns[e.ColumnIndex].Name == "colStatus" && e.Value != null)
             {
                 string val = e.Value.ToString();
@@ -159,10 +205,14 @@ namespace PremiumLivingOPS.Views.AfterService
 
         private static GraphicsPath RoundedRect(Rectangle r, int radius)
         {
-            var path = new GraphicsPath(); int d = radius * 2;
-            path.AddArc(r.X, r.Y, d, d, 180, 90); path.AddArc(r.Right - d, r.Y, d, d, 270, 90);
-            path.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90); path.AddArc(r.X, r.Bottom - d, d, d, 90, 90);
-            path.CloseFigure(); return path;
+            var path = new GraphicsPath();
+            int d = radius * 2;
+            path.AddArc(r.X,         r.Y,          d, d, 180, 90);
+            path.AddArc(r.Right - d, r.Y,          d, d, 270, 90);
+            path.AddArc(r.Right - d, r.Bottom - d, d, d,   0, 90);
+            path.AddArc(r.X,         r.Bottom - d, d, d,  90, 90);
+            path.CloseFigure();
+            return path;
         }
     }
 }
