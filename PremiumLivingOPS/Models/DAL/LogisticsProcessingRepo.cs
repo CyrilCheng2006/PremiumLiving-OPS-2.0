@@ -144,6 +144,129 @@ namespace PremiumLivingOPS.Models.DAL
             }
         }
 
+        // ── Edit Shipment ─────────────────────────────────────────────
+
+        /// <summary>
+        /// Updates ShipmentStatus on the Shipment row.
+        /// </summary>
+        public void UpdateShipment(string shipmentId, string newStatus)
+        {
+            using (var conn = OpenConnection())
+            {
+                const string sql = @"
+                    UPDATE Shipment
+                    SET    ShipmentStatus = @status
+                    WHERE  ShipmentID    = @id";
+                using (var cmd = new MySqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@status", newStatus);
+                    cmd.Parameters.AddWithValue("@id",     shipmentId);
+                    cmd.ExecuteNonQuery();
+                }
+            }
+        }
+
+        /// <summary>
+        /// INSERT or UPDATE a ReplySlip row linked to deliveryId.
+        /// If a row already exists it is updated; otherwise a new one is inserted.
+        /// </summary>
+        public void UpsertReplySlip(string deliveryId,
+                                    string actualRecipient,
+                                    string remark)
+        {
+            using (var conn = OpenConnection())
+            {
+                // Check if a ReplySlip already exists for this delivery
+                string slipId = null;
+                using (var chk = new MySqlCommand(
+                    "SELECT SlipID FROM ReplySlip WHERE DeliveryID = @did LIMIT 1", conn))
+                {
+                    chk.Parameters.AddWithValue("@did", deliveryId);
+                    var result = chk.ExecuteScalar();
+                    if (result != null) slipId = result.ToString();
+                }
+
+                if (slipId != null)
+                {
+                    // UPDATE existing row
+                    const string updSql = @"
+                        UPDATE ReplySlip
+                        SET    actualRecipient = @recip,
+                               RecipientRemark = @remark,
+                               ReceivedDate    = @rdate
+                        WHERE  SlipID = @sid";
+                    using (var cmd = new MySqlCommand(updSql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@recip",  actualRecipient ?? "");
+                        cmd.Parameters.AddWithValue("@remark", string.IsNullOrWhiteSpace(remark) ? (object)DBNull.Value : remark);
+                        cmd.Parameters.AddWithValue("@rdate",  DateTime.Today);
+                        cmd.Parameters.AddWithValue("@sid",    slipId);
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+                else
+                {
+                    // INSERT new row — auto-generate SlipID: RS-yyyyMMdd-XXXX
+                    string newSlipId = $"RS-{DateTime.Today:yyyyMMdd}-{Guid.NewGuid().ToString("N").Substring(0, 4).ToUpper()}";
+                    const string insSql = @"
+                        INSERT INTO ReplySlip
+                            (SlipID, DeliveryID, actualRecipient, ReceivedDate, RecipientRemark)
+                        VALUES
+                            (@sid, @did, @recip, @rdate, @remark)";
+                    using (var cmd = new MySqlCommand(insSql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@sid",    newSlipId);
+                        cmd.Parameters.AddWithValue("@did",    deliveryId);
+                        cmd.Parameters.AddWithValue("@recip",  actualRecipient ?? "");
+                        cmd.Parameters.AddWithValue("@rdate",  DateTime.Today);
+                        cmd.Parameters.AddWithValue("@remark", string.IsNullOrWhiteSpace(remark) ? (object)DBNull.Value : remark);
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+            }
+        }
+
+        // ── Delete Shipment ───────────────────────────────────────────
+
+        /// <summary>
+        /// Hard-deletes a Shipment and its child rows in dependency order:
+        ///   ReplySlip → DeliveryNote → ShipmentLine → Shipment
+        /// </summary>
+        public void DeleteShipment(string shipmentId)
+        {
+            using (var conn = OpenConnection())
+            using (var tx = conn.BeginTransaction())
+            {
+                try
+                {
+                    // 1. Delete ReplySlip rows linked to any DeliveryNote of this shipment
+                    ExecuteNonQuery(conn, tx, @"
+                        DELETE rs FROM ReplySlip rs
+                        JOIN DeliveryNote dn ON rs.DeliveryID = dn.DeliveryID
+                        WHERE dn.ShipmentID = @id", shipmentId);
+
+                    // 2. Delete DeliveryNote rows
+                    ExecuteNonQuery(conn, tx, @"
+                        DELETE FROM DeliveryNote WHERE ShipmentID = @id", shipmentId);
+
+                    // 3. Delete ShipmentLine rows
+                    ExecuteNonQuery(conn, tx, @"
+                        DELETE FROM ShipmentLine WHERE ShipmentID = @id", shipmentId);
+
+                    // 4. Delete the Shipment itself
+                    ExecuteNonQuery(conn, tx, @"
+                        DELETE FROM Shipment WHERE ShipmentID = @id", shipmentId);
+
+                    tx.Commit();
+                }
+                catch
+                {
+                    tx.Rollback();
+                    throw;
+                }
+            }
+        }
+
         // ── Goods Received ───────────────────────────────────────────
         public List<GoodsReceivedEntity> SearchReceipts(
             string statusFilter, string keyword, DateTime? dateFrom)
@@ -271,7 +394,6 @@ namespace PremiumLivingOPS.Models.DAL
         /// </summary>
         public string InsertPurchaseInvoice(RecordPurchaseInvoiceVM vm)
         {
-            // Auto-generate ID: PURINV-yyyyMMdd-NNNN
             string newId = $"PURINV-{DateTime.Today:yyyyMMdd}-{Guid.NewGuid().ToString("N").Substring(0, 4).ToUpper()}";
             using (var conn = OpenConnection())
             {
@@ -291,6 +413,15 @@ namespace PremiumLivingOPS.Models.DAL
                 }
             }
             return newId;
+        }
+
+        // ── Private helpers ──────────────────────────────────────────────
+        private static void ExecuteNonQuery(
+            MySqlConnection conn, MySqlTransaction tx, string sql, string shipmentId)
+        {
+            using var cmd = new MySqlCommand(sql, conn, tx);
+            cmd.Parameters.AddWithValue("@id", shipmentId);
+            cmd.ExecuteNonQuery();
         }
 
         // ── Private mappers ─────────────────────────────────────────────
