@@ -100,10 +100,10 @@ namespace PremiumLivingOPS.Views.AfterService
                 AutoScroll    = false,
             };
 
-            const int PillW   = 290;
+            const int PillW   = 340;
             const int PillH   = 60;
             const int Gap     = 8;
-            const int NumColW = 80;
+            const int NumColW = 90;
 
             foreach (var (label, value, fg, bg) in pills)
             {
@@ -165,7 +165,7 @@ namespace PremiumLivingOPS.Views.AfterService
             pnlKpi.Controls.Add(flow);
         }
 
-        // ── CellFormatting — status badge + overdue row highlight ──────────────
+        // ── CellFormatting — status badge + overdue row highlight ────────────
         private void dgvAR_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
             if (e.RowIndex < 0 || e.RowIndex >= _currentItems.Count) return;
