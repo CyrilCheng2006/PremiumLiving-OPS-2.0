@@ -101,9 +101,19 @@ namespace PremiumLivingOPS.Views.AfterService
             // ══════════════════════════════════════════════════════════════════
             var (kpiOuter, kpiInner) = CardPanel.Create(outerHeight: 90);
 
-            pnlKpi = new Panel { Dock = DockStyle.Fill, BackColor = Color.White, Padding = new Padding(10, 10, 10, 10) };
+            // pnlKpi: fills left side, RefreshKpi() populates FlowLayoutPanel of pills
+            pnlKpi = new Panel
+            {
+                Dock      = DockStyle.Fill,
+                BackColor = Color.Transparent,
+                Padding   = new Padding(12, 10, 12, 10)
+            };
 
-            const int BtnW = 240; const int BtnH = 60; const int BtnGap = 8; const int BtnPad = 10;
+            const int BtnW   = 240;
+            const int BtnH   = 60;
+            const int BtnGap = 8;
+            const int BtnPad = 12;
+
             btnUpdateStatus = MakeWarningBtn("✏️  Update Status", Point.Empty, BtnW, BtnH);
             btnViewDetail   = MakePrimaryBtn("🔍  View Detail",   Point.Empty, BtnW, BtnH);
             btnUpdateStatus.Enabled = false;
@@ -111,20 +121,29 @@ namespace PremiumLivingOPS.Views.AfterService
             btnUpdateStatus.Click  += btnUpdateStatus_Click;
             btnViewDetail.Click    += btnViewDetail_Click;
 
-            var pnlActions = new Panel { Dock = DockStyle.Right, Width = BtnPad + BtnW + BtnGap + BtnW + BtnPad, BackColor = Color.Transparent };
-            void CentreActions()
+            // Panel wide enough for two buttons side-by-side + outer padding
+            var pnlActionBtns = new Panel
             {
-                int top = (pnlActions.Height - BtnH) / 2; if (top < 0) top = 0;
+                Dock      = DockStyle.Right,
+                Width     = BtnPad + BtnW + BtnGap + BtnW + BtnPad,
+                BackColor = Color.Transparent
+            };
+
+            void CentreActionBtns()
+            {
+                int top = (pnlActionBtns.Height - BtnH) / 2;
+                if (top < 0) top = 0;
                 btnUpdateStatus.Location = new Point(BtnPad, top);
                 btnViewDetail.Location   = new Point(BtnPad + BtnW + BtnGap, top);
             }
-            pnlActions.Controls.Add(btnUpdateStatus);
-            pnlActions.Controls.Add(btnViewDetail);
-            pnlActions.Resize += (s, e) => CentreActions();
+            pnlActionBtns.Controls.Add(btnUpdateStatus);
+            pnlActionBtns.Controls.Add(btnViewDetail);
+            pnlActionBtns.Resize += (s, e) => CentreActionBtns();
 
+            // Container: pills fill left, action buttons docked right
             var pnlKpiRow = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            pnlKpiRow.Controls.Add(pnlKpi);
-            pnlKpiRow.Controls.Add(pnlActions);
+            pnlKpiRow.Controls.Add(pnlKpi);        // DockStyle.Fill  — pills
+            pnlKpiRow.Controls.Add(pnlActionBtns); // DockStyle.Right — buttons (must add AFTER Fill)
             kpiInner.Controls.Add(pnlKpiRow);
 
             // ══════════════════════════════════════════════════════════════════

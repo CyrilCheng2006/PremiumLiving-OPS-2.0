@@ -73,6 +73,7 @@ namespace PremiumLivingOPS.Views.AfterService
         private void RefreshKpi()
         {
             pnlKpi.Controls.Clear();
+
             var all = _ctrl.GetComplaintListVM().Complaints;
 
             int total      = all.Count;
@@ -83,41 +84,68 @@ namespace PremiumLivingOPS.Views.AfterService
 
             var pills = new[]
             {
-                ("Total",      total.ToString(),      Palette.Primary,  Palette.TagBlueBg,    "All"),
-                ("Pending",    pending.ToString(),    Palette.TagYellowFg, Palette.TagYellowBg, "Pending"),
-                ("Processing", processing.ToString(), Palette.TagBlueFg,   Palette.TagBlueBg,   "Processing"),
-                ("Escalated",  escalated.ToString(),  Palette.TagRedFg,    Palette.TagRedBg,    "Escalated"),
-                ("Completed",  completed.ToString(),  Palette.TagGreenFg,  Palette.TagGreenBg,  "Completed"),
+                ("Total",      total.ToString(),      Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254), "All"),
+                ("Pending",    pending.ToString(),    Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), "Pending"),
+                ("Processing", processing.ToString(), Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254), "Processing"),
+                ("Escalated",  escalated.ToString(),  Color.FromArgb(185,  28,  28), Color.FromArgb(254, 226, 226), "Escalated"),
+                ("Completed",  completed.ToString(),  Color.FromArgb( 22, 101,  52), Color.FromArgb(220, 252, 231), "Completed"),
             };
 
             var flow = new FlowLayoutPanel
             {
                 Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight,
-                WrapContents = false, BackColor = Color.Transparent, Padding = new Padding(0)
+                WrapContents = false, BackColor = Color.Transparent,
+                Padding = new Padding(0), AutoScroll = false
             };
 
-            const int PillW = 200; const int PillH = 62; const int Gap = 8;
+            const int PillW   = 200;
+            const int PillH   = 60;
+            const int Gap     = 8;
+            const int NumColW = 70;
+
             foreach (var (label, count, fg, bg, filterVal) in pills)
             {
-                var pill = new Panel { BackColor = bg, Size = new Size(PillW, PillH), Margin = new Padding(0, 0, Gap, 0), Cursor = Cursors.Hand };
+                var pill = new Panel
+                {
+                    BackColor = bg,
+                    Size      = new Size(PillW, PillH),
+                    Margin    = new Padding(0, 0, Gap, 0),
+                    Cursor    = Cursors.Hand
+                };
                 pill.Paint += (s, e) =>
                 {
                     e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
                     using var path  = RoundedRect(((Panel)s).ClientRectangle, 8);
                     using var brush = new SolidBrush(((Panel)s).BackColor);
+                    e.Graphics.Clear(pnlKpi.BackColor == Color.Transparent
+                        ? Color.White : pnlKpi.BackColor);
                     e.Graphics.FillPath(brush, path);
                 };
 
                 var tlp = new TableLayoutPanel
                 {
-                    Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, BackColor = Color.Transparent,
-                    CellBorderStyle = TableLayoutPanelCellBorderStyle.None, Padding = new Padding(10, 0, 8, 0)
+                    Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
+                    BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                    Padding = new Padding(10, 0, 8, 0)
                 };
-                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 70f));
+                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, NumColW));
                 tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
                 tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-                tlp.Controls.Add(new Label { Text = count, Font = new Font("Segoe UI", 14f, FontStyle.Bold), ForeColor = fg, BackColor = Color.Transparent, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, AutoSize = false }, 0, 0);
-                tlp.Controls.Add(new Label { Text = label, Font = new Font("Segoe UI", 12f),                 ForeColor = fg, BackColor = Color.Transparent, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft,   AutoSize = false }, 1, 0);
+
+                tlp.Controls.Add(new Label
+                {
+                    Text = count, Font = new Font("Segoe UI", 14f, FontStyle.Bold),
+                    ForeColor = fg, BackColor = Color.Transparent,
+                    Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter,
+                    AutoSize = false
+                }, 0, 0);
+                tlp.Controls.Add(new Label
+                {
+                    Text = label, Font = new Font("Segoe UI", 12f),
+                    ForeColor = fg, BackColor = Color.Transparent,
+                    Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft,
+                    AutoSize = false
+                }, 1, 0);
 
                 string localFilter = filterVal;
                 EventHandler click = (s, e) =>
