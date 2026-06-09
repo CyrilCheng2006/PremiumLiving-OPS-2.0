@@ -18,7 +18,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
     /// • All DB access delegated to LogisticsProcessingController (zero SQL here).
     /// • AppShell wired in Load — identical to ViewOrderForm.ViewOrderForm_Load.
     /// • CardPanel three-layer nesting: grey outer → white card → content.
-    /// • KPI pills + two action buttons mirror ViewOrderForm layout exactly.
+    /// • KPI pills + three action buttons: View Details | Modify | Delivery Note / Slip.
+    /// • Modify button passes selected ShipmentID to ModifyShipmentForm.PendingShipmentId
+    ///   then navigates — mirrors ViewOrderForm → ModifyOrderForm pattern exactly.
     /// • ShowDetailDialog fully rewritten to match ViewOrderForm.ShowDetailDialog:
     ///     – Size 2500 × 1100, Percent-based column widths, multiline address labels.
     /// </summary>
@@ -76,7 +78,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
-            _shell.SetBreadcrumb("Logistics Processing  ›  View Shipment");
+            _shell.SetBreadcrumb("Logistics Processing  \u203A  View Shipment");
 
             _currentShipments = vm.Shipments;
             _selectedDetail   = null;
@@ -204,6 +206,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         {
             bool sel = dgvShipments.SelectedRows.Count > 0;
             btnViewDetail.Enabled      = sel;
+            btnModify.Enabled          = sel;
             btnGenDeliveryNote.Enabled = sel;
         }
 
@@ -253,6 +256,25 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         private void btnViewDetail_Click(object sender, EventArgs e) => ShowDetailDialog();
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        //  Modify button — mirrors ViewOrderForm → ModifyOrderForm pattern
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        private void btnModify_Click(object sender, EventArgs e)
+        {
+            string id = SelectedShipmentId();
+            if (string.IsNullOrEmpty(id))
+            {
+                MessageBox.Show("Please select a shipment to modify.",
+                    "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            // Pass the selected Shipment ID to ModifyShipmentForm so it
+            // auto-loads the record on open — same pattern as ModifyOrderForm.PendingOrderId.
+            ModifyShipmentForm.PendingShipmentId = id;
+            FormNavigator.NavigateTo(this, "Logistics Processing", "Modify Shipment");
+        }
+
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         //  SHIPMENT DETAIL DIALOG
         //  Fully rewritten to match ViewOrderForm.ShowDetailDialog:
         //    • Size 2500 × 1100  (same as ViewOrderForm)
@@ -275,7 +297,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             using var dlg = new Form
             {
-                Text            = $"Shipment Detail — {s.ShipmentID}",
+                Text            = $"Shipment Detail \u2014 {s.ShipmentID}",
                 Size            = new Size(2500, 1100),
                 StartPosition   = FormStartPosition.CenterParent,
                 BackColor       = Color.White,
@@ -298,7 +320,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             tblHeader.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
             tblHeader.Controls.Add(new Label
             {
-                Text = $"Shipment Details  —  {s.ShipmentID}",
+                Text = $"Shipment Details  \u2014  {s.ShipmentID}",
                 Font = new Font("Segoe UI", 18f, FontStyle.Bold),
                 ForeColor = Color.White, Dock = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
@@ -315,8 +337,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlHeader.Controls.Add(tblHeader);
 
             // ── Info panel  (mirrors ViewOrderForm pnlInfo exactly)
-            // 4 columns: Key(15%) | Value(35%) | Key(15%) | Value(35%)
-            // 5 rows: rows 0-2 & 4 single-line (15% each); row 3 address row (40%)
             var pnlInfo = new Panel
             {
                 Dock = DockStyle.Top, Height = 340,
@@ -333,18 +353,17 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 5,
                 BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
-            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));  // left Key
-            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));  // left Value
-            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));  // right Key
-            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));  // right Value
+            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
+            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
+            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
+            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
 
-            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 15f)); // row 0
-            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 15f)); // row 1
-            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 15f)); // row 2
-            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 40f)); // row 3 — shipping address
-            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 15f)); // row 4
+            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 15f));
+            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 15f));
+            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 15f));
+            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 40f));
+            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 15f));
 
-            // Left column: Shipment ID | Customer | Ship Date | Shipping Address | Total Amount
             var leftFields = new (string Key, string Val, bool multiLine)[]
             {
                 ("Shipment ID",       s.ShipmentID,                            false),
@@ -363,13 +382,12 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                     1, i);
             }
 
-            // Right column: Order ID | Tracking No. | Ship Type | (address span) | Delivery Method
             var rightFields = new (string Key, string Val, bool multiLine)[]
             {
                 ("Order ID",          s.OrderID,          false),
                 ("Tracking No.",      s.TrackingNumber,   false),
                 ("Ship Type",         s.ShipmentType,     false),
-                ("Delivery Method",   s.DeliveryMethod,   false),  // row 3 right — single line
+                ("Delivery Method",   s.DeliveryMethod,   false),
                 ("Status",            s.ShipmentStatus,   false),
             };
             for (int i = 0; i < rightFields.Length; i++)
@@ -383,14 +401,13 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }
             pnlInfo.Controls.Add(tblInfo);
 
-            // ── DeliveryNote strip (conditional, mirrors ViewOrderForm discount bar) ──
+            // ── DeliveryNote strip ─────────────────────────────────────────
             Panel pnlDN = null;
             if (_selectedDetail.DeliveryNote != null)
             {
                 var dn = _selectedDetail.DeliveryNote;
                 var rs = _selectedDetail.ReplySlip;
 
-                // Height: 1 row = 60px, 2 rows (with reply slip) = 110px
                 pnlDN = new Panel
                 {
                     Dock      = DockStyle.Top,
@@ -410,7 +427,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                     Dock = DockStyle.Fill, ColumnCount = 6, RowCount = dnRows,
                     BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
                 };
-                // 6 columns: K(12%) | V(21.3%) | K(12%) | V(21.3%) | K(12%) | V(21.4%)
                 tblDN.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 12f));
                 tblDN.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 21.3f));
                 tblDN.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 12f));
@@ -420,7 +436,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 for (int r = 0; r < dnRows; r++)
                     tblDN.RowStyles.Add(new RowStyle(SizeType.Percent, 100f / dnRows));
 
-                // Row 0: Delivery ID | Delivery Date | Outstanding Qty
                 tblDN.Controls.Add(MakeLabelKey("Delivery Note:",  dnFg), 0, 0);
                 tblDN.Controls.Add(MakeLabelVal(dn.DeliveryID,     dnFg), 1, 0);
                 tblDN.Controls.Add(MakeLabelKey("Delivery Date:",  dnFg), 2, 0);
@@ -428,7 +443,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 tblDN.Controls.Add(MakeLabelKey("Outstanding Qty:",dnFg), 4, 0);
                 tblDN.Controls.Add(MakeLabelVal((dn.OutstandingQty ?? 0).ToString(), dnFg), 5, 0);
 
-                // Row 1 (reply slip, optional)
                 if (rs != null)
                 {
                     tblDN.Controls.Add(MakeLabelKey("Reply Slip:",    dnFg), 0, 1);
@@ -457,7 +471,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             });
             pnlLineLabel.Paint += PaintBottomBorderStatic;
 
-            // ── Items grid (identical spec to ViewOrderForm) ───────────────
+            // ── Items grid ────────────────────────────────────────────────
             var dgv = new DataGridView
             {
                 ReadOnly = true, AllowUserToAddRows = false, RowHeadersVisible = false,
@@ -490,7 +504,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 dgv.Rows.Add(line.ShipmentLineID, line.ItemID, line.ItemName,
                              line.QtyShipped, line.QtyOutstanding ?? 0);
 
-            // ── Total row (mirrors ViewOrderForm Grand Total row) ──────────
+            // ── Total row ─────────────────────────────────────────────────
             var pnlTotalRow = new Panel
             {
                 Dock = DockStyle.Bottom, Height = 50,
@@ -525,15 +539,15 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             btnClose.Click += (o, ev) => dlg.Close();
             pnlFooter.Controls.Add(btnClose);
 
-            // ── Assemble (DockStyle.Top added bottom-to-top) ───────────────
-            dlg.Controls.Add(dgv);           // Fill — expands to remaining space
-            dlg.Controls.Add(pnlTotalRow);   // Bottom
-            dlg.Controls.Add(pnlLineLabel);  // Top (last added = nearest to Fill)
+            // ── Assemble ──────────────────────────────────────────────────
+            dlg.Controls.Add(dgv);
+            dlg.Controls.Add(pnlTotalRow);
+            dlg.Controls.Add(pnlLineLabel);
             if (pnlDN != null)
-                dlg.Controls.Add(pnlDN);    // Top
-            dlg.Controls.Add(pnlInfo);       // Top
-            dlg.Controls.Add(pnlHeader);     // Top (first)
-            dlg.Controls.Add(pnlFooter);     // Bottom
+                dlg.Controls.Add(pnlDN);
+            dlg.Controls.Add(pnlInfo);
+            dlg.Controls.Add(pnlHeader);
+            dlg.Controls.Add(pnlFooter);
             dlg.ShowDialog(this);
         }
 
@@ -576,7 +590,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             using var dlg = new Form
             {
-                Text = $"Delivery Note — {dn.DeliveryID}",
+                Text = $"Delivery Note \u2014 {dn.DeliveryID}",
                 Size = new Size(1060, dlgH),
                 StartPosition = FormStartPosition.CenterParent,
                 BackColor = Color.White, Font = new Font("Segoe UI", 13f),
@@ -584,7 +598,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 MaximizeBox = false, MinimizeBox = false
             };
 
-            // Header
             var pnlH = new Panel { Dock = DockStyle.Top, Height = 80, BackColor = headerBg };
             var tblH = new TableLayoutPanel
             {
@@ -597,7 +610,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             tblH.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
             tblH.Controls.Add(new Label
             {
-                Text = $"Delivery Note  —  {dn.DeliveryID}",
+                Text = $"Delivery Note  \u2014  {dn.DeliveryID}",
                 Font = new Font("Segoe UI", 18f, FontStyle.Bold),
                 ForeColor = Color.White, Dock = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
@@ -611,7 +624,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }, 1, 0);
             pnlH.Controls.Add(tblH);
 
-            // Delivery Note info
             var pnlDNInfo = new Panel
             {
                 Dock = DockStyle.Top, Height = 195,
@@ -636,7 +648,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             AddDetailRow(tblDN, 3, "Outstanding Qty:", (dn.OutstandingQty ?? 0).ToString(), "Method:",        s.DeliveryMethod);
             pnlDNInfo.Controls.Add(tblDN);
 
-            // Reply Slip section (optional)
             Panel pnlRS = null;
             if (received)
             {
@@ -650,7 +661,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
                 pnlRS.Controls.Add(new Label
                 {
-                    Text = "REPLY SLIP — RECEIPT CONFIRMATION",
+                    Text = "REPLY SLIP \u2014 RECEIPT CONFIRMATION",
                     Font = new Font("Segoe UI", 9f, FontStyle.Bold),
                     ForeColor = Color.FromArgb(6, 95, 70),
                     Dock = DockStyle.Top, Height = 30,
@@ -675,7 +686,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 pnlRS.Controls.Add(tblRS);
             }
 
-            // Lines
             var pnlLineLabel = new Panel
             {
                 Dock = DockStyle.Top, Height = 40,
@@ -775,7 +785,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         }
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  Static dialog helpers  (identical signature to ViewOrderForm)
+        //  Static dialog helpers
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private static void AddDetailRow(
             TableLayoutPanel tbl, int row,
@@ -788,7 +798,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             tbl.Controls.Add(MakeLabelVal(val2, fg), 3, row);
         }
 
-        // Bold grey key label — no ellipsis (matches ViewOrderForm.MakeLabelKey)
         private static Label MakeLabelKey(string text, Color? fg = null) => new Label
         {
             Text         = text,
@@ -800,10 +809,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             AutoEllipsis = false
         };
 
-        // Single-line value label (matches ViewOrderForm.MakeLabelVal)
         private static Label MakeLabelVal(string text, Color? fg = null) => new Label
         {
-            Text         = text ?? "—",
+            Text         = text ?? "\u2014",
             Font         = new Font("Segoe UI", 12f),
             ForeColor    = fg ?? Color.FromArgb(15, 31, 53),
             Dock         = DockStyle.Fill,
@@ -811,11 +819,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             AutoEllipsis = true
         };
 
-        // Multi-line value label for address fields — top-aligned, wraps
-        // (matches ViewOrderForm.MakeLabelValMultiLine)
         private static Label MakeLabelValMultiLine(string text) => new Label
         {
-            Text         = text ?? "—",
+            Text         = text ?? "\u2014",
             Font         = new Font("Segoe UI", 12f),
             ForeColor    = Color.FromArgb(15, 31, 53),
             Dock         = DockStyle.Fill,

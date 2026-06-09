@@ -24,6 +24,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         // ── KPI bar + action buttons ──────────────────────────────────────
         private Panel  pnlKpi;
         private Button btnViewDetail;
+        private Button btnModify;
         private Button btnGenDeliveryNote;
 
         // ── Main grid ─────────────────────────────────────────────────────
@@ -168,8 +169,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             // ── Search / Reset buttons (identical to ViewOrderForm) ────────
             var pnlBtns = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            btnSearch  = MakePrimaryBtn("🔍  Search", new Point(0,   0), 210, 60);
-            btnRefresh = MakeOutlineBtn("↺  Reset",   new Point(218, 0), 210, 60);
+            btnSearch  = MakePrimaryBtn("\U0001F50D  Search", new Point(0,   0), 210, 60);
+            btnRefresh = MakeOutlineBtn("\u21BA  Reset",   new Point(218, 0), 210, 60);
             btnSearch.Click  += (s, e) => RefreshGrid();
             btnRefresh.Click += (s, e) => ResetFilters();
             pnlBtns.Controls.Add(btnSearch);
@@ -206,9 +207,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             tblCard.Controls.Add(pnlBtns,   0, 2);
 
             // ── Wrap in CardPanel (outer=grey page, inner=white card) ──────
-            //    CardPanel.Create uses DockStyle.Top + outerHeight;
-            //    here we manually replicate that to match ViewOrderForm's
-            //    pnlSearchOuter / pnlCard pattern precisely.
             var pnlCard = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
             pnlCard.Paint += PaintCardBorder;
             pnlCard.Controls.Add(tblCard);
@@ -222,9 +220,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlSearchOuter.Controls.Add(pnlCard);
 
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            //  KPI bar + action buttons (mirrors ViewOrderForm exactly)
+            //  KPI bar + action buttons
             //  Left  : pnlKpi  (DockStyle.Fill  — pill FlowLayout)
-            //  Right : btnViewDetail + btnGenDeliveryNote side-by-side, centred
+            //  Right : btnViewDetail + btnModify + btnGenDeliveryNote side-by-side
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             pnlKpi = new Panel
             {
@@ -237,17 +235,24 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             const int BtnGap = 8;
             const int BtnPad = 12;
 
-            btnViewDetail      = MakePrimaryBtn("🔍  View Details",        Point.Empty, BtnW, BtnH);
-            btnGenDeliveryNote = MakeSuccessBtn("📄  Delivery Note / Slip", Point.Empty, BtnW, BtnH);
+            btnViewDetail      = MakePrimaryBtn("\U0001F50D  View Details",        Point.Empty, BtnW, BtnH);
+            btnModify          = MakeWarningBtn("\u270F  Modify",                  Point.Empty, BtnW, BtnH);
+            btnGenDeliveryNote = MakeSuccessBtn("\U0001F4C4  Delivery Note / Slip", Point.Empty, BtnW, BtnH);
+
             btnViewDetail.Enabled      = false;
+            btnModify.Enabled          = false;
             btnGenDeliveryNote.Enabled = false;
+
             btnViewDetail.Click      += btnViewDetail_Click;
+            btnModify.Click          += btnModify_Click;
             btnGenDeliveryNote.Click += btnGenDeliveryNote_Click;
 
+            // Width = pad + btn + gap + btn + gap + btn + pad
+            //       = 12 + 290 + 8 + 290 + 8 + 290 + 12 = 910
             var pnlActionBtns = new Panel
             {
                 Dock      = DockStyle.Right,
-                Width     = BtnPad + BtnW + BtnGap + BtnW + BtnPad,   // 12+290+8+290+12 = 612
+                Width     = BtnPad + BtnW + BtnGap + BtnW + BtnGap + BtnW + BtnPad,
                 BackColor = Color.Transparent
             };
 
@@ -256,9 +261,11 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 int top = (pnlActionBtns.Height - BtnH) / 2;
                 if (top < 0) top = 0;
                 btnViewDetail.Location      = new Point(BtnPad, top);
-                btnGenDeliveryNote.Location = new Point(BtnPad + BtnW + BtnGap, top);
+                btnModify.Location          = new Point(BtnPad + BtnW + BtnGap, top);
+                btnGenDeliveryNote.Location = new Point(BtnPad + BtnW + BtnGap + BtnW + BtnGap, top);
             }
             pnlActionBtns.Controls.Add(btnViewDetail);
+            pnlActionBtns.Controls.Add(btnModify);
             pnlActionBtns.Controls.Add(btnGenDeliveryNote);
             pnlActionBtns.Resize += (s, e) => CentreActionBtns();
 
@@ -326,7 +333,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             dgvShipments.CellFormatting   += dgvShipments_CellFormatting;
             dgvShipments.CellDoubleClick  += dgvShipments_CellDoubleClick;
 
-            // CardPanel.CreateFill pattern (matches ViewOrderForm pnlGridCard)
             var pnlGridCard  = new Panel
             {
                 Dock = DockStyle.Fill,
@@ -339,8 +345,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlGridCard.Controls.Add(pnlGridInner);
 
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            //  Assemble — EXACTLY mirrors ViewOrderForm.InitializeComponent()
-            //  Order: Fill → Top (reverse) → AppShell on top
+            //  Assemble — order: Fill → Top (reverse) → AppShell on top
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             pnlMain.Controls.Add(pnlGridCard);     // DockStyle.Fill  — grid
             pnlMain.Controls.Add(pnlKpiOuter);     // DockStyle.Top   — KPI bar + action buttons
@@ -351,7 +356,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             this.ResumeLayout(false);
         }
 
-        // ── Button factories (identical to ViewOrderForm) ─────────────────
+        // ── Button factories ──────────────────────────────────────────────
         private Button MakePrimaryBtn(string text, Point loc, int w, int h)
         {
             var b = new Button
@@ -363,6 +368,20 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             b.FlatAppearance.BorderSize = 0;
             b.FlatAppearance.MouseOverBackColor = Color.FromArgb(26, 77, 192);
             b.FlatAppearance.MouseDownBackColor = Color.FromArgb(21, 60, 155);
+            return b;
+        }
+
+        private Button MakeWarningBtn(string text, Point loc, int w, int h)
+        {
+            var b = new Button
+            {
+                Text = text, Font = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.White, BackColor = Color.FromArgb(217, 119, 6),
+                FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand
+            };
+            b.FlatAppearance.BorderSize = 0;
+            b.FlatAppearance.MouseOverBackColor = Color.FromArgb(180, 95, 0);
+            b.FlatAppearance.MouseDownBackColor = Color.FromArgb(146, 64, 14);
             return b;
         }
 
