@@ -204,7 +204,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             BindReceipts(_vm.Receipts);
             BindPO(_vm.PurchaseOrders);
             BindInvoices(_vm.Invoices);
-            RenderKpi(_vm.PurchaseOrders);
+            RenderKpi();
 
             UpdateActionButtons();
         }
@@ -264,12 +264,40 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }
         }
 
-        // ── KPI pills ─────────────────────────────────────────────────────────
-        private void RenderKpi(List<PurchaseOrderEntity> pos)
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        //  KPI Bar — rewritten to match ViewOrderForm baseline
+        //
+        //  Design spec (identical to ViewOrderForm.RefreshKpi):
+        //  ┌─────────────────────────────────────────────────────────────┐
+        //  │  FlowLayoutPanel (Dock=Fill, LeftToRight, WrapContents=false)│
+        //  │  ┌──────────────┐ ┌──────────────┐ ... × 6 pills           │
+        //  │  │ [80px] count │ │ label        │                          │
+        //  │  │ 14pt Bold    │ │ 12pt Regular │                          │
+        //  │  └──────────────┘ └──────────────┘                          │
+        //  └─────────────────────────────────────────────────────────────┘
+        //
+        //  Constants — must stay in sync with ViewOrderForm:
+        //    PillW=290  PillH=60  Gap=8  NumColW=80  radius=8
+        //
+        //  Data source: always full unfiltered VM so counts are independent
+        //  of any active filter (same pattern as ViewOrderForm.RefreshKpi).
+        //
+        //  Pill labels for PurchaseOrder.PurchaseStatus ENUM values
+        //  (schema.sql: 'Sent','Cancelled','Partially Received','Received','Completed'):
+        //    "Total POs"     → filter "All"
+        //    "Sent"          → filter "Sent"
+        //    "Partially Rcvd"→ filter "Partially Received"  (shortened to fit 290px pill)
+        //    "Received"      → filter "Received"
+        //    "Completed"     → filter "Completed"
+        //    "Cancelled"     → filter "Cancelled"
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        private void RenderKpi()
         {
             pnlKpi.Controls.Clear();
-            if (pos == null) pos = new List<PurchaseOrderEntity>();
 
+            // Always fetch unfiltered full dataset so KPI counts are accurate
+            // regardless of any active search / status filter — same pattern as
+            // ViewOrderForm.RefreshKpi() which calls _ctrl.GetViewOrderVM().Orders.
             var all = _ctrl.GetHandlingGoodsReceivedVM().PurchaseOrders
                       ?? new List<PurchaseOrderEntity>();
 
@@ -280,32 +308,45 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             int completed = all.FindAll(p => p.PurchaseStatus == "Completed").Count;
             int cancelled = all.FindAll(p => p.PurchaseStatus == "Cancelled").Count;
 
+            // Pill definition: (displayLabel, count, fg, bg, cboStatus filterValue)
+            // Colours mirror the StatusTheme dictionary and ViewOrderForm palette.
             var pills = new[]
             {
-                ("All POs",            total.ToString(),     Color.FromArgb(47, 111, 237), Color.FromArgb(219, 234, 254), "All"),
-                ("Sent",               sent.ToString(),      FromHex("#92400E"),            FromHex("#FEF3C7"),            "Sent"),
-                ("Partially Received", partial.ToString(),   Color.FromArgb(29,  78, 216), Color.FromArgb(219, 234, 254), "Partially Received"),
-                ("Received",           received.ToString(),  Color.FromArgb(3,   96, 170), Color.FromArgb(224, 242, 254), "Received"),
-                ("Completed",          completed.ToString(), Color.FromArgb(6,   95,  70), Color.FromArgb(209, 250, 229), "Completed"),
-                ("Cancelled",          cancelled.ToString(), Color.FromArgb(107,114, 128), Color.FromArgb(243, 244, 246), "Cancelled"),
+                ("Total POs",      total.ToString(),     Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254), "All"),
+                ("Sent",           sent.ToString(),      Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), "Sent"),
+                ("Partially Rcvd", partial.ToString(),   Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254), "Partially Received"),
+                ("Received",       received.ToString(),  Color.FromArgb(  3,  96, 170), Color.FromArgb(224, 242, 254), "Received"),
+                ("Completed",      completed.ToString(), Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229), "Completed"),
+                ("Cancelled",      cancelled.ToString(), Color.FromArgb(107, 114, 128), Color.FromArgb(243, 244, 246), "Cancelled"),
             };
 
             var flow = new FlowLayoutPanel
             {
-                Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight,
-                WrapContents = false, BackColor = Color.Transparent,
-                Padding = new Padding(0), AutoScroll = false
+                Dock          = DockStyle.Fill,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents  = false,
+                BackColor     = Color.Transparent,
+                Padding       = new Padding(0),
+                AutoScroll    = false
             };
 
-            const int PillW = 210, PillH = 60, Gap = 8, NumColW = 80;
+            // ── Shared pill constants — kept identical to ViewOrderForm ──────
+            const int PillW   = 290;
+            const int PillH   = 60;
+            const int Gap     = 8;
+            const int NumColW = 80;
 
             foreach (var (label, count, fg, bg, filterItem) in pills)
             {
                 var pill = new Panel
                 {
-                    BackColor = bg, Size = new Size(PillW, PillH),
-                    Margin = new Padding(0, 0, Gap, 0), Cursor = Cursors.Hand
+                    BackColor = bg,
+                    Size      = new Size(PillW, PillH),
+                    Margin    = new Padding(0, 0, Gap, 0),
+                    Cursor    = Cursors.Hand
                 };
+
+                // Custom Paint: anti-aliased rounded rectangle (radius=8)
                 pill.Paint += (s, e) =>
                 {
                     e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
@@ -314,18 +355,45 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                     e.Graphics.FillPath(brush, path);
                 };
 
+                // Inner layout: Col-0 (80px absolute) = count | Col-1 (fill) = label
                 var tlp = new TableLayoutPanel
                 {
-                    Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
-                    BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                    Padding = new Padding(10, 0, 8, 0)
+                    Dock            = DockStyle.Fill,
+                    ColumnCount     = 2,
+                    RowCount        = 1,
+                    BackColor       = Color.Transparent,
+                    CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                    Padding         = new Padding(10, 0, 8, 0)
                 };
                 tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, NumColW));
                 tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
                 tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-                tlp.Controls.Add(new Label { Text = count, Font = new Font("Segoe UI", 14f, FontStyle.Bold), ForeColor = fg, BackColor = Color.Transparent, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, AutoSize = false }, 0, 0);
-                tlp.Controls.Add(new Label { Text = label, Font = new Font("Segoe UI", 12f), ForeColor = fg, BackColor = Color.Transparent, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false }, 1, 0);
 
+                tlp.Controls.Add(new Label
+                {
+                    Text      = count,
+                    Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
+                    ForeColor = fg,
+                    BackColor = Color.Transparent,
+                    Dock      = DockStyle.Fill,
+                    TextAlign = ContentAlignment.MiddleCenter,
+                    AutoSize  = false
+                }, 0, 0);
+
+                tlp.Controls.Add(new Label
+                {
+                    Text      = label,
+                    Font      = new Font("Segoe UI", 12f),
+                    ForeColor = fg,
+                    BackColor = Color.Transparent,
+                    Dock      = DockStyle.Fill,
+                    TextAlign = ContentAlignment.MiddleLeft,
+                    AutoSize  = false
+                }, 1, 0);
+
+                // Click handler: set cboStatus and re-run RefreshGrids
+                // Bound to pill panel, inner tlp, AND each child Label so the
+                // entire pill surface is clickable — identical to ViewOrderForm.
                 string localFilterItem = filterItem;
                 EventHandler clickHandler = (s, e) =>
                 {
@@ -340,6 +408,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 pill.Controls.Add(tlp);
                 flow.Controls.Add(pill);
             }
+
             pnlKpi.Controls.Add(flow);
         }
 
