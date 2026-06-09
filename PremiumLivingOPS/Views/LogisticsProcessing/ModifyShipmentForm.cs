@@ -2,24 +2,25 @@ using PremiumLivingOPS.Controllers;
 using PremiumLivingOPS.Models.Entities;
 using PremiumLivingOPS.Views.Shared;
 using System;
-using System.Drawing;
 using System.Windows.Forms;
 
 namespace PremiumLivingOPS.Views.LogisticsProcessing
 {
     /// <summary>
-    /// Modify Shipment — View layer.
+    /// Modify Shipment — View layer (MVC).
+    ///
+    /// Responsibilities:
+    ///   • Edit Shipment  — update ShipmentStatus + ActualRecipient (+ optional Remark).
+    ///   • Delete Shipment — permanently remove shipment and all child rows.
     ///
     /// MVC contract:
-    ///   • All DB access delegated to LogisticsProcessingController (zero SQL here).
-    ///   • AppShell wired on Load — identical pattern to ModifyOrderForm.
-    ///   • CardPanel three-layer nesting: grey outer → white card → content.
-    ///   • Edit Shipment: updates ShipmentStatus + ActualRecipient (+ optional Remark).
-    ///   • Delete Shipment: permanently removes Shipment and all child rows.
+    ///   • ALL DB access delegated to LogisticsProcessingController (zero SQL here).
+    ///   • AppShell events subscribed ONCE in Designer.cs (RULE 4). Load() does NOT re-subscribe.
+    ///   • ComboItem is a private inner class (same pattern as ModifyOrderForm).
     /// </summary>
     public partial class ModifyShipmentForm : Form
     {
-        // ---- static entry-point (set before opening this form) ----------
+        // ---- Static entry-point (set by caller before opening this form) ----
         public static string PendingShipmentId { get; set; } = null;
 
         private readonly LogisticsProcessingController _ctrl =
@@ -33,14 +34,13 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             this.Load += ModifyShipmentForm_Load;
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  Load
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ====================================================================
+        //  Form Load
+        // ====================================================================
         private void ModifyShipmentForm_Load(object sender, EventArgs e)
         {
-            _shell.MenuItemClicked += OnTopNavMenuItemClicked;
-            _shell.LogoutClicked   += btnLogout_Click;
-
+            // NOTE: MenuItemClicked and LogoutClicked are wired in Designer.cs (RULE 4).
+            //       Do NOT subscribe here to avoid duplicate firing.
             var vm = _ctrl.GetViewShipmentVM();
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
@@ -55,24 +55,27 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ====================================================================
         //  Combo helpers
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ====================================================================
         private void ReloadShipmentCombo()
         {
             cboSearchShipment.Items.Clear();
             cboSearchShipment.Items.Add(new ComboItem("-- Select Shipment --", ""));
-            var all = _ctrl.GetViewShipmentVM().Shipments;
-            foreach (var s in all)
+
+            var list = _ctrl.GetViewShipmentVM().Shipments;
+            foreach (var s in list)
                 cboSearchShipment.Items.Add(
-                    new ComboItem($"{s.ShipmentID}  –  {s.CustomerName}  [{s.ShipmentStatus}]",
-                                  s.ShipmentID));
+                    new ComboItem(
+                        $"{s.ShipmentID}  –  {s.CustomerName}  [{s.ShipmentStatus}]",
+                        s.ShipmentID));
+
             cboSearchShipment.SelectedIndex = 0;
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ====================================================================
         //  Load Shipment button
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ====================================================================
         private void btnLoadShipment_Click(object sender, EventArgs e)
         {
             var sel = cboSearchShipment.SelectedItem as ComboItem;
@@ -103,21 +106,21 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 { cboSearchShipment.SelectedIndex = i; break; }
 
             // Populate read-only info labels
-            lblShipmentIdValue.Text  = _currentShipment.ShipmentID;
-            lblOrderIdValue.Text     = _currentShipment.OrderID;
-            lblCustomerValue.Text    = _currentShipment.CustomerName;
-            lblTrackingValue.Text    = _currentShipment.TrackingNumber;
-            lblShipDateValue.Text    = _currentShipment.ShipDate.ToString("yyyy-MM-dd");
-            lblShipTypeValue.Text    = _currentShipment.ShipmentType;
+            lblShipmentIdValue.Text     = _currentShipment.ShipmentID;
+            lblOrderIdValue.Text        = _currentShipment.OrderID;
+            lblCustomerValue.Text       = _currentShipment.CustomerName;
+            lblTrackingValue.Text       = _currentShipment.TrackingNumber;
+            lblShipDateValue.Text       = _currentShipment.ShipDate.ToString("yyyy-MM-dd");
+            lblShipTypeValue.Text       = _currentShipment.ShipmentType;
             lblDeliveryMethodValue.Text = _currentShipment.DeliveryMethod;
 
-            // Editable status
+            // Editable: status
             int si = cboStatus.FindStringExact(_currentShipment.ShipmentStatus);
             cboStatus.SelectedIndex = si >= 0 ? si : 0;
 
-            // Actual Recipient from ReplySlip (if exists)
+            // Editable: actual recipient + remark from ReplySlip
             txtActualRecipient.Text = detail.ReplySlip?.ActualRecipient ?? string.Empty;
-            txtRemark.Text          = detail.ReplySlip?.RecipientRemark ?? string.Empty;
+            txtRemark.Text          = detail.ReplySlip?.RecipientRemark  ?? string.Empty;
 
             // Enable action buttons
             btnSaveChanges.Enabled    = true;
@@ -125,9 +128,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             btnDiscardChanges.Enabled = true;
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ====================================================================
         //  Save Changes (Edit Shipment)
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ====================================================================
         private void btnSaveChanges_Click(object sender, EventArgs e)
         {
             if (_currentShipment == null)
@@ -137,7 +140,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 return;
             }
 
-            string newStatus       = cboStatus.SelectedItem?.ToString() ?? "";
+            string newStatus       = cboStatus.SelectedItem?.ToString() ?? string.Empty;
             string actualRecipient = txtActualRecipient.Text.Trim();
             string remark          = txtRemark.Text.Trim();
 
@@ -157,7 +160,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                     $"Shipment {_currentShipment.ShipmentID} updated successfully.",
                     "Saved", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
-                // Reload to reflect saved state
                 SelectAndLoadShipment(_currentShipment.ShipmentID);
                 ReloadShipmentCombo();
             }
@@ -168,9 +170,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ====================================================================
         //  Delete Shipment
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ====================================================================
         private void btnDeleteShipment_Click(object sender, EventArgs e)
         {
             if (_currentShipment == null)
@@ -199,7 +201,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                     $"Shipment {deletedId} has been deleted.",
                     "Deleted", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
-                // Clear form
                 ClearForm();
                 ReloadShipmentCombo();
             }
@@ -210,18 +211,18 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ====================================================================
         //  Discard Changes
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ====================================================================
         private void btnDiscardChanges_Click(object sender, EventArgs e)
         {
-            if (_currentShipment == null) return;
-            SelectAndLoadShipment(_currentShipment.ShipmentID);
+            if (_currentShipment != null)
+                SelectAndLoadShipment(_currentShipment.ShipmentID);
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  Clear form helper
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ====================================================================
+        //  Clear form
+        // ====================================================================
         private void ClearForm()
         {
             _currentShipment = null;
@@ -234,18 +235,18 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             lblShipTypeValue.Text       = "—";
             lblDeliveryMethodValue.Text = "—";
 
-            cboStatus.SelectedIndex   = 0;
-            txtActualRecipient.Text   = string.Empty;
-            txtRemark.Text            = string.Empty;
+            cboStatus.SelectedIndex     = 0;
+            txtActualRecipient.Text     = string.Empty;
+            txtRemark.Text              = string.Empty;
 
             btnSaveChanges.Enabled    = false;
             btnDeleteShipment.Enabled = false;
             btnDiscardChanges.Enabled = false;
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  Nav / Logout
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ====================================================================
+        //  Nav / Logout  (handlers wired in Designer.cs RULE 4)
+        // ====================================================================
         private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
             => FormNavigator.NavigateTo(this, menuLabel, subItem);
 
@@ -253,6 +254,17 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         {
             SessionManager.Clear();
             Application.Restart();
+        }
+
+        // ====================================================================
+        //  ComboItem — private inner class (same pattern as ModifyOrderForm)
+        // ====================================================================
+        private class ComboItem
+        {
+            public string Text  { get; }
+            public string Value { get; }
+            public ComboItem(string text, string value) { Text = text; Value = value; }
+            public override string ToString() => Text;
         }
     }
 }

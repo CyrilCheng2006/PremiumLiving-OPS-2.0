@@ -1,3 +1,4 @@
+using System;
 using System.Drawing;
 using System.Windows.Forms;
 
@@ -7,14 +8,14 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
     {
         private System.ComponentModel.IContainer components = null;
 
-        // ---- AppShell (mandatory shared component) ----------
+        // ---- AppShell (mandatory shared component) ----
         private PremiumLivingOPS.Views.Shared.AppShell _shell;
 
-        // ---- Search row -----
+        // ---- Search row ----
         private ComboBox cboSearchShipment;
         private Button   btnLoadShipment;
 
-        // ---- Info Labels ----
+        // ---- Info Labels (read-only) ----
         private Label lblShipmentIdValue;
         private Label lblOrderIdValue;
         private Label lblCustomerValue;
@@ -41,19 +42,19 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
         private void InitializeComponent()
         {
-            this.SuspendLayout();
+            this.SuspendLayout();   // RULE 1
 
-            // ---- AppShell ----
-            _shell      = new PremiumLivingOPS.Views.Shared.AppShell();
-            _shell.Dock = DockStyle.Fill;
+            // ================================================================
+            //  Page content panel (DockStyle.Fill — sits below AppShell)
+            // ================================================================
+            var pnlPage = new Panel
+            {
+                Dock      = DockStyle.Fill,
+                BackColor = Color.FromArgb(240, 244, 249),
+                Padding   = new Padding(20)
+            };
 
-            // ── Root panel ──────────────────────────────────────────────
-            var pnlMain = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(240, 244, 249) };
-            _shell.SetPopupContainer(pnlMain);
-
-            // ===========================================================
-            //  Three-layer CardPanel nesting (grey → white → content)
-            // ===========================================================
+            // -- OUTER card (grey background) --------------------------------
             var outerCard = new PremiumLivingOPS.Views.Shared.CardPanel
             {
                 Dock      = DockStyle.Fill,
@@ -61,6 +62,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 BackColor = Color.FromArgb(240, 244, 249)
             };
 
+            // -- MIDDLE card (white, floating) --------------------------------
             var middleCard = new PremiumLivingOPS.Views.Shared.CardPanel
             {
                 Dock      = DockStyle.Fill,
@@ -68,9 +70,15 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 BackColor = Color.White
             };
 
-            var innerPanel = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
+            // -- INNER content panel -----------------------------------------
+            var pnlScroll = new Panel
+            {
+                Dock        = DockStyle.Fill,
+                BackColor   = Color.White,
+                AutoScroll  = true
+            };
 
-            // ── Page title ──────────────────────────────────────────────
+            // ---- Page title ------------------------------------------------
             var lblTitle = new Label
             {
                 Text      = "Modify Shipment",
@@ -80,7 +88,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 ForeColor = Color.FromArgb(15, 31, 53)
             };
 
-            // ── Search row ──────────────────────────────────────────────
+            // ---- Search row ------------------------------------------------
             var lblSearch = MakeLbl("Select Shipment:");
             lblSearch.Location = new Point(0, 50);
 
@@ -88,8 +96,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             {
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 Font          = new Font("Segoe UI", 11f),
-                Size          = new Size(420, 30),
-                Location      = new Point(180, 47)
+                Size          = new Size(440, 30),
+                Location      = new Point(190, 47)
             };
 
             btnLoadShipment = new Button
@@ -97,78 +105,66 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 Text      = "Load",
                 Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
                 Size      = new Size(100, 32),
-                Location  = new Point(610, 46),
+                Location  = new Point(642, 46),
                 BackColor = Color.FromArgb(47, 111, 237),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
                 Cursor    = Cursors.Hand
             };
-            btnLoadShipment.FlatAppearance.BorderSize       = 0;
+            btnLoadShipment.FlatAppearance.BorderSize         = 0;
             btnLoadShipment.FlatAppearance.MouseOverBackColor = Color.FromArgb(26, 77, 192);
             btnLoadShipment.Click += btnLoadShipment_Click;
 
-            // ── Read-only info section ──────────────────────────────────
-            //  FIX: replaced ref-in-array-initialiser (CS1525) with a
-            //       plain string[] for captions and explicit indexed assignment.
+            // ---- Read-only info fields (using indexed assignment) -----------
             int row  = 100;
             int rowH = 36;
 
-            var captions = new[]
+            lblShipmentIdValue     = MakeValLbl();
+            lblOrderIdValue        = MakeValLbl();
+            lblCustomerValue       = MakeValLbl();
+            lblTrackingValue       = MakeValLbl();
+            lblShipDateValue       = MakeValLbl();
+            lblShipTypeValue       = MakeValLbl();
+            lblDeliveryMethodValue = MakeValLbl();
+
+            string[] captions =
             {
-                "Shipment ID:",
-                "Order ID:",
-                "Customer:",
-                "Tracking No.:",
-                "Ship Date:",
-                "Type:",
-                "Delivery Method:"
+                "Shipment ID:", "Order ID:", "Customer:",
+                "Tracking No.:", "Ship Date:", "Type:", "Delivery Method:"
             };
-
-            innerPanel.Controls.Add(lblTitle);
-            innerPanel.Controls.Add(lblSearch);
-            innerPanel.Controls.Add(cboSearchShipment);
-            innerPanel.Controls.Add(btnLoadShipment);
-
-            // Initialise all value labels to a placeholder first
-            lblShipmentIdValue    = MakeValLbl(); lblShipmentIdValue.Location    = new Point(210, row + 2);
-            lblOrderIdValue       = MakeValLbl(); lblOrderIdValue.Location       = new Point(210, row + 2 + rowH);
-            lblCustomerValue      = MakeValLbl(); lblCustomerValue.Location      = new Point(210, row + 2 + rowH * 2);
-            lblTrackingValue      = MakeValLbl(); lblTrackingValue.Location      = new Point(210, row + 2 + rowH * 3);
-            lblShipDateValue      = MakeValLbl(); lblShipDateValue.Location      = new Point(210, row + 2 + rowH * 4);
-            lblShipTypeValue      = MakeValLbl(); lblShipTypeValue.Location      = new Point(210, row + 2 + rowH * 5);
-            lblDeliveryMethodValue= MakeValLbl(); lblDeliveryMethodValue.Location= new Point(210, row + 2 + rowH * 6);
-
-            Label[] valueLabels =
+            Label[] valLabels =
             {
-                lblShipmentIdValue,
-                lblOrderIdValue,
-                lblCustomerValue,
-                lblTrackingValue,
-                lblShipDateValue,
-                lblShipTypeValue,
+                lblShipmentIdValue, lblOrderIdValue, lblCustomerValue,
+                lblTrackingValue,   lblShipDateValue, lblShipTypeValue,
                 lblDeliveryMethodValue
             };
+
+            pnlScroll.Controls.Add(lblTitle);
+            pnlScroll.Controls.Add(lblSearch);
+            pnlScroll.Controls.Add(cboSearchShipment);
+            pnlScroll.Controls.Add(btnLoadShipment);
 
             for (int i = 0; i < captions.Length; i++)
             {
                 var lbl = MakeLbl(captions[i]);
-                lbl.Location = new Point(0, row);
-                innerPanel.Controls.Add(lbl);
-                innerPanel.Controls.Add(valueLabels[i]);
+                lbl.Location        = new Point(0,   row);
+                valLabels[i].Location = new Point(210, row + 2);
+                pnlScroll.Controls.Add(lbl);
+                pnlScroll.Controls.Add(valLabels[i]);
                 row += rowH;
             }
 
-            // ── Divider ─────────────────────────────────────────────────
+            // ---- Divider ---------------------------------------------------
             var divider = new Panel
             {
                 Location  = new Point(0, row + 6),
-                Size      = new Size(700, 1),
+                Size      = new Size(720, 1),
                 BackColor = Color.FromArgb(221, 227, 236)
             };
-            innerPanel.Controls.Add(divider);
-            row += 20;
+            pnlScroll.Controls.Add(divider);
+            row += 22;
 
-            // ── Editable: Status ────────────────────────────────────────
+            // ---- Editable: Status ------------------------------------------
             var lblStatus = MakeLbl("Status:");
             lblStatus.Location = new Point(0, row);
             cboStatus = new ComboBox
@@ -180,39 +176,39 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             };
             cboStatus.Items.AddRange(new object[] { "Pending", "In Transit", "Completed" });
             cboStatus.SelectedIndex = 0;
-            innerPanel.Controls.Add(lblStatus);
-            innerPanel.Controls.Add(cboStatus);
+            pnlScroll.Controls.Add(lblStatus);
+            pnlScroll.Controls.Add(cboStatus);
             row += rowH;
 
-            // ── Editable: Actual Recipient ──────────────────────────────
+            // ---- Editable: Actual Recipient --------------------------------
             var lblRecip = MakeLbl("Actual Recipient:");
             lblRecip.Location = new Point(0, row);
             txtActualRecipient = new TextBox
             {
                 Font     = new Font("Segoe UI", 11f),
-                Size     = new Size(320, 30),
+                Size     = new Size(340, 30),
                 Location = new Point(210, row - 2)
             };
-            innerPanel.Controls.Add(lblRecip);
-            innerPanel.Controls.Add(txtActualRecipient);
+            pnlScroll.Controls.Add(lblRecip);
+            pnlScroll.Controls.Add(txtActualRecipient);
             row += rowH;
 
-            // ── Editable: Remark ────────────────────────────────────────
+            // ---- Editable: Remark ------------------------------------------
             var lblRemark = MakeLbl("Remark:");
             lblRemark.Location = new Point(0, row);
             txtRemark = new TextBox
             {
-                Font      = new Font("Segoe UI", 11f),
-                Size      = new Size(440, 30),
-                Location  = new Point(210, row - 2)
+                Font     = new Font("Segoe UI", 11f),
+                Size     = new Size(460, 30),
+                Location = new Point(210, row - 2)
             };
-            innerPanel.Controls.Add(lblRemark);
-            innerPanel.Controls.Add(txtRemark);
+            pnlScroll.Controls.Add(lblRemark);
+            pnlScroll.Controls.Add(txtRemark);
             row += rowH + 20;
 
-            // ── Action buttons ──────────────────────────────────────────
-            btnSaveChanges    = MakeBtn("Save Changes",    Color.FromArgb(5, 150, 105));
-            btnDeleteShipment = MakeBtn("Delete Shipment", Color.FromArgb(185, 28, 28));
+            // ---- Action buttons --------------------------------------------
+            btnSaveChanges    = MakeBtn("Save Changes",    Color.FromArgb(5,   150, 105));
+            btnDeleteShipment = MakeBtn("Delete Shipment", Color.FromArgb(185,  28,  28));
             btnDiscardChanges = MakeBtn("Discard",         Color.FromArgb(100, 116, 139));
 
             btnSaveChanges.Location    = new Point(0,   row);
@@ -227,31 +223,54 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             btnDeleteShipment.Click += btnDeleteShipment_Click;
             btnDiscardChanges.Click += btnDiscardChanges_Click;
 
-            innerPanel.Controls.Add(btnSaveChanges);
-            innerPanel.Controls.Add(btnDeleteShipment);
-            innerPanel.Controls.Add(btnDiscardChanges);
+            pnlScroll.Controls.Add(btnSaveChanges);
+            pnlScroll.Controls.Add(btnDeleteShipment);
+            pnlScroll.Controls.Add(btnDiscardChanges);
 
-            // ── Nest: inner → middleCard → outerCard → shell ────────────
-            middleCard.Controls.Add(innerPanel);
+            // ---- Nest: pnlScroll -> middleCard -> outerCard -> pnlPage -----
+            middleCard.Controls.Add(pnlScroll);
             outerCard.Controls.Add(middleCard);
+            pnlPage.Controls.Add(outerCard);
 
-            pnlMain.Controls.Add(outerCard);
-            pnlMain.Controls.Add(_shell);
+            // ================================================================
+            //  AppShell (RULE 2) — constructed inside SuspendLayout scope
+            // ================================================================
+            _shell             = new PremiumLivingOPS.Views.Shared.AppShell();
+            _shell.Dock        = DockStyle.Top;
+            _shell.Height      = PremiumLivingOPS.Views.Shared.AppShell.TotalHeight;
+            _shell.MinimumSize = new System.Drawing.Size(0, PremiumLivingOPS.Views.Shared.AppShell.TotalHeight);
 
-            // ── Form properties ─────────────────────────────────────────
-            this.Text          = "Modify Shipment — PremiumLiving OPS";
-            this.Size          = new System.Drawing.Size(1280, 800);
-            this.MinimumSize   = new System.Drawing.Size(900, 600);
-            this.StartPosition = FormStartPosition.CenterScreen;
-            this.WindowState   = FormWindowState.Maximized;
-            this.BackColor     = Color.FromArgb(240, 244, 249);
-            this.Font          = new Font("Segoe UI", 13f);
+            // RULE 4 — subscribe ONCE here in Designer.cs only
+            _shell.MenuItemClicked += OnTopNavMenuItemClicked;
+            _shell.LogoutClicked   += btnLogout_Click;
+
+            // RULE 5 — SetPopupContainer, then Fill first, Top second
+            _shell.SetPopupContainer(pnlPage);
+            var pnlMain = new Panel { Dock = DockStyle.Fill };
+            pnlMain.Controls.Add(pnlPage);   // Fill — content area
+            pnlMain.Controls.Add(_shell);    // Top  — chrome wins
+
+            // ---- Form properties -------------------------------------------
+            this.Text               = "Modify Shipment — PremiumLiving OPS";
+            this.Size               = new System.Drawing.Size(1280, 800);
+            this.MinimumSize        = new System.Drawing.Size(900, 600);
+            this.StartPosition      = FormStartPosition.CenterScreen;
+            this.WindowState        = FormWindowState.Maximized;
+            this.AutoScaleMode      = AutoScaleMode.Font;
+            this.AutoScaleDimensions = new SizeF(7F, 15F);
+            this.BackColor          = Color.FromArgb(240, 244, 249);
+            this.Font               = new Font("Segoe UI", 13f);
             this.Controls.Add(pnlMain);
 
             this.ResumeLayout(false);
+            this.PerformLayout();
+
+            // RULE 3 — re-enforce height after layout
+            _shell.Height      = PremiumLivingOPS.Views.Shared.AppShell.TotalHeight;
+            _shell.MinimumSize = new System.Drawing.Size(0, PremiumLivingOPS.Views.Shared.AppShell.TotalHeight);
         }
 
-        // ── Helpers ─────────────────────────────────────────────────────
+        // ---- Helpers -------------------------------------------------------
         private static Label MakeLbl(string text) => new Label
         {
             Text      = text,
@@ -262,7 +281,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
         private static Label MakeValLbl() => new Label
         {
-            Text      = "\u2014",
+            Text      = "—",
             Font      = new Font("Segoe UI", 11f),
             ForeColor = Color.FromArgb(15, 31, 53),
             AutoSize  = true
