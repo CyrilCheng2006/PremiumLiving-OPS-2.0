@@ -41,7 +41,7 @@ namespace PremiumLivingOPS.Views.AfterService
 
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
-            _shell.SetBreadcrumb("After-Service  \u203a  Account Receivable");
+            _shell.SetBreadcrumb("After-Service  ›  Account Receivable");
 
             _currentItems = vm.Items;
 
@@ -60,19 +60,18 @@ namespace PremiumLivingOPS.Views.AfterService
             RefreshKpi();
         }
 
-        // ── KPI Summary ────────────────────────────────────────────────────────
+        // ── KPI Pills ────────────────────────────────────────────────────────
         private void RefreshKpi()
         {
             pnlKpi.Controls.Clear();
-            pnlKpi.BackColor = Color.Transparent;
 
             var all = _ctrl.GetAccountReceivableVM().Items;
 
             int    totalCount  = all.Count;
             double outstanding = 0;
-            int    overdueCount  = 0;
-            int    partialCount  = 0;
-            int    fullCount     = 0;
+            int    overdueCount = 0;
+            int    partialCount = 0;
+            int    fullCount    = 0;
 
             foreach (var i in all)
             {
@@ -82,8 +81,7 @@ namespace PremiumLivingOPS.Views.AfterService
                 if (i.PaymentStatus == "Full")    fullCount++;
             }
 
-            // (label, value, fg, bg) — all explicit Color.FromArgb, no Palette references
-            var kpiItems = new[]
+            var pills = new[]
             {
                 ("Total Invoices",    totalCount.ToString(),   Color.FromArgb( 19,  35,  61), Color.FromArgb(219, 234, 254)),
                 ("Outstanding (HK$)", $"{outstanding:N0}",     Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199)),
@@ -97,8 +95,9 @@ namespace PremiumLivingOPS.Views.AfterService
                 Dock          = DockStyle.Fill,
                 FlowDirection = FlowDirection.LeftToRight,
                 WrapContents  = false,
-                AutoScroll    = false,
                 BackColor     = Color.Transparent,
+                Padding       = new Padding(0),
+                AutoScroll    = false,
             };
 
             const int PillW   = 220;
@@ -106,24 +105,22 @@ namespace PremiumLivingOPS.Views.AfterService
             const int Gap     = 8;
             const int NumColW = 80;
 
-            foreach (var (label, value, fg, bg) in kpiItems)
+            foreach (var (label, value, fg, bg) in pills)
             {
-                Color pillBg = bg;
                 var pill = new Panel
                 {
-                    BackColor = Color.Transparent,
+                    BackColor = bg,                     // 直接設定 bg 色値，對齊 ViewOrderForm 基準
                     Size      = new Size(PillW, PillH),
                     Margin    = new Padding(0, 0, Gap, 0),
+                    Cursor    = Cursors.Hand,
                 };
 
                 pill.Paint += (s, e) =>
                 {
-                    var p = (Panel)s;
-                    Color parentBg = p.Parent?.BackColor ?? Color.Transparent;
-                    e.Graphics.Clear(parentBg);
+                    // 無 Clear — 對齊 ViewOrderForm 基準，直接 FillPath 圓角矩形
                     e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-                    using var path  = RoundedRect(p.ClientRectangle, 8);
-                    using var brush = new SolidBrush(pillBg);
+                    using var path  = RoundedRect(((Panel)s).ClientRectangle, 8);
+                    using var brush = new SolidBrush(((Panel)s).BackColor);
                     e.Graphics.FillPath(brush, path);
                 };
 
@@ -143,7 +140,7 @@ namespace PremiumLivingOPS.Views.AfterService
                 tlp.Controls.Add(new Label
                 {
                     Text      = value,
-                    Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                    Font      = new Font("Segoe UI", 14f, FontStyle.Bold),   // 對齊 ViewOrderForm 14f Bold
                     ForeColor = fg,
                     BackColor = Color.Transparent,
                     Dock      = DockStyle.Fill,
@@ -154,7 +151,7 @@ namespace PremiumLivingOPS.Views.AfterService
                 tlp.Controls.Add(new Label
                 {
                     Text      = label,
-                    Font      = new Font("Segoe UI", 10f),
+                    Font      = new Font("Segoe UI", 12f),                   // 對齊 ViewOrderForm 12f
                     ForeColor = fg,
                     BackColor = Color.Transparent,
                     Dock      = DockStyle.Fill,
