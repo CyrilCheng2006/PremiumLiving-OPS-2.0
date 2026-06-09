@@ -294,7 +294,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 Padding = new Padding(24, 0, 24, 0)
             };
             tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
-            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 220f));
+            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 260f));
             tblHeader.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
             tblHeader.Controls.Add(new Label
             {
