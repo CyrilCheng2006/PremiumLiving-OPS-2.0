@@ -1067,8 +1067,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 }
 
                 string newStatus  = cboStatusEdit.SelectedItem?.ToString() ?? string.Empty;
-                string recipient  = txtRecipEdit.Text.Trim();
-                string remark     = txtRemarkEdit.Text.Trim();
+                string recipientV = txtRecipEdit.Text.Trim();
+                string remarkV    = txtRemarkEdit.Text.Trim();
 
                 if (string.IsNullOrEmpty(newStatus))
                 {
@@ -1079,7 +1079,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
                 try
                 {
-                    _ctrl.UpdateShipment(s.ShipmentID, newStatus, recipient, remark);
+                    _ctrl.UpdateShipment(s.ShipmentID, newStatus, recipientV, remarkV);
 
                     StatusColors.TryGetValue(newStatus, out var nsc);
                     lblStatusBadge.Text      = newStatus;
@@ -1364,6 +1364,19 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             path.AddArc(r.Left,       r.Bottom - d, d, d,  90, 90);
             path.CloseFigure();
             return path;
+        }
+
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        //  AppShell navigation & logout
+        //  Identical pattern to HandlingGoodsReceivedForm and all other Forms.
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
+            => FormNavigator.NavigateTo(this, menuLabel, subItem);
+
+        private void btnLogout_Click(object sender, EventArgs e)
+        {
+            SessionManager.Clear();
+            Application.Restart();
         }
     }
 }
