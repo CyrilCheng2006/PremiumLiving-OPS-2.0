@@ -19,15 +19,15 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
     ///     – pnlHeader      Top  80   — dark navy, Shipment ID + status badge
     ///     – pnlInfo        Top  220  — read-only 4-col TLP: Shipment fields
     ///     – pnlDNTitle     Top  44   — green title bar
-    ///     – pnlDNBody      Top  140  — delivery note preview fields
+    ///     – pnlDNBody      Top  180  — delivery note preview fields (Ship Address two-line)
     ///     – pnlWarn        Top  48/0 — warning strip (visible only if DN exists)
     ///     – pnlLineLabel   Top  40   — "SHIPMENT ITEMS" bar
     ///     – dgv            Fill      — shipment items grid
     ///     – pnlTotalRow    Bottom 50 — total amount
-    ///     – pnlFooter      Bottom 80 — [✔ Confirm Generate] [Cancel]
+    ///     – pnlFooter      Bottom 100 — [✔ Confirm Generate 210x60] [Cancel 210x60]
     /// • Blocked (Confirm disabled + warning strip) if a Delivery Note already exists.
     /// • On Confirm: calls _ctrl.GenerateDeliveryNote(), sets DialogResult.OK.
-    /// • Size: 1500 × 700, StartPosition CenterParent.
+    /// • Size: 1900 × 1200, StartPosition CenterParent.
     /// </summary>
     public partial class GenerateDeliveryNoteForm : Form
     {
@@ -68,7 +68,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             // ── Form properties ────────────────────────────────────────────────
             this.Text            = $"Generate Delivery Note  —  {s?.ShipmentID}";
-            this.Size            = new Size(1500, 700);
+            this.Size            = new Size(1900, 1200);
             this.StartPosition   = FormStartPosition.CenterParent;
             this.BackColor       = Color.White;
             this.Font            = new Font("Segoe UI", 13f);
@@ -167,11 +167,14 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 AutoSize  = false
             });
 
-            // ── Delivery Note Preview body ───────────────────────────────────
+            // ── Delivery Note Preview body (Ship Address row is taller for two-line display) ──
+            // Row 0: Delivery Date / Ship To         — standard height
+            // Row 1: Ship Address (2 lines) / Qty    — taller row via absolute RowStyle
+            // Row 2: Delivery Method / Shipment Type — standard height
             var pnlDNBody = new Panel
             {
                 Dock      = DockStyle.Top,
-                Height    = 140,
+                Height    = 180,
                 BackColor = Color.FromArgb(249, 254, 251),
                 Padding   = new Padding(28, 12, 28, 12)
             };
@@ -189,12 +192,21 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             tblDN.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
             tblDN.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
             tblDN.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
-            for (int r = 0; r < 3; r++)
-                tblDN.RowStyles.Add(new RowStyle(SizeType.Percent, 33.3f));
+            // Row 0 & 2: standard height; Row 1 (Ship Address): taller for 2 lines
+            tblDN.RowStyles.Add(new RowStyle(SizeType.Percent, 28f));
+            tblDN.RowStyles.Add(new RowStyle(SizeType.Percent, 44f));
+            tblDN.RowStyles.Add(new RowStyle(SizeType.Percent, 28f));
 
-            // DeliveryDate = ShipDate; ShipToName = CustomerName (per schema logic)
+            // Row 0: Delivery Date / Ship To
             AddDetailRow(tblDN, 0, "Delivery Date:",   s?.ShipDate.ToString("yyyy-MM-dd"),  "Ship To:",         s?.CustomerName);
-            AddDetailRow(tblDN, 1, "Ship Address:",    s?.ShippingAddress,                  "Outstanding Qty:", outQty.ToString());
+
+            // Row 1: Ship Address — two-line label; Outstanding Qty (right)
+            tblDN.Controls.Add(MakeLabelKey("Ship Address:"), 0, 1);
+            tblDN.Controls.Add(MakeLabelValMultiline(s?.ShippingAddress ?? "—"), 1, 1);
+            tblDN.Controls.Add(MakeLabelKey("Outstanding Qty:"), 2, 1);
+            tblDN.Controls.Add(MakeLabelVal(outQty.ToString()), 3, 1);
+
+            // Row 2: Delivery Method / Shipment Type
             AddDetailRow(tblDN, 2, "Delivery Method:", s?.DeliveryMethod,                   "Shipment Type:",   s?.ShipmentType);
             pnlDNBody.Controls.Add(tblDN);
 
@@ -301,13 +313,13 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 AutoSize  = false
             });
 
-            // ── Footer — [✔ Confirm Generate] [Cancel] ───────────────────
+            // ── Footer — [✔ Confirm Generate] [Cancel]  (buttons 210×60) ───────
             var pnlFooter = new Panel
             {
                 Dock      = DockStyle.Bottom,
-                Height    = 80,
+                Height    = 100,
                 BackColor = Color.White,
-                Padding   = new Padding(0, 12, 28, 12)
+                Padding   = new Padding(0, 20, 28, 20)
             };
             pnlFooter.Paint += PaintTopBorder;
 
@@ -318,14 +330,13 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 ForeColor = Color.White,
                 BackColor = Color.FromArgb(5, 150, 105),
                 FlatStyle = FlatStyle.Flat,
-                Dock      = DockStyle.Right,
-                Width     = 220,
+                Size      = new Size(210, 60),
+                Anchor    = AnchorStyles.Top | AnchorStyles.Right,
                 Cursor    = Cursors.Hand,
                 Enabled   = !alreadyExists
             };
             btnConfirm.FlatAppearance.BorderSize         = 0;
             btnConfirm.FlatAppearance.MouseOverBackColor = Color.FromArgb(4, 120, 87);
-            btnConfirm.Margin = new Padding(0, 0, 8, 0);
 
             var btnCancel = new Button
             {
@@ -334,13 +345,27 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 ForeColor = Color.FromArgb(15, 31, 53),
                 BackColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Dock      = DockStyle.Right,
-                Width     = 140,
+                Size      = new Size(210, 60),
+                Anchor    = AnchorStyles.Top | AnchorStyles.Right,
                 Cursor    = Cursors.Hand
             };
             btnCancel.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
             btnCancel.FlatAppearance.BorderSize         = 1;
             btnCancel.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
+
+            // Position buttons manually (right-anchored, vertically centred in footer)
+            pnlFooter.SizeChanged += (o, ev) =>
+            {
+                int btnTop   = (pnlFooter.ClientSize.Height - 60) / 2;
+                int rightEdge = pnlFooter.ClientSize.Width - 28;
+                btnConfirm.Location = new Point(rightEdge - 210,       btnTop);
+                btnCancel.Location  = new Point(rightEdge - 210 - 16 - 210, btnTop);
+            };
+            // Set initial position before the form is shown
+            int initialBtnTop   = (100 - 60) / 2;
+            int initialRight    = 1900 - 28;   // approximate; SizeChanged fires on load too
+            btnConfirm.Location = new Point(initialRight - 210,            initialBtnTop);
+            btnCancel.Location  = new Point(initialRight - 210 - 16 - 210, initialBtnTop);
 
             btnConfirm.Click += (o, ev) =>
             {
@@ -388,7 +413,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         }
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  Shared helpers — identical to ViewShipmentForm helpers
+        //  Shared helpers
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private static void AddDetailRow(
             TableLayoutPanel tbl, int row,
@@ -419,6 +444,23 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             Dock      = DockStyle.Fill,
             TextAlign = ContentAlignment.MiddleLeft,
             AutoSize  = false
+        };
+
+        /// <summary>
+        /// Multi-line value label — used for Ship Address to allow two-line wrapping.
+        /// </summary>
+        private static Label MakeLabelValMultiline(string text, Color? fg = null) => new Label
+        {
+            Text      = text ?? "—",
+            Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+            ForeColor = fg ?? Color.FromArgb(15, 31, 53),
+            Dock      = DockStyle.Fill,
+            TextAlign = ContentAlignment.TopLeft,
+            AutoSize  = false,
+            AutoEllipsis = false,
+            // Enable word-wrap so long addresses break to a second line
+            MaximumSize = new Size(0, 0),
+            Padding   = new Padding(0, 6, 0, 0)
         };
 
         private static void PaintBottomBorder(object sender, PaintEventArgs e)
