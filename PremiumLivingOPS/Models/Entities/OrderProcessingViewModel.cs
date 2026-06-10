@@ -141,6 +141,27 @@ namespace PremiumLivingOPS.Models.Entities
         public List<QuotationEntity> Quotations   { get; set; }
     }
 
+    /// <summary>
+    /// ViewModel for the Create New Quotation dialog.
+    /// Provides all lookup data needed to build the form.
+    /// </summary>
+    public class CreateQuotationViewModel
+    {
+        public UserBarViewModel     UserBar      { get; set; }
+        public string[]             AllowedMenus { get; set; }
+        public List<CustomerEntity> Customers    { get; set; }
+        public List<ProductLookup>  Products     { get; set; }
+
+        /// <summary>Pre-generated QuotationID in QUO-YYYYMMDD-NNNN format.</summary>
+        public string NextQuotationId            { get; set; }
+
+        /// <summary>Default sales staff name from current session.</summary>
+        public string SalesStaffName             { get; set; }
+
+        /// <summary>Default sales staff ID from current session.</summary>
+        public string SalesStaffId               { get; set; }
+    }
+
     public class CreateOrderViewModel
     {
         public UserBarViewModel      UserBar           { get; set; }
