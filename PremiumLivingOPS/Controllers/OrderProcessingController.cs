@@ -15,7 +15,7 @@ namespace PremiumLivingOPS.Controllers
     {
         private readonly OrderProcessingRepo _repo = new OrderProcessingRepo();
 
-        // ── View Order ─────────────────────────────────────────────────────────────────────────────────────
+        // ── View Order ──────────────────────────────────────────────────────────────────────────────────────
 
         /// <summary>
         /// Returns ViewModel for the View Order page.
@@ -54,7 +54,7 @@ namespace PremiumLivingOPS.Controllers
         public List<OrderLineEntity> GetOrderLines(string orderId)
             => _repo.GetOrderLines(orderId);
 
-        // ── Quotation ──────────────────────────────────────────────────────────────────────────────────
+        // ── Quotation ─────────────────────────────────────────────────────────────────────────────────
 
         /// <summary>
         /// Returns ViewModel for the Quotation list page.
@@ -75,8 +75,8 @@ namespace PremiumLivingOPS.Controllers
             {
                 string kw = keyword.ToLowerInvariant();
                 all = all.FindAll(q =>
-                    (q.QuotationID   ?? "").ToLowerInvariant().Contains(kw) ||
-                    (q.CustomerName  ?? "").ToLowerInvariant().Contains(kw));
+                    (q.QuotationID  ?? "").ToLowerInvariant().Contains(kw) ||
+                    (q.CustomerName ?? "").ToLowerInvariant().Contains(kw));
             }
 
             return new QuotationViewModel
@@ -110,8 +110,9 @@ namespace PremiumLivingOPS.Controllers
         // ── Create New Quotation ─────────────────────────────────────────────────────────────────
 
         /// <summary>
-        /// Returns ViewModel for the Create New Quotation dialog.
-        /// Provides all lookup data (customers, products) and a pre-generated QuotationID.
+        /// Returns the ViewModel for the Create New Quotation dialog.
+        /// Pre-populates the next QuotationID, sales staff info from session,
+        /// and lookup lists (Customers, Products).
         /// </summary>
         public CreateQuotationViewModel GetCreateQuotationVM()
         {
@@ -123,9 +124,9 @@ namespace PremiumLivingOPS.Controllers
                     DisplayName = user?.StaffName ?? "Unknown",
                     Department  = user?.Department ?? ""
                 },
-                AllowedMenus   = NavAccessPolicy.GetAllowedMenus(user?.Department ?? ""),
-                Customers      = _repo.GetAllCustomers(),
-                Products       = _repo.GetAllProducts(),
+                AllowedMenus    = NavAccessPolicy.GetAllowedMenus(user?.Department ?? ""),
+                Customers       = _repo.GetAllCustomers(),
+                Products        = _repo.GetAllProducts(),
                 NextQuotationId = GenerateQuotationId(),
                 SalesStaffName  = user?.StaffName ?? "",
                 SalesStaffId    = user?.StaffID   ?? ""
@@ -133,8 +134,8 @@ namespace PremiumLivingOPS.Controllers
         }
 
         /// <summary>
-        /// Generates the next QuotationID in the format QUO-YYYYMMDD-NNNN.
-        /// Queries the DB for the highest sequence number used today and increments it.
+        /// Generates the next Quotation ID in the format QUO-YYYYMMDD-NNNN.
+        /// Queries the DB for the highest sequence used today and increments by 1.
         /// </summary>
         public string GenerateQuotationId()
         {
@@ -153,22 +154,29 @@ namespace PremiumLivingOPS.Controllers
         }
 
         /// <summary>
-        /// Saves a new Quotation header + all line items in one DB transaction.
-        /// Returns true on success.
+        /// Saves a new Quotation header + all line items in one operation.
+        /// Returns true if the header INSERT succeeded (line items inserted best-effort).
         /// </summary>
-        public bool SaveNewQuotation(QuotationEntity header, List<QuotationItemEntity> items)
+        public bool SaveNewQuotation(QuotationEntity quotation,
+                                     List<QuotationItemEntity> items,
+                                     string salesStaffId)
         {
-            var user        = SessionManager.CurrentUser;
-            string staffId  = user?.StaffID ?? "";
-            return _repo.CreateQuotationWithItems(header, staffId, items);
+            quotation.QuotationStatus = "Pending";
+            if (!_repo.CreateQuotation(quotation, salesStaffId)) return false;
+            foreach (var item in items)
+            {
+                item.QuotationID = quotation.QuotationID;
+                _repo.CreateQuotationItem(item);
+            }
+            return true;
         }
 
-        // ── Create Order ────────────────────────────────────────────────────────────────────────
+        // ── Create Order ────────────────────────────────────────────────────────────────────────────────
 
         public CreateOrderViewModel GetCreateOrderVM()
         {
-            var user  = SessionManager.CurrentUser;
-            var allQ  = _repo.GetAllQuotations();
+            var user = SessionManager.CurrentUser;
+            var allQ = _repo.GetAllQuotations();
             return new CreateOrderViewModel
             {
                 UserBar = new UserBarViewModel
@@ -205,9 +213,9 @@ namespace PremiumLivingOPS.Controllers
         /// </summary>
         public string GenerateOrderId()
         {
-            string prefix = "ORD-" + DateTime.Today.ToString("yyyyMMdd") + "-";
-            var existing = _repo.GetOrderIdsByPrefix(prefix);
-            int next = 1;
+            string prefix   = "ORD-" + DateTime.Today.ToString("yyyyMMdd") + "-";
+            var    existing = _repo.GetOrderIdsByPrefix(prefix);
+            int    next     = 1;
             if (existing.Count > 0)
             {
                 foreach (var id in existing)
@@ -234,7 +242,7 @@ namespace PremiumLivingOPS.Controllers
             return true;
         }
 
-        // ── Modify Order ───────────────────────────────────────────────────────────────────────────────────
+        // ── Modify Order ─────────────────────────────────────────────────────────────────────────────────────
 
         public ModifyOrderViewModel GetModifyOrderVM(string orderId = null)
         {
