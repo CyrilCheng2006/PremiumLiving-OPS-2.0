@@ -241,8 +241,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             btnViewDetail      = MakePrimaryBtn("\U0001F50D  View Details",             Point.Empty, BtnW, BtnH);
             btnModify          = MakeWarningBtn("\u270F  Modify",                       Point.Empty, BtnW, BtnH);
-            btnGenDeliveryNote = MakeSuccessBtn("\U0001F4C4  Generate Delivery Note",   Point.Empty, BtnW, BtnH);
-            btnGenReplySlip    = MakeSuccessBtn("\U0001F9FE  Generate Reply Slip",      Point.Empty, BtnW, BtnH);
+            btnGenDeliveryNote = MakeSuccessBtn("\U0001F4C4  Delivery Note",   Point.Empty, BtnW, BtnH);
+            btnGenReplySlip    = MakeSuccessBtn("\U0001F9FE  Reply Slip",      Point.Empty, BtnW, BtnH);
 
             btnViewDetail.Enabled      = false;
             btnModify.Enabled          = false;
