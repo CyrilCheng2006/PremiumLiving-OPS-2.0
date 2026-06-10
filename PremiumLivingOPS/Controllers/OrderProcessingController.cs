@@ -15,7 +15,7 @@ namespace PremiumLivingOPS.Controllers
     {
         private readonly OrderProcessingRepo _repo = new OrderProcessingRepo();
 
-        // ── View Order ─────────────────────────────────────────────────────────────────────────
+        // ── View Order ─────────────────────────────────────────────────────────────────────────────────────
 
         /// <summary>
         /// Returns ViewModel for the View Order page.
@@ -54,10 +54,10 @@ namespace PremiumLivingOPS.Controllers
         public List<OrderLineEntity> GetOrderLines(string orderId)
             => _repo.GetOrderLines(orderId);
 
-        // ── Quotation ───────────────────────────────────────────────────────────────────────
+        // ── Quotation ──────────────────────────────────────────────────────────────────────────────────
 
         /// <summary>
-        /// Returns ViewModel for the Quotation page.
+        /// Returns ViewModel for the Quotation list page.
         /// Supports optional status filter and keyword search (QuotationID or CustomerName).
         /// Passing no arguments returns all quotations (used by RefreshKpi to get unfiltered counts).
         /// </summary>
@@ -107,7 +107,63 @@ namespace PremiumLivingOPS.Controllers
         public bool UpdateQuotationStatus(string quotationId, string newStatus)
             => _repo.UpdateQuotationStatus(quotationId, newStatus);
 
-        // ── Create Order ────────────────────────────────────────────────────────────────────
+        // ── Create New Quotation ─────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Returns ViewModel for the Create New Quotation dialog.
+        /// Provides all lookup data (customers, products) and a pre-generated QuotationID.
+        /// </summary>
+        public CreateQuotationViewModel GetCreateQuotationVM()
+        {
+            var user = SessionManager.CurrentUser;
+            return new CreateQuotationViewModel
+            {
+                UserBar = new UserBarViewModel
+                {
+                    DisplayName = user?.StaffName ?? "Unknown",
+                    Department  = user?.Department ?? ""
+                },
+                AllowedMenus   = NavAccessPolicy.GetAllowedMenus(user?.Department ?? ""),
+                Customers      = _repo.GetAllCustomers(),
+                Products       = _repo.GetAllProducts(),
+                NextQuotationId = GenerateQuotationId(),
+                SalesStaffName  = user?.StaffName ?? "",
+                SalesStaffId    = user?.StaffID   ?? ""
+            };
+        }
+
+        /// <summary>
+        /// Generates the next QuotationID in the format QUO-YYYYMMDD-NNNN.
+        /// Queries the DB for the highest sequence number used today and increments it.
+        /// </summary>
+        public string GenerateQuotationId()
+        {
+            string prefix   = "QUO-" + DateTime.Today.ToString("yyyyMMdd") + "-";
+            var    existing = _repo.GetQuotationIdsByPrefix(prefix);
+            int    next     = 1;
+            foreach (var id in existing)
+            {
+                if (id.Length >= prefix.Length + 4 &&
+                    int.TryParse(id.Substring(prefix.Length, 4), out int seq))
+                {
+                    if (seq >= next) next = seq + 1;
+                }
+            }
+            return $"{prefix}{next:D4}";
+        }
+
+        /// <summary>
+        /// Saves a new Quotation header + all line items in one DB transaction.
+        /// Returns true on success.
+        /// </summary>
+        public bool SaveNewQuotation(QuotationEntity header, List<QuotationItemEntity> items)
+        {
+            var user        = SessionManager.CurrentUser;
+            string staffId  = user?.StaffID ?? "";
+            return _repo.CreateQuotationWithItems(header, staffId, items);
+        }
+
+        // ── Create Order ────────────────────────────────────────────────────────────────────────
 
         public CreateOrderViewModel GetCreateOrderVM()
         {
@@ -178,7 +234,7 @@ namespace PremiumLivingOPS.Controllers
             return true;
         }
 
-        // ── Modify Order ───────────────────────────────────────────────────────────────────────────
+        // ── Modify Order ───────────────────────────────────────────────────────────────────────────────────
 
         public ModifyOrderViewModel GetModifyOrderVM(string orderId = null)
         {
