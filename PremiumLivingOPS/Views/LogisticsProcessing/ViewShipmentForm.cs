@@ -18,12 +18,23 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
     /// • All DB access delegated to LogisticsProcessingController (zero SQL here).
     /// • AppShell wired in Load — identical to ViewOrderForm.ViewOrderForm_Load.
     /// • CardPanel three-layer nesting: grey outer → white card → content.
-    /// • KPI pills + three action buttons: View Details | Modify | Delivery Note / Slip.
+    /// • KPI pills + four action buttons:
+    ///     View Details | Modify | Generate Delivery Note | Generate Reply Slip
     /// • ShowDetailDialog is the single entry point for both view AND modify:
     ///     – Edit Shipment: update Status + ActualRecipient + optional Remark.
     ///     – Delete Shipment: permanently removes shipment + child records.
     ///     – Mirrors ViewOrderForm.ShowDetailDialog layout (Size 2500×1100,
     ///       Percent column widths, multiline address label).
+    /// • Generate Delivery Note:
+    ///     – Creates a new DeliveryNote record for the selected shipment.
+    ///     – Blocked if a Delivery Note already exists for the shipment.
+    ///     – Data: ShipmentID, ShipDate (as DeliveryDate), sum of QtyOutstanding,
+    ///       ShippingAddress, CustomerName (as ShipToName).
+    /// • Generate Reply Slip:
+    ///     – Requires an existing Delivery Note.
+    ///     – Blocked if a Reply Slip already exists for that Delivery Note.
+    ///     – Prompts user for ActualRecipient and optional Remark.
+    ///     – ReceivedDate defaults to today.
     /// </summary>
     public partial class ViewShipmentForm : Form
     {
@@ -48,9 +59,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             this.Load += ViewShipmentForm_Load;
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         //  Load
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void ViewShipmentForm_Load(object sender, EventArgs e)
         {
             _shell.MenuItemClicked += OnTopNavMenuItemClicked;
@@ -58,9 +69,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             RefreshGrid();
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         //  Grid refresh
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void RefreshGrid()
         {
             string shipNo    = txtSearchShipmentNo.Text.Trim();
@@ -112,9 +123,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             RefreshGrid();
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         //  KPI pills
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void RefreshKpi()
         {
             pnlKpi.Controls.Clear();
@@ -200,20 +211,21 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlKpi.Controls.Add(flow);
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         //  Action button state
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void UpdateActionButtons()
         {
             bool sel = dgvShipments.SelectedRows.Count > 0;
             btnViewDetail.Enabled      = sel;
             btnModify.Enabled          = sel;
             btnGenDeliveryNote.Enabled = sel;
+            btnGenReplySlip.Enabled    = sel;
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         //  Grid events
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void dgvShipments_SelectionChanged(object sender, EventArgs e)
         {
             if (dgvShipments.SelectedRows.Count == 0) { _selectedDetail = null; UpdateActionButtons(); return; }
@@ -242,23 +254,23 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             if (e.RowIndex >= 0) ShowDetailDialog();
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         //  Selected shipment ID helper
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private string SelectedShipmentId()
         {
             if (dgvShipments.SelectedRows.Count == 0) return null;
             return dgvShipments.SelectedRows[0].Cells["colShipmentID"].Value?.ToString();
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         //  View Detail button  →  opens combined View + Modify dialog
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void btnViewDetail_Click(object sender, EventArgs e) => ShowDetailDialog();
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         //  Modify button  →  same dialog, edit panel pre-expanded
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void btnModify_Click(object sender, EventArgs e)
         {
             string id = SelectedShipmentId();
@@ -271,7 +283,281 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             ShowDetailDialog(openInEditMode: true);
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        //  Generate Delivery Note button
+        //
+        //  Business rules:
+        //  1. A shipment must be selected.
+        //  2. A Delivery Note must NOT already exist for this shipment.
+        //  3. Controller creates the DeliveryNote row; View shows the doc dialog on success.
+        //
+        //  Fields mapped from schema (DeliveryNote table):
+        //    DeliveryID       → auto-generated by Controller (DN-XXXX)
+        //    ShipmentID       → selected shipment
+        //    DeliveryDate     → shipment ShipDate
+        //    Outstanding_qty  → sum of ShipmentLine.QtyOutstanding
+        //    ShippingAddress  → Shipment.ShippingAddress
+        //    ShipToName       → Shipment.CustomerName
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        private void btnGenDeliveryNote_Click(object sender, EventArgs e)
+        {
+            if (_selectedDetail?.Shipment == null)
+            {
+                MessageBox.Show("Please select a shipment first.",
+                    "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            // Block if Delivery Note already exists
+            if (_selectedDetail.DeliveryNote != null)
+            {
+                MessageBox.Show(
+                    $"A Delivery Note ({_selectedDetail.DeliveryNote.DeliveryID}) already exists for this shipment.\n" +
+                    "Use \"View Details\" to view the existing document.",
+                    "Already Generated", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            var confirm = MessageBox.Show(
+                $"Generate a Delivery Note for shipment {_selectedDetail.Shipment.ShipmentID}?\n\n" +
+                $"Customer : {_selectedDetail.Shipment.CustomerName}\n" +
+                $"Ship Date: {_selectedDetail.Shipment.ShipDate:yyyy-MM-dd}\n" +
+                $"Address  : {_selectedDetail.Shipment.ShippingAddress}",
+                "Confirm Generate Delivery Note",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question);
+
+            if (confirm != DialogResult.Yes) return;
+
+            try
+            {
+                _ctrl.GenerateDeliveryNote(_selectedDetail);
+
+                // Reload detail so the new DN is reflected
+                _selectedDetail = _ctrl.GetShipmentDetail(_selectedDetail.Shipment.ShipmentID);
+
+                MessageBox.Show(
+                    $"Delivery Note {_selectedDetail.DeliveryNote?.DeliveryID} generated successfully.",
+                    "Generated", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                // Open the document dialog to preview the new Delivery Note
+                ShowDeliveryDocDialog(_selectedDetail);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to generate Delivery Note:\n{ex.Message}",
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        //  Generate Reply Slip button
+        //
+        //  Business rules:
+        //  1. A shipment must be selected.
+        //  2. A Delivery Note MUST already exist (Reply Slip requires DeliveryID FK).
+        //  3. A Reply Slip must NOT already exist for this Delivery Note.
+        //  4. Prompts for ActualRecipient (required) and RecipientRemark (optional).
+        //  5. ReceivedDate defaults to today.
+        //
+        //  Fields mapped from schema (ReplySlip table):
+        //    SlipID           → auto-generated by Controller (RS-XXXX)
+        //    DeliveryID       → existing DeliveryNote.DeliveryID
+        //    actualRecipient  → user input (required)
+        //    ReceivedDate     → DateTime.Today
+        //    RecipientRemark  → user input (optional)
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        private void btnGenReplySlip_Click(object sender, EventArgs e)
+        {
+            if (_selectedDetail?.Shipment == null)
+            {
+                MessageBox.Show("Please select a shipment first.",
+                    "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            // Must have a Delivery Note first
+            if (_selectedDetail.DeliveryNote == null)
+            {
+                MessageBox.Show(
+                    "A Delivery Note must be generated before creating a Reply Slip.\n" +
+                    "Please click \"Generate Delivery Note\" first.",
+                    "No Delivery Note", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            // Block if Reply Slip already exists
+            if (_selectedDetail.ReplySlip != null)
+            {
+                MessageBox.Show(
+                    $"A Reply Slip ({_selectedDetail.ReplySlip.SlipID}) already exists for Delivery Note " +
+                    $"{_selectedDetail.DeliveryNote.DeliveryID}.\n" +
+                    "Use \"View Details\" to view the existing document.",
+                    "Already Generated", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            // ── Input dialog: Actual Recipient (required) + Remark (optional) ────
+            string recipient = string.Empty;
+            string remark    = string.Empty;
+
+            using var inputDlg = new Form
+            {
+                Text            = "Generate Reply Slip",
+                Size            = new Size(560, 320),
+                StartPosition   = FormStartPosition.CenterParent,
+                BackColor       = Color.White,
+                Font            = new Font("Segoe UI", 12f),
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox     = false,
+                MinimizeBox     = false
+            };
+
+            var pnlInputHeader = new Panel
+            {
+                Dock = DockStyle.Top, Height = 56,
+                BackColor = Color.FromArgb(5, 95, 70),
+                Padding = new Padding(20, 0, 20, 0)
+            };
+            pnlInputHeader.Controls.Add(new Label
+            {
+                Text = $"Reply Slip  —  {_selectedDetail.DeliveryNote.DeliveryID}",
+                Font = new Font("Segoe UI", 13f, FontStyle.Bold),
+                ForeColor = Color.White, Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
+            });
+
+            var pnlInputBody = new Panel
+            {
+                Dock = DockStyle.Fill,
+                Padding = new Padding(24, 16, 24, 0),
+                BackColor = Color.White
+            };
+
+            var lblRecipient = new Label
+            {
+                Text = "Actual Recipient *",
+                Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(98, 112, 135),
+                Location = new Point(0, 4), AutoSize = true
+            };
+            var txtRecipient = new TextBox
+            {
+                Font = new Font("Segoe UI", 12f),
+                BorderStyle = BorderStyle.FixedSingle,
+                Location = new Point(0, 26), Size = new Size(490, 32),
+                PlaceholderText = "Full name of person who received the delivery"
+            };
+
+            var lblRemark = new Label
+            {
+                Text = "Remark (optional)",
+                Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(98, 112, 135),
+                Location = new Point(0, 72), AutoSize = true
+            };
+            var txtRemark = new TextBox
+            {
+                Font = new Font("Segoe UI", 12f),
+                BorderStyle = BorderStyle.FixedSingle,
+                Location = new Point(0, 94), Size = new Size(490, 32),
+                PlaceholderText = "e.g. Left at front desk"
+            };
+
+            var lblReceivedDate = new Label
+            {
+                Text = $"Received Date: {DateTime.Today:yyyy-MM-dd}  (today)",
+                Font = new Font("Segoe UI", 10f),
+                ForeColor = Color.FromArgb(98, 112, 135),
+                Location = new Point(0, 140), AutoSize = true
+            };
+
+            pnlInputBody.Controls.Add(lblRecipient);
+            pnlInputBody.Controls.Add(txtRecipient);
+            pnlInputBody.Controls.Add(lblRemark);
+            pnlInputBody.Controls.Add(txtRemark);
+            pnlInputBody.Controls.Add(lblReceivedDate);
+
+            var pnlInputFooter = new Panel
+            {
+                Dock = DockStyle.Bottom, Height = 64,
+                BackColor = Color.White, Padding = new Padding(0, 10, 20, 10)
+            };
+            pnlInputFooter.Paint += PaintTopBorderStatic;
+
+            bool confirmed = false;
+            var btnConfirm = new Button
+            {
+                Text = "\u2714  Confirm",
+                Font = new Font("Segoe UI", 11f, FontStyle.Bold),
+                ForeColor = Color.White, BackColor = Color.FromArgb(5, 150, 105),
+                FlatStyle = FlatStyle.Flat, Dock = DockStyle.Right,
+                Width = 150, Cursor = Cursors.Hand
+            };
+            btnConfirm.FlatAppearance.BorderSize = 0;
+            btnConfirm.FlatAppearance.MouseOverBackColor = Color.FromArgb(4, 120, 87);
+            btnConfirm.Click += (o, ev) =>
+            {
+                if (string.IsNullOrWhiteSpace(txtRecipient.Text))
+                {
+                    MessageBox.Show("Actual Recipient is required.",
+                        "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+                recipient = txtRecipient.Text.Trim();
+                remark    = txtRemark.Text.Trim();
+                confirmed = true;
+                inputDlg.Close();
+            };
+
+            var btnCancel = new Button
+            {
+                Text = "Cancel",
+                Font = new Font("Segoe UI", 11f),
+                ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White,
+                FlatStyle = FlatStyle.Flat, Dock = DockStyle.Right,
+                Width = 110, Cursor = Cursors.Hand
+            };
+            btnCancel.FlatAppearance.BorderColor = Color.FromArgb(221, 227, 236);
+            btnCancel.FlatAppearance.BorderSize  = 1;
+            btnCancel.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
+            btnCancel.Click += (o, ev) => inputDlg.Close();
+
+            pnlInputFooter.Controls.Add(btnConfirm);
+            pnlInputFooter.Controls.Add(btnCancel);
+
+            inputDlg.Controls.Add(pnlInputBody);
+            inputDlg.Controls.Add(pnlInputHeader);
+            inputDlg.Controls.Add(pnlInputFooter);
+            inputDlg.ShowDialog(this);
+
+            if (!confirmed) return;
+
+            try
+            {
+                _ctrl.GenerateReplySlip(
+                    _selectedDetail.DeliveryNote.DeliveryID,
+                    recipient,
+                    remark);
+
+                // Reload detail so the new RS is reflected
+                _selectedDetail = _ctrl.GetShipmentDetail(_selectedDetail.Shipment.ShipmentID);
+
+                MessageBox.Show(
+                    $"Reply Slip {_selectedDetail.ReplySlip?.SlipID} generated successfully.",
+                    "Generated", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                // Open the document dialog to preview the completed Delivery Note + Reply Slip
+                ShowDeliveryDocDialog(_selectedDetail);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to generate Reply Slip:\n{ex.Message}",
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         //  SHIPMENT DETAIL + MODIFY DIALOG
         //
         //  Layout (top → bottom, DockStyle):
@@ -283,7 +569,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         //    dgv                Fill      — shipment items DataGridView
         //    pnlTotalRow        Bottom 50 — total amount
         //    pnlFooter          Bottom 80 — [Save Changes] [Delete] [Close]
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void ShowDetailDialog(bool openInEditMode = false)
         {
             if (_selectedDetail?.Shipment == null)
@@ -300,7 +586,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             var s = detail.Shipment;
             StatusColors.TryGetValue(s.ShipmentStatus ?? "", out var sc);
 
-            // Track whether a save/delete occurred so grid refreshes on close
             bool needsRefresh = false;
 
             using var dlg = new Form
@@ -315,7 +600,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 MinimizeBox     = false
             };
 
-            // ── Header ────────────────────────────────────────────────────
+            // ── Header ─────────────────────────────────────────────────────────────
             var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 80, BackColor = Color.FromArgb(19, 35, 61) };
             var tblHeader = new TableLayoutPanel
             {
@@ -328,7 +613,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             tblHeader.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
             tblHeader.Controls.Add(new Label
             {
-                Text = $"Shipment Details  \u2014  {s.ShipmentID}",
+                Text = $"Shipment Details  —  {s.ShipmentID}",
                 Font = new Font("Segoe UI", 18f, FontStyle.Bold),
                 ForeColor = Color.White, Dock = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
@@ -345,7 +630,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             tblHeader.Controls.Add(lblStatusBadge, 1, 0);
             pnlHeader.Controls.Add(tblHeader);
 
-            // ── Info panel (read-only, mirrors ViewOrderForm) ─────────────
+            // ── Info panel (read-only, mirrors ViewOrderForm) ──────────────────
             var pnlInfo = new Panel
             {
                 Dock = DockStyle.Top, Height = 340,
@@ -409,7 +694,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }
             pnlInfo.Controls.Add(tblInfo);
 
-            // ── DeliveryNote strip ─────────────────────────────────────────
+            // ── DeliveryNote strip ──────────────────────────────────────────────
             Panel pnlDN = null;
             if (detail.DeliveryNote != null)
             {
@@ -463,8 +748,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 pnlDN.Controls.Add(tblDN);
             }
 
-            // ── EDIT SHIPMENT section ──────────────────────────────────────
-            // Section title bar (clickable toggle)
+            // ── EDIT SHIPMENT section ───────────────────────────────────────────
             var pnlEditTitle = new Panel
             {
                 Dock      = DockStyle.Top,
@@ -487,7 +771,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             };
             pnlEditTitle.Controls.Add(lblEditToggle);
 
-            // Edit body panel (collapsible)
             var pnlEditBody = new Panel
             {
                 Dock      = DockStyle.Top,
@@ -497,7 +780,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 Visible   = openInEditMode
             };
 
-            // Status ComboBox
             var lblStatusEdit = MakeLabelKey("Status *");
             lblStatusEdit.AutoSize = true;
             lblStatusEdit.Dock     = DockStyle.None;
@@ -514,7 +796,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             int si = cboStatusEdit.FindStringExact(s.ShipmentStatus);
             cboStatusEdit.SelectedIndex = si >= 0 ? si : 0;
 
-            // Actual Recipient TextBox
             var lblRecipEdit = MakeLabelKey("Actual Recipient");
             lblRecipEdit.AutoSize = true;
             lblRecipEdit.Dock     = DockStyle.None;
@@ -529,7 +810,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 Text        = detail.ReplySlip?.ActualRecipient ?? string.Empty
             };
 
-            // Remark TextBox
             var lblRemarkEdit = MakeLabelKey("Remark");
             lblRemarkEdit.AutoSize = true;
             lblRemarkEdit.Dock     = DockStyle.None;
@@ -551,7 +831,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlEditBody.Controls.Add(lblRemarkEdit);
             pnlEditBody.Controls.Add(txtRemarkEdit);
 
-            // Toggle expand/collapse
             bool editExpanded = openInEditMode;
             EventHandler toggleEdit = (o, ev) =>
             {
@@ -562,10 +841,10 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                     ? "\u25BC  Edit Shipment"
                     : "\u25BA  Edit Shipment";
             };
-            pnlEditTitle.Click    += toggleEdit;
-            lblEditToggle.Click   += toggleEdit;
+            pnlEditTitle.Click  += toggleEdit;
+            lblEditToggle.Click += toggleEdit;
 
-            // ── SHIPMENT ITEMS label bar ───────────────────────────────────
+            // ── SHIPMENT ITEMS label bar ──────────────────────────────────────
             var pnlLineLabel = new Panel
             {
                 Dock = DockStyle.Top, Height = 40,
@@ -580,7 +859,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             });
             pnlLineLabel.Paint += PaintBottomBorderStatic;
 
-            // ── Items grid ────────────────────────────────────────────────
+            // ── Items grid ─────────────────────────────────────────────────────
             var dgv = new DataGridView
             {
                 ReadOnly = true, AllowUserToAddRows = false, RowHeadersVisible = false,
@@ -613,7 +892,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 dgv.Rows.Add(line.ShipmentLineID, line.ItemID, line.ItemName,
                              line.QtyShipped, line.QtyOutstanding ?? 0);
 
-            // ── Total row ─────────────────────────────────────────────────
+            // ── Total row ─────────────────────────────────────────────────────────
             var pnlTotalRow = new Panel
             {
                 Dock = DockStyle.Bottom, Height = 50,
@@ -630,7 +909,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 AutoSize  = false
             });
 
-            // ── Footer — [Save Changes] [Delete Shipment] [Close] ─────────
+            // ── Footer — [Save Changes] [Delete Shipment] [Close] ───────────
             var pnlFooter = new Panel
             {
                 Dock = DockStyle.Bottom, Height = 80,
@@ -676,7 +955,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             btnClose.FlatAppearance.BorderSize         = 1;
             btnClose.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
 
-            // Save handler
             btnSave.Click += (o, ev) =>
             {
                 if (!editExpanded)
@@ -702,7 +980,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 {
                     _ctrl.UpdateShipment(s.ShipmentID, newStatus, recipient, remark);
 
-                    // Refresh header badge
                     StatusColors.TryGetValue(newStatus, out var nsc);
                     lblStatusBadge.Text      = newStatus;
                     lblStatusBadge.ForeColor = nsc.fg != default ? nsc.fg : Color.White;
@@ -721,7 +998,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 }
             };
 
-            // Delete handler
             btnDelete.Click += (o, ev) =>
             {
                 var confirm = MessageBox.Show(
@@ -753,7 +1029,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlFooter.Controls.Add(btnDelete);
             pnlFooter.Controls.Add(btnSave);
 
-            // ── Assemble (Bottom → Fill → Top in DockStyle priority order) ─
+            // ── Assemble (Bottom → Fill → Top in DockStyle priority order) ───
             dlg.Controls.Add(dgv);
             dlg.Controls.Add(pnlTotalRow);
             dlg.Controls.Add(pnlLineLabel);
@@ -766,32 +1042,13 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             dlg.ShowDialog(this);
 
-            // Refresh grid if any mutation occurred
             if (needsRefresh) RefreshGrid();
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  Delivery Note / Reply Slip document dialog (unchanged)
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        private void btnGenDeliveryNote_Click(object sender, EventArgs e)
-        {
-            if (_selectedDetail?.Shipment == null)
-            {
-                MessageBox.Show("Please select a shipment first.",
-                    "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
-            if (_selectedDetail.DeliveryNote == null)
-            {
-                MessageBox.Show(
-                    "No Delivery Note is linked to this shipment yet.\n" +
-                    "A Delivery Note is issued when the shipment is dispatched.",
-                    "No Delivery Note", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
-            ShowDeliveryDocDialog(_selectedDetail);
-        }
-
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        //  Delivery Document dialog  —  shows full Delivery Note + optional Reply Slip
+        //  Called after successful Generate, or directly from View Details.
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void ShowDeliveryDocDialog(ShipmentDetailVM d)
         {
             var s  = d.Shipment;
@@ -809,7 +1066,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             using var dlg = new Form
             {
-                Text = $"Delivery Note \u2014 {dn.DeliveryID}",
+                Text = $"Delivery Note — {dn.DeliveryID}",
                 Size = new Size(1060, dlgH),
                 StartPosition = FormStartPosition.CenterParent,
                 BackColor = Color.White, Font = new Font("Segoe UI", 13f),
@@ -829,7 +1086,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             tblH.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
             tblH.Controls.Add(new Label
             {
-                Text = $"Delivery Note  \u2014  {dn.DeliveryID}",
+                Text = $"Delivery Note  —  {dn.DeliveryID}",
                 Font = new Font("Segoe UI", 18f, FontStyle.Bold),
                 ForeColor = Color.White, Dock = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
@@ -880,7 +1137,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
                 pnlRS.Controls.Add(new Label
                 {
-                    Text = "REPLY SLIP \u2014 RECEIPT CONFIRMATION",
+                    Text = "REPLY SLIP — RECEIPT CONFIRMATION",
                     Font = new Font("Segoe UI", 9f, FontStyle.Bold),
                     ForeColor = Color.FromArgb(6, 95, 70),
                     Dock = DockStyle.Top, Height = 30,
@@ -991,9 +1248,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             dlg.ShowDialog(this);
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         //  Nav / Logout
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
             => FormNavigator.NavigateTo(this, menuLabel, subItem);
 
@@ -1003,9 +1260,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             Application.Restart();
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         //  Static dialog helpers
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private static void AddDetailRow(
             TableLayoutPanel tbl, int row,
             string key1, string val1, string key2, string val2,
