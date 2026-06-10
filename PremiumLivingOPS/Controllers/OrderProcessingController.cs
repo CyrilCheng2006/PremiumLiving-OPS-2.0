@@ -54,12 +54,11 @@ namespace PremiumLivingOPS.Controllers
         public List<OrderLineEntity> GetOrderLines(string orderId)
             => _repo.GetOrderLines(orderId);
 
-        // ── Quotation ─────────────────────────────────────────────────────────────────────────────────
+        // ── Quotation ───────────────────────────────────────────────────────────────────────────────────
 
         /// <summary>
         /// Returns ViewModel for the Quotation list page.
         /// Supports optional status filter and keyword search (QuotationID or CustomerName).
-        /// Passing no arguments returns all quotations (used by RefreshKpi to get unfiltered counts).
         /// </summary>
         public QuotationViewModel GetQuotationVM(
             string status  = null,
@@ -107,12 +106,11 @@ namespace PremiumLivingOPS.Controllers
         public bool UpdateQuotationStatus(string quotationId, string newStatus)
             => _repo.UpdateQuotationStatus(quotationId, newStatus);
 
-        // ── Create New Quotation ─────────────────────────────────────────────────────────────────
+        // ── Create New Quotation ───────────────────────────────────────────────────────────────────
 
         /// <summary>
-        /// Returns the ViewModel for the Create New Quotation dialog.
-        /// Pre-populates the next QuotationID, sales staff info from session,
-        /// and lookup lists (Customers, Products).
+        /// Returns ViewModel for the Create New Quotation dialog.
+        /// Provides lookup data (Customers, Products) and a pre-generated QuotationID.
         /// </summary>
         public CreateQuotationViewModel GetCreateQuotationVM()
         {
@@ -135,7 +133,7 @@ namespace PremiumLivingOPS.Controllers
 
         /// <summary>
         /// Generates the next Quotation ID in the format QUO-YYYYMMDD-NNNN.
-        /// Queries the DB for the highest sequence used today and increments by 1.
+        /// Queries the DB for the highest sequence number used today and increments it.
         /// </summary>
         public string GenerateQuotationId()
         {
@@ -154,14 +152,14 @@ namespace PremiumLivingOPS.Controllers
         }
 
         /// <summary>
-        /// Saves a new Quotation header + all line items in one operation.
-        /// Returns true if the header INSERT succeeded (line items inserted best-effort).
+        /// Saves a new Quotation header + all line items.
+        /// salesStaffId must be the PK from Staff table (StaffID).
+        /// Returns true on success.
         /// </summary>
         public bool SaveNewQuotation(QuotationEntity quotation,
                                      List<QuotationItemEntity> items,
                                      string salesStaffId)
         {
-            quotation.QuotationStatus = "Pending";
             if (!_repo.CreateQuotation(quotation, salesStaffId)) return false;
             foreach (var item in items)
             {
@@ -171,12 +169,12 @@ namespace PremiumLivingOPS.Controllers
             return true;
         }
 
-        // ── Create Order ────────────────────────────────────────────────────────────────────────────────
+        // ── Create Order ───────────────────────────────────────────────────────────────────────────
 
         public CreateOrderViewModel GetCreateOrderVM()
         {
-            var user = SessionManager.CurrentUser;
-            var allQ = _repo.GetAllQuotations();
+            var user  = SessionManager.CurrentUser;
+            var allQ  = _repo.GetAllQuotations();
             return new CreateOrderViewModel
             {
                 UserBar = new UserBarViewModel
@@ -208,8 +206,6 @@ namespace PremiumLivingOPS.Controllers
 
         /// <summary>
         /// Generates the next Order ID in the format ORD-YYYYMMDD-NNNN.
-        /// Queries the DB for the highest sequence number used today and increments it.
-        /// Pure business logic — lives in Controller, not in View.
         /// </summary>
         public string GenerateOrderId()
         {
