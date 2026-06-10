@@ -27,7 +27,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
     ///     – pnlFooter      Bottom 80 — [✔ Confirm Generate] [Cancel]
     /// • Blocked (Confirm disabled + warning strip) if a Delivery Note already exists.
     /// • On Confirm: calls _ctrl.GenerateDeliveryNote(), sets DialogResult.OK.
-    /// • Size: 1200 × 860, StartPosition CenterParent.
+    /// • Size: 1500 × 700, StartPosition CenterParent.
     /// </summary>
     public partial class GenerateDeliveryNoteForm : Form
     {
@@ -68,7 +68,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             // ── Form properties ────────────────────────────────────────────────
             this.Text            = $"Generate Delivery Note  —  {s?.ShipmentID}";
-            this.Size            = new Size(1200, 860);
+            this.Size            = new Size(1500, 700);
             this.StartPosition   = FormStartPosition.CenterParent;
             this.BackColor       = Color.White;
             this.Font            = new Font("Segoe UI", 13f);
