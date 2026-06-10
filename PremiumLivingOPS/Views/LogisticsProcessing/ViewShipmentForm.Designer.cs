@@ -26,6 +26,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         private Button btnViewDetail;
         private Button btnModify;
         private Button btnGenDeliveryNote;
+        private Button btnGenReplySlip;
 
         // ── Main grid ─────────────────────────────────────────────────────
         private DataGridView dgvShipments;
@@ -93,11 +94,11 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             chkDateFrom = new CheckBox { Text = "", Width = 24, Checked = false, Cursor = Cursors.Hand };
             dtpDateFrom = new DateTimePicker
             {
-                Format = DateTimePickerFormat.Short,
-                Value  = DateTime.Today.AddMonths(-1),
-                Font   = new Font("Segoe UI", 12f),
+                Format  = DateTimePickerFormat.Short,
+                Value   = DateTime.Today.AddMonths(-1),
+                Font    = new Font("Segoe UI", 12f),
                 Enabled = false,
-                Dock   = DockStyle.Fill
+                Dock    = DockStyle.Fill
             };
             chkDateFrom.CheckedChanged += (s, e) => { dtpDateFrom.Enabled = chkDateFrom.Checked; };
 
@@ -162,15 +163,15 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             tblFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
             tblFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
             tblFields.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-            tblFields.Controls.Add(MakeCell("Shipment No.", txtSearchShipmentNo), 0, 0);
-            tblFields.Controls.Add(MakeCell("Customer / Order", txtSearchCustomer), 1, 0);
-            tblFields.Controls.Add(MakeCell("Status",   cboStatus),    2, 0);
-            tblFields.Controls.Add(cellDate,                            3, 0);
+            tblFields.Controls.Add(MakeCell("Shipment No.",      txtSearchShipmentNo), 0, 0);
+            tblFields.Controls.Add(MakeCell("Customer / Order",  txtSearchCustomer),   1, 0);
+            tblFields.Controls.Add(MakeCell("Status",            cboStatus),           2, 0);
+            tblFields.Controls.Add(cellDate,                                           3, 0);
 
             // ── Search / Reset buttons (identical to ViewOrderForm) ────────
             var pnlBtns = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             btnSearch  = MakePrimaryBtn("\U0001F50D  Search", new Point(0,   0), 210, 60);
-            btnRefresh = MakeOutlineBtn("\u21BA  Reset",   new Point(218, 0), 210, 60);
+            btnRefresh = MakeOutlineBtn("\u21BA  Reset",      new Point(218, 0), 210, 60);
             btnSearch.Click  += (s, e) => RefreshGrid();
             btnRefresh.Click += (s, e) => ResetFilters();
             pnlBtns.Controls.Add(btnSearch);
@@ -222,7 +223,10 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             //  KPI bar + action buttons
             //  Left  : pnlKpi  (DockStyle.Fill  — pill FlowLayout)
-            //  Right : btnViewDetail + btnModify + btnGenDeliveryNote side-by-side
+            //  Right : 4 action buttons side-by-side
+            //    [View Details] [Modify] [Generate Delivery Note] [Generate Reply Slip]
+            //  Width = pad + btn*4 + gap*3 + pad
+            //        = 12 + 290*4 + 8*3 + 12 = 1208
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             pnlKpi = new Panel
             {
@@ -235,24 +239,26 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             const int BtnGap = 8;
             const int BtnPad = 12;
 
-            btnViewDetail      = MakePrimaryBtn("\U0001F50D  View Details",        Point.Empty, BtnW, BtnH);
-            btnModify          = MakeWarningBtn("\u270F  Modify",                  Point.Empty, BtnW, BtnH);
-            btnGenDeliveryNote = MakeSuccessBtn("\U0001F4C4  Delivery Note / Slip", Point.Empty, BtnW, BtnH);
+            btnViewDetail      = MakePrimaryBtn("\U0001F50D  View Details",             Point.Empty, BtnW, BtnH);
+            btnModify          = MakeWarningBtn("\u270F  Modify",                       Point.Empty, BtnW, BtnH);
+            btnGenDeliveryNote = MakeSuccessBtn("\U0001F4C4  Generate Delivery Note",   Point.Empty, BtnW, BtnH);
+            btnGenReplySlip    = MakeSuccessBtn("\U0001F9FE  Generate Reply Slip",      Point.Empty, BtnW, BtnH);
 
             btnViewDetail.Enabled      = false;
             btnModify.Enabled          = false;
             btnGenDeliveryNote.Enabled = false;
+            btnGenReplySlip.Enabled    = false;
 
             btnViewDetail.Click      += btnViewDetail_Click;
             btnModify.Click          += btnModify_Click;
             btnGenDeliveryNote.Click += btnGenDeliveryNote_Click;
+            btnGenReplySlip.Click    += btnGenReplySlip_Click;
 
-            // Width = pad + btn + gap + btn + gap + btn + pad
-            //       = 12 + 290 + 8 + 290 + 8 + 290 + 12 = 910
+            // Width = 12 + 290 + 8 + 290 + 8 + 290 + 8 + 290 + 12 = 1208
             var pnlActionBtns = new Panel
             {
                 Dock      = DockStyle.Right,
-                Width     = BtnPad + BtnW + BtnGap + BtnW + BtnGap + BtnW + BtnPad,
+                Width     = BtnPad + BtnW + BtnGap + BtnW + BtnGap + BtnW + BtnGap + BtnW + BtnPad,
                 BackColor = Color.Transparent
             };
 
@@ -263,10 +269,12 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 btnViewDetail.Location      = new Point(BtnPad, top);
                 btnModify.Location          = new Point(BtnPad + BtnW + BtnGap, top);
                 btnGenDeliveryNote.Location = new Point(BtnPad + BtnW + BtnGap + BtnW + BtnGap, top);
+                btnGenReplySlip.Location    = new Point(BtnPad + BtnW + BtnGap + BtnW + BtnGap + BtnW + BtnGap, top);
             }
             pnlActionBtns.Controls.Add(btnViewDetail);
             pnlActionBtns.Controls.Add(btnModify);
             pnlActionBtns.Controls.Add(btnGenDeliveryNote);
+            pnlActionBtns.Controls.Add(btnGenReplySlip);
             pnlActionBtns.Resize += (s, e) => CentreActionBtns();
 
             var pnlKpiRow = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
