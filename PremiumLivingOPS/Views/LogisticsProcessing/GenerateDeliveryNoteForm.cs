@@ -18,8 +18,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
     /// • Fully inline-rendered dialog following ShowDetailDialog visual language:
     ///     – pnlHeader      Top  80   — dark navy, Shipment ID + status badge
     ///     – pnlInfo        Top  220  — read-only 4-col TLP: Shipment fields
-    ///     – pnlDNPreview   Top  180  — delivery note preview (fields to be generated)
-    ///     – pnlAlreadyWarn Top  50   — warning strip (visible only if DN exists)
+    ///     – pnlDNTitle     Top  44   — green title bar
+    ///     – pnlDNBody      Top  140  — delivery note preview fields
+    ///     – pnlWarn        Top  48/0 — warning strip (visible only if DN exists)
     ///     – pnlLineLabel   Top  40   — "SHIPMENT ITEMS" bar
     ///     – dgv            Fill      — shipment items grid
     ///     – pnlTotalRow    Bottom 50 — total amount
@@ -28,7 +29,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
     /// • On Confirm: calls _ctrl.GenerateDeliveryNote(), sets DialogResult.OK.
     /// • Size: 1200 × 860, StartPosition CenterParent.
     /// </summary>
-    public class GenerateDeliveryNoteForm : Form
+    public partial class GenerateDeliveryNoteForm : Form
     {
         private readonly LogisticsProcessingController _ctrl =
             new LogisticsProcessingController();
@@ -48,6 +49,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         public GenerateDeliveryNoteForm(ShipmentDetailVM vm)
         {
             _vm = vm ?? throw new ArgumentNullException(nameof(vm));
+            InitializeComponent();
             BuildDialog();
         }
 
@@ -140,14 +142,13 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             for (int r = 0; r < 4; r++)
                 tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 25f));
 
-            AddDetailRow(tblInfo, 0, "Shipment ID:",    s?.ShipmentID,                        "Order ID:",       s?.OrderID);
-            AddDetailRow(tblInfo, 1, "Customer:",       s?.CustomerName,                      "Tracking No.:",   s?.TrackingNumber);
-            AddDetailRow(tblInfo, 2, "Ship Date:",      s?.ShipDate.ToString("yyyy-MM-dd"),   "Delivery Method:", s?.DeliveryMethod);
-            AddDetailRow(tblInfo, 3, "Status:",         s?.ShipmentStatus,                    "Ship Type:",      s?.ShipmentType);
+            AddDetailRow(tblInfo, 0, "Shipment ID:",    s?.ShipmentID,                       "Order ID:",        s?.OrderID);
+            AddDetailRow(tblInfo, 1, "Customer:",       s?.CustomerName,                     "Tracking No.:",    s?.TrackingNumber);
+            AddDetailRow(tblInfo, 2, "Ship Date:",      s?.ShipDate.ToString("yyyy-MM-dd"),  "Delivery Method:", s?.DeliveryMethod);
+            AddDetailRow(tblInfo, 3, "Status:",         s?.ShipmentStatus,                   "Ship Type:",       s?.ShipmentType);
             pnlInfo.Controls.Add(tblInfo);
 
-            // ── Delivery Note Preview panel ────────────────────────────────────
-            // Title bar (matches pnlEditTitle in ShowDetailDialog)
+            // ── Delivery Note Preview title bar ────────────────────────────────
             var pnlDNTitle = new Panel
             {
                 Dock      = DockStyle.Top,
@@ -166,7 +167,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 AutoSize  = false
             });
 
-            // Preview body (4-col TLP, matches pnlEditBody style)
+            // ── Delivery Note Preview body ───────────────────────────────────
             var pnlDNBody = new Panel
             {
                 Dock      = DockStyle.Top,
@@ -192,12 +193,12 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 tblDN.RowStyles.Add(new RowStyle(SizeType.Percent, 33.3f));
 
             // DeliveryDate = ShipDate; ShipToName = CustomerName (per schema logic)
-            AddDetailRow(tblDN, 0, "Delivery Date:",   s?.ShipDate.ToString("yyyy-MM-dd"),   "Ship To:",         s?.CustomerName);
-            AddDetailRow(tblDN, 1, "Ship Address:",    s?.ShippingAddress,                   "Outstanding Qty:", outQty.ToString());
-            AddDetailRow(tblDN, 2, "Delivery Method:", s?.DeliveryMethod,                    "Shipment Type:",   s?.ShipmentType);
+            AddDetailRow(tblDN, 0, "Delivery Date:",   s?.ShipDate.ToString("yyyy-MM-dd"),  "Ship To:",         s?.CustomerName);
+            AddDetailRow(tblDN, 1, "Ship Address:",    s?.ShippingAddress,                  "Outstanding Qty:", outQty.ToString());
+            AddDetailRow(tblDN, 2, "Delivery Method:", s?.DeliveryMethod,                   "Shipment Type:",   s?.ShipmentType);
             pnlDNBody.Controls.Add(tblDN);
 
-            // ── Already-Exists Warning strip ──────────────────────────────────
+            // ── Already-Exists Warning strip ─────────────────────────────────
             bool alreadyExists = _vm.DeliveryNote != null;
             var pnlWarn = new Panel
             {
@@ -222,7 +223,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 });
             }
 
-            // ── SHIPMENT ITEMS label bar ───────────────────────────────────────
+            // ── SHIPMENT ITEMS label bar ─────────────────────────────────────
             var pnlLineLabel = new Panel
             {
                 Dock      = DockStyle.Top,
@@ -240,22 +241,22 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             });
             pnlLineLabel.Paint += PaintBottomBorder;
 
-            // ── Items grid ────────────────────────────────────────────────────
+            // ── Items grid ─────────────────────────────────────────────────
             var dgv = new DataGridView
             {
-                ReadOnly                = true,
-                AllowUserToAddRows      = false,
-                RowHeadersVisible       = false,
-                SelectionMode           = DataGridViewSelectionMode.FullRowSelect,
-                BackgroundColor         = Color.White,
-                BorderStyle             = BorderStyle.None,
-                GridColor               = Color.FromArgb(221, 227, 236),
-                Font                    = new Font("Segoe UI", 12f),
-                AutoSizeColumnsMode     = DataGridViewAutoSizeColumnsMode.Fill,
-                CellBorderStyle         = DataGridViewCellBorderStyle.SingleHorizontal,
-                RowTemplate             = { Height = 44 },
-                Dock                    = DockStyle.Fill,
-                ColumnHeadersHeight     = 40,
+                ReadOnly                  = true,
+                AllowUserToAddRows        = false,
+                RowHeadersVisible         = false,
+                SelectionMode             = DataGridViewSelectionMode.FullRowSelect,
+                BackgroundColor           = Color.White,
+                BorderStyle               = BorderStyle.None,
+                GridColor                 = Color.FromArgb(221, 227, 236),
+                Font                      = new Font("Segoe UI", 12f),
+                AutoSizeColumnsMode       = DataGridViewAutoSizeColumnsMode.Fill,
+                CellBorderStyle           = DataGridViewCellBorderStyle.SingleHorizontal,
+                RowTemplate               = { Height = 44 },
+                Dock                      = DockStyle.Fill,
+                ColumnHeadersHeight       = 40,
                 EnableHeadersVisualStyles = false,
                 ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
                 {
@@ -282,7 +283,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 dgv.Rows.Add(line.ShipmentLineID, line.ItemID, line.ItemName,
                              line.QtyShipped, line.QtyOutstanding ?? 0);
 
-            // ── Total row ─────────────────────────────────────────────────────
+            // ── Total row ──────────────────────────────────────────────────
             var pnlTotalRow = new Panel
             {
                 Dock      = DockStyle.Bottom,
@@ -300,7 +301,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 AutoSize  = false
             });
 
-            // ── Footer — [✔ Confirm Generate] [Cancel] ────────────────────────
+            // ── Footer — [✔ Confirm Generate] [Cancel] ───────────────────
             var pnlFooter = new Panel
             {
                 Dock      = DockStyle.Bottom,
@@ -374,9 +375,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlFooter.Controls.Add(btnConfirm);
             pnlFooter.Controls.Add(btnCancel);
 
-            // ── Assemble (Bottom → Fill → Top in DockStyle priority order) ────
-            // Add Fill control first, then Top controls in reverse display order,
-            // then Bottom controls last (they will be placed at bottom).
+            // ── Assemble (Bottom → Fill → Top in DockStyle priority order) ───
             this.Controls.Add(dgv);
             this.Controls.Add(pnlTotalRow);
             this.Controls.Add(pnlLineLabel);

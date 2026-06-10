@@ -1,8 +1,8 @@
 namespace PremiumLivingOPS.Views.LogisticsProcessing
 {
     /// <summary>
-    /// Designer stub — all UI is built inline in GenerateDeliveryNoteForm.cs.
-    /// This file is intentionally minimal; no designer-generated controls exist.
+    /// Designer stub — all UI is built inline in GenerateDeliveryNoteForm.cs (BuildDialog).
+    /// No designer-generated controls exist; this file satisfies the partial class contract only.
     /// </summary>
     partial class GenerateDeliveryNoteForm
     {
@@ -19,7 +19,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         {
             this.SuspendLayout();
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            this.AutoScaleMode       = System.Windows.Forms.AutoScaleMode.Font;
             this.ResumeLayout(false);
         }
     }
