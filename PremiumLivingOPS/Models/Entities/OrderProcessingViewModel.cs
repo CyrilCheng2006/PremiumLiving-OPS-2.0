@@ -56,10 +56,16 @@ namespace PremiumLivingOPS.Models.Entities
         public List<QuotationItemEntity> Items   { get; set; }
     }
 
-    /// <summary>One line item inside a Quotation (maps to QuotationItem table).</summary>
+    /// <summary>
+    /// One line item inside a Quotation.
+    /// ItemID references Item(ItemID) / Product(ItemID) in the DB.
+    /// ProductName is the display name carried from Item.ItemName.
+    /// </summary>
     public class QuotationItemEntity
     {
         public string QuotationID      { get; set; }
+        /// <summary>FK → Item.ItemID (also Product.ItemID). Used when converting to OrderLine.</summary>
+        public string ItemID           { get; set; }
         public string ProductName      { get; set; }
         public int    Quantity         { get; set; }
         public string Unit             { get; set; }
