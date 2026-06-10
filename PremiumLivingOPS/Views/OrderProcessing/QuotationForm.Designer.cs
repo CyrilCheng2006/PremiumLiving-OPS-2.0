@@ -17,7 +17,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         private Panel           pnlKpi;
         private DataGridView    dgvQuotations;
         private Button          btnViewDetail;
-        private Button          btnAddFrom;
+        private Button          btnCreateNew;       // was btnAddFrom — now opens Create New Quotation
         private Button          btnUpdateStatus;
         private ComboBox        cboNewStatus;
 
@@ -161,24 +161,25 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Padding   = new Padding(12, 10, 12, 10)
             };
 
-            const int ItemW      = 210;
-            const int ItemH      = 60;
-            const int ItemGap    = 8;
-            const int AddFromW   = 290;   // "Add From Quotation" button width
-            const int ActionPad  = 12;
-            // ActionAreaW = pad + View(210) + gap + AddFrom(290) + gap + Combo(210) + gap + Update(210) + pad
-            const int ActionAreaW = ActionPad + ItemW + ItemGap + AddFromW + ItemGap + ItemW + ItemGap + ItemW + ActionPad; // 970
+            const int ItemW       = 210;
+            const int ItemH       = 60;
+            const int ItemGap     = 8;
+            const int CreateNewW  = 290;   // "Create New Quotation" button width
+            const int ActionPad   = 12;
+            // ActionAreaW = pad + View(210) + gap + CreateNew(290) + gap + Combo(210) + gap + Update(210) + pad
+            const int ActionAreaW = ActionPad + ItemW + ItemGap + CreateNewW + ItemGap + ItemW + ItemGap + ItemW + ActionPad; // 970
 
             btnViewDetail = MakePrimaryBtn("\uD83D\uDD0D  View Detail", Point.Empty, ItemW, ItemH);
             btnViewDetail.Enabled = false;
             btnViewDetail.Click  += btnViewDetail_Click;
 
-            btnAddFrom = MakePrimaryBtn("\u002B  Add From Quotation", Point.Empty, AddFromW, ItemH);
-            btnAddFrom.BackColor = Color.FromArgb(5, 150, 105);   // green
-            btnAddFrom.FlatAppearance.MouseOverBackColor = Color.FromArgb(4, 120, 87);
-            btnAddFrom.FlatAppearance.MouseDownBackColor = Color.FromArgb(3, 90, 65);
-            btnAddFrom.Enabled = false;
-            btnAddFrom.Click  += btnAddFrom_Click;
+            // ―― Create New Quotation button (green, always enabled) ――
+            btnCreateNew = MakePrimaryBtn("\u002B  Create New Quotation", Point.Empty, CreateNewW, ItemH);
+            btnCreateNew.BackColor = Color.FromArgb(5, 150, 105);   // green
+            btnCreateNew.FlatAppearance.MouseOverBackColor = Color.FromArgb(4, 120, 87);
+            btnCreateNew.FlatAppearance.MouseDownBackColor = Color.FromArgb(3, 90, 65);
+            btnCreateNew.Enabled = true;   // always available — no row selection required
+            btnCreateNew.Click  += btnCreateNew_Click;
 
             cboNewStatus = new ComboBox
             {
@@ -214,12 +215,12 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 btnViewDetail.Location = new Point(ActionPad, top);
                 btnViewDetail.Size     = new Size(ItemW, ItemH);
 
-                // Add From Quotation (right of View)
-                btnAddFrom.Location = new Point(ActionPad + ItemW + ItemGap, top);
-                btnAddFrom.Size     = new Size(AddFromW, ItemH);
+                // Create New Quotation (right of View Detail)
+                btnCreateNew.Location = new Point(ActionPad + ItemW + ItemGap, top);
+                btnCreateNew.Size     = new Size(CreateNewW, ItemH);
 
                 // Status ComboBox
-                int comboLeft = ActionPad + ItemW + ItemGap + AddFromW + ItemGap;
+                int comboLeft = ActionPad + ItemW + ItemGap + CreateNewW + ItemGap;
                 cboNewStatus.Location = new Point(comboLeft, top + (ItemH - cboNewStatus.Height) / 2);
                 cboNewStatus.Width    = ItemW;
 
@@ -228,7 +229,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 btnUpdateStatus.Size     = new Size(ItemW, ItemH);
             }
             pnlActionArea.Controls.Add(btnViewDetail);
-            pnlActionArea.Controls.Add(btnAddFrom);
+            pnlActionArea.Controls.Add(btnCreateNew);
             pnlActionArea.Controls.Add(cboNewStatus);
             pnlActionArea.Controls.Add(btnUpdateStatus);
             pnlActionArea.Resize += (s, e) => CentreActions();
