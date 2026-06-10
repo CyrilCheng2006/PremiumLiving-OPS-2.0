@@ -69,8 +69,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             // ── Form ──────────────────────────────────────────────────
             this.Text            = "Generate Delivery Note";
-            this.Size            = new System.Drawing.Size(1200, 780);
-            this.MinimumSize     = new System.Drawing.Size(900, 640);
+            this.Size            = new System.Drawing.Size(1400, 600);
+            this.MinimumSize     = new System.Drawing.Size(900, 500);
             this.StartPosition   = System.Windows.Forms.FormStartPosition.CenterParent;
             this.BackColor       = System.Drawing.Color.FromArgb(243, 244, 246);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.Sizable;
@@ -94,17 +94,18 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlHeader.Controls.Add(lblHeader);
 
             // ── Footer ────────────────────────────────────────────────
+            // Height = top padding (12) + button height (60) + bottom padding (12) = 84
             pnlFooter           = new System.Windows.Forms.Panel();
             pnlFooter.Dock      = System.Windows.Forms.DockStyle.Bottom;
-            pnlFooter.Height    = 64;
+            pnlFooter.Height    = 84;
             pnlFooter.BackColor = System.Drawing.Color.White;
             pnlFooter.Padding   = new System.Windows.Forms.Padding(20, 0, 20, 0);
 
             btnConfirm              = new System.Windows.Forms.Button();
             btnConfirm.Text         = "\u2714  Confirm Generate";
             btnConfirm.Font         = new System.Drawing.Font("Segoe UI", 10f, System.Drawing.FontStyle.Bold);
-            btnConfirm.Size         = new System.Drawing.Size(200, 40);
-            btnConfirm.Location     = new System.Drawing.Point(pnlFooter.Width - 440, 12);
+            btnConfirm.Size         = new System.Drawing.Size(210, 60);
+            btnConfirm.Location     = new System.Drawing.Point(pnlFooter.Width - 450, 12);
             btnConfirm.Anchor       = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
             btnConfirm.BackColor    = System.Drawing.Color.FromArgb(6, 95, 70);
             btnConfirm.ForeColor    = System.Drawing.Color.White;
@@ -116,8 +117,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             btnCancel              = new System.Windows.Forms.Button();
             btnCancel.Text         = "\u2715  Cancel";
             btnCancel.Font         = new System.Drawing.Font("Segoe UI", 10f);
-            btnCancel.Size         = new System.Drawing.Size(160, 40);
-            btnCancel.Location     = new System.Drawing.Point(pnlFooter.Width - 220, 12);
+            btnCancel.Size         = new System.Drawing.Size(210, 60);
+            btnCancel.Location     = new System.Drawing.Point(pnlFooter.Width - 230, 12);
             btnCancel.Anchor       = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
             btnCancel.BackColor    = System.Drawing.Color.FromArgb(243, 244, 246);
             btnCancel.ForeColor    = System.Drawing.Color.FromArgb(55, 65, 81);
