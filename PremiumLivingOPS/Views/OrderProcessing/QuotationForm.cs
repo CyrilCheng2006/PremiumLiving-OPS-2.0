@@ -185,6 +185,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         {
             bool sel = dgvQuotations.SelectedRows.Count > 0;
             btnViewDetail.Enabled   = sel;
+            btnAddFrom.Enabled      = sel;
             btnUpdateStatus.Enabled = sel;
             cboNewStatus.Enabled    = sel;
         }
@@ -225,6 +226,32 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
         private void btnViewDetail_Click(object sender, EventArgs e) => OpenDetailDialog();
 
+        // ── Add From Quotation
+        private void btnAddFrom_Click(object sender, EventArgs e)
+        {
+            string qid = SelectedQuotationId();
+            if (qid == null) return;
+
+            var q = _ctrl.GetQuotationDetail(qid);
+            if (q == null)
+            {
+                MessageBox.Show("Quotation not found.", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            using var dlg = new AddFromQuotationForm(q);
+            if (dlg.ShowDialog(this) == DialogResult.OK)
+            {
+                MessageBox.Show(
+                    $"Order {dlg.CreatedOrderID} has been created from Quotation {qid}.",
+                    "Order Created",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+                RefreshGrid();
+            }
+        }
+
         private string SelectedQuotationId()
         {
             if (dgvQuotations.SelectedRows.Count == 0) return null;
@@ -236,8 +263,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             string qid = SelectedQuotationId();
             if (qid == null) return;
 
-            // GetQuotationDetail already populates q.Items via the Repo —
-            // no separate GetQuotationItems call is needed or exposed on the Controller.
             var q = _ctrl.GetQuotationDetail(qid);
             if (q == null)
             {
@@ -300,12 +325,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             }, 1, 0);
             pnlHeader.Controls.Add(tblHeader);
 
-            // ── Info panel: 4-col % layout (15 | 35 | 15 | 35)
-            //   Row 0: Quotation ID    | Expiry Date
-            //   Row 1: Customer        | Total Amount
-            //   Row 2: Lead Time       | Deposit Required
-            //   Row 3: Notes (multi)   | (empty)
-            //   Row 4: (empty)         | Status
+            // ── Info panel
             var pnlInfo = new Panel
             {
                 Dock      = DockStyle.Top, Height = 340,
@@ -322,18 +342,16 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Dock            = DockStyle.Fill, ColumnCount = 4, RowCount = 5,
                 BackColor       = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
-            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));  // left Key
-            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));  // left Value
-            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));  // right Key
-            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));  // right Value
+            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
+            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
+            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
+            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
+            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 15f));
+            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 15f));
+            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 15f));
+            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 40f));
+            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 15f));
 
-            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 15f)); // row 0
-            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 15f)); // row 1
-            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 15f)); // row 2
-            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 40f)); // row 3 — Notes (taller)
-            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 15f)); // row 4
-
-            // Left column
             var leftFields = new[]
             {
                 ("Quotation ID", q.QuotationID),
@@ -349,17 +367,14 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                            : MakeLabelVal(leftFields[i].Item2),
                     1, i);
             }
-            // Row 4 left — empty
             tblInfo.Controls.Add(new Label { Dock = DockStyle.Fill, BackColor = Color.Transparent }, 0, 4);
             tblInfo.Controls.Add(new Label { Dock = DockStyle.Fill, BackColor = Color.Transparent }, 1, 4);
 
-            // Right column
             var rightFields = new (string, string, bool)[]
             {
                 ("Expiry Date",      q.ExpiryDate.ToString("yyyy-MM-dd"), false),
                 ("Total Amount",     $"HK$ {q.TotalAmount:N2}",           false),
                 ("Deposit Required", $"HK$ {q.DepositRequired:N2}",       false),
-                // row 3 right — empty (Notes spans left side)
                 ("", "", false),
                 ("Status",           q.QuotationStatus ?? "—",           false),
             };
@@ -367,7 +382,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             {
                 if (string.IsNullOrEmpty(rightFields[i].Item1))
                 {
-                    // empty placeholder
                     tblInfo.Controls.Add(new Label { Dock = DockStyle.Fill, BackColor = Color.Transparent }, 2, i);
                     tblInfo.Controls.Add(new Label { Dock = DockStyle.Fill, BackColor = Color.Transparent }, 3, i);
                 }
@@ -379,7 +393,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             }
             pnlInfo.Controls.Add(tblInfo);
 
-            // ── T&C bar (conditional, amber background like ViewOrderForm discount bar)
+            // ── T&C bar
             Panel pnlTnC = null;
             if (hasTnC)
             {
@@ -389,7 +403,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     Padding   = new Padding(28, 0, 28, 0), BackColor = Color.FromArgb(255, 251, 235)
                 };
                 pnlTnC.Paint += PaintBottomBorderStatic;
-
                 var tblTnC = new TableLayoutPanel
                 {
                     Dock            = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
@@ -398,13 +411,12 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 tblTnC.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
                 tblTnC.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 85f));
                 tblTnC.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-
                 tblTnC.Controls.Add(MakeLabelKey("Terms & Conditions"), 0, 0);
                 tblTnC.Controls.Add(MakeLabelVal(q.TermsandCondition),  1, 0);
                 pnlTnC.Controls.Add(tblTnC);
             }
 
-            // ── QUOTATION ITEMS label bar (mirrors "ORDER ITEMS" in ViewOrderForm)
+            // ── QUOTATION ITEMS label bar
             var pnlLineLabel = new Panel
             {
                 Dock      = DockStyle.Top, Height = 40,
@@ -421,7 +433,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             });
             pnlLineLabel.Paint += PaintBottomBorderStatic;
 
-            // ── Items DataGridView (same style as ViewOrderForm)
+            // ── Items DataGridView
             var dgv = new DataGridView
             {
                 ReadOnly              = true,
@@ -463,19 +475,12 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cNote",       HeaderText = "ITEM NOTE",    FillWeight = 18 });
 
             if (items != null)
-            {
                 foreach (var item in items)
-                    dgv.Rows.Add(
-                        item.ProductName,
-                        item.Quantity,
-                        item.Unit,
-                        $"HK$ {item.UnitPrice:N2}",
-                        $"{item.DiscountPercent:N1}%",
-                        $"HK$ {item.Subtotal:N2}",
-                        item.ItemNote);
-            }
+                    dgv.Rows.Add(item.ProductName, item.Quantity, item.Unit,
+                        $"HK$ {item.UnitPrice:N2}", $"{item.DiscountPercent:N1}%",
+                        $"HK$ {item.Subtotal:N2}", item.ItemNote);
 
-            // ── Total row (mirrors ViewOrderForm grand-total row)
+            // ── Total row
             var pnlTotalRow = new Panel
             {
                 Dock      = DockStyle.Bottom, Height = 50,
@@ -490,31 +495,23 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             tblTotal.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
             tblTotal.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
             tblTotal.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-
-            // Left: Deposit Required (muted)
             tblTotal.Controls.Add(new Label
             {
                 Text      = $"Deposit Required:   HK$ {q.DepositRequired:N2}",
                 Font      = new Font("Segoe UI", 12f),
                 ForeColor = Color.FromArgb(98, 112, 135),
-                Dock      = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleLeft,
-                AutoSize  = false
+                Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
             }, 0, 0);
-
-            // Right: Total Amount (bold dark)
             tblTotal.Controls.Add(new Label
             {
                 Text      = $"Total Amount:   HK$ {q.TotalAmount:N2}",
                 Font      = new Font("Segoe UI", 13f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(15, 31, 53),
-                Dock      = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleRight,
-                AutoSize  = false
+                Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleRight, AutoSize = false
             }, 1, 0);
             pnlTotalRow.Controls.Add(tblTotal);
 
-            // ── Footer (same as ViewOrderForm)
+            // ── Footer
             var pnlFooter = new Panel
             {
                 Dock    = DockStyle.Bottom, Height = 80,
@@ -532,27 +529,22 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Width     = 140,
                 Cursor    = Cursors.Hand
             };
-            btnClose.FlatAppearance.BorderColor           = Color.FromArgb(221, 227, 236);
-            btnClose.FlatAppearance.MouseOverBackColor    = Color.FromArgb(240, 244, 249);
+            btnClose.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
+            btnClose.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
             btnClose.Click += (s, ev) => dlg.Close();
             pnlFooter.Controls.Add(btnClose);
 
-            // ── Assemble dialog (DockStyle.Bottom must be added before Fill)
-            dlg.Controls.Add(dgv);           // Fill
-            dlg.Controls.Add(pnlTotalRow);   // Bottom of grid area
-            dlg.Controls.Add(pnlLineLabel);  // Top (items header bar)
-            if (hasTnC)
-                dlg.Controls.Add(pnlTnC);   // Top (T&C bar, if present)
-            dlg.Controls.Add(pnlInfo);       // Top (info panel)
-            dlg.Controls.Add(pnlHeader);     // Top (dark header)
-            dlg.Controls.Add(pnlFooter);     // Bottom (close button)
+            dlg.Controls.Add(dgv);
+            dlg.Controls.Add(pnlTotalRow);
+            dlg.Controls.Add(pnlLineLabel);
+            if (hasTnC) dlg.Controls.Add(pnlTnC);
+            dlg.Controls.Add(pnlInfo);
+            dlg.Controls.Add(pnlHeader);
+            dlg.Controls.Add(pnlFooter);
             dlg.ShowDialog(this);
         }
 
-        // ──────────────────────────────────────────────────────────────────
-        //  Label factory helpers (identical to ViewOrderForm)
-        // ──────────────────────────────────────────────────────────────────
-
+        // ── Label factory helpers
         private static Label MakeLabelKey(string text) => new Label
         {
             Text         = text,
@@ -563,7 +555,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             Padding      = new Padding(0, 0, 8, 0),
             AutoEllipsis = false
         };
-
         private static Label MakeLabelVal(string text) => new Label
         {
             Text         = text ?? "—",
@@ -573,7 +564,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             TextAlign    = ContentAlignment.MiddleLeft,
             AutoEllipsis = true
         };
-
         private static Label MakeLabelValMultiLine(string text) => new Label
         {
             Text         = text ?? "—",
@@ -585,15 +575,12 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             AutoSize     = false,
             Padding      = new Padding(0, 8, 8, 4)
         };
-
-        // ── Border painters (identical to ViewOrderForm)
         private static void PaintBottomBorderStatic(object s, PaintEventArgs e)
         {
             var p = (Panel)s;
             using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
             e.Graphics.DrawLine(pen, 0, p.Height - 1, p.Width, p.Height - 1);
         }
-
         private static void PaintTopBorderStatic(object s, PaintEventArgs e)
         {
             var p = (Panel)s;
@@ -610,18 +597,15 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
-
             string quotationId = dgvQuotations.SelectedRows[0]
                 .Cells["colQuotationID"].Value?.ToString();
             string newStatus = cboNewStatus.SelectedItem?.ToString();
-
             if (string.IsNullOrEmpty(newStatus))
             {
                 MessageBox.Show("Please select a new status.",
                     "No Status", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
-
             bool ok = _ctrl.UpdateQuotationStatus(quotationId, newStatus);
             if (ok)
             {
@@ -630,10 +614,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 RefreshGrid();
             }
             else
-            {
                 MessageBox.Show("Failed to update quotation status. Please try again.",
                     "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
         }
 
         // ── Helpers
