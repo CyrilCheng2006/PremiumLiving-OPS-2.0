@@ -16,8 +16,8 @@ namespace PremiumLivingOPS.Models.DAL
         // ════════════════════════════════════════════════════════════════
 
         public List<OrderEntity> SearchOrders(
-            string    status   = null,
-            string    keyword  = null,
+            string   status   = null,
+            string   keyword  = null,
             DateTime? dateFrom = null,
             DateTime? dateTo   = null)
         {
@@ -33,7 +33,7 @@ namespace PremiumLivingOPS.Models.DAL
                              o.GrandTotal, o.OrderContactName, o.OrderStatus
                       FROM `Order` o
                       JOIN Customer c ON o.CustomerID = c.CustomerID
-                      JOIN Staff    s ON o.SalesID    = s.StaffID
+                      JOIN Staff   s ON o.SalesID     = s.StaffID
                       WHERE 1=1";
 
                 if (!string.IsNullOrEmpty(status))
@@ -84,7 +84,7 @@ namespace PremiumLivingOPS.Models.DAL
                              o.GrandTotal, o.OrderContactName, o.OrderStatus
                       FROM `Order` o
                       JOIN Customer c ON o.CustomerID = c.CustomerID
-                      JOIN Staff    s ON o.SalesID    = s.StaffID
+                      JOIN Staff   s ON o.SalesID     = s.StaffID
                       WHERE o.OrderID = @orderId";
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
@@ -259,8 +259,7 @@ namespace PremiumLivingOPS.Models.DAL
                 {
                     try
                     {
-                        using (var del = new MySqlCommand(
-                            "DELETE FROM OrderLine WHERE OrderID = @id", conn, tx))
+                        using (var del = new MySqlCommand("DELETE FROM OrderLine WHERE OrderID = @id", conn, tx))
                         {
                             del.Parameters.AddWithValue("@id", orderId);
                             del.ExecuteNonQuery();
@@ -268,13 +267,13 @@ namespace PremiumLivingOPS.Models.DAL
                         foreach (var l in lines)
                         {
                             using (var ins = new MySqlCommand(
-                                "INSERT INTO OrderLine (OrderID,ItemID,Quantity,Price) VALUES (@o,@i,@q,@p)",
+                                "INSERT INTO OrderLine (OrderID,ItemID,Quantity,Price) VALUES (@oid,@iid,@qty,@price)",
                                 conn, tx))
                             {
-                                ins.Parameters.AddWithValue("@o", orderId);
-                                ins.Parameters.AddWithValue("@i", l.ItemID);
-                                ins.Parameters.AddWithValue("@q", l.Quantity);
-                                ins.Parameters.AddWithValue("@p", l.Price);
+                                ins.Parameters.AddWithValue("@oid",   orderId);
+                                ins.Parameters.AddWithValue("@iid",   l.ItemID);
+                                ins.Parameters.AddWithValue("@qty",   l.Quantity);
+                                ins.Parameters.AddWithValue("@price", l.Price);
                                 ins.ExecuteNonQuery();
                             }
                         }
@@ -298,8 +297,8 @@ namespace PremiumLivingOPS.Models.DAL
                 conn.Open();
                 const string sql =
                     @"SELECT q.QuotationID, q.CustomerID, c.CustomerName,
-                             q.IssuedDate, q.ExpiryDate, q.TotalAmount,
-                             q.DepositRequired, q.LeadTimeEstimated,
+                             q.IssuedDate, q.ExpiryDate,
+                             q.TotalAmount, q.DepositRequired, q.LeadTimeEstimated,
                              q.TermsandCondition, q.QuotationStatus,
                              s.StaffName AS SalesStaffName, q.Notes
                       FROM Quotation q
@@ -320,17 +319,17 @@ namespace PremiumLivingOPS.Models.DAL
                 conn.Open();
                 const string sql =
                     @"SELECT q.QuotationID, q.CustomerID, c.CustomerName,
-                             q.IssuedDate, q.ExpiryDate, q.TotalAmount,
-                             q.DepositRequired, q.LeadTimeEstimated,
+                             q.IssuedDate, q.ExpiryDate,
+                             q.TotalAmount, q.DepositRequired, q.LeadTimeEstimated,
                              q.TermsandCondition, q.QuotationStatus,
                              s.StaffName AS SalesStaffName, q.Notes
                       FROM Quotation q
                       JOIN Customer c ON q.CustomerID   = c.CustomerID
                       JOIN Staff    s ON q.SalesStaffID = s.StaffID
-                      WHERE q.QuotationID = @id";
+                      WHERE q.QuotationID = @qid";
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
-                    cmd.Parameters.AddWithValue("@id", quotationId);
+                    cmd.Parameters.AddWithValue("@qid", quotationId);
                     using (var rdr = cmd.ExecuteReader())
                         if (rdr.Read()) return MapQuotation(rdr);
                 }
@@ -346,14 +345,13 @@ namespace PremiumLivingOPS.Models.DAL
                 conn.Open();
                 const string sql =
                     @"SELECT qi.QuotationID, qi.ItemID, i.ItemName AS ProductName,
-                             qi.Quantity, qi.Unit, qi.UnitPrice,
-                             qi.DiscountPercent, qi.ItemNote
+                             qi.Quantity, qi.Unit, qi.UnitPrice, qi.DiscountPercent, qi.ItemNote
                       FROM QuotationItem qi
                       JOIN Item i ON qi.ItemID = i.ItemID
-                      WHERE qi.QuotationID = @id";
+                      WHERE qi.QuotationID = @qid";
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
-                    cmd.Parameters.AddWithValue("@id", quotationId);
+                    cmd.Parameters.AddWithValue("@qid", quotationId);
                     using (var rdr = cmd.ExecuteReader())
                         while (rdr.Read())
                             list.Add(new QuotationItemEntity
@@ -362,10 +360,10 @@ namespace PremiumLivingOPS.Models.DAL
                                 ItemID          = rdr.GetString("ItemID"),
                                 ProductName     = rdr.GetString("ProductName"),
                                 Quantity        = rdr.GetInt32("Quantity"),
-                                Unit            = rdr["Unit"]            == DBNull.Value ? "" : rdr.GetString("Unit"),
+                                Unit            = rdr.IsDBNull(rdr.GetOrdinal("Unit"))           ? "" : rdr.GetString("Unit"),
                                 UnitPrice       = Convert.ToDouble(rdr["UnitPrice"]),
-                                DiscountPercent = rdr["DiscountPercent"] == DBNull.Value ? 0  : Convert.ToDouble(rdr["DiscountPercent"]),
-                                ItemNote        = rdr["ItemNote"]        == DBNull.Value ? "" : rdr.GetString("ItemNote")
+                                DiscountPercent = rdr.IsDBNull(rdr.GetOrdinal("DiscountPercent")) ? 0  : Convert.ToDouble(rdr["DiscountPercent"]),
+                                ItemNote        = rdr.IsDBNull(rdr.GetOrdinal("ItemNote"))        ? "" : rdr.GetString("ItemNote")
                             });
                 }
             }
@@ -387,7 +385,10 @@ namespace PremiumLivingOPS.Models.DAL
             }
         }
 
-        /// <summary>Returns all QuotationIDs that begin with the given prefix (used for ID generation).</summary>
+        /// <summary>
+        /// Returns all QuotationIDs that start with the given prefix.
+        /// Used by the controller to generate the next sequential QuotationID.
+        /// </summary>
         public List<string> GetQuotationIdsByPrefix(string prefix)
         {
             var list = new List<string>();
@@ -405,7 +406,10 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
-        /// <summary>Inserts a new Quotation header row. salesStaffId is the FK to Staff.StaffID.</summary>
+        /// <summary>
+        /// Inserts a new Quotation header record.
+        /// Returns true on success.
+        /// </summary>
         public bool CreateQuotation(QuotationEntity q, string salesStaffId)
         {
             using (var conn = DatabaseHelper.GetConnection())
@@ -414,13 +418,13 @@ namespace PremiumLivingOPS.Models.DAL
                 const string sql =
                     @"INSERT INTO Quotation
                         (QuotationID, CustomerID, SalesStaffID,
-                         IssuedDate, ExpiryDate, TotalAmount,
-                         DepositRequired, LeadTimeEstimated,
+                         IssuedDate, ExpiryDate,
+                         TotalAmount, DepositRequired, LeadTimeEstimated,
                          TermsandCondition, QuotationStatus, Notes)
                       VALUES
                         (@QuotationID, @CustomerID, @SalesStaffID,
-                         @IssuedDate, @ExpiryDate, @TotalAmount,
-                         @DepositRequired, @LeadTimeEstimated,
+                         @IssuedDate, @ExpiryDate,
+                         @TotalAmount, @DepositRequired, @LeadTimeEstimated,
                          @TermsandCondition, @QuotationStatus, @Notes)";
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
@@ -434,13 +438,15 @@ namespace PremiumLivingOPS.Models.DAL
                     cmd.Parameters.AddWithValue("@LeadTimeEstimated", string.IsNullOrEmpty(q.LeadTimeEstimated) ? (object)DBNull.Value : q.LeadTimeEstimated);
                     cmd.Parameters.AddWithValue("@TermsandCondition", string.IsNullOrEmpty(q.TermsandCondition) ? (object)DBNull.Value : q.TermsandCondition);
                     cmd.Parameters.AddWithValue("@QuotationStatus",   q.QuotationStatus ?? "Pending");
-                    cmd.Parameters.AddWithValue("@Notes",             string.IsNullOrEmpty(q.Notes) ? (object)DBNull.Value : q.Notes);
+                    cmd.Parameters.AddWithValue("@Notes",             string.IsNullOrEmpty(q.Notes)             ? (object)DBNull.Value : q.Notes);
                     return cmd.ExecuteNonQuery() > 0;
                 }
             }
         }
 
-        /// <summary>Inserts one QuotationItem line. Returns true on success.</summary>
+        /// <summary>
+        /// Inserts one QuotationItem line.
+        /// </summary>
         public bool CreateQuotationItem(QuotationItemEntity item)
         {
             using (var conn = DatabaseHelper.GetConnection())
@@ -450,23 +456,23 @@ namespace PremiumLivingOPS.Models.DAL
                     @"INSERT INTO QuotationItem
                         (QuotationID, ItemID, Quantity, Unit, UnitPrice, DiscountPercent, ItemNote)
                       VALUES
-                        (@QuotationID, @ItemID, @Qty, @Unit, @UnitPrice, @Disc, @Note)";
+                        (@QuotationID, @ItemID, @Quantity, @Unit, @UnitPrice, @DiscountPercent, @ItemNote)";
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
-                    cmd.Parameters.AddWithValue("@QuotationID", item.QuotationID);
-                    cmd.Parameters.AddWithValue("@ItemID",      item.ItemID);
-                    cmd.Parameters.AddWithValue("@Qty",         item.Quantity);
-                    cmd.Parameters.AddWithValue("@Unit",        string.IsNullOrEmpty(item.Unit)     ? (object)DBNull.Value : item.Unit);
-                    cmd.Parameters.AddWithValue("@UnitPrice",   item.UnitPrice);
-                    cmd.Parameters.AddWithValue("@Disc",        item.DiscountPercent);
-                    cmd.Parameters.AddWithValue("@Note",        string.IsNullOrEmpty(item.ItemNote) ? (object)DBNull.Value : item.ItemNote);
+                    cmd.Parameters.AddWithValue("@QuotationID",     item.QuotationID);
+                    cmd.Parameters.AddWithValue("@ItemID",          item.ItemID);
+                    cmd.Parameters.AddWithValue("@Quantity",        item.Quantity);
+                    cmd.Parameters.AddWithValue("@Unit",            string.IsNullOrEmpty(item.Unit)     ? (object)DBNull.Value : item.Unit);
+                    cmd.Parameters.AddWithValue("@UnitPrice",       item.UnitPrice);
+                    cmd.Parameters.AddWithValue("@DiscountPercent", item.DiscountPercent);
+                    cmd.Parameters.AddWithValue("@ItemNote",        string.IsNullOrEmpty(item.ItemNote) ? (object)DBNull.Value : item.ItemNote);
                     return cmd.ExecuteNonQuery() > 0;
                 }
             }
         }
 
         // ════════════════════════════════════════════════════════════════
-        //  LOOKUP queries  (Customers / Addresses / Products)
+        //  LOOKUP queries  (shared by Order + Quotation forms)
         // ════════════════════════════════════════════════════════════════
 
         public List<CustomerEntity> GetAllCustomers()
@@ -476,16 +482,16 @@ namespace PremiumLivingOPS.Models.DAL
             {
                 conn.Open();
                 const string sql =
-                    "SELECT CustomerID, CustomerName, CustomerPhone, CustomerEmail FROM Customer ORDER BY CustomerName";
+                    "SELECT CustomerID, CustomerName, ContactPhone, ContactEmail FROM Customer ORDER BY CustomerName";
                 using (var cmd = new MySqlCommand(sql, conn))
                 using (var rdr = cmd.ExecuteReader())
                     while (rdr.Read())
                         list.Add(new CustomerEntity
                         {
-                            CustomerID    = rdr.GetString("CustomerID"),
-                            CustomerName  = rdr.GetString("CustomerName"),
-                            CustomerPhone = rdr["CustomerPhone"] == DBNull.Value ? "" : rdr.GetString("CustomerPhone"),
-                            CustomerEmail = rdr["CustomerEmail"] == DBNull.Value ? "" : rdr.GetString("CustomerEmail")
+                            CustomerID   = rdr.GetString("CustomerID"),
+                            CustomerName = rdr.GetString("CustomerName"),
+                            ContactPhone = rdr.IsDBNull(rdr.GetOrdinal("ContactPhone")) ? "" : rdr.GetString("ContactPhone"),
+                            ContactEmail = rdr.IsDBNull(rdr.GetOrdinal("ContactEmail")) ? "" : rdr.GetString("ContactEmail")
                         });
             }
             return list;
@@ -498,8 +504,7 @@ namespace PremiumLivingOPS.Models.DAL
             {
                 conn.Open();
                 const string sql =
-                    @"SELECT AddressID, CustomerID, AddressName, AddressType, isDefault
-                      FROM Address ORDER BY CustomerID, isDefault DESC";
+                    "SELECT AddressID, CustomerID, AddressName, AddressType, isDefault FROM Address ORDER BY CustomerID";
                 using (var cmd = new MySqlCommand(sql, conn))
                 using (var rdr = cmd.ExecuteReader())
                     while (rdr.Read())
@@ -508,8 +513,8 @@ namespace PremiumLivingOPS.Models.DAL
                             AddressId   = rdr.GetString("AddressID"),
                             CustomerId  = rdr.GetString("CustomerID"),
                             FullAddress = rdr.GetString("AddressName"),
-                            Label       = rdr["AddressType"] == DBNull.Value ? "" : rdr.GetString("AddressType"),
-                            IsDefault   = Convert.ToBoolean(rdr["isDefault"])
+                            Label       = rdr.IsDBNull(rdr.GetOrdinal("AddressType")) ? "" : rdr.GetString("AddressType"),
+                            IsDefault   = !rdr.IsDBNull(rdr.GetOrdinal("isDefault")) && Convert.ToBoolean(rdr["isDefault"])
                         });
             }
             return list;
@@ -531,35 +536,35 @@ namespace PremiumLivingOPS.Models.DAL
                             ItemID     = rdr.GetString("ItemID"),
                             ItemName   = rdr.GetString("ItemName"),
                             SalesPrice = Convert.ToDouble(rdr["SalesPrice"]),
-                            Category   = rdr["Category"] == DBNull.Value ? "" : rdr.GetString("Category")
+                            Category   = rdr.IsDBNull(rdr.GetOrdinal("Category")) ? "" : rdr.GetString("Category")
                         });
             }
             return list;
         }
 
         // ════════════════════════════════════════════════════════════════
-        //  PRIVATE mappers
+        //  MAPPING helpers (private)
         // ════════════════════════════════════════════════════════════════
 
         private static OrderEntity MapOrder(MySqlDataReader r) => new OrderEntity
         {
             OrderID          = r.GetString("OrderID"),
-            QuotationID      = r["QuotationID"]      == DBNull.Value ? null : r.GetString("QuotationID"),
+            QuotationID      = r.IsDBNull(r.GetOrdinal("QuotationID"))      ? null : r.GetString("QuotationID"),
             CustomerID       = r.GetString("CustomerID"),
             CustomerName     = r.GetString("CustomerName"),
-            AddressID        = r["AddressID"]        == DBNull.Value ? null : r.GetString("AddressID"),
+            AddressID        = r.IsDBNull(r.GetOrdinal("AddressID"))        ? null : r.GetString("AddressID"),
             SalesID          = r.GetString("SalesID"),
             SalesName        = r.GetString("SalesName"),
             IssuedTime       = r.GetDateTime("IssuedTime"),
             DeliveryDate     = r.GetDateTime("DeliveryDate"),
-            ShippingAddress  = r["ShippingAddress"]  == DBNull.Value ? "" : r.GetString("ShippingAddress"),
-            BillingAddress   = r["BillingAddress"]   == DBNull.Value ? "" : r.GetString("BillingAddress"),
+            ShippingAddress  = r.IsDBNull(r.GetOrdinal("ShippingAddress"))  ? null : r.GetString("ShippingAddress"),
+            BillingAddress   = r.IsDBNull(r.GetOrdinal("BillingAddress"))   ? null : r.GetString("BillingAddress"),
             SubTotal         = Convert.ToDouble(r["SubTotal"]),
-            DiscountType     = r["DiscountType"]     == DBNull.Value ? null : r.GetString("DiscountType"),
+            DiscountType     = r.IsDBNull(r.GetOrdinal("DiscountType"))     ? null : r.GetString("DiscountType"),
             DiscountValue    = Convert.ToDouble(r["DiscountValue"]),
             DiscountAmount   = Convert.ToDouble(r["DiscountAmount"]),
             GrandTotal       = Convert.ToDouble(r["GrandTotal"]),
-            OrderContactName = r["OrderContactName"] == DBNull.Value ? "" : r.GetString("OrderContactName"),
+            OrderContactName = r.IsDBNull(r.GetOrdinal("OrderContactName")) ? null : r.GetString("OrderContactName"),
             OrderStatus      = r.GetString("OrderStatus")
         };
 
@@ -571,12 +576,12 @@ namespace PremiumLivingOPS.Models.DAL
             IssuedDate        = r.GetDateTime("IssuedDate"),
             ExpiryDate        = r.GetDateTime("ExpiryDate"),
             TotalAmount       = Convert.ToDouble(r["TotalAmount"]),
-            DepositRequired   = r["DepositRequired"]   == DBNull.Value ? 0  : Convert.ToDouble(r["DepositRequired"]),
-            LeadTimeEstimated = r["LeadTimeEstimated"] == DBNull.Value ? "" : r.GetString("LeadTimeEstimated"),
-            TermsandCondition = r["TermsandCondition"] == DBNull.Value ? "" : r.GetString("TermsandCondition"),
+            DepositRequired   = Convert.ToDouble(r["DepositRequired"]),
+            LeadTimeEstimated = r.IsDBNull(r.GetOrdinal("LeadTimeEstimated")) ? null : r.GetString("LeadTimeEstimated"),
+            TermsandCondition = r.IsDBNull(r.GetOrdinal("TermsandCondition")) ? null : r.GetString("TermsandCondition"),
             QuotationStatus   = r.GetString("QuotationStatus"),
-            SalesStaffName    = r.GetString("SalesStaffName"),
-            Notes             = r["Notes"] == DBNull.Value ? "" : r.GetString("Notes")
+            SalesStaffName    = r.IsDBNull(r.GetOrdinal("SalesStaffName"))    ? null : r.GetString("SalesStaffName"),
+            Notes             = r.IsDBNull(r.GetOrdinal("Notes"))             ? null : r.GetString("Notes")
         };
     }
 }
