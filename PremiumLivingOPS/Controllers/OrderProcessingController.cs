@@ -15,12 +15,8 @@ namespace PremiumLivingOPS.Controllers
     {
         private readonly OrderProcessingRepo _repo = new OrderProcessingRepo();
 
-        // ── View Order ──────────────────────────────────────────────────────────────────────────────────────
+        // ── View Order ─────────────────────────────────────────────────────────────────────────────────────
 
-        /// <summary>
-        /// Returns ViewModel for the View Order page.
-        /// Supports optional status filter, keyword search, and date range filter.
-        /// </summary>
         public ViewOrderViewModel GetViewOrderVM(
             string    status   = null,
             string    keyword  = null,
@@ -40,7 +36,6 @@ namespace PremiumLivingOPS.Controllers
             };
         }
 
-        /// <summary>Returns full detail of one order including its line items.</summary>
         public OrderDetailViewModel GetOrderDetail(string orderId)
         {
             return new OrderDetailViewModel
@@ -50,16 +45,11 @@ namespace PremiumLivingOPS.Controllers
             };
         }
 
-        /// <summary>Returns order line items for a given order.</summary>
         public List<OrderLineEntity> GetOrderLines(string orderId)
             => _repo.GetOrderLines(orderId);
 
-        // ── Quotation ───────────────────────────────────────────────────────────────────────────────────
+        // ── Quotation ─────────────────────────────────────────────────────────────────────────────────
 
-        /// <summary>
-        /// Returns ViewModel for the Quotation list page.
-        /// Supports optional status filter and keyword search (QuotationID or CustomerName).
-        /// </summary>
         public QuotationViewModel GetQuotationVM(
             string status  = null,
             string keyword = null)
@@ -90,10 +80,6 @@ namespace PremiumLivingOPS.Controllers
             };
         }
 
-        /// <summary>
-        /// Returns full detail of one quotation including its line items.
-        /// Returns null if the quotation is not found.
-        /// </summary>
         public QuotationEntity GetQuotationDetail(string quotationId)
         {
             if (string.IsNullOrEmpty(quotationId)) return null;
@@ -106,11 +92,11 @@ namespace PremiumLivingOPS.Controllers
         public bool UpdateQuotationStatus(string quotationId, string newStatus)
             => _repo.UpdateQuotationStatus(quotationId, newStatus);
 
-        // ── Create New Quotation ───────────────────────────────────────────────────────────────────
+        // ── Create New Quotation ────────────────────────────────────────────────────────────
 
         /// <summary>
         /// Returns ViewModel for the Create New Quotation dialog.
-        /// Provides lookup data (Customers, Products) and a pre-generated QuotationID.
+        /// Provides lookup data (customers, products) and a pre-generated QuotationID.
         /// </summary>
         public CreateQuotationViewModel GetCreateQuotationVM()
         {
@@ -133,7 +119,7 @@ namespace PremiumLivingOPS.Controllers
 
         /// <summary>
         /// Generates the next Quotation ID in the format QUO-YYYYMMDD-NNNN.
-        /// Queries the DB for the highest sequence number used today and increments it.
+        /// Queries the DB for the highest sequence number used today and increments.
         /// </summary>
         public string GenerateQuotationId()
         {
@@ -153,8 +139,7 @@ namespace PremiumLivingOPS.Controllers
 
         /// <summary>
         /// Saves a new Quotation header + all line items.
-        /// salesStaffId must be the PK from Staff table (StaffID).
-        /// Returns true on success.
+        /// Returns true on full success.
         /// </summary>
         public bool SaveNewQuotation(QuotationEntity quotation,
                                      List<QuotationItemEntity> items,
@@ -169,12 +154,12 @@ namespace PremiumLivingOPS.Controllers
             return true;
         }
 
-        // ── Create Order ───────────────────────────────────────────────────────────────────────────
+        // ── Create Order ──────────────────────────────────────────────────────────────────────────
 
         public CreateOrderViewModel GetCreateOrderVM()
         {
-            var user  = SessionManager.CurrentUser;
-            var allQ  = _repo.GetAllQuotations();
+            var user = SessionManager.CurrentUser;
+            var allQ = _repo.GetAllQuotations();
             return new CreateOrderViewModel
             {
                 UserBar = new UserBarViewModel
@@ -192,10 +177,6 @@ namespace PremiumLivingOPS.Controllers
             };
         }
 
-        /// <summary>
-        /// Returns all addresses that belong to the given customer.
-        /// Called by the View when the Customer ComboBox selection changes.
-        /// </summary>
         public List<AddressLookup> GetAddressesByCustomer(string customerId,
             List<AddressLookup> allAddresses)
         {
@@ -204,29 +185,22 @@ namespace PremiumLivingOPS.Controllers
             return allAddresses.FindAll(a => a.CustomerId == customerId);
         }
 
-        /// <summary>
-        /// Generates the next Order ID in the format ORD-YYYYMMDD-NNNN.
-        /// </summary>
         public string GenerateOrderId()
         {
-            string prefix   = "ORD-" + DateTime.Today.ToString("yyyyMMdd") + "-";
-            var    existing = _repo.GetOrderIdsByPrefix(prefix);
-            int    next     = 1;
-            if (existing.Count > 0)
+            string prefix    = "ORD-" + DateTime.Today.ToString("yyyyMMdd") + "-";
+            var    existing  = _repo.GetOrderIdsByPrefix(prefix);
+            int    next      = 1;
+            foreach (var id in existing)
             {
-                foreach (var id in existing)
+                if (id.Length >= prefix.Length + 4 &&
+                    int.TryParse(id.Substring(prefix.Length, 4), out int seq))
                 {
-                    if (id.Length >= prefix.Length + 4 &&
-                        int.TryParse(id.Substring(prefix.Length, 4), out int seq))
-                    {
-                        if (seq >= next) next = seq + 1;
-                    }
+                    if (seq >= next) next = seq + 1;
                 }
             }
             return $"{prefix}{next:D4}";
         }
 
-        /// <summary>Saves a new order header + all line items. Returns true on success.</summary>
         public bool SaveNewOrder(OrderEntity order, List<OrderLineEntity> lines)
         {
             if (!_repo.CreateOrder(order)) return false;
@@ -238,7 +212,7 @@ namespace PremiumLivingOPS.Controllers
             return true;
         }
 
-        // ── Modify Order ─────────────────────────────────────────────────────────────────────────────────────
+        // ── Modify Order ─────────────────────────────────────────────────────────────────────────────────
 
         public ModifyOrderViewModel GetModifyOrderVM(string orderId = null)
         {
