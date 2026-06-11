@@ -17,7 +17,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         private Panel           pnlKpi;
         private DataGridView    dgvQuotations;
         private Button          btnViewDetail;
-        private Button          btnCreateNew;       // was btnAddFrom — now opens Create New Quotation
+        private Button          btnCreateNew;      // 原 btnAddFrom — 現為 Create New Quotation
         private Button          btnUpdateStatus;
         private ComboBox        cboNewStatus;
 
@@ -107,7 +107,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             tblFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
             tblFields.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
             tblFields.Controls.Add(MakeCell("Search", txtSearchKeyword), 0, 0);
-            tblFields.Controls.Add(MakeCell("Status", cboStatus, false), 1, 0);
+            tblFields.Controls.Add(MakeCell("Status", cboStatus, false),  1, 0);
 
             var pnlBtns = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             btnSearch = MakePrimaryBtn("\uD83D\uDD0D  Search", new Point(0,   0), 210, 60);
@@ -161,11 +161,11 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Padding   = new Padding(12, 10, 12, 10)
             };
 
-            const int ItemW       = 210;
-            const int ItemH       = 60;
-            const int ItemGap     = 8;
-            const int CreateNewW  = 290;   // "Create New Quotation" button width
-            const int ActionPad   = 12;
+            const int ItemW     = 210;
+            const int ItemH     = 60;
+            const int ItemGap   = 8;
+            const int CreateNewW = 290;   // "Create New Quotation" button width
+            const int ActionPad = 12;
             // ActionAreaW = pad + View(210) + gap + CreateNew(290) + gap + Combo(210) + gap + Update(210) + pad
             const int ActionAreaW = ActionPad + ItemW + ItemGap + CreateNewW + ItemGap + ItemW + ItemGap + ItemW + ActionPad; // 970
 
@@ -173,13 +173,12 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             btnViewDetail.Enabled = false;
             btnViewDetail.Click  += btnViewDetail_Click;
 
-            // ―― Create New Quotation button (green, always enabled) ――
+            // 「 Create New Quotation 」 — 原名 btnAddFrom
             btnCreateNew = MakePrimaryBtn("\u002B  Create New Quotation", Point.Empty, CreateNewW, ItemH);
             btnCreateNew.BackColor = Color.FromArgb(5, 150, 105);   // green
             btnCreateNew.FlatAppearance.MouseOverBackColor = Color.FromArgb(4, 120, 87);
             btnCreateNew.FlatAppearance.MouseDownBackColor = Color.FromArgb(3, 90, 65);
-            btnCreateNew.Enabled = true;   // always available — no row selection required
-            btnCreateNew.Click  += btnCreateNew_Click;
+            btnCreateNew.Click += btnCreateNew_Click;
 
             cboNewStatus = new ComboBox
             {
@@ -215,7 +214,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 btnViewDetail.Location = new Point(ActionPad, top);
                 btnViewDetail.Size     = new Size(ItemW, ItemH);
 
-                // Create New Quotation (right of View Detail)
+                // Create New Quotation (right of View)
                 btnCreateNew.Location = new Point(ActionPad + ItemW + ItemGap, top);
                 btnCreateNew.Size     = new Size(CreateNewW, ItemH);
 
