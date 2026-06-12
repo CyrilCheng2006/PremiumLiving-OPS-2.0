@@ -8,16 +8,17 @@ namespace PremiumLivingOPS.Models.DAL
     /// <summary>
     /// Repository (DAL layer) for Order Processing module.
     /// All methods use parameterised queries via DatabaseHelper.
+    /// Schema reference: Database/schema.sql
     /// </summary>
     public class OrderProcessingRepo
     {
-        // ════════════════════════════════════════════════════════════════
+        // ╔════════════════════════════════════════════════════════════════
         //  ORDER queries
-        // ════════════════════════════════════════════════════════════════
+        // ╔════════════════════════════════════════════════════════════════
 
         public List<OrderEntity> SearchOrders(
-            string   status   = null,
-            string   keyword  = null,
+            string    status   = null,
+            string    keyword  = null,
             DateTime? dateFrom = null,
             DateTime? dateTo   = null)
         {
@@ -33,7 +34,7 @@ namespace PremiumLivingOPS.Models.DAL
                              o.GrandTotal, o.OrderContactName, o.OrderStatus
                       FROM `Order` o
                       JOIN Customer c ON o.CustomerID = c.CustomerID
-                      JOIN Staff   s ON o.SalesID     = s.StaffID
+                      JOIN Staff    s ON o.SalesID    = s.StaffID
                       WHERE 1=1";
 
                 if (!string.IsNullOrEmpty(status))
@@ -68,8 +69,8 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
-        public List<OrderEntity> GetAllOrders() => SearchOrders();
-        public List<OrderEntity> GetOrdersByStatus(string status) => SearchOrders(status);
+        public List<OrderEntity> GetAllOrders()                      => SearchOrders();
+        public List<OrderEntity> GetOrdersByStatus(string status)    => SearchOrders(status);
 
         public OrderEntity GetOrderById(string orderId)
         {
@@ -84,7 +85,7 @@ namespace PremiumLivingOPS.Models.DAL
                              o.GrandTotal, o.OrderContactName, o.OrderStatus
                       FROM `Order` o
                       JOIN Customer c ON o.CustomerID = c.CustomerID
-                      JOIN Staff   s ON o.SalesID     = s.StaffID
+                      JOIN Staff    s ON o.SalesID    = s.StaffID
                       WHERE o.OrderID = @orderId";
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
@@ -285,9 +286,12 @@ namespace PremiumLivingOPS.Models.DAL
             }
         }
 
-        // ════════════════════════════════════════════════════════════════
+        // ╔════════════════════════════════════════════════════════════════
         //  QUOTATION queries
-        // ════════════════════════════════════════════════════════════════
+        //  Schema cols: QuotationID, CustomerID, ExpiryDate, TotalAmount,
+        //               DepositRequired, LeadTimeEstimated, TermsandCondition, QuotationStatus
+        //  No IssuedDate / SalesStaffID / Notes / QuotationItem in schema.
+        // ╔════════════════════════════════════════════════════════════════
 
         public List<QuotationEntity> GetAllQuotations()
         {
@@ -297,14 +301,11 @@ namespace PremiumLivingOPS.Models.DAL
                 conn.Open();
                 const string sql =
                     @"SELECT q.QuotationID, q.CustomerID, c.CustomerName,
-                             q.IssuedDate, q.ExpiryDate,
-                             q.TotalAmount, q.DepositRequired, q.LeadTimeEstimated,
-                             q.TermsandCondition, q.QuotationStatus,
-                             s.StaffName AS SalesStaffName, q.Notes
+                             q.ExpiryDate, q.TotalAmount, q.DepositRequired,
+                             q.LeadTimeEstimated, q.TermsandCondition, q.QuotationStatus
                       FROM Quotation q
-                      JOIN Customer c ON q.CustomerID   = c.CustomerID
-                      JOIN Staff    s ON q.SalesStaffID = s.StaffID
-                      ORDER BY q.IssuedDate DESC";
+                      JOIN Customer c ON q.CustomerID = c.CustomerID
+                      ORDER BY q.ExpiryDate DESC";
                 using (var cmd = new MySqlCommand(sql, conn))
                 using (var rdr = cmd.ExecuteReader())
                     while (rdr.Read()) list.Add(MapQuotation(rdr));
@@ -319,13 +320,10 @@ namespace PremiumLivingOPS.Models.DAL
                 conn.Open();
                 const string sql =
                     @"SELECT q.QuotationID, q.CustomerID, c.CustomerName,
-                             q.IssuedDate, q.ExpiryDate,
-                             q.TotalAmount, q.DepositRequired, q.LeadTimeEstimated,
-                             q.TermsandCondition, q.QuotationStatus,
-                             s.StaffName AS SalesStaffName, q.Notes
+                             q.ExpiryDate, q.TotalAmount, q.DepositRequired,
+                             q.LeadTimeEstimated, q.TermsandCondition, q.QuotationStatus
                       FROM Quotation q
-                      JOIN Customer c ON q.CustomerID   = c.CustomerID
-                      JOIN Staff    s ON q.SalesStaffID = s.StaffID
+                      JOIN Customer c ON q.CustomerID = c.CustomerID
                       WHERE q.QuotationID = @qid";
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
@@ -335,39 +333,6 @@ namespace PremiumLivingOPS.Models.DAL
                 }
             }
             return null;
-        }
-
-        public List<QuotationItemEntity> GetQuotationItems(string quotationId)
-        {
-            var list = new List<QuotationItemEntity>();
-            using (var conn = DatabaseHelper.GetConnection())
-            {
-                conn.Open();
-                const string sql =
-                    @"SELECT qi.QuotationID, qi.ItemID, i.ItemName AS ProductName,
-                             qi.Quantity, qi.Unit, qi.UnitPrice, qi.DiscountPercent, qi.ItemNote
-                      FROM QuotationItem qi
-                      JOIN Item i ON qi.ItemID = i.ItemID
-                      WHERE qi.QuotationID = @qid";
-                using (var cmd = new MySqlCommand(sql, conn))
-                {
-                    cmd.Parameters.AddWithValue("@qid", quotationId);
-                    using (var rdr = cmd.ExecuteReader())
-                        while (rdr.Read())
-                            list.Add(new QuotationItemEntity
-                            {
-                                QuotationID     = rdr.GetString("QuotationID"),
-                                ItemID          = rdr.GetString("ItemID"),
-                                ProductName     = rdr.GetString("ProductName"),
-                                Quantity        = rdr.GetInt32("Quantity"),
-                                Unit            = rdr.IsDBNull(rdr.GetOrdinal("Unit"))           ? "" : rdr.GetString("Unit"),
-                                UnitPrice       = Convert.ToDouble(rdr["UnitPrice"]),
-                                DiscountPercent = rdr.IsDBNull(rdr.GetOrdinal("DiscountPercent")) ? 0  : Convert.ToDouble(rdr["DiscountPercent"]),
-                                ItemNote        = rdr.IsDBNull(rdr.GetOrdinal("ItemNote"))        ? "" : rdr.GetString("ItemNote")
-                            });
-                }
-            }
-            return list;
         }
 
         public bool UpdateQuotationStatus(string quotationId, string newStatus)
@@ -402,68 +367,45 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
-        public bool CreateQuotation(QuotationEntity q, string salesStaffId)
+        /// <summary>
+        /// Creates a new Quotation. Only schema columns are written.
+        /// </summary>
+        public bool CreateQuotation(QuotationEntity q)
         {
             using (var conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
                 const string sql =
                     @"INSERT INTO Quotation
-                        (QuotationID, CustomerID, SalesStaffID,
-                         IssuedDate, ExpiryDate,
+                        (QuotationID, CustomerID, ExpiryDate,
                          TotalAmount, DepositRequired, LeadTimeEstimated,
-                         TermsandCondition, QuotationStatus, Notes)
+                         TermsandCondition, QuotationStatus)
                       VALUES
-                        (@QuotationID, @CustomerID, @SalesStaffID,
-                         @IssuedDate, @ExpiryDate,
+                        (@QuotationID, @CustomerID, @ExpiryDate,
                          @TotalAmount, @DepositRequired, @LeadTimeEstimated,
-                         @TermsandCondition, @QuotationStatus, @Notes)";
+                         @TermsandCondition, @QuotationStatus)";
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
                     cmd.Parameters.AddWithValue("@QuotationID",       q.QuotationID);
                     cmd.Parameters.AddWithValue("@CustomerID",        q.CustomerID);
-                    cmd.Parameters.AddWithValue("@SalesStaffID",      salesStaffId);
-                    cmd.Parameters.AddWithValue("@IssuedDate",        q.IssuedDate.ToString("yyyy-MM-dd"));
                     cmd.Parameters.AddWithValue("@ExpiryDate",        q.ExpiryDate.ToString("yyyy-MM-dd"));
                     cmd.Parameters.AddWithValue("@TotalAmount",       q.TotalAmount);
                     cmd.Parameters.AddWithValue("@DepositRequired",   q.DepositRequired);
                     cmd.Parameters.AddWithValue("@LeadTimeEstimated", string.IsNullOrEmpty(q.LeadTimeEstimated) ? (object)DBNull.Value : q.LeadTimeEstimated);
                     cmd.Parameters.AddWithValue("@TermsandCondition", string.IsNullOrEmpty(q.TermsandCondition) ? (object)DBNull.Value : q.TermsandCondition);
                     cmd.Parameters.AddWithValue("@QuotationStatus",   q.QuotationStatus ?? "Pending");
-                    cmd.Parameters.AddWithValue("@Notes",             string.IsNullOrEmpty(q.Notes)             ? (object)DBNull.Value : q.Notes);
                     return cmd.ExecuteNonQuery() > 0;
                 }
             }
         }
 
-        public bool CreateQuotationItem(QuotationItemEntity item)
-        {
-            using (var conn = DatabaseHelper.GetConnection())
-            {
-                conn.Open();
-                const string sql =
-                    @"INSERT INTO QuotationItem
-                        (QuotationID, ItemID, Quantity, Unit, UnitPrice, DiscountPercent, ItemNote)
-                      VALUES
-                        (@QuotationID, @ItemID, @Quantity, @Unit, @UnitPrice, @DiscountPercent, @ItemNote)";
-                using (var cmd = new MySqlCommand(sql, conn))
-                {
-                    cmd.Parameters.AddWithValue("@QuotationID",     item.QuotationID);
-                    cmd.Parameters.AddWithValue("@ItemID",          item.ItemID);
-                    cmd.Parameters.AddWithValue("@Quantity",        item.Quantity);
-                    cmd.Parameters.AddWithValue("@Unit",            string.IsNullOrEmpty(item.Unit)     ? (object)DBNull.Value : item.Unit);
-                    cmd.Parameters.AddWithValue("@UnitPrice",       item.UnitPrice);
-                    cmd.Parameters.AddWithValue("@DiscountPercent", item.DiscountPercent);
-                    cmd.Parameters.AddWithValue("@ItemNote",        string.IsNullOrEmpty(item.ItemNote) ? (object)DBNull.Value : item.ItemNote);
-                    return cmd.ExecuteNonQuery() > 0;
-                }
-            }
-        }
-
-        // ════════════════════════════════════════════════════════════════
+        // ╔════════════════════════════════════════════════════════════════
         //  LOOKUP queries  (shared by Order + Quotation forms)
-        // ════════════════════════════════════════════════════════════════
+        // ╔════════════════════════════════════════════════════════════════
 
+        /// <summary>
+        /// Customer schema cols: CustomerID, CustomerName, EmailAddress, PhoneNumber
+        /// </summary>
         public List<CustomerEntity> GetAllCustomers()
         {
             var list = new List<CustomerEntity>();
@@ -471,7 +413,7 @@ namespace PremiumLivingOPS.Models.DAL
             {
                 conn.Open();
                 const string sql =
-                    "SELECT CustomerID, CustomerName, ContactPhone, ContactEmail FROM Customer ORDER BY CustomerName";
+                    "SELECT CustomerID, CustomerName, EmailAddress, PhoneNumber FROM Customer ORDER BY CustomerName";
                 using (var cmd = new MySqlCommand(sql, conn))
                 using (var rdr = cmd.ExecuteReader())
                     while (rdr.Read())
@@ -479,8 +421,9 @@ namespace PremiumLivingOPS.Models.DAL
                         {
                             CustomerID   = rdr.GetString("CustomerID"),
                             CustomerName = rdr.GetString("CustomerName"),
-                            ContactPhone = rdr.IsDBNull(rdr.GetOrdinal("ContactPhone")) ? "" : rdr.GetString("ContactPhone"),
-                            ContactEmail = rdr.IsDBNull(rdr.GetOrdinal("ContactEmail")) ? "" : rdr.GetString("ContactEmail")
+                            // Use alias properties so both naming conventions work
+                            EmailAddress = rdr.IsDBNull(rdr.GetOrdinal("EmailAddress")) ? "" : rdr.GetString("EmailAddress"),
+                            PhoneNumber  = rdr.IsDBNull(rdr.GetOrdinal("PhoneNumber"))  ? "" : rdr.GetString("PhoneNumber")
                         });
             }
             return list;
@@ -509,6 +452,10 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
+        /// <summary>
+        /// Product and Item are separate tables joined by ItemID.
+        /// Schema: Item(ItemID, ItemName, ItemDescription) + Product(ItemID, SalesPrice, Category)
+        /// </summary>
         public List<ProductLookup> GetAllProducts()
         {
             var list = new List<ProductLookup>();
@@ -516,7 +463,10 @@ namespace PremiumLivingOPS.Models.DAL
             {
                 conn.Open();
                 const string sql =
-                    "SELECT ItemID, ItemName, SalesPrice, Category FROM Item ORDER BY Category, ItemName";
+                    @"SELECT i.ItemID, i.ItemName, p.SalesPrice, p.Category
+                      FROM Item i
+                      JOIN Product p ON i.ItemID = p.ItemID
+                      ORDER BY p.Category, i.ItemName";
                 using (var cmd = new MySqlCommand(sql, conn))
                 using (var rdr = cmd.ExecuteReader())
                     while (rdr.Read())
@@ -531,9 +481,12 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
-        // ════════════════════════════════════════════════════════════════
+        // ╔════════════════════════════════════════════════════════════════
         //  MAPPING helpers (private)
-        // ════════════════════════════════════════════════════════════════
+        // ╔════════════════════════════════════════════════════════════════
+
+        private static double ToDouble(MySqlDataReader r, string col)
+            => r.IsDBNull(r.GetOrdinal(col)) ? 0.0 : Convert.ToDouble(r[col]);
 
         private static OrderEntity MapOrder(MySqlDataReader r) => new OrderEntity
         {
@@ -548,11 +501,11 @@ namespace PremiumLivingOPS.Models.DAL
             DeliveryDate     = r.GetDateTime("DeliveryDate"),
             ShippingAddress  = r.IsDBNull(r.GetOrdinal("ShippingAddress"))  ? null : r.GetString("ShippingAddress"),
             BillingAddress   = r.IsDBNull(r.GetOrdinal("BillingAddress"))   ? null : r.GetString("BillingAddress"),
-            SubTotal         = Convert.ToDouble(r["SubTotal"]),
+            SubTotal         = ToDouble(r, "SubTotal"),        // nullable in schema
             DiscountType     = r.IsDBNull(r.GetOrdinal("DiscountType"))     ? null : r.GetString("DiscountType"),
-            DiscountValue    = Convert.ToDouble(r["DiscountValue"]),
-            DiscountAmount   = Convert.ToDouble(r["DiscountAmount"]),
-            GrandTotal       = Convert.ToDouble(r["GrandTotal"]),
+            DiscountValue    = ToDouble(r, "DiscountValue"),   // nullable in schema
+            DiscountAmount   = ToDouble(r, "DiscountAmount"),  // nullable in schema
+            GrandTotal       = ToDouble(r, "GrandTotal"),
             OrderContactName = r.IsDBNull(r.GetOrdinal("OrderContactName")) ? null : r.GetString("OrderContactName"),
             OrderStatus      = r.GetString("OrderStatus")
         };
@@ -562,15 +515,12 @@ namespace PremiumLivingOPS.Models.DAL
             QuotationID       = r.GetString("QuotationID"),
             CustomerID        = r.GetString("CustomerID"),
             CustomerName      = r.GetString("CustomerName"),
-            IssuedDate        = r.GetDateTime("IssuedDate"),
             ExpiryDate        = r.GetDateTime("ExpiryDate"),
-            TotalAmount       = Convert.ToDouble(r["TotalAmount"]),
-            DepositRequired   = Convert.ToDouble(r["DepositRequired"]),
+            TotalAmount       = ToDouble(r, "TotalAmount"),
+            DepositRequired   = ToDouble(r, "DepositRequired"),  // nullable in schema
             LeadTimeEstimated = r.IsDBNull(r.GetOrdinal("LeadTimeEstimated")) ? null : r.GetString("LeadTimeEstimated"),
             TermsandCondition = r.IsDBNull(r.GetOrdinal("TermsandCondition")) ? null : r.GetString("TermsandCondition"),
-            QuotationStatus   = r.GetString("QuotationStatus"),
-            SalesStaffName    = r.IsDBNull(r.GetOrdinal("SalesStaffName"))    ? null : r.GetString("SalesStaffName"),
-            Notes             = r.IsDBNull(r.GetOrdinal("Notes"))             ? null : r.GetString("Notes")
+            QuotationStatus   = r.GetString("QuotationStatus")
         };
     }
 }
