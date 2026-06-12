@@ -2,48 +2,618 @@ using PremiumLivingOPS.Controllers;
 using PremiumLivingOPS.Models.Entities;
 using PremiumLivingOPS.Views.Shared;
 using System;
+using System.Collections.Generic;
 using System.Drawing;
-using System.Linq;
+using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 
 namespace PremiumLivingOPS.Views.OrderProcessing
 {
+    /// <summary>
+    /// Quotation — Tab 2 of Order Processing Management.
+    /// Lists all quotations and allows status updates via KPI-pill filtering.
+    ///
+    /// MVC contract (View layer):
+    ///   • Calls OrderProcessingController to obtain QuotationViewModel.
+    ///   • Uses AppShell (TopNavBar + UserBar) for navigation chrome.
+    ///   • Contains NO business logic and NO direct DB calls.
+    ///   • Layout uses CardPanel 三層巢層卡片結構 (參考 ViewOrderForm).
+    /// </summary>
     public partial class QuotationForm : Form
     {
         private readonly OrderProcessingController _ctrl = new OrderProcessingController();
-        private QuotationViewModel _vm;
-        // NOTE: _shell is declared in QuotationForm.Designer.cs (internal AppShell _shell)
-        // DO NOT re-declare it here — that causes CS0102 duplicate definition.
+        private List<QuotationEntity> _currentQuotations = new List<QuotationEntity>();
+
+        private static readonly Dictionary<string, (Color bg, Color fg)> StatusColors =
+            new Dictionary<string, (Color, Color)>
+            {
+                { "Pending",   (Color.FromArgb(254, 243, 199), Color.FromArgb(146,  64,  14)) },
+                { "Converted", (Color.FromArgb(209, 250, 229), Color.FromArgb(  6,  95,  70)) },
+                { "Rejected",  (Color.FromArgb(254, 226, 226), Color.FromArgb(153,  27,  27)) },
+            };
 
         public QuotationForm()
         {
             InitializeComponent();
-            Load += QuotationForm_Load;
+            this.Load += QuotationForm_Load;
         }
 
-        // ── Load ──────────────────────────────────────────────────────────────────────────────
-
+        // ── Load
         private void QuotationForm_Load(object sender, EventArgs e)
         {
-            // ── Wire up AppShell navigation (MUST be here, not in Designer.cs)
             _shell.MenuItemClicked += OnTopNavMenuItemClicked;
             _shell.LogoutClicked   += btnLogout_Click;
-
-            _vm = _ctrl.GetQuotationListVM();
-
-            if (_vm?.UserBar != null)
-                _shell.SetUser(_vm.UserBar.DisplayName, _vm.UserBar.Department);
-
-            if (_vm?.AllowedMenus != null)
-                _shell.SetVisibleMenus(_vm.AllowedMenus);
-
-            _shell.SetBreadcrumb("Order Processing  ›  Quotation");
-
-            LoadGrid();
-            UpdateKpiBar();
+            RefreshGrid();
         }
 
-        // ── Navigation ───────────────────────────────────────────────────────────────────
+        // ── Core refresh
+        private void RefreshGrid()
+        {
+            string keyword      = txtSearchKeyword.Text.Trim();
+            string statusSelect = cboStatus.SelectedItem?.ToString();
+            string statusFilter = (statusSelect == "All" || string.IsNullOrEmpty(statusSelect))
+                                  ? null : statusSelect;
+
+            var vm = _ctrl.GetQuotationVM(statusFilter, keyword);
+
+            _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
+            _shell.SetVisibleMenus(vm.AllowedMenus);
+            _shell.SetBreadcrumb("Order Processing  \u203A  Quotation");
+
+            _currentQuotations = vm.Quotations;
+
+            dgvQuotations.Rows.Clear();
+            foreach (var q in _currentQuotations)
+                dgvQuotations.Rows.Add(
+                    q.QuotationID,
+                    q.CustomerName,
+                    q.ExpiryDate.ToString("yyyy-MM-dd"),
+                    $"HK$ {q.TotalAmount:N2}",
+                    $"HK$ {q.DepositRequired:N2}",
+                    q.LeadTimeEstimated,
+                    q.QuotationStatus);
+
+            RefreshKpi();
+            UpdateActionButtons();
+        }
+
+        private void ResetFilters()
+        {
+            txtSearchKeyword.Text   = string.Empty;
+            cboStatus.SelectedIndex = 0;
+            RefreshGrid();
+        }
+
+        // ── KPI bar
+        private void RefreshKpi()
+        {
+            pnlKpi.Controls.Clear();
+
+            var allQuotations = _ctrl.GetQuotationVM().Quotations;
+
+            int total     = allQuotations.Count;
+            int pending   = allQuotations.FindAll(q => q.QuotationStatus == "Pending").Count;
+            int converted = allQuotations.FindAll(q => q.QuotationStatus == "Converted").Count;
+            int rejected  = allQuotations.FindAll(q => q.QuotationStatus == "Rejected").Count;
+
+            var pills = new[]
+            {
+                ("Total",     total.ToString(),     Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254), "All"),
+                ("Pending",   pending.ToString(),   Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), "Pending"),
+                ("Converted", converted.ToString(), Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229), "Converted"),
+                ("Rejected",  rejected.ToString(),  Color.FromArgb(153,  27,  27), Color.FromArgb(254, 226, 226), "Rejected"),
+            };
+
+            var flow = new FlowLayoutPanel
+            {
+                Dock          = DockStyle.Fill,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents  = false,
+                BackColor     = Color.Transparent,
+                Padding       = new Padding(0),
+                AutoScroll    = false
+            };
+
+            const int PillW   = 290;
+            const int PillH   = 60;
+            const int Gap     = 8;
+            const int NumColW = 80;
+
+            foreach (var (label, count, fg, bg, filterItem) in pills)
+            {
+                var pill = new Panel
+                {
+                    BackColor = bg,
+                    Size      = new Size(PillW, PillH),
+                    Margin    = new Padding(0, 0, Gap, 0),
+                    Cursor    = Cursors.Hand
+                };
+                pill.Paint += (s, e) =>
+                {
+                    e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                    using var path  = RoundedRect(((Panel)s).ClientRectangle, 8);
+                    using var brush = new SolidBrush(((Panel)s).BackColor);
+                    e.Graphics.FillPath(brush, path);
+                };
+
+                var tlp = new TableLayoutPanel
+                {
+                    Dock            = DockStyle.Fill,
+                    ColumnCount     = 2,
+                    RowCount        = 1,
+                    BackColor       = Color.Transparent,
+                    CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                    Padding         = new Padding(10, 0, 8, 0)
+                };
+                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, NumColW));
+                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+                tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+
+                tlp.Controls.Add(new Label
+                {
+                    Text      = count,
+                    Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
+                    ForeColor = fg, BackColor = Color.Transparent,
+                    Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, AutoSize = false
+                }, 0, 0);
+                tlp.Controls.Add(new Label
+                {
+                    Text      = label,
+                    Font      = new Font("Segoe UI", 12f),
+                    ForeColor = fg, BackColor = Color.Transparent,
+                    Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
+                }, 1, 0);
+
+                string localFilter = filterItem;
+                EventHandler click = (s, e) =>
+                {
+                    int idx = cboStatus.FindStringExact(localFilter);
+                    if (idx >= 0) cboStatus.SelectedIndex = idx;
+                    RefreshGrid();
+                };
+                pill.Click += click;
+                tlp.Click  += click;
+                foreach (Control c in tlp.Controls) c.Click += click;
+
+                pill.Controls.Add(tlp);
+                flow.Controls.Add(pill);
+            }
+            pnlKpi.Controls.Add(flow);
+        }
+
+        private void UpdateActionButtons()
+        {
+            bool sel = dgvQuotations.SelectedRows.Count > 0;
+            btnViewDetail.Enabled   = sel;
+            btnCreateNew.Enabled    = true;   // Create New is always enabled
+            btnUpdateStatus.Enabled = sel;
+            cboNewStatus.Enabled    = sel;
+        }
+
+        // ── Event handlers
+        private void dgvQuotations_SelectionChanged(object sender, EventArgs e)
+        {
+            UpdateActionButtons();
+            if (dgvQuotations.SelectedRows.Count > 0)
+            {
+                string current = dgvQuotations.SelectedRows[0]
+                    .Cells["colStatus"].Value?.ToString();
+                int idx = cboNewStatus.FindStringExact(current);
+                if (idx >= 0) cboNewStatus.SelectedIndex = idx;
+            }
+        }
+
+        private void dgvQuotations_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
+        {
+            if (dgvQuotations.Columns[e.ColumnIndex].Name != "colStatus" || e.Value == null) return;
+            string dbValue = e.Value.ToString();
+            e.FormattingApplied = true;
+            if (StatusColors.TryGetValue(dbValue, out var colors))
+            {
+                e.CellStyle.ForeColor            = colors.fg;
+                e.CellStyle.BackColor            = colors.bg;
+                e.CellStyle.SelectionForeColor   = colors.fg;
+                e.CellStyle.SelectionBackColor   = colors.bg;
+                e.CellStyle.Font                 = new Font("Segoe UI", 11f, FontStyle.Bold);
+                e.CellStyle.Alignment            = DataGridViewContentAlignment.MiddleCenter;
+            }
+        }
+
+        private void dgvQuotations_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex >= 0) OpenDetailDialog();
+        }
+
+        private void btnViewDetail_Click(object sender, EventArgs e) => OpenDetailDialog();
+
+        // ── Create New Quotation
+        private void btnCreateNew_Click(object sender, EventArgs e)
+        {
+            using var dlg = new CreateNewQuotationForm();
+            if (dlg.ShowDialog(this) == DialogResult.OK)
+            {
+                RefreshGrid();
+            }
+        }
+
+        private string SelectedQuotationId()
+        {
+            if (dgvQuotations.SelectedRows.Count == 0) return null;
+            return dgvQuotations.SelectedRows[0].Cells["colQuotationID"].Value?.ToString();
+        }
+
+        private void OpenDetailDialog()
+        {
+            string qid = SelectedQuotationId();
+            if (qid == null) return;
+
+            var q = _ctrl.GetQuotationDetail(qid);
+            if (q == null)
+            {
+                MessageBox.Show("Quotation not found.", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            ShowDetailDialog(q, q.Items);
+        }
+
+        // ──────────────────────────────────────────────────────────────────
+        //  DETAIL DIALOG  — based on ViewOrderForm.ShowDetailDialog
+        // ──────────────────────────────────────────────────────────────────
+        private void ShowDetailDialog(QuotationEntity q, List<QuotationItemEntity> items)
+        {
+            bool hasTnC = !string.IsNullOrWhiteSpace(q.TermsandCondition);
+
+            using var dlg = new Form
+            {
+                Text            = $"Quotation Detail — {q.QuotationID}",
+                Size            = new Size(2500, 1100),
+                StartPosition   = FormStartPosition.CenterParent,
+                BackColor       = Color.White,
+                Font            = new Font("Segoe UI", 13f),
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox     = false,
+                MinimizeBox     = false
+            };
+
+            // ── Header bar (dark navy, same as ViewOrderForm)
+            var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 80, BackColor = Color.FromArgb(19, 35, 61) };
+            var tblHeader = new TableLayoutPanel
+            {
+                Dock            = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
+                BackColor       = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                Padding         = new Padding(24, 0, 24, 0)
+            };
+            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
+            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 220f));
+            tblHeader.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+
+            tblHeader.Controls.Add(new Label
+            {
+                Text      = $"Quotation Details  —  {q.QuotationID}",
+                Font      = new Font("Segoe UI", 18f, FontStyle.Bold),
+                ForeColor = Color.White, Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
+            }, 0, 0);
+
+            StatusColors.TryGetValue(q.QuotationStatus ?? "", out var sc);
+            tblHeader.Controls.Add(new Label
+            {
+                Text      = q.QuotationStatus ?? "Unknown",
+                Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
+                ForeColor = sc.fg != default ? sc.fg : Color.White,
+                BackColor = sc.bg != default ? sc.bg : Color.FromArgb(80, 80, 80),
+                Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter,
+                AutoSize  = false, Padding = new Padding(8, 4, 8, 4)
+            }, 1, 0);
+            pnlHeader.Controls.Add(tblHeader);
+
+            // ── Info panel
+            var pnlInfo = new Panel
+            {
+                Dock      = DockStyle.Top, Height = 340,
+                Padding   = new Padding(28, 18, 28, 8), BackColor = Color.White
+            };
+            pnlInfo.Paint += (s, e) =>
+            {
+                using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
+                e.Graphics.DrawLine(pen, 28, ((Panel)s).Height - 1, ((Panel)s).Width - 28, ((Panel)s).Height - 1);
+            };
+
+            var tblInfo = new TableLayoutPanel
+            {
+                Dock            = DockStyle.Fill, ColumnCount = 4, RowCount = 5,
+                BackColor       = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+            };
+            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
+            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
+            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
+            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
+            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 15f));
+            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 15f));
+            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 15f));
+            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 40f));
+            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 15f));
+
+            var leftFields = new[]
+            {
+                ("Quotation ID", q.QuotationID),
+                ("Customer",     q.CustomerName),
+                ("Lead Time",    q.LeadTimeEstimated ?? "—"),
+                ("Notes",        q.Notes ?? ""),
+            };
+            for (int i = 0; i < leftFields.Length; i++)
+            {
+                tblInfo.Controls.Add(MakeLabelKey(leftFields[i].Item1), 0, i);
+                tblInfo.Controls.Add(
+                    i == 3 ? MakeLabelValMultiLine(leftFields[i].Item2)
+                           : MakeLabelVal(leftFields[i].Item2),
+                    1, i);
+            }
+            tblInfo.Controls.Add(new Label { Dock = DockStyle.Fill, BackColor = Color.Transparent }, 0, 4);
+            tblInfo.Controls.Add(new Label { Dock = DockStyle.Fill, BackColor = Color.Transparent }, 1, 4);
+
+            var rightFields = new (string, string, bool)[]
+            {
+                ("Expiry Date",      q.ExpiryDate.ToString("yyyy-MM-dd"), false),
+                ("Total Amount",     $"HK$ {q.TotalAmount:N2}",           false),
+                ("Deposit Required", $"HK$ {q.DepositRequired:N2}",       false),
+                ("", "", false),
+                ("Status",           q.QuotationStatus ?? "—",           false),
+            };
+            for (int i = 0; i < rightFields.Length; i++)
+            {
+                if (string.IsNullOrEmpty(rightFields[i].Item1))
+                {
+                    tblInfo.Controls.Add(new Label { Dock = DockStyle.Fill, BackColor = Color.Transparent }, 2, i);
+                    tblInfo.Controls.Add(new Label { Dock = DockStyle.Fill, BackColor = Color.Transparent }, 3, i);
+                }
+                else
+                {
+                    tblInfo.Controls.Add(MakeLabelKey(rightFields[i].Item1), 2, i);
+                    tblInfo.Controls.Add(MakeLabelVal(rightFields[i].Item2), 3, i);
+                }
+            }
+            pnlInfo.Controls.Add(tblInfo);
+
+            // ── T&C bar
+            Panel pnlTnC = null;
+            if (hasTnC)
+            {
+                pnlTnC = new Panel
+                {
+                    Dock      = DockStyle.Top, Height = 60,
+                    Padding   = new Padding(28, 0, 28, 0), BackColor = Color.FromArgb(255, 251, 235)
+                };
+                pnlTnC.Paint += PaintBottomBorderStatic;
+                var tblTnC = new TableLayoutPanel
+                {
+                    Dock            = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
+                    BackColor       = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+                };
+                tblTnC.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
+                tblTnC.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 85f));
+                tblTnC.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+                tblTnC.Controls.Add(MakeLabelKey("Terms & Conditions"), 0, 0);
+                tblTnC.Controls.Add(MakeLabelVal(q.TermsandCondition),  1, 0);
+                pnlTnC.Controls.Add(tblTnC);
+            }
+
+            // ── QUOTATION ITEMS label bar
+            var pnlLineLabel = new Panel
+            {
+                Dock      = DockStyle.Top, Height = 40,
+                BackColor = Color.FromArgb(246, 249, 255),
+                Padding   = new Padding(28, 0, 0, 0)
+            };
+            pnlLineLabel.Controls.Add(new Label
+            {
+                Text      = "QUOTATION ITEMS",
+                Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(98, 112, 135),
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft
+            });
+            pnlLineLabel.Paint += PaintBottomBorderStatic;
+
+            // ── Items DataGridView
+            var dgv = new DataGridView
+            {
+                ReadOnly              = true,
+                AllowUserToAddRows    = false,
+                RowHeadersVisible     = false,
+                SelectionMode         = DataGridViewSelectionMode.FullRowSelect,
+                BackgroundColor       = Color.White,
+                BorderStyle           = BorderStyle.None,
+                GridColor             = Color.FromArgb(221, 227, 236),
+                Font                  = new Font("Segoe UI", 12f),
+                AutoSizeColumnsMode   = DataGridViewAutoSizeColumnsMode.Fill,
+                CellBorderStyle       = DataGridViewCellBorderStyle.SingleHorizontal,
+                RowTemplate           = { Height = 44 },
+                Dock                  = DockStyle.Fill,
+                ColumnHeadersHeight   = 40,
+                EnableHeadersVisualStyles = false,
+                ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
+                {
+                    BackColor = Color.FromArgb(246, 249, 255),
+                    ForeColor = Color.FromArgb(98, 112, 135),
+                    Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
+                    Padding   = new Padding(12, 0, 0, 0)
+                },
+                DefaultCellStyle = new DataGridViewCellStyle
+                {
+                    BackColor          = Color.White,
+                    ForeColor          = Color.FromArgb(15, 31, 53),
+                    SelectionBackColor = Color.FromArgb(219, 234, 254),
+                    SelectionForeColor = Color.FromArgb(15, 31, 53),
+                    Padding            = new Padding(12, 6, 12, 6)
+                }
+            };
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cProduct",  HeaderText = "PRODUCT",    FillWeight = 30 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cQty",       HeaderText = "QTY",        FillWeight = 10 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cUnit",      HeaderText = "UNIT",       FillWeight = 10 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cUnitPrice", HeaderText = "UNIT PRICE", FillWeight = 15 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cDiscount",  HeaderText = "DISCOUNT %", FillWeight = 12 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cSubtotal",  HeaderText = "SUBTOTAL",   FillWeight = 15 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cNote",      HeaderText = "ITEM NOTE",  FillWeight = 18 });
+
+            if (items != null)
+                foreach (var item in items)
+                    dgv.Rows.Add(item.ProductName, item.Quantity, item.Unit,
+                        $"HK$ {item.UnitPrice:N2}", $"{item.DiscountPercent:N1}%",
+                        $"HK$ {item.Subtotal:N2}", item.ItemNote);
+
+            // ── Total row
+            var pnlTotalRow = new Panel
+            {
+                Dock      = DockStyle.Bottom, Height = 50,
+                BackColor = Color.FromArgb(246, 249, 255),
+                Padding   = new Padding(28, 0, 28, 0)
+            };
+            var tblTotal = new TableLayoutPanel
+            {
+                Dock            = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
+                BackColor       = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+            };
+            tblTotal.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
+            tblTotal.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
+            tblTotal.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+            tblTotal.Controls.Add(new Label
+            {
+                Text      = $"Deposit Required:   HK$ {q.DepositRequired:N2}",
+                Font      = new Font("Segoe UI", 12f),
+                ForeColor = Color.FromArgb(98, 112, 135),
+                Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
+            }, 0, 0);
+            tblTotal.Controls.Add(new Label
+            {
+                Text      = $"Total Amount:   HK$ {q.TotalAmount:N2}",
+                Font      = new Font("Segoe UI", 13f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(15, 31, 53),
+                Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleRight, AutoSize = false
+            }, 1, 0);
+            pnlTotalRow.Controls.Add(tblTotal);
+
+            // ── Footer
+            var pnlFooter = new Panel
+            {
+                Dock    = DockStyle.Bottom, Height = 80,
+                BackColor = Color.White, Padding = new Padding(0, 10, 28, 10)
+            };
+            pnlFooter.Paint += PaintTopBorderStatic;
+            var btnClose = new Button
+            {
+                Text      = "Close",
+                Font      = new Font("Segoe UI", 12f),
+                ForeColor = Color.FromArgb(15, 31, 53),
+                BackColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Dock      = DockStyle.Right,
+                Width     = 140,
+                Cursor    = Cursors.Hand
+            };
+            btnClose.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
+            btnClose.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
+            btnClose.Click += (s, ev) => dlg.Close();
+            pnlFooter.Controls.Add(btnClose);
+
+            dlg.Controls.Add(dgv);
+            dlg.Controls.Add(pnlTotalRow);
+            dlg.Controls.Add(pnlLineLabel);
+            if (hasTnC) dlg.Controls.Add(pnlTnC);
+            dlg.Controls.Add(pnlInfo);
+            dlg.Controls.Add(pnlHeader);
+            dlg.Controls.Add(pnlFooter);
+            dlg.ShowDialog(this);
+        }
+
+        // ── Label factory helpers
+        private static Label MakeLabelKey(string text) => new Label
+        {
+            Text         = text,
+            Font         = new Font("Segoe UI", 10f, FontStyle.Bold),
+            ForeColor    = Color.FromArgb(98, 112, 135),
+            Dock         = DockStyle.Fill,
+            TextAlign    = ContentAlignment.MiddleLeft,
+            Padding      = new Padding(0, 0, 8, 0),
+            AutoEllipsis = false
+        };
+        private static Label MakeLabelVal(string text) => new Label
+        {
+            Text         = text ?? "—",
+            Font         = new Font("Segoe UI", 12f),
+            ForeColor    = Color.FromArgb(15, 31, 53),
+            Dock         = DockStyle.Fill,
+            TextAlign    = ContentAlignment.MiddleLeft,
+            AutoEllipsis = true
+        };
+        private static Label MakeLabelValMultiLine(string text) => new Label
+        {
+            Text         = text ?? "—",
+            Font         = new Font("Segoe UI", 12f),
+            ForeColor    = Color.FromArgb(15, 31, 53),
+            Dock         = DockStyle.Fill,
+            TextAlign    = ContentAlignment.TopLeft,
+            AutoEllipsis = false,
+            AutoSize     = false,
+            Padding      = new Padding(0, 8, 8, 4)
+        };
+        private static void PaintBottomBorderStatic(object s, PaintEventArgs e)
+        {
+            var p = (Panel)s;
+            using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
+            e.Graphics.DrawLine(pen, 0, p.Height - 1, p.Width, p.Height - 1);
+        }
+        private static void PaintTopBorderStatic(object s, PaintEventArgs e)
+        {
+            var p = (Panel)s;
+            using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
+            e.Graphics.DrawLine(pen, 0, 0, p.Width, 0);
+        }
+
+        // ── Status update
+        private void btnUpdateStatus_Click(object sender, EventArgs e)
+        {
+            if (dgvQuotations.SelectedRows.Count == 0)
+            {
+                MessageBox.Show("Please select a quotation first.",
+                    "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            string quotationId = dgvQuotations.SelectedRows[0]
+                .Cells["colQuotationID"].Value?.ToString();
+            string newStatus = cboNewStatus.SelectedItem?.ToString();
+            if (string.IsNullOrEmpty(newStatus))
+            {
+                MessageBox.Show("Please select a new status.",
+                    "No Status", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            bool ok = _ctrl.UpdateQuotationStatus(quotationId, newStatus);
+            if (ok)
+            {
+                MessageBox.Show($"Quotation {quotationId} updated to '{newStatus}'.",
+                    "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                RefreshGrid();
+            }
+            else
+                MessageBox.Show("Failed to update quotation status. Please try again.",
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+
+        // ── Helpers
+        private static GraphicsPath RoundedRect(Rectangle r, int radius)
+        {
+            var path = new GraphicsPath();
+            int d = radius * 2;
+            path.AddArc(r.X, r.Y, d, d, 180, 90);
+            path.AddArc(r.Right - d, r.Y, d, d, 270, 90);
+            path.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90);
+            path.AddArc(r.X, r.Bottom - d, d, d, 90, 90);
+            path.CloseFigure();
+            return path;
+        }
 
         private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
             => FormNavigator.NavigateTo(this, menuLabel, subItem);
@@ -52,195 +622,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         {
             SessionManager.Clear();
             Application.Restart();
-        }
-
-        // ── Grid ──────────────────────────────────────────────────────────────────────────────
-
-        private void LoadGrid()
-        {
-            dgvQuotations.Rows.Clear();
-            if (_vm?.Quotations == null) return;
-
-            foreach (var q in _vm.Quotations)
-            {
-                dgvQuotations.Rows.Add(
-                    q.QuotationID,
-                    q.CustomerName,
-                    q.ExpiryDate.ToString("yyyy-MM-dd"),
-                    string.Format("HK$ {0:N2}", q.TotalAmount),
-                    string.Format("HK$ {0:N2}", q.DepositRequired),
-                    q.LeadTimeEstimated,
-                    q.QuotationStatus);
-            }
-        }
-
-        private void RefreshGrid()
-        {
-            string kw     = txtSearchKeyword.Text.Trim().ToLower();
-            string status = cboStatus.SelectedItem?.ToString();
-
-            _vm = _ctrl.GetQuotationListVM();
-
-            var filtered = _vm.Quotations.AsEnumerable();
-            if (!string.IsNullOrEmpty(kw))
-                filtered = filtered.Where(q =>
-                    (q.QuotationID   ?? "").ToLower().Contains(kw) ||
-                    (q.CustomerName  ?? "").ToLower().Contains(kw));
-            if (!string.IsNullOrEmpty(status) && status != "All")
-                filtered = filtered.Where(q => q.QuotationStatus == status);
-
-            dgvQuotations.Rows.Clear();
-            foreach (var q in filtered)
-                dgvQuotations.Rows.Add(
-                    q.QuotationID,
-                    q.CustomerName,
-                    q.ExpiryDate.ToString("yyyy-MM-dd"),
-                    string.Format("HK$ {0:N2}", q.TotalAmount),
-                    string.Format("HK$ {0:N2}", q.DepositRequired),
-                    q.LeadTimeEstimated,
-                    q.QuotationStatus);
-
-            UpdateKpiBar();
-        }
-
-        private void ResetFilters()
-        {
-            txtSearchKeyword.Clear();
-            cboStatus.SelectedIndex = 0;
-            _vm = _ctrl.GetQuotationListVM();
-            LoadGrid();
-            UpdateKpiBar();
-        }
-
-        // ── KPI bar ───────────────────────────────────────────────────────────────────────
-
-        private void UpdateKpiBar()
-        {
-            pnlKpi.Controls.Clear();
-            if (_vm?.Quotations == null) return;
-
-            int total     = _vm.Quotations.Count;
-            int pending   = _vm.Quotations.Count(q => q.QuotationStatus == "Pending");
-            int converted = _vm.Quotations.Count(q => q.QuotationStatus == "Converted");
-            int rejected  = _vm.Quotations.Count(q => q.QuotationStatus == "Rejected");
-
-            int x = 0;
-            foreach (var kv in new[]
-            {
-                ("Total",     total.ToString(),     Palette.Primary),
-                ("Pending",   pending.ToString(),   Color.FromArgb(180, 120, 0)),
-                ("Converted", converted.ToString(), Color.FromArgb(5,  130, 80)),
-                ("Rejected",  rejected.ToString(),  Color.FromArgb(160, 30, 30))
-            })
-            {
-                var chip = new Panel
-                {
-                    Location  = new Point(x, 8),
-                    Size      = new Size(160, 44),
-                    BackColor = Color.White
-                };
-                chip.Controls.Add(new Label
-                {
-                    Text      = kv.Item2 + "  " + kv.Item1,
-                    Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
-                    ForeColor = kv.Item3,
-                    Dock      = DockStyle.Fill,
-                    TextAlign = ContentAlignment.MiddleCenter
-                });
-                pnlKpi.Controls.Add(chip);
-                x += 168;
-            }
-        }
-
-        // ── Selection changed ────────────────────────────────────────────────────────────
-
-        private void dgvQuotations_SelectionChanged(object sender, EventArgs e)
-        {
-            bool sel = dgvQuotations.SelectedRows.Count > 0;
-            btnViewDetail.Enabled   = sel;
-            btnUpdateStatus.Enabled = sel;
-            cboNewStatus.Enabled    = sel;
-        }
-
-        // ── Cell formatting (colour-code status) ──────────────────────────────
-
-        private void dgvQuotations_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
-        {
-            if (dgvQuotations.Columns[e.ColumnIndex].Name != "colStatus") return;
-            switch (e.Value?.ToString()?.ToLower())
-            {
-                case "pending":   e.CellStyle.ForeColor = Color.FromArgb(180, 120,  0); break;
-                case "converted": e.CellStyle.ForeColor = Color.FromArgb(  5, 130, 80); break;
-                case "rejected":  e.CellStyle.ForeColor = Color.FromArgb(160,  30, 30); break;
-            }
-        }
-
-        // ── Button handlers ──────────────────────────────────────────────────────────────────
-
-        /// <summary>Create New Quotation — opens CreateNewQuotationForm dialog.</summary>
-        private void btnCreateNew_Click(object sender, EventArgs e)
-        {
-            using (var dlg = new CreateNewQuotationForm())
-            {
-                if (dlg.ShowDialog(this) == DialogResult.OK)
-                {
-                    _vm = _ctrl.GetQuotationListVM();
-                    LoadGrid();
-                    UpdateKpiBar();
-                }
-            }
-        }
-
-        /// <summary>View Detail — opens read-only QuotationDetailForm.</summary>
-        private void btnViewDetail_Click(object sender, EventArgs e)
-        {
-            if (dgvQuotations.SelectedRows.Count == 0) return;
-
-            string qid = dgvQuotations.SelectedRows[0]
-                .Cells["colQuotationID"].Value?.ToString();
-            if (string.IsNullOrEmpty(qid)) return;
-
-            var entity = _ctrl.GetQuotationDetail(qid);
-            if (entity == null)
-            {
-                MessageBox.Show("Could not load quotation detail.",
-                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
-            }
-            using (var dlg = new QuotationDetailForm(entity))
-                dlg.ShowDialog(this);
-        }
-
-        /// <summary>Update Status — persists the selected status combo value.</summary>
-        private void btnUpdateStatus_Click(object sender, EventArgs e)
-        {
-            if (dgvQuotations.SelectedRows.Count == 0) return;
-
-            string qid       = dgvQuotations.SelectedRows[0]
-                .Cells["colQuotationID"].Value?.ToString();
-            string newStatus = cboNewStatus.SelectedItem?.ToString();
-            if (string.IsNullOrEmpty(qid) || string.IsNullOrEmpty(newStatus)) return;
-
-            bool ok = _ctrl.UpdateQuotationStatus(qid, newStatus);
-            if (ok)
-            {
-                MessageBox.Show(
-                    string.Format("Quotation {0} updated to '{1}'.", qid, newStatus),
-                    "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                _vm = _ctrl.GetQuotationListVM();
-                LoadGrid();
-                UpdateKpiBar();
-            }
-            else
-            {
-                MessageBox.Show("Failed to update status. Please try again.",
-                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
-        private void dgvQuotations_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
-        {
-            if (e.RowIndex >= 0) btnViewDetail_Click(sender, EventArgs.Empty);
         }
     }
 }
