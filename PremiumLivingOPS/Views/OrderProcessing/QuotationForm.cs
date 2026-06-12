@@ -1,20 +1,18 @@
 using PremiumLivingOPS.Controllers;
 using PremiumLivingOPS.Models.Entities;
+using PremiumLivingOPS.Views.Shared;
 using System;
-using System.Collections.Generic;
 using System.Drawing;
+using System.Linq;
 using System.Windows.Forms;
 
 namespace PremiumLivingOPS.Views.OrderProcessing
 {
-    /// <summary>
-    /// Quotation list page (View layer).
-    /// All business logic is delegated to OrderProcessingController.
-    /// </summary>
     public partial class QuotationForm : Form
     {
-        private readonly OrderProcessingController _ctrl = new OrderProcessingController();
-        private QuotationViewModel _vm;
+        private readonly OrderProcessingController _ctrl   = new OrderProcessingController();
+        private QuotationViewModel                 _vm;
+        private AppShell                           _shell;
 
         public QuotationForm()
         {
@@ -22,207 +20,160 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             Load += QuotationForm_Load;
         }
 
-        // ── Lifecycle
+        // ── Load ──────────────────────────────────────────────────────────────
 
         private void QuotationForm_Load(object sender, EventArgs e)
         {
-            _vm = _ctrl.GetQuotationVM();
-            // _shell is declared internal in Designer so it is accessible here
-            _shell.ApplyViewModel(_vm.UserBar, _vm.AllowedMenus, this);
-            RefreshGrid();
+            _vm = _ctrl.GetQuotationListVM();
+
+            // Wire AppShell (Line 31 fix: ApplyViewModel exists on AppShell)
+            _shell = _appShell;           // _appShell is the designer-placed AppShell control
+            _shell.ApplyViewModel(_vm.UserBar);
+
+            LoadGrid();
         }
 
-        // ── Grid helpers
+        // ── Grid ───────────────────────────────────────────────────────────────
 
-        internal void RefreshGrid()
+        private void LoadGrid()
         {
-            string status  = cboStatus.SelectedItem?.ToString() == "All"
-                             ? null : cboStatus.SelectedItem?.ToString();
-            string keyword = txtSearchKeyword.Text.Trim();
-            _vm = _ctrl.GetQuotationVM(status, keyword);
-
             dgvQuotations.Rows.Clear();
+            if (_vm?.Quotations == null) return;
+
             foreach (var q in _vm.Quotations)
             {
-                // LeadTimeEstimated is a string field (e.g. "14 days") — display directly
-                string leadTime = string.IsNullOrEmpty(q.LeadTimeEstimated)
-                                  ? "" : q.LeadTimeEstimated;
+                int idx = dgvQuotations.Rows.Add(
+                    q.QuotationID,
+                    q.CustomerName,
+                    q.IssuedDate.ToString("yyyy-MM-dd"),
+                    q.ExpiryDate.ToString("yyyy-MM-dd"),
+                    string.Format("HK$ {0:N2}", q.TotalAmount),
+                    q.QuotationStatus,
+                    q.SalesStaffName);
 
+                // colour-code status
+                var row = dgvQuotations.Rows[idx];
+                switch (q.QuotationStatus?.ToLower())
+                {
+                    case "pending":
+                        row.DefaultCellStyle.ForeColor = Color.FromArgb(180, 120, 0);
+                        break;
+                    case "converted":
+                        row.DefaultCellStyle.ForeColor = Color.FromArgb(5, 130, 80);
+                        break;
+                    case "rejected":
+                        row.DefaultCellStyle.ForeColor = Color.FromArgb(160, 30, 30);
+                        break;
+                }
+            }
+        }
+
+        // ── Search / filter ────────────────────────────────────────────────────
+
+        private void txtSearch_TextChanged(object sender, EventArgs e)
+        {
+            string kw = txtSearch.Text.Trim().ToLower();
+            if (string.IsNullOrEmpty(kw)) { LoadGrid(); return; }
+
+            dgvQuotations.Rows.Clear();
+            if (_vm?.Quotations == null) return;
+
+            var filtered = _vm.Quotations.Where(q =>
+                (q.QuotationID    ?? "").ToLower().Contains(kw) ||
+                (q.CustomerName   ?? "").ToLower().Contains(kw) ||
+                (q.QuotationStatus?? "").ToLower().Contains(kw) ||
+                (q.SalesStaffName ?? "").ToLower().Contains(kw));
+
+            foreach (var q in filtered)
                 dgvQuotations.Rows.Add(
                     q.QuotationID,
                     q.CustomerName,
+                    q.IssuedDate.ToString("yyyy-MM-dd"),
                     q.ExpiryDate.ToString("yyyy-MM-dd"),
-                    q.TotalAmount.ToString("C"),
-                    q.DepositRequired.ToString("C"),
-                    leadTime,
-                    q.QuotationStatus);
+                    string.Format("HK$ {0:N2}", q.TotalAmount),
+                    q.QuotationStatus,
+                    q.SalesStaffName);
+        }
+
+        private void cboStatus_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            string kw = txtSearch.Text.Trim().ToLower();
+            string status = cboStatus.SelectedItem?.ToString();
+
+            dgvQuotations.Rows.Clear();
+            if (_vm?.Quotations == null) return;
+
+            var filtered = _vm.Quotations.AsEnumerable();
+            if (!string.IsNullOrEmpty(kw))
+                filtered = filtered.Where(q =>
+                    (q.QuotationID ?? "").ToLower().Contains(kw) ||
+                    (q.CustomerName?? "").ToLower().Contains(kw));
+            if (!string.IsNullOrEmpty(status) && status != "All")
+                filtered = filtered.Where(q => q.QuotationStatus == status);
+
+            foreach (var q in filtered)
+                dgvQuotations.Rows.Add(
+                    q.QuotationID,
+                    q.CustomerName,
+                    q.IssuedDate.ToString("yyyy-MM-dd"),
+                    q.ExpiryDate.ToString("yyyy-MM-dd"),
+                    string.Format("HK$ {0:N2}", q.TotalAmount),
+                    q.QuotationStatus,
+                    q.SalesStaffName);
+        }
+
+        // ── Button handlers ────────────────────────────────────────────────────
+
+        /// <summary>
+        /// "Create New Quotation" button — opens the CreateNewQuotationForm dialog.
+        /// </summary>
+        private void btnCreateNew_Click(object sender, EventArgs e)
+        {
+            using (var dlg = new CreateNewQuotationForm())
+            {
+                if (dlg.ShowDialog(this) == DialogResult.OK)
+                {
+                    // Refresh the list after a new quotation is saved
+                    _vm = _ctrl.GetQuotationListVM();
+                    LoadGrid();
+                }
+            }
+        }
+
+        /// <summary>"View Detail" button — opens read-only QuotationDetailForm.</summary>
+        private void btnViewDetail_Click(object sender, EventArgs e)
+        {
+            if (dgvQuotations.SelectedRows.Count == 0)
+            {
+                MessageBox.Show("Please select a quotation to view.",
+                    "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
             }
 
-            BuildKpiPills(_vm.Quotations);
-            ClearSelection();
-        }
+            string qid = dgvQuotations.SelectedRows[0].Cells["colQuotationID"].Value?.ToString();
+            if (string.IsNullOrEmpty(qid)) return;
 
-        private void ResetFilters()
-        {
-            txtSearchKeyword.Clear();
-            cboStatus.SelectedIndex = 0;
-            RefreshGrid();
-        }
-
-        private void ClearSelection()
-        {
-            dgvQuotations.ClearSelection();
-            btnViewDetail.Enabled   = false;
-            btnUpdateStatus.Enabled = false;
-            cboNewStatus.Enabled    = false;
-        }
-
-        private void BuildKpiPills(List<QuotationEntity> list)
-        {
-            pnlKpi.Controls.Clear();
-
-            // Avoid tuple-array syntax to ensure compatibility with all target frameworks
-            BuildPill(list, "All",       q => true,                             Color.FromArgb( 59, 130, 246), 0);
-            BuildPill(list, "Pending",   q => q.QuotationStatus == "Pending",   Color.FromArgb(245, 158,  11), 140);
-            BuildPill(list, "Converted", q => q.QuotationStatus == "Converted", Color.FromArgb( 16, 185, 129), 280);
-            BuildPill(list, "Rejected",  q => q.QuotationStatus == "Rejected",  Color.FromArgb(239,  68,  68), 420);
-        }
-
-        private void BuildPill(List<QuotationEntity> list,
-                                string label,
-                                Func<QuotationEntity, bool> predicate,
-                                Color color,
-                                int xOffset)
-        {
-            int cnt  = 0;
-            foreach (var q in list) if (predicate(q)) cnt++;
-
-            var pill = new Panel
+            var entity = _ctrl.GetQuotationDetail(qid);
+            if (entity == null)
             {
-                Width     = 130,
-                Height    = 48,
-                Location  = new Point(xOffset, 0),
-                BackColor = Color.Transparent
-            };
-            pill.Controls.Add(new Label
-            {
-                Text      = cnt.ToString(),
-                Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
-                ForeColor = color,
-                AutoSize  = false,
-                Location  = new Point(0,  0),
-                Width     = 130,
-                Height    = 26,
-                TextAlign = ContentAlignment.MiddleLeft
-            });
-            pill.Controls.Add(new Label
-            {
-                Text      = label,
-                Font      = new Font("Segoe UI", 10f),
-                ForeColor = Color.FromArgb(98, 112, 135),
-                AutoSize  = false,
-                Location  = new Point(0, 24),
-                Width     = 130,
-                Height    = 22,
-                TextAlign = ContentAlignment.MiddleLeft
-            });
-            pnlKpi.Controls.Add(pill);
-        }
-
-        // ── Grid events
-
-        private void dgvQuotations_SelectionChanged(object sender, EventArgs e)
-        {
-            bool hasRow = dgvQuotations.SelectedRows.Count > 0;
-            btnViewDetail.Enabled   = hasRow;
-            btnUpdateStatus.Enabled = hasRow;
-            cboNewStatus.Enabled    = hasRow;
-        }
-
-        private void dgvQuotations_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
-        {
-            if (e.ColumnIndex != dgvQuotations.Columns["colStatus"]?.Index) return;
-            var status = e.Value?.ToString();
-            Color fc;
-            switch (status)
-            {
-                case "Pending":   fc = Color.FromArgb(180, 100,  0); break;
-                case "Converted": fc = Color.FromArgb( 16, 120, 80); break;
-                case "Rejected":  fc = Color.FromArgb(185,  28, 28); break;
-                default:          fc = Color.FromArgb( 75,  85, 99); break;
+                MessageBox.Show("Could not load quotation detail.",
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
             }
-            e.CellStyle.ForeColor   = fc;
-            e.CellStyle.Font        = new Font("Segoe UI", 11f, FontStyle.Bold);
-            e.FormattingApplied     = true;
+
+            using (var dlg = new QuotationDetailForm(entity))
+                dlg.ShowDialog(this);
+        }
+
+        private void btnRefresh_Click(object sender, EventArgs e)
+        {
+            _vm = _ctrl.GetQuotationListVM();
+            LoadGrid();
         }
 
         private void dgvQuotations_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
         {
-            if (e.RowIndex < 0) return;
-            OpenViewDetail();
-        }
-
-        // ── Button handlers
-
-        private void btnViewDetail_Click(object sender, EventArgs e)
-        {
-            OpenViewDetail();
-        }
-
-        /// <summary>
-        /// Opens CreateNewQuotationForm as a dialog to create a brand-new Quotation.
-        /// Refreshes the list automatically on successful save (DialogResult.OK).
-        /// </summary>
-        private void btnCreateNew_Click(object sender, EventArgs e)
-        {
-            // Use classic using-block for .NET Framework 4.x compatibility
-            using (var form = new CreateNewQuotationForm())
-            {
-                if (form.ShowDialog(this) == DialogResult.OK)
-                    RefreshGrid();
-            }
-        }
-
-        private void btnUpdateStatus_Click(object sender, EventArgs e)
-        {
-            if (dgvQuotations.SelectedRows.Count == 0) return;
-            string qId       = dgvQuotations.SelectedRows[0].Cells["colQuotationID"].Value?.ToString();
-            string newStatus = cboNewStatus.SelectedItem?.ToString();
-            if (string.IsNullOrEmpty(qId) || string.IsNullOrEmpty(newStatus)) return;
-
-            if (_ctrl.UpdateQuotationStatus(qId, newStatus))
-            {
-                MessageBox.Show(
-                    string.Format("Quotation {0} updated to '{1}'.", qId, newStatus),
-                    "Status Updated", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                RefreshGrid();
-            }
-            else
-            {
-                MessageBox.Show("Failed to update status. Please try again.",
-                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
-        // ── Detail helper
-
-        private void OpenViewDetail()
-        {
-            if (dgvQuotations.SelectedRows.Count == 0) return;
-            string qId = dgvQuotations.SelectedRows[0].Cells["colQuotationID"].Value?.ToString();
-            if (string.IsNullOrEmpty(qId)) return;
-
-            var entity = _ctrl.GetQuotationDetail(qId);
-            if (entity == null)
-            {
-                MessageBox.Show("Quotation not found.", "Error",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-            using (var detail = new QuotationDetailForm(entity))
-            {
-                detail.ShowDialog(this);
-            }
+            if (e.RowIndex >= 0) btnViewDetail_Click(sender, EventArgs.Empty);
         }
     }
 }

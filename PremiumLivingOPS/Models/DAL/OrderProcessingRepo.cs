@@ -6,529 +6,90 @@ using System.Collections.Generic;
 namespace PremiumLivingOPS.Models.DAL
 {
     /// <summary>
-    /// Repository (DAL layer) for Order Processing module.
-    /// All methods use parameterised queries via DatabaseHelper.
+    /// Data-access layer for the Order Processing module.
+    /// All SQL runs against the PremiumLiving schema.
     /// </summary>
     public class OrderProcessingRepo
     {
-        // ════════════════════════════════════════════════════════════════
-        //  ORDER queries
-        // ════════════════════════════════════════════════════════════════
+        // ── Connection string ───────────────────────────────────────────────────
+        private readonly string _connStr = DBConfig.ConnectionString;
 
-        public List<OrderEntity> SearchOrders(
-            string   status   = null,
-            string   keyword  = null,
-            DateTime? dateFrom = null,
-            DateTime? dateTo   = null)
-        {
-            var list = new List<OrderEntity>();
-            using (var conn = DatabaseHelper.GetConnection())
-            {
-                conn.Open();
-                var sql =
-                    @"SELECT o.OrderID, o.QuotationID, o.CustomerID, c.CustomerName,
-                             o.AddressID, o.SalesID, s.StaffName AS SalesName,
-                             o.IssuedTime, o.DeliveryDate, o.ShippingAddress, o.BillingAddress,
-                             o.SubTotal, o.DiscountType, o.DiscountValue, o.DiscountAmount,
-                             o.GrandTotal, o.OrderContactName, o.OrderStatus
-                      FROM `Order` o
-                      JOIN Customer c ON o.CustomerID = c.CustomerID
-                      JOIN Staff   s ON o.SalesID     = s.StaffID
-                      WHERE 1=1";
-
-                if (!string.IsNullOrEmpty(status))
-                    sql += " AND o.OrderStatus = @status";
-                if (!string.IsNullOrEmpty(keyword))
-                    sql += @" AND (o.OrderID          LIKE @kw
-                                OR c.CustomerName     LIKE @kw
-                                OR s.StaffName        LIKE @kw
-                                OR o.OrderContactName LIKE @kw)";
-                if (dateFrom.HasValue)
-                    sql += " AND DATE(o.IssuedTime) >= @dateFrom";
-                if (dateTo.HasValue)
-                    sql += " AND DATE(o.IssuedTime) <= @dateTo";
-
-                sql += " ORDER BY o.IssuedTime DESC";
-
-                using (var cmd = new MySqlCommand(sql, conn))
-                {
-                    if (!string.IsNullOrEmpty(status))
-                        cmd.Parameters.AddWithValue("@status",   status);
-                    if (!string.IsNullOrEmpty(keyword))
-                        cmd.Parameters.AddWithValue("@kw",       "%" + keyword + "%");
-                    if (dateFrom.HasValue)
-                        cmd.Parameters.AddWithValue("@dateFrom", dateFrom.Value.ToString("yyyy-MM-dd"));
-                    if (dateTo.HasValue)
-                        cmd.Parameters.AddWithValue("@dateTo",   dateTo.Value.ToString("yyyy-MM-dd"));
-
-                    using (var rdr = cmd.ExecuteReader())
-                        while (rdr.Read()) list.Add(MapOrder(rdr));
-                }
-            }
-            return list;
-        }
-
-        public List<OrderEntity> GetAllOrders() => SearchOrders();
-        public List<OrderEntity> GetOrdersByStatus(string status) => SearchOrders(status);
-
-        public OrderEntity GetOrderById(string orderId)
-        {
-            using (var conn = DatabaseHelper.GetConnection())
-            {
-                conn.Open();
-                const string sql =
-                    @"SELECT o.OrderID, o.QuotationID, o.CustomerID, c.CustomerName,
-                             o.AddressID, o.SalesID, s.StaffName AS SalesName,
-                             o.IssuedTime, o.DeliveryDate, o.ShippingAddress, o.BillingAddress,
-                             o.SubTotal, o.DiscountType, o.DiscountValue, o.DiscountAmount,
-                             o.GrandTotal, o.OrderContactName, o.OrderStatus
-                      FROM `Order` o
-                      JOIN Customer c ON o.CustomerID = c.CustomerID
-                      JOIN Staff   s ON o.SalesID     = s.StaffID
-                      WHERE o.OrderID = @orderId";
-                using (var cmd = new MySqlCommand(sql, conn))
-                {
-                    cmd.Parameters.AddWithValue("@orderId", orderId);
-                    using (var rdr = cmd.ExecuteReader())
-                        if (rdr.Read()) return MapOrder(rdr);
-                }
-            }
-            return null;
-        }
-
-        public List<string> GetOrderIdsByPrefix(string prefix)
-        {
-            var list = new List<string>();
-            using (var conn = DatabaseHelper.GetConnection())
-            {
-                conn.Open();
-                const string sql = "SELECT OrderID FROM `Order` WHERE OrderID LIKE @prefix";
-                using (var cmd = new MySqlCommand(sql, conn))
-                {
-                    cmd.Parameters.AddWithValue("@prefix", prefix + "%");
-                    using (var rdr = cmd.ExecuteReader())
-                        while (rdr.Read()) list.Add(rdr.GetString(0));
-                }
-            }
-            return list;
-        }
-
-        public List<OrderLineEntity> GetOrderLines(string orderId)
-        {
-            var list = new List<OrderLineEntity>();
-            using (var conn = DatabaseHelper.GetConnection())
-            {
-                conn.Open();
-                const string sql =
-                    @"SELECT ol.OrderID, ol.ItemID, i.ItemName, ol.Quantity, ol.Price
-                      FROM OrderLine ol
-                      JOIN Item i ON ol.ItemID = i.ItemID
-                      WHERE ol.OrderID = @orderId";
-                using (var cmd = new MySqlCommand(sql, conn))
-                {
-                    cmd.Parameters.AddWithValue("@orderId", orderId);
-                    using (var rdr = cmd.ExecuteReader())
-                        while (rdr.Read())
-                            list.Add(new OrderLineEntity
-                            {
-                                OrderID  = rdr.GetString("OrderID"),
-                                ItemID   = rdr.GetString("ItemID"),
-                                ItemName = rdr.GetString("ItemName"),
-                                Quantity = rdr.GetInt32("Quantity"),
-                                Price    = Convert.ToDouble(rdr["Price"])
-                            });
-                }
-            }
-            return list;
-        }
-
-        public bool CreateOrder(OrderEntity order)
-        {
-            using (var conn = DatabaseHelper.GetConnection())
-            {
-                conn.Open();
-                const string sql =
-                    @"INSERT INTO `Order`
-                        (OrderID, QuotationID, CustomerID, AddressID, SalesID,
-                         IssuedTime, DeliveryDate, ShippingAddress, BillingAddress,
-                         SubTotal, DiscountType, DiscountValue, DiscountAmount,
-                         GrandTotal, OrderContactName, OrderStatus)
-                      VALUES
-                        (@OrderID, @QuotationID, @CustomerID, @AddressID, @SalesID,
-                         @IssuedTime, @DeliveryDate, @ShippingAddress, @BillingAddress,
-                         @SubTotal, @DiscountType, @DiscountValue, @DiscountAmount,
-                         @GrandTotal, @OrderContactName, @OrderStatus)";
-                using (var cmd = new MySqlCommand(sql, conn))
-                {
-                    cmd.Parameters.AddWithValue("@OrderID",          order.OrderID);
-                    cmd.Parameters.AddWithValue("@QuotationID",      string.IsNullOrEmpty(order.QuotationID)      ? (object)DBNull.Value : order.QuotationID);
-                    cmd.Parameters.AddWithValue("@CustomerID",       order.CustomerID);
-                    cmd.Parameters.AddWithValue("@AddressID",        string.IsNullOrEmpty(order.AddressID)        ? (object)DBNull.Value : order.AddressID);
-                    cmd.Parameters.AddWithValue("@SalesID",          order.SalesID);
-                    cmd.Parameters.AddWithValue("@IssuedTime",       order.IssuedTime);
-                    cmd.Parameters.AddWithValue("@DeliveryDate",     order.DeliveryDate);
-                    cmd.Parameters.AddWithValue("@ShippingAddress",  order.ShippingAddress);
-                    cmd.Parameters.AddWithValue("@BillingAddress",   order.BillingAddress);
-                    cmd.Parameters.AddWithValue("@SubTotal",         order.SubTotal);
-                    cmd.Parameters.AddWithValue("@DiscountType",     string.IsNullOrEmpty(order.DiscountType)     ? (object)DBNull.Value : order.DiscountType);
-                    cmd.Parameters.AddWithValue("@DiscountValue",    order.DiscountValue);
-                    cmd.Parameters.AddWithValue("@DiscountAmount",   order.DiscountAmount);
-                    cmd.Parameters.AddWithValue("@GrandTotal",       order.GrandTotal);
-                    cmd.Parameters.AddWithValue("@OrderContactName", string.IsNullOrEmpty(order.OrderContactName) ? (object)DBNull.Value : order.OrderContactName);
-                    cmd.Parameters.AddWithValue("@OrderStatus",      order.OrderStatus);
-                    return cmd.ExecuteNonQuery() > 0;
-                }
-            }
-        }
-
-        public bool CreateOrderLine(OrderLineEntity line)
-        {
-            using (var conn = DatabaseHelper.GetConnection())
-            {
-                conn.Open();
-                const string sql =
-                    "INSERT INTO OrderLine (OrderID, ItemID, Quantity, Price) VALUES (@OrderID, @ItemID, @Qty, @Price)";
-                using (var cmd = new MySqlCommand(sql, conn))
-                {
-                    cmd.Parameters.AddWithValue("@OrderID", line.OrderID);
-                    cmd.Parameters.AddWithValue("@ItemID",  line.ItemID);
-                    cmd.Parameters.AddWithValue("@Qty",     line.Quantity);
-                    cmd.Parameters.AddWithValue("@Price",   line.Price);
-                    return cmd.ExecuteNonQuery() > 0;
-                }
-            }
-        }
-
-        public bool UpdateOrder(OrderEntity order)
-        {
-            using (var conn = DatabaseHelper.GetConnection())
-            {
-                conn.Open();
-                const string sql =
-                    @"UPDATE `Order` SET
-                        DeliveryDate     = @DeliveryDate,
-                        ShippingAddress  = @ShippingAddress,
-                        BillingAddress   = @BillingAddress,
-                        SubTotal         = @SubTotal,
-                        DiscountType     = @DiscountType,
-                        DiscountValue    = @DiscountValue,
-                        DiscountAmount   = @DiscountAmount,
-                        GrandTotal       = @GrandTotal,
-                        OrderContactName = @OrderContactName,
-                        OrderStatus      = @OrderStatus
-                      WHERE OrderID = @OrderID";
-                using (var cmd = new MySqlCommand(sql, conn))
-                {
-                    cmd.Parameters.AddWithValue("@DeliveryDate",     order.DeliveryDate);
-                    cmd.Parameters.AddWithValue("@ShippingAddress",  order.ShippingAddress);
-                    cmd.Parameters.AddWithValue("@BillingAddress",   order.BillingAddress);
-                    cmd.Parameters.AddWithValue("@SubTotal",         order.SubTotal);
-                    cmd.Parameters.AddWithValue("@DiscountType",     string.IsNullOrEmpty(order.DiscountType) ? (object)DBNull.Value : order.DiscountType);
-                    cmd.Parameters.AddWithValue("@DiscountValue",    order.DiscountValue);
-                    cmd.Parameters.AddWithValue("@DiscountAmount",   order.DiscountAmount);
-                    cmd.Parameters.AddWithValue("@GrandTotal",       order.GrandTotal);
-                    cmd.Parameters.AddWithValue("@OrderContactName", order.OrderContactName);
-                    cmd.Parameters.AddWithValue("@OrderStatus",      order.OrderStatus);
-                    cmd.Parameters.AddWithValue("@OrderID",          order.OrderID);
-                    return cmd.ExecuteNonQuery() > 0;
-                }
-            }
-        }
-
-        public bool UpdateOrderStatus(string orderId, string newStatus)
-        {
-            using (var conn = DatabaseHelper.GetConnection())
-            {
-                conn.Open();
-                const string sql = "UPDATE `Order` SET OrderStatus = @status WHERE OrderID = @id";
-                using (var cmd = new MySqlCommand(sql, conn))
-                {
-                    cmd.Parameters.AddWithValue("@status", newStatus);
-                    cmd.Parameters.AddWithValue("@id",     orderId);
-                    return cmd.ExecuteNonQuery() > 0;
-                }
-            }
-        }
-
-        public bool ReplaceOrderLines(string orderId, List<OrderLineEntity> lines)
-        {
-            using (var conn = DatabaseHelper.GetConnection())
-            {
-                conn.Open();
-                using (var tx = conn.BeginTransaction())
-                {
-                    try
-                    {
-                        using (var del = new MySqlCommand("DELETE FROM OrderLine WHERE OrderID = @id", conn, tx))
-                        {
-                            del.Parameters.AddWithValue("@id", orderId);
-                            del.ExecuteNonQuery();
-                        }
-                        foreach (var l in lines)
-                        {
-                            using (var ins = new MySqlCommand(
-                                "INSERT INTO OrderLine (OrderID,ItemID,Quantity,Price) VALUES (@oid,@iid,@qty,@price)",
-                                conn, tx))
-                            {
-                                ins.Parameters.AddWithValue("@oid",   orderId);
-                                ins.Parameters.AddWithValue("@iid",   l.ItemID);
-                                ins.Parameters.AddWithValue("@qty",   l.Quantity);
-                                ins.Parameters.AddWithValue("@price", l.Price);
-                                ins.ExecuteNonQuery();
-                            }
-                        }
-                        tx.Commit();
-                        return true;
-                    }
-                    catch { tx.Rollback(); return false; }
-                }
-            }
-        }
-
-        // ════════════════════════════════════════════════════════════════
-        //  QUOTATION queries
-        // ════════════════════════════════════════════════════════════════
-
-        public List<QuotationEntity> GetAllQuotations()
-        {
-            var list = new List<QuotationEntity>();
-            using (var conn = DatabaseHelper.GetConnection())
-            {
-                conn.Open();
-                const string sql =
-                    @"SELECT q.QuotationID, q.CustomerID, c.CustomerName,
-                             q.IssuedDate, q.ExpiryDate,
-                             q.TotalAmount, q.DepositRequired, q.LeadTimeEstimated,
-                             q.TermsandCondition, q.QuotationStatus,
-                             s.StaffName AS SalesStaffName, q.Notes
-                      FROM Quotation q
-                      JOIN Customer c ON q.CustomerID   = c.CustomerID
-                      JOIN Staff    s ON q.SalesStaffID = s.StaffID
-                      ORDER BY q.IssuedDate DESC";
-                using (var cmd = new MySqlCommand(sql, conn))
-                using (var rdr = cmd.ExecuteReader())
-                    while (rdr.Read()) list.Add(MapQuotation(rdr));
-            }
-            return list;
-        }
-
-        public QuotationEntity GetQuotationById(string quotationId)
-        {
-            using (var conn = DatabaseHelper.GetConnection())
-            {
-                conn.Open();
-                const string sql =
-                    @"SELECT q.QuotationID, q.CustomerID, c.CustomerName,
-                             q.IssuedDate, q.ExpiryDate,
-                             q.TotalAmount, q.DepositRequired, q.LeadTimeEstimated,
-                             q.TermsandCondition, q.QuotationStatus,
-                             s.StaffName AS SalesStaffName, q.Notes
-                      FROM Quotation q
-                      JOIN Customer c ON q.CustomerID   = c.CustomerID
-                      JOIN Staff    s ON q.SalesStaffID = s.StaffID
-                      WHERE q.QuotationID = @qid";
-                using (var cmd = new MySqlCommand(sql, conn))
-                {
-                    cmd.Parameters.AddWithValue("@qid", quotationId);
-                    using (var rdr = cmd.ExecuteReader())
-                        if (rdr.Read()) return MapQuotation(rdr);
-                }
-            }
-            return null;
-        }
-
-        public List<QuotationItemEntity> GetQuotationItems(string quotationId)
-        {
-            var list = new List<QuotationItemEntity>();
-            using (var conn = DatabaseHelper.GetConnection())
-            {
-                conn.Open();
-                const string sql =
-                    @"SELECT qi.QuotationID, qi.ItemID, i.ItemName AS ProductName,
-                             qi.Quantity, qi.Unit, qi.UnitPrice, qi.DiscountPercent, qi.ItemNote
-                      FROM QuotationItem qi
-                      JOIN Item i ON qi.ItemID = i.ItemID
-                      WHERE qi.QuotationID = @qid";
-                using (var cmd = new MySqlCommand(sql, conn))
-                {
-                    cmd.Parameters.AddWithValue("@qid", quotationId);
-                    using (var rdr = cmd.ExecuteReader())
-                        while (rdr.Read())
-                            list.Add(new QuotationItemEntity
-                            {
-                                QuotationID     = rdr.GetString("QuotationID"),
-                                ItemID          = rdr.GetString("ItemID"),
-                                ProductName     = rdr.GetString("ProductName"),
-                                Quantity        = rdr.GetInt32("Quantity"),
-                                Unit            = rdr.IsDBNull(rdr.GetOrdinal("Unit"))           ? "" : rdr.GetString("Unit"),
-                                UnitPrice       = Convert.ToDouble(rdr["UnitPrice"]),
-                                DiscountPercent = rdr.IsDBNull(rdr.GetOrdinal("DiscountPercent")) ? 0  : Convert.ToDouble(rdr["DiscountPercent"]),
-                                ItemNote        = rdr.IsDBNull(rdr.GetOrdinal("ItemNote"))        ? "" : rdr.GetString("ItemNote")
-                            });
-                }
-            }
-            return list;
-        }
-
-        public bool UpdateQuotationStatus(string quotationId, string newStatus)
-        {
-            using (var conn = DatabaseHelper.GetConnection())
-            {
-                conn.Open();
-                const string sql = "UPDATE Quotation SET QuotationStatus = @status WHERE QuotationID = @id";
-                using (var cmd = new MySqlCommand(sql, conn))
-                {
-                    cmd.Parameters.AddWithValue("@status", newStatus);
-                    cmd.Parameters.AddWithValue("@id",     quotationId);
-                    return cmd.ExecuteNonQuery() > 0;
-                }
-            }
-        }
-
-        /// <summary>
-        /// Returns all QuotationIDs that start with the given prefix.
-        /// Used by the controller to generate the next sequential QuotationID.
-        /// </summary>
-        public List<string> GetQuotationIdsByPrefix(string prefix)
-        {
-            var list = new List<string>();
-            using (var conn = DatabaseHelper.GetConnection())
-            {
-                conn.Open();
-                const string sql = "SELECT QuotationID FROM Quotation WHERE QuotationID LIKE @prefix";
-                using (var cmd = new MySqlCommand(sql, conn))
-                {
-                    cmd.Parameters.AddWithValue("@prefix", prefix + "%");
-                    using (var rdr = cmd.ExecuteReader())
-                        while (rdr.Read()) list.Add(rdr.GetString(0));
-                }
-            }
-            return list;
-        }
-
-        /// <summary>
-        /// Inserts a new Quotation header record.
-        /// Returns true on success.
-        /// </summary>
-        public bool CreateQuotation(QuotationEntity q, string salesStaffId)
-        {
-            using (var conn = DatabaseHelper.GetConnection())
-            {
-                conn.Open();
-                const string sql =
-                    @"INSERT INTO Quotation
-                        (QuotationID, CustomerID, SalesStaffID,
-                         IssuedDate, ExpiryDate,
-                         TotalAmount, DepositRequired, LeadTimeEstimated,
-                         TermsandCondition, QuotationStatus, Notes)
-                      VALUES
-                        (@QuotationID, @CustomerID, @SalesStaffID,
-                         @IssuedDate, @ExpiryDate,
-                         @TotalAmount, @DepositRequired, @LeadTimeEstimated,
-                         @TermsandCondition, @QuotationStatus, @Notes)";
-                using (var cmd = new MySqlCommand(sql, conn))
-                {
-                    cmd.Parameters.AddWithValue("@QuotationID",       q.QuotationID);
-                    cmd.Parameters.AddWithValue("@CustomerID",        q.CustomerID);
-                    cmd.Parameters.AddWithValue("@SalesStaffID",      salesStaffId);
-                    cmd.Parameters.AddWithValue("@IssuedDate",        q.IssuedDate.ToString("yyyy-MM-dd"));
-                    cmd.Parameters.AddWithValue("@ExpiryDate",        q.ExpiryDate.ToString("yyyy-MM-dd"));
-                    cmd.Parameters.AddWithValue("@TotalAmount",       q.TotalAmount);
-                    cmd.Parameters.AddWithValue("@DepositRequired",   q.DepositRequired);
-                    cmd.Parameters.AddWithValue("@LeadTimeEstimated", string.IsNullOrEmpty(q.LeadTimeEstimated) ? (object)DBNull.Value : q.LeadTimeEstimated);
-                    cmd.Parameters.AddWithValue("@TermsandCondition", string.IsNullOrEmpty(q.TermsandCondition) ? (object)DBNull.Value : q.TermsandCondition);
-                    cmd.Parameters.AddWithValue("@QuotationStatus",   q.QuotationStatus ?? "Pending");
-                    cmd.Parameters.AddWithValue("@Notes",             string.IsNullOrEmpty(q.Notes)             ? (object)DBNull.Value : q.Notes);
-                    return cmd.ExecuteNonQuery() > 0;
-                }
-            }
-        }
-
-        /// <summary>
-        /// Inserts one QuotationItem line.
-        /// </summary>
-        public bool CreateQuotationItem(QuotationItemEntity item)
-        {
-            using (var conn = DatabaseHelper.GetConnection())
-            {
-                conn.Open();
-                const string sql =
-                    @"INSERT INTO QuotationItem
-                        (QuotationID, ItemID, Quantity, Unit, UnitPrice, DiscountPercent, ItemNote)
-                      VALUES
-                        (@QuotationID, @ItemID, @Quantity, @Unit, @UnitPrice, @DiscountPercent, @ItemNote)";
-                using (var cmd = new MySqlCommand(sql, conn))
-                {
-                    cmd.Parameters.AddWithValue("@QuotationID",     item.QuotationID);
-                    cmd.Parameters.AddWithValue("@ItemID",          item.ItemID);
-                    cmd.Parameters.AddWithValue("@Quantity",        item.Quantity);
-                    cmd.Parameters.AddWithValue("@Unit",            string.IsNullOrEmpty(item.Unit)     ? (object)DBNull.Value : item.Unit);
-                    cmd.Parameters.AddWithValue("@UnitPrice",       item.UnitPrice);
-                    cmd.Parameters.AddWithValue("@DiscountPercent", item.DiscountPercent);
-                    cmd.Parameters.AddWithValue("@ItemNote",        string.IsNullOrEmpty(item.ItemNote) ? (object)DBNull.Value : item.ItemNote);
-                    return cmd.ExecuteNonQuery() > 0;
-                }
-            }
-        }
-
-        // ════════════════════════════════════════════════════════════════
-        //  LOOKUP queries  (shared by Order + Quotation forms)
-        // ════════════════════════════════════════════════════════════════
+        // ═══════════════════════════════════════════════════
+        // CUSTOMER
+        // ═══════════════════════════════════════════════════
 
         public List<CustomerEntity> GetAllCustomers()
         {
             var list = new List<CustomerEntity>();
-            using (var conn = DatabaseHelper.GetConnection())
+            const string sql = @"
+                SELECT CustomerID, CustomerName, ContactPhone, ContactEmail,
+                       Address, MemberTier, JoinDate
+                FROM   Customer
+                ORDER  BY CustomerName";
+            using (var conn = new MySqlConnection(_connStr))
+            using (var cmd  = new MySqlCommand(sql, conn))
             {
                 conn.Open();
-                const string sql =
-                    "SELECT CustomerID, CustomerName, ContactPhone, ContactEmail FROM Customer ORDER BY CustomerName";
-                using (var cmd = new MySqlCommand(sql, conn))
                 using (var rdr = cmd.ExecuteReader())
                     while (rdr.Read())
                         list.Add(new CustomerEntity
                         {
                             CustomerID   = rdr.GetString("CustomerID"),
                             CustomerName = rdr.GetString("CustomerName"),
-                            ContactPhone = rdr.IsDBNull(rdr.GetOrdinal("ContactPhone")) ? "" : rdr.GetString("ContactPhone"),
-                            ContactEmail = rdr.IsDBNull(rdr.GetOrdinal("ContactEmail")) ? "" : rdr.GetString("ContactEmail")
+                            ContactPhone = rdr["ContactPhone"] as string ?? string.Empty,  // L493 fix
+                            ContactEmail = rdr["ContactEmail"] as string ?? string.Empty,  // L494 fix
+                            Address      = rdr["Address"]      as string ?? string.Empty,
+                            MemberTier   = rdr["MemberTier"]   as string ?? string.Empty,
+                            JoinDate     = rdr["JoinDate"]     as string ?? string.Empty
                         });
             }
             return list;
         }
 
-        public List<AddressLookup> GetAllAddresses()
+        public List<AddressLookup> GetAddressesByCustomer(string customerId)
         {
             var list = new List<AddressLookup>();
-            using (var conn = DatabaseHelper.GetConnection())
+            const string sql = @"
+                SELECT AddressID, CustomerID, AddressName, AddressType, isDefault
+                FROM   Address
+                WHERE  CustomerID = @cid
+                ORDER  BY isDefault DESC, AddressName";
+            using (var conn = new MySqlConnection(_connStr))
+            using (var cmd  = new MySqlCommand(sql, conn))
             {
+                cmd.Parameters.AddWithValue("@cid", customerId);
                 conn.Open();
-                const string sql =
-                    "SELECT AddressID, CustomerID, AddressName, AddressType, isDefault FROM Address ORDER BY CustomerID";
-                using (var cmd = new MySqlCommand(sql, conn))
                 using (var rdr = cmd.ExecuteReader())
                     while (rdr.Read())
                         list.Add(new AddressLookup
                         {
                             AddressId   = rdr.GetString("AddressID"),
                             CustomerId  = rdr.GetString("CustomerID"),
-                            FullAddress = rdr.GetString("AddressName"),
-                            Label       = rdr.IsDBNull(rdr.GetOrdinal("AddressType")) ? "" : rdr.GetString("AddressType"),
-                            IsDefault   = !rdr.IsDBNull(rdr.GetOrdinal("isDefault")) && Convert.ToBoolean(rdr["isDefault"])
+                            FullAddress = rdr["AddressName"] as string ?? string.Empty,
+                            Label       = rdr["AddressType"] as string ?? string.Empty,
+                            IsDefault   = Convert.ToBoolean(rdr["isDefault"])
                         });
             }
             return list;
         }
 
+        // ═══════════════════════════════════════════════════
+        // PRODUCT
+        // ═══════════════════════════════════════════════════
+
         public List<ProductLookup> GetAllProducts()
         {
             var list = new List<ProductLookup>();
-            using (var conn = DatabaseHelper.GetConnection())
+            const string sql = @"
+                SELECT   i.ItemID, i.ItemName, i.SalesPrice, c.CategoryName
+                FROM     Item i
+                LEFT JOIN Category c ON c.CategoryID = i.CategoryID
+                WHERE    i.IsActive = 1
+                ORDER    BY i.ItemName";
+            using (var conn = new MySqlConnection(_connStr))
+            using (var cmd  = new MySqlCommand(sql, conn))
             {
                 conn.Open();
-                const string sql =
-                    "SELECT ItemID, ItemName, SalesPrice, Category FROM Item ORDER BY Category, ItemName";
-                using (var cmd = new MySqlCommand(sql, conn))
                 using (var rdr = cmd.ExecuteReader())
                     while (rdr.Read())
                         list.Add(new ProductLookup
@@ -536,52 +97,425 @@ namespace PremiumLivingOPS.Models.DAL
                             ItemID     = rdr.GetString("ItemID"),
                             ItemName   = rdr.GetString("ItemName"),
                             SalesPrice = Convert.ToDouble(rdr["SalesPrice"]),
-                            Category   = rdr.IsDBNull(rdr.GetOrdinal("Category")) ? "" : rdr.GetString("Category")
+                            Category   = rdr["CategoryName"] as string ?? string.Empty
                         });
             }
             return list;
         }
 
-        // ════════════════════════════════════════════════════════════════
-        //  MAPPING helpers (private)
-        // ════════════════════════════════════════════════════════════════
+        // ═══════════════════════════════════════════════════
+        // QUOTATION
+        // ═══════════════════════════════════════════════════
 
-        private static OrderEntity MapOrder(MySqlDataReader r) => new OrderEntity
+        public List<QuotationEntity> GetAllQuotations()
         {
-            OrderID          = r.GetString("OrderID"),
-            QuotationID      = r.IsDBNull(r.GetOrdinal("QuotationID"))      ? null : r.GetString("QuotationID"),
-            CustomerID       = r.GetString("CustomerID"),
-            CustomerName     = r.GetString("CustomerName"),
-            AddressID        = r.IsDBNull(r.GetOrdinal("AddressID"))        ? null : r.GetString("AddressID"),
-            SalesID          = r.GetString("SalesID"),
-            SalesName        = r.GetString("SalesName"),
-            IssuedTime       = r.GetDateTime("IssuedTime"),
-            DeliveryDate     = r.GetDateTime("DeliveryDate"),
-            ShippingAddress  = r.IsDBNull(r.GetOrdinal("ShippingAddress"))  ? null : r.GetString("ShippingAddress"),
-            BillingAddress   = r.IsDBNull(r.GetOrdinal("BillingAddress"))   ? null : r.GetString("BillingAddress"),
-            SubTotal         = Convert.ToDouble(r["SubTotal"]),
-            DiscountType     = r.IsDBNull(r.GetOrdinal("DiscountType"))     ? null : r.GetString("DiscountType"),
-            DiscountValue    = Convert.ToDouble(r["DiscountValue"]),
-            DiscountAmount   = Convert.ToDouble(r["DiscountAmount"]),
-            GrandTotal       = Convert.ToDouble(r["GrandTotal"]),
-            OrderContactName = r.IsDBNull(r.GetOrdinal("OrderContactName")) ? null : r.GetString("OrderContactName"),
-            OrderStatus      = r.GetString("OrderStatus")
-        };
+            var list = new List<QuotationEntity>();
+            const string sql = @"
+                SELECT q.QuotationID, q.CustomerID, c.CustomerName,
+                       q.IssuedDate, q.ExpiryDate, q.TotalAmount,
+                       q.DepositRequired, q.LeadTimeEstimated,
+                       q.TermsandCondition, q.QuotationStatus,
+                       s.StaffName AS SalesStaffName, q.Notes
+                FROM   Quotation q
+                JOIN   Customer  c ON c.CustomerID = q.CustomerID
+                LEFT JOIN Staff  s ON s.StaffID    = q.SalesStaffID
+                ORDER  BY q.IssuedDate DESC";
+            using (var conn = new MySqlConnection(_connStr))
+            using (var cmd  = new MySqlCommand(sql, conn))
+            {
+                conn.Open();
+                using (var rdr = cmd.ExecuteReader())
+                    while (rdr.Read())
+                        list.Add(MapQuotationRow(rdr));
+            }
+            return list;
+        }
 
-        private static QuotationEntity MapQuotation(MySqlDataReader r) => new QuotationEntity
+        public List<QuotationEntity> GetPendingQuotations()
         {
-            QuotationID       = r.GetString("QuotationID"),
-            CustomerID        = r.GetString("CustomerID"),
-            CustomerName      = r.GetString("CustomerName"),
-            IssuedDate        = r.GetDateTime("IssuedDate"),
-            ExpiryDate        = r.GetDateTime("ExpiryDate"),
-            TotalAmount       = Convert.ToDouble(r["TotalAmount"]),
-            DepositRequired   = Convert.ToDouble(r["DepositRequired"]),
-            LeadTimeEstimated = r.IsDBNull(r.GetOrdinal("LeadTimeEstimated")) ? null : r.GetString("LeadTimeEstimated"),
-            TermsandCondition = r.IsDBNull(r.GetOrdinal("TermsandCondition")) ? null : r.GetString("TermsandCondition"),
-            QuotationStatus   = r.GetString("QuotationStatus"),
-            SalesStaffName    = r.IsDBNull(r.GetOrdinal("SalesStaffName"))    ? null : r.GetString("SalesStaffName"),
-            Notes             = r.IsDBNull(r.GetOrdinal("Notes"))             ? null : r.GetString("Notes")
-        };
+            var list = new List<QuotationEntity>();
+            const string sql = @"
+                SELECT q.QuotationID, q.CustomerID, c.CustomerName,
+                       q.IssuedDate, q.ExpiryDate, q.TotalAmount,
+                       q.DepositRequired, q.LeadTimeEstimated,
+                       q.TermsandCondition, q.QuotationStatus,
+                       s.StaffName AS SalesStaffName, q.Notes
+                FROM   Quotation q
+                JOIN   Customer  c ON c.CustomerID = q.CustomerID
+                LEFT JOIN Staff  s ON s.StaffID    = q.SalesStaffID
+                WHERE  q.QuotationStatus = 'Pending'
+                ORDER  BY q.IssuedDate DESC";
+            using (var conn = new MySqlConnection(_connStr))
+            using (var cmd  = new MySqlCommand(sql, conn))
+            {
+                conn.Open();
+                using (var rdr = cmd.ExecuteReader())
+                    while (rdr.Read())
+                        list.Add(MapQuotationRow(rdr));
+            }
+            return list;
+        }
+
+        public QuotationEntity GetQuotationDetail(string quotationId)
+        {
+            QuotationEntity q = null;
+            const string hdrSql = @"
+                SELECT q.QuotationID, q.CustomerID, c.CustomerName,
+                       q.IssuedDate, q.ExpiryDate, q.TotalAmount,
+                       q.DepositRequired, q.LeadTimeEstimated,
+                       q.TermsandCondition, q.QuotationStatus,
+                       s.StaffName AS SalesStaffName, q.Notes
+                FROM   Quotation q
+                JOIN   Customer  c ON c.CustomerID = q.CustomerID
+                LEFT JOIN Staff  s ON s.StaffID    = q.SalesStaffID
+                WHERE  q.QuotationID = @qid";
+            const string lineSql = @"
+                SELECT qi.QuotationID, qi.ItemID, i.ItemName AS ProductName,
+                       qi.Quantity, qi.Unit, qi.UnitPrice,
+                       qi.DiscountPercent, qi.ItemNote
+                FROM   QuotationItem qi
+                JOIN   Item i ON i.ItemID = qi.ItemID
+                WHERE  qi.QuotationID = @qid
+                ORDER  BY qi.ItemID";
+            using (var conn = new MySqlConnection(_connStr))
+            {
+                conn.Open();
+                using (var cmd = new MySqlCommand(hdrSql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@qid", quotationId);
+                    using (var rdr = cmd.ExecuteReader())
+                        if (rdr.Read()) q = MapQuotationRow(rdr);
+                }
+                if (q == null) return null;
+                q.Items = new List<QuotationItemEntity>();
+                using (var cmd = new MySqlCommand(lineSql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@qid", quotationId);
+                    using (var rdr = cmd.ExecuteReader())
+                        while (rdr.Read())
+                            q.Items.Add(new QuotationItemEntity
+                            {
+                                QuotationID     = rdr.GetString("QuotationID"),
+                                ItemID          = rdr.GetString("ItemID"),
+                                ProductName     = rdr.GetString("ProductName"),
+                                Quantity        = rdr.GetInt32("Quantity"),
+                                Unit            = rdr["Unit"]            as string ?? string.Empty,
+                                UnitPrice       = Convert.ToDouble(rdr["UnitPrice"]),
+                                DiscountPercent = Convert.ToDouble(rdr["DiscountPercent"]),
+                                ItemNote        = rdr["ItemNote"]        as string ?? string.Empty
+                            });
+                }
+            }
+            return q;
+        }
+
+        public bool InsertQuotation(QuotationEntity q, List<QuotationItemEntity> items, string salesStaffId)
+        {
+            const string hdrSql = @"
+                INSERT INTO Quotation
+                    (QuotationID, CustomerID, IssuedDate, ExpiryDate,
+                     TotalAmount, DepositRequired, LeadTimeEstimated,
+                     TermsandCondition, QuotationStatus, SalesStaffID, Notes)
+                VALUES
+                    (@qid, @cid, @iss, @exp,
+                     @tot, @dep, @lead,
+                     @terms, @status, @sid, @notes)";
+            const string lineSql = @"
+                INSERT INTO QuotationItem
+                    (QuotationID, ItemID, Quantity, Unit, UnitPrice, DiscountPercent, ItemNote)
+                VALUES
+                    (@qid, @iid, @qty, @unit, @price, @disc, @note)";
+            using (var conn = new MySqlConnection(_connStr))
+            {
+                conn.Open();
+                using (var tx = conn.BeginTransaction())
+                {
+                    try
+                    {
+                        using (var cmd = new MySqlCommand(hdrSql, conn, tx))
+                        {
+                            cmd.Parameters.AddWithValue("@qid",    q.QuotationID);
+                            cmd.Parameters.AddWithValue("@cid",    q.CustomerID);
+                            cmd.Parameters.AddWithValue("@iss",    q.IssuedDate);
+                            cmd.Parameters.AddWithValue("@exp",    q.ExpiryDate);
+                            cmd.Parameters.AddWithValue("@tot",    q.TotalAmount);
+                            cmd.Parameters.AddWithValue("@dep",    q.DepositRequired);
+                            cmd.Parameters.AddWithValue("@lead",   q.LeadTimeEstimated  ?? string.Empty);
+                            cmd.Parameters.AddWithValue("@terms",  q.TermsandCondition  ?? string.Empty);
+                            cmd.Parameters.AddWithValue("@status", q.QuotationStatus    ?? "Pending");
+                            cmd.Parameters.AddWithValue("@sid",    salesStaffId         ?? string.Empty);
+                            cmd.Parameters.AddWithValue("@notes",  q.Notes              ?? string.Empty);
+                            cmd.ExecuteNonQuery();
+                        }
+                        foreach (var li in items)
+                        {
+                            using (var cmd = new MySqlCommand(lineSql, conn, tx))
+                            {
+                                cmd.Parameters.AddWithValue("@qid",   q.QuotationID);
+                                cmd.Parameters.AddWithValue("@iid",   li.ItemID);
+                                cmd.Parameters.AddWithValue("@qty",   li.Quantity);
+                                cmd.Parameters.AddWithValue("@unit",  li.Unit            ?? string.Empty);
+                                cmd.Parameters.AddWithValue("@price", li.UnitPrice);
+                                cmd.Parameters.AddWithValue("@disc",  li.DiscountPercent);
+                                cmd.Parameters.AddWithValue("@note",  li.ItemNote        ?? string.Empty);
+                                cmd.ExecuteNonQuery();
+                            }
+                        }
+                        tx.Commit();
+                        return true;
+                    }
+                    catch
+                    {
+                        tx.Rollback();
+                        return false;
+                    }
+                }
+            }
+        }
+
+        public bool UpdateQuotationStatus(string quotationId, string newStatus)
+        {
+            const string sql = "UPDATE Quotation SET QuotationStatus = @s WHERE QuotationID = @q";
+            using (var conn = new MySqlConnection(_connStr))
+            using (var cmd  = new MySqlCommand(sql, conn))
+            {
+                cmd.Parameters.AddWithValue("@s", newStatus);
+                cmd.Parameters.AddWithValue("@q", quotationId);
+                conn.Open();
+                return cmd.ExecuteNonQuery() > 0;
+            }
+        }
+
+        public string GenerateNextQuotationId()
+        {
+            string prefix = "QUO-" + DateTime.Today.ToString("yyyyMMdd") + "-";
+            const string sql = @"
+                SELECT COUNT(*) FROM Quotation
+                WHERE  QuotationID LIKE @p";
+            using (var conn = new MySqlConnection(_connStr))
+            using (var cmd  = new MySqlCommand(sql, conn))
+            {
+                cmd.Parameters.AddWithValue("@p", prefix + "%");
+                conn.Open();
+                int count = Convert.ToInt32(cmd.ExecuteScalar());
+                return string.Format("{0}{1:D4}", prefix, count + 1);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════
+        // ORDER
+        // ═══════════════════════════════════════════════════
+
+        public List<OrderEntity> GetAllOrders()
+        {
+            var list = new List<OrderEntity>();
+            const string sql = @"
+                SELECT o.OrderID, o.QuotationID, o.CustomerID, c.CustomerName,
+                       o.AddressID, o.SalesID, s.StaffName AS SalesName,
+                       o.IssuedTime, o.DeliveryDate, o.ShippingAddress, o.BillingAddress,
+                       o.SubTotal, o.DiscountType, o.DiscountValue, o.DiscountAmount,
+                       o.GrandTotal, o.OrderContactName, o.OrderStatus
+                FROM   `Order` o
+                JOIN   Customer c ON c.CustomerID = o.CustomerID
+                LEFT JOIN Staff s ON s.StaffID    = o.SalesID
+                ORDER  BY o.IssuedTime DESC";
+            using (var conn = new MySqlConnection(_connStr))
+            using (var cmd  = new MySqlCommand(sql, conn))
+            {
+                conn.Open();
+                using (var rdr = cmd.ExecuteReader())
+                    while (rdr.Read())
+                        list.Add(MapOrderRow(rdr));
+            }
+            return list;
+        }
+
+        public OrderEntity GetOrderById(string orderId)
+        {
+            const string sql = @"
+                SELECT o.OrderID, o.QuotationID, o.CustomerID, c.CustomerName,
+                       o.AddressID, o.SalesID, s.StaffName AS SalesName,
+                       o.IssuedTime, o.DeliveryDate, o.ShippingAddress, o.BillingAddress,
+                       o.SubTotal, o.DiscountType, o.DiscountValue, o.DiscountAmount,
+                       o.GrandTotal, o.OrderContactName, o.OrderStatus
+                FROM   `Order` o
+                JOIN   Customer c ON c.CustomerID = o.CustomerID
+                LEFT JOIN Staff s ON s.StaffID    = o.SalesID
+                WHERE  o.OrderID = @oid";
+            using (var conn = new MySqlConnection(_connStr))
+            using (var cmd  = new MySqlCommand(sql, conn))
+            {
+                cmd.Parameters.AddWithValue("@oid", orderId);
+                conn.Open();
+                using (var rdr = cmd.ExecuteReader())
+                    return rdr.Read() ? MapOrderRow(rdr) : null;
+            }
+        }
+
+        public List<OrderLineEntity> GetOrderLines(string orderId)
+        {
+            var list = new List<OrderLineEntity>();
+            const string sql = @"
+                SELECT ol.OrderID, ol.ItemID, i.ItemName,
+                       ol.Quantity, ol.Price
+                FROM   OrderLine ol
+                JOIN   Item i ON i.ItemID = ol.ItemID
+                WHERE  ol.OrderID = @oid
+                ORDER  BY ol.ItemID";
+            using (var conn = new MySqlConnection(_connStr))
+            using (var cmd  = new MySqlCommand(sql, conn))
+            {
+                cmd.Parameters.AddWithValue("@oid", orderId);
+                conn.Open();
+                using (var rdr = cmd.ExecuteReader())
+                    while (rdr.Read())
+                        list.Add(new OrderLineEntity
+                        {
+                            OrderID  = rdr.GetString("OrderID"),
+                            ItemID   = rdr.GetString("ItemID"),
+                            ItemName = rdr.GetString("ItemName"),
+                            Quantity = rdr.GetInt32("Quantity"),
+                            Price    = Convert.ToDouble(rdr["Price"])
+                        });
+            }
+            return list;
+        }
+
+        public bool InsertOrder(OrderEntity o, List<OrderLineEntity> lines)
+        {
+            const string hdrSql = @"
+                INSERT INTO `Order`
+                    (OrderID, QuotationID, CustomerID, AddressID, SalesID,
+                     IssuedTime, DeliveryDate, ShippingAddress, BillingAddress,
+                     SubTotal, DiscountType, DiscountValue, DiscountAmount,
+                     GrandTotal, OrderContactName, OrderStatus)
+                VALUES
+                    (@oid, @qid, @cid, @aid, @sid,
+                     @iss, @del, @ship, @bill,
+                     @sub, @dtype, @dval, @damt,
+                     @grand, @contact, @status)";
+            const string lineSql = @"
+                INSERT INTO OrderLine (OrderID, ItemID, Quantity, Price)
+                VALUES (@oid, @iid, @qty, @price)";
+            using (var conn = new MySqlConnection(_connStr))
+            {
+                conn.Open();
+                using (var tx = conn.BeginTransaction())
+                {
+                    try
+                    {
+                        using (var cmd = new MySqlCommand(hdrSql, conn, tx))
+                        {
+                            cmd.Parameters.AddWithValue("@oid",     o.OrderID);
+                            cmd.Parameters.AddWithValue("@qid",     o.QuotationID    ?? string.Empty);
+                            cmd.Parameters.AddWithValue("@cid",     o.CustomerID);
+                            cmd.Parameters.AddWithValue("@aid",     o.AddressID      ?? string.Empty);
+                            cmd.Parameters.AddWithValue("@sid",     o.SalesID        ?? string.Empty);
+                            cmd.Parameters.AddWithValue("@iss",     o.IssuedTime);
+                            cmd.Parameters.AddWithValue("@del",     o.DeliveryDate);
+                            cmd.Parameters.AddWithValue("@ship",    o.ShippingAddress  ?? string.Empty);
+                            cmd.Parameters.AddWithValue("@bill",    o.BillingAddress   ?? string.Empty);
+                            cmd.Parameters.AddWithValue("@sub",     o.SubTotal);
+                            cmd.Parameters.AddWithValue("@dtype",   o.DiscountType   ?? string.Empty);
+                            cmd.Parameters.AddWithValue("@dval",    o.DiscountValue);
+                            cmd.Parameters.AddWithValue("@damt",    o.DiscountAmount);
+                            cmd.Parameters.AddWithValue("@grand",   o.GrandTotal);
+                            cmd.Parameters.AddWithValue("@contact", o.OrderContactName ?? string.Empty);
+                            cmd.Parameters.AddWithValue("@status",  o.OrderStatus      ?? "Pending");
+                            cmd.ExecuteNonQuery();
+                        }
+                        foreach (var li in lines)
+                        {
+                            using (var cmd = new MySqlCommand(lineSql, conn, tx))
+                            {
+                                cmd.Parameters.AddWithValue("@oid",   o.OrderID);
+                                cmd.Parameters.AddWithValue("@iid",   li.ItemID);
+                                cmd.Parameters.AddWithValue("@qty",   li.Quantity);
+                                cmd.Parameters.AddWithValue("@price", li.Price);
+                                cmd.ExecuteNonQuery();
+                            }
+                        }
+                        tx.Commit();
+                        return true;
+                    }
+                    catch
+                    {
+                        tx.Rollback();
+                        return false;
+                    }
+                }
+            }
+        }
+
+        public bool UpdateOrderStatus(string orderId, string newStatus)
+        {
+            const string sql = "UPDATE `Order` SET OrderStatus = @s WHERE OrderID = @o";
+            using (var conn = new MySqlConnection(_connStr))
+            using (var cmd  = new MySqlCommand(sql, conn))
+            {
+                cmd.Parameters.AddWithValue("@s", newStatus);
+                cmd.Parameters.AddWithValue("@o", orderId);
+                conn.Open();
+                return cmd.ExecuteNonQuery() > 0;
+            }
+        }
+
+        public string GenerateNextOrderId()
+        {
+            string prefix = "ORD-" + DateTime.Today.ToString("yyyyMMdd") + "-";
+            const string sql = "SELECT COUNT(*) FROM `Order` WHERE OrderID LIKE @p";
+            using (var conn = new MySqlConnection(_connStr))
+            using (var cmd  = new MySqlCommand(sql, conn))
+            {
+                cmd.Parameters.AddWithValue("@p", prefix + "%");
+                conn.Open();
+                int count = Convert.ToInt32(cmd.ExecuteScalar());
+                return string.Format("{0}{1:D4}", prefix, count + 1);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════
+        // PRIVATE MAPPERS
+        // ═══════════════════════════════════════════════════
+
+        private static QuotationEntity MapQuotationRow(MySqlDataReader rdr)
+            => new QuotationEntity
+            {
+                QuotationID       = rdr.GetString("QuotationID"),
+                CustomerID        = rdr.GetString("CustomerID"),
+                CustomerName      = rdr.GetString("CustomerName"),
+                IssuedDate        = Convert.ToDateTime(rdr["IssuedDate"]),
+                ExpiryDate        = Convert.ToDateTime(rdr["ExpiryDate"]),
+                TotalAmount       = Convert.ToDouble(rdr["TotalAmount"]),
+                DepositRequired   = Convert.ToDouble(rdr["DepositRequired"]),
+                LeadTimeEstimated = rdr["LeadTimeEstimated"] as string ?? string.Empty,
+                TermsandCondition = rdr["TermsandCondition"] as string ?? string.Empty,
+                QuotationStatus   = rdr["QuotationStatus"]   as string ?? string.Empty,
+                SalesStaffName    = rdr["SalesStaffName"]    as string ?? string.Empty,
+                Notes             = rdr["Notes"]             as string ?? string.Empty
+            };
+
+        private static OrderEntity MapOrderRow(MySqlDataReader rdr)
+            => new OrderEntity
+            {
+                OrderID          = rdr.GetString("OrderID"),
+                QuotationID      = rdr["QuotationID"]      as string ?? string.Empty,
+                CustomerID       = rdr.GetString("CustomerID"),
+                CustomerName     = rdr.GetString("CustomerName"),
+                AddressID        = rdr["AddressID"]        as string ?? string.Empty,
+                SalesID          = rdr["SalesID"]          as string ?? string.Empty,
+                SalesName        = rdr["SalesName"]        as string ?? string.Empty,
+                IssuedTime       = Convert.ToDateTime(rdr["IssuedTime"]),
+                DeliveryDate     = Convert.ToDateTime(rdr["DeliveryDate"]),
+                ShippingAddress  = rdr["ShippingAddress"]  as string ?? string.Empty,
+                BillingAddress   = rdr["BillingAddress"]   as string ?? string.Empty,
+                SubTotal         = Convert.ToDouble(rdr["SubTotal"]),
+                DiscountType     = rdr["DiscountType"]     as string ?? string.Empty,
+                DiscountValue    = Convert.ToDouble(rdr["DiscountValue"]),
+                DiscountAmount   = Convert.ToDouble(rdr["DiscountAmount"]),
+                GrandTotal       = Convert.ToDouble(rdr["GrandTotal"]),
+                OrderContactName = rdr["OrderContactName"] as string ?? string.Empty,
+                OrderStatus      = rdr["OrderStatus"]      as string ?? string.Empty
+            };
     }
 }

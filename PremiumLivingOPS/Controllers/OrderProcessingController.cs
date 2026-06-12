@@ -2,244 +2,154 @@ using PremiumLivingOPS.Models.DAL;
 using PremiumLivingOPS.Models.Entities;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace PremiumLivingOPS.Controllers
 {
     /// <summary>
-    /// Controller (MVC middle layer) for Order Processing.
-    /// Accepts requests from View layer, delegates to Repo, returns ViewModels.
-    /// Contains NO UI code.
+    /// Controller for the Order Processing module.
+    /// Bridges Views ↔ OrderProcessingRepo (DAL).
     /// </summary>
     public class OrderProcessingController
     {
         private readonly OrderProcessingRepo _repo = new OrderProcessingRepo();
 
-        // ── View Order ─────────────────────────────────────────────────────────────────────────────────────
+        // ── Session (set by AppShell after login) ───────────────────────────────
+        public static Staff   CurrentStaff { get; set; }
 
-        public ViewOrderViewModel GetViewOrderVM(
-            string    status   = null,
-            string    keyword  = null,
-            DateTime? dateFrom = null,
-            DateTime? dateTo   = null)
+        // ── Quotation ───────────────────────────────────────────────────────────
+
+        /// <summary>Returns the list-view ViewModel for the Quotation Form.</summary>
+        public QuotationViewModel GetQuotationListVM()
         {
-            var user = SessionManager.CurrentUser;
-            return new ViewOrderViewModel
-            {
-                UserBar = new UserBarViewModel
-                {
-                    DisplayName = user?.StaffName ?? "Unknown",
-                    Department  = user?.Department ?? ""
-                },
-                AllowedMenus = NavAccessPolicy.GetAllowedMenus(user?.Department ?? ""),
-                Orders       = _repo.SearchOrders(status, keyword, dateFrom, dateTo)
-            };
-        }
-
-        public OrderDetailViewModel GetOrderDetail(string orderId)
-        {
-            return new OrderDetailViewModel
-            {
-                Order = _repo.GetOrderById(orderId),
-                Lines = _repo.GetOrderLines(orderId)
-            };
-        }
-
-        public List<OrderLineEntity> GetOrderLines(string orderId)
-            => _repo.GetOrderLines(orderId);
-
-        // ── Quotation ─────────────────────────────────────────────────────────────────────────────────
-
-        public QuotationViewModel GetQuotationVM(
-            string status  = null,
-            string keyword = null)
-        {
-            var user = SessionManager.CurrentUser;
-            var all  = _repo.GetAllQuotations();
-
-            if (!string.IsNullOrEmpty(status))
-                all = all.FindAll(q => q.QuotationStatus == status);
-
-            if (!string.IsNullOrEmpty(keyword))
-            {
-                string kw = keyword.ToLowerInvariant();
-                all = all.FindAll(q =>
-                    (q.QuotationID  ?? "").ToLowerInvariant().Contains(kw) ||
-                    (q.CustomerName ?? "").ToLowerInvariant().Contains(kw));
-            }
-
+            var staff      = CurrentStaff;
+            var quotations = _repo.GetAllQuotations();
             return new QuotationViewModel
             {
                 UserBar = new UserBarViewModel
                 {
-                    DisplayName = user?.StaffName ?? "Unknown",
-                    Department  = user?.Department ?? ""
+                    StaffName    = staff?.StaffName ?? "Unknown",
+                    StaffRole    = staff?.Role      ?? string.Empty,
+                    AllowedMenus = new string[0]
                 },
-                AllowedMenus = NavAccessPolicy.GetAllowedMenus(user?.Department ?? ""),
-                Quotations   = all
+                AllowedMenus = new string[0],
+                Quotations   = quotations
             };
         }
 
-        public QuotationEntity GetQuotationDetail(string quotationId)
-        {
-            if (string.IsNullOrEmpty(quotationId)) return null;
-            var q = _repo.GetQuotationById(quotationId);
-            if (q == null) return null;
-            q.Items = _repo.GetQuotationItems(quotationId);
-            return q;
-        }
-
-        public bool UpdateQuotationStatus(string quotationId, string newStatus)
-            => _repo.UpdateQuotationStatus(quotationId, newStatus);
-
-        // ── Create New Quotation ────────────────────────────────────────────────────────────
-
         /// <summary>
-        /// Returns ViewModel for the Create New Quotation dialog.
-        /// Provides lookup data (customers, products) and a pre-generated QuotationID.
+        /// Builds the ViewModel needed to open the Create New Quotation dialog.
+        /// Includes lookup data: customers, products, next QuotationID, staff info.
         /// </summary>
         public CreateQuotationViewModel GetCreateQuotationVM()
         {
-            var user = SessionManager.CurrentUser;
+            // Line 116 fix: use StaffID (correct property) not StaffId
+            var staff = CurrentStaff;
             return new CreateQuotationViewModel
             {
                 UserBar = new UserBarViewModel
                 {
-                    DisplayName = user?.StaffName ?? "Unknown",
-                    Department  = user?.Department ?? ""
+                    StaffName    = staff?.StaffName ?? "Unknown",
+                    StaffRole    = staff?.Role      ?? string.Empty,
+                    AllowedMenus = new string[0]
                 },
-                AllowedMenus    = NavAccessPolicy.GetAllowedMenus(user?.Department ?? ""),
-                Customers       = _repo.GetAllCustomers(),
-                Products        = _repo.GetAllProducts(),
-                NextQuotationId = GenerateQuotationId(),
-                SalesStaffName  = user?.StaffName ?? "",
-                SalesStaffId    = user?.StaffID   ?? ""
+                AllowedMenus   = new string[0],
+                Customers      = _repo.GetAllCustomers(),
+                Products       = _repo.GetAllProducts(),
+                NextQuotationId= _repo.GenerateNextQuotationId(),
+                SalesStaffName = staff?.StaffName ?? "Unknown",
+                SalesStaffId   = staff?.StaffID   ?? string.Empty   // StaffID — correct property
             };
         }
 
-        /// <summary>
-        /// Generates the next Quotation ID in the format QUO-YYYYMMDD-NNNN.
-        /// Queries the DB for the highest sequence number used today and increments.
-        /// </summary>
-        public string GenerateQuotationId()
-        {
-            string prefix   = "QUO-" + DateTime.Today.ToString("yyyyMMdd") + "-";
-            var    existing = _repo.GetQuotationIdsByPrefix(prefix);
-            int    next     = 1;
-            foreach (var id in existing)
-            {
-                if (id.Length >= prefix.Length + 4 &&
-                    int.TryParse(id.Substring(prefix.Length, 4), out int seq))
-                {
-                    if (seq >= next) next = seq + 1;
-                }
-            }
-            return $"{prefix}{next:D4}";
-        }
-
-        /// <summary>
-        /// Saves a new Quotation header + all line items.
-        /// Returns true on full success.
-        /// </summary>
+        /// <summary>Persists a new Quotation + its line items to the database.</summary>
         public bool SaveNewQuotation(QuotationEntity quotation,
                                      List<QuotationItemEntity> items,
                                      string salesStaffId)
         {
-            if (!_repo.CreateQuotation(quotation, salesStaffId)) return false;
-            foreach (var item in items)
+            try
             {
-                item.QuotationID = quotation.QuotationID;
-                _repo.CreateQuotationItem(item);
+                return _repo.InsertQuotation(quotation, items, salesStaffId);
             }
-            return true;
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("[OrderProcessingController] SaveNewQuotation: " + ex.Message);
+                return false;
+            }
         }
 
-        // ── Create Order ──────────────────────────────────────────────────────────────────────────
+        // ── Order ─────────────────────────────────────────────────────────────────
+
+        public ViewOrderViewModel GetViewOrderVM()
+        {
+            var staff  = CurrentStaff;
+            var orders = _repo.GetAllOrders();
+            return new ViewOrderViewModel
+            {
+                UserBar = new UserBarViewModel
+                {
+                    StaffName    = staff?.StaffName ?? "Unknown",
+                    StaffRole    = staff?.Role      ?? string.Empty,
+                    AllowedMenus = new string[0]
+                },
+                AllowedMenus = new string[0],
+                Orders       = orders
+            };
+        }
 
         public CreateOrderViewModel GetCreateOrderVM()
         {
-            var user = SessionManager.CurrentUser;
-            var allQ = _repo.GetAllQuotations();
+            var staff = CurrentStaff;
             return new CreateOrderViewModel
             {
                 UserBar = new UserBarViewModel
                 {
-                    DisplayName = user?.StaffName ?? "Unknown",
-                    Department  = user?.Department ?? ""
+                    StaffName    = staff?.StaffName ?? "Unknown",
+                    StaffRole    = staff?.Role      ?? string.Empty,
+                    AllowedMenus = new string[0]
                 },
-                AllowedMenus      = NavAccessPolicy.GetAllowedMenus(user?.Department ?? ""),
+                AllowedMenus      = new string[0],
                 Customers         = _repo.GetAllCustomers(),
-                Addresses         = _repo.GetAllAddresses(),
+                Addresses         = new List<AddressLookup>(),
                 Products          = _repo.GetAllProducts(),
-                Quotations        = allQ,
-                PendingQuotations = allQ.FindAll(q => q.QuotationStatus == "Pending"),
-                NextOrderId       = GenerateOrderId()
+                Quotations        = _repo.GetAllQuotations(),
+                PendingQuotations = _repo.GetPendingQuotations(),
+                NextOrderId       = _repo.GenerateNextOrderId()
             };
-        }
-
-        public List<AddressLookup> GetAddressesByCustomer(string customerId,
-            List<AddressLookup> allAddresses)
-        {
-            if (string.IsNullOrEmpty(customerId) || allAddresses == null)
-                return new List<AddressLookup>();
-            return allAddresses.FindAll(a => a.CustomerId == customerId);
-        }
-
-        public string GenerateOrderId()
-        {
-            string prefix    = "ORD-" + DateTime.Today.ToString("yyyyMMdd") + "-";
-            var    existing  = _repo.GetOrderIdsByPrefix(prefix);
-            int    next      = 1;
-            foreach (var id in existing)
-            {
-                if (id.Length >= prefix.Length + 4 &&
-                    int.TryParse(id.Substring(prefix.Length, 4), out int seq))
-                {
-                    if (seq >= next) next = seq + 1;
-                }
-            }
-            return $"{prefix}{next:D4}";
         }
 
         public bool SaveNewOrder(OrderEntity order, List<OrderLineEntity> lines)
         {
-            if (!_repo.CreateOrder(order)) return false;
-            foreach (var l in lines)
+            try   { return _repo.InsertOrder(order, lines); }
+            catch (Exception ex)
             {
-                l.OrderID = order.OrderID;
-                _repo.CreateOrderLine(l);
+                System.Diagnostics.Debug.WriteLine("[OrderProcessingController] SaveNewOrder: " + ex.Message);
+                return false;
             }
-            return true;
         }
 
-        // ── Modify Order ─────────────────────────────────────────────────────────────────────────────────
+        public List<AddressLookup> GetAddressesByCustomer(string customerId)
+            => _repo.GetAddressesByCustomer(customerId);
 
-        public ModifyOrderViewModel GetModifyOrderVM(string orderId = null)
+        public QuotationEntity GetQuotationDetail(string quotationId)
+            => _repo.GetQuotationDetail(quotationId);
+
+        public OrderDetailViewModel GetOrderDetail(string orderId)
         {
-            var user = SessionManager.CurrentUser;
-            return new ModifyOrderViewModel
-            {
-                UserBar = new UserBarViewModel
-                {
-                    DisplayName = user?.StaffName ?? "Unknown",
-                    Department  = user?.Department ?? ""
-                },
-                AllowedMenus  = NavAccessPolicy.GetAllowedMenus(user?.Department ?? ""),
-                SelectedOrder = orderId != null ? _repo.GetOrderById(orderId)  : null,
-                Lines         = orderId != null ? _repo.GetOrderLines(orderId) : new List<OrderLineEntity>(),
-                Products      = _repo.GetAllProducts(),
-                Customers     = _repo.GetAllCustomers(),
-                Addresses     = _repo.GetAllAddresses()
-            };
+            var order = _repo.GetOrderById(orderId);
+            var lines = _repo.GetOrderLines(orderId);
+            return new OrderDetailViewModel { Order = order, Lines = lines };
         }
 
-        public bool SaveOrderChanges(OrderEntity order, List<OrderLineEntity> lines)
+        public bool UpdateOrderStatus(string orderId, string newStatus)
         {
-            if (!_repo.UpdateOrder(order)) return false;
-            return _repo.ReplaceOrderLines(order.OrderID, lines);
+            try   { return _repo.UpdateOrderStatus(orderId, newStatus); }
+            catch { return false; }
         }
 
-        public bool CancelOrder(string orderId)
-            => _repo.UpdateOrderStatus(orderId, "Cancelled");
+        public bool UpdateQuotationStatus(string quotationId, string newStatus)
+        {
+            try   { return _repo.UpdateQuotationStatus(quotationId, newStatus); }
+            catch { return false; }
+        }
     }
 }
