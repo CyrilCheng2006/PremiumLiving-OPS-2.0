@@ -1,82 +1,151 @@
-using PremiumLivingOPS.Models.Entities;
 using System;
-using System.Collections.Generic;
 using System.Drawing;
-using System.Linq;
 using System.Windows.Forms;
 
 namespace PremiumLivingOPS.Views.Shared
 {
     /// <summary>
-    /// Main application shell.  Contains the Tab Navigation Bar (left) and the User Bar (top-right).
-    /// Host forms call <see cref="ApplyViewModel"/> once to wire up session data.
+    /// AppShell — reusable chrome panel that composes TopNavBar + UserBar.
+    ///
+    /// Structure
+    /// ─────────
+    ///   AppShell (Panel, DockStyle.Top, Height = 116 px)
+    ///   ├── TopNavBar  (44 px, self-locking via TopNavBar.OnLayout + ScaleControl)
+    ///   └── UserBar    (72 px, self-locking via UserBar.OnLayout  + ScaleControl)
+    ///
+    /// Usage (any Form)
+    /// ────────────────
+    ///   1. Declare and add to the form (see Designer.cs canonical rules below):
+    ///          private AppShell _shell;
+    ///          _shell = new AppShell();
+    ///          pnlMain.Controls.Add(_shell);
+    ///
+    ///   2. After loading your ViewModel, call:
+    ///          _shell.SetUser(displayName, department);
+    ///          _shell.SetVisibleMenus(vm.AllowedMenus);
+    ///          _shell.SetBreadcrumb("Dashboard");
+    ///
+    ///   3. Subscribe to events:
+    ///          _shell.MenuItemClicked += OnMenuItemClicked;   // (menuLabel, subItem)
+    ///          _shell.LogoutClicked   += OnLogoutClicked;
+    ///
+    /// HEIGHT CONTRACT
+    /// ───────────────
+    ///   AppShell.Height is ALWAYS TotalHeight (116 px), enforced by:
+    ///     1. OnLayout     — re-locks after every layout pass.
+    ///     2. ScaleControl — vetoes AutoScaleMode = Font from shrinking
+    ///                        MinimumSize/Height during PerformLayout.
+    ///   Each child is independently self-locking:
+    ///     TopNavBar : 44 px (TopNavBar.OnLayout + TopNavBar.ScaleControl)
+    ///     UserBar   : 72 px (UserBar.OnLayout   + UserBar.ScaleControl)
+    ///   AppShell.OnLayout no longer needs to re-lock children; their own
+    ///   overrides handle it. AppShell only locks its own outer height.
+    ///
+    /// Breadcrumb auto-update
+    /// ──────────────────────
+    ///   AppShell subscribes internally to TopNavBar.MenuItemClicked and
+    ///   automatically forwards the breadcrumb update to UserBar:
+    ///     • Dashboard (top-level, no sub-item)  →  "Dashboard"
+    ///     • Module click with sub-item           →  "Order Processing  ›  View Order"
+    ///   The host form only calls SetBreadcrumb() once for the initial page;
+    ///   subsequent nav clicks update it automatically.
     /// </summary>
-    public partial class AppShell : UserControl
+    public class AppShell : Panel
     {
-        // ── Public events ──────────────────────────────────────────────────────
-        public event EventHandler<string> MenuItemClicked;
+        // ── Heights ──────────────────────────────────────────────────────
+        public const int NavBarHeight  = TopNavBar.FixedHeight;  //  44 px
+        public const int UserBarHeight = UserBar.FixedHeight;    //  72 px
+        public const int TotalHeight   = NavBarHeight + UserBarHeight; // 116 px
 
-        // ── Internal state ─────────────────────────────────────────────────────
-        private string[] _allowedMenus = Array.Empty<string>();
-        private string   _staffName    = string.Empty;
-        private string   _staffRole    = string.Empty;
+        // ── Child controls ───────────────────────────────────────────────
+        private readonly TopNavBar _topNavBar;
+        private readonly UserBar   _userBar;
 
+        // ── Public events ───────────────────────────────────────────────
+        public event Action<string, string> MenuItemClicked;
+        public event EventHandler           LogoutClicked;
+
+        // ── Constructor ──────────────────────────────────────────────────
         public AppShell()
         {
-            InitializeComponent();
-        }
+            Dock        = DockStyle.Top;
+            Height      = TotalHeight;
+            MinimumSize = new Size(0, TotalHeight);
+            BackColor   = Color.White;
+            Padding     = new Padding(0);
 
-        // ── ApplyViewModel ─────────────────────────────────────────────────────
-
-        /// <summary>
-        /// Wires session data into the shell's User Bar and filters the Tab Nav Bar
-        /// so only menus in <paramref name="vm"/>.AllowedMenus are visible.
-        /// Call once in the host Form's Load handler after InitializeComponent().
-        /// </summary>
-        public void ApplyViewModel(UserBarViewModel vm)
-        {
-            if (vm == null) throw new ArgumentNullException("vm");
-
-            _staffName    = vm.StaffName  ?? string.Empty;
-            _staffRole    = vm.StaffRole  ?? string.Empty;
-            _allowedMenus = vm.AllowedMenus ?? Array.Empty<string>();
-
-            // Update User Bar labels
-            lblStaffName?.Let(l => l.Text = _staffName);
-            lblStaffRole?.Let(l => l.Text = _staffRole);
-
-            // Filter Tab Nav Bar items
-            ApplyMenuFilter(_allowedMenus);
-        }
-
-        // ── Menu filter ────────────────────────────────────────────────────────
-
-        private void ApplyMenuFilter(string[] allowed)
-        {
-            if (pnlNavBar == null) return;
-            var set = new HashSet<string>(allowed, StringComparer.OrdinalIgnoreCase);
-            foreach (Control c in pnlNavBar.Controls)
+            // ── TopNavBar ────────────────────────────────────────────────
+            _topNavBar = new TopNavBar();
+            _topNavBar.MenuItemClicked += (menu, sub) =>
             {
-                if (c is Button btn)
-                    btn.Visible = set.Count == 0 || set.Contains(btn.Tag?.ToString() ?? string.Empty);
+                _userBar.UpdateBreadcrumb(menu, sub);
+                MenuItemClicked?.Invoke(menu, sub);
+            };
+
+            // ── UserBar ───────────────────────────────────────────────────
+            _userBar = new UserBar();
+            _userBar.LogoutClicked += (s, e) => LogoutClicked?.Invoke(s, e);
+
+            // ── Compose ────────────────────────────────────────────────────
+            Controls.Add(_userBar);   // added first  → bottom of the Top stack
+            Controls.Add(_topNavBar); // added second → top    of the Top stack
+        }
+
+        // ── ScaleControl override ──────────────────────────────────────────
+        protected override void ScaleControl(SizeF factor, BoundsSpecified specified)
+        {
+            base.ScaleControl(
+                new SizeF(factor.Width, 1.0f),
+                specified & ~BoundsSpecified.Height);
+
+            MinimumSize = new Size(0, TotalHeight);
+            if (Height != TotalHeight) Height = TotalHeight;
+        }
+
+        // ── Height lock ──────────────────────────────────────────────────
+        protected override void OnLayout(LayoutEventArgs levent)
+        {
+            base.OnLayout(levent);
+            if (Height != TotalHeight)
+            {
+                Height      = TotalHeight;
+                MinimumSize = new Size(0, TotalHeight);
             }
         }
 
-        // ── Nav button click ───────────────────────────────────────────────────
+        // ── Public API ──────────────────────────────────────────────────
 
-        private void NavButton_Click(object sender, EventArgs e)
-        {
-            if (sender is Button btn)
-                MenuItemClicked?.Invoke(this, btn.Tag?.ToString() ?? string.Empty);
-        }
-    }
+        /// <summary>Delegates to UserBar.SetUser().</summary>
+        public void SetUser(string displayName, string department)
+            => _userBar.SetUser(displayName, department);
 
-    // ── Internal extension helper (avoids null-ref on designer-generated controls) ──
-    internal static class ControlExt
-    {
-        internal static void Let<T>(this T obj, Action<T> action) where T : class
+        /// <summary>Delegates to TopNavBar.SetVisibleMenus().</summary>
+        public void SetVisibleMenus(string[] allowedLabels)
+            => _topNavBar.SetVisibleMenus(allowedLabels);
+
+        /// <summary>Delegates to UserBar.SetBreadcrumb().</summary>
+        public void SetBreadcrumb(string text)
+            => _userBar.SetBreadcrumb(text);
+
+        /// <summary>Gets the current breadcrumb from UserBar.</summary>
+        public string Breadcrumb => _userBar.Breadcrumb;
+
+        /// <summary>Delegates to TopNavBar.SetPopupContainer().</summary>
+        public void SetPopupContainer(Control container)
+            => _topNavBar.SetPopupContainer(container);
+
+        /// <summary>
+        /// Convenience method used by View forms that carry a UserBarViewModel.
+        /// Calls SetUser + SetVisibleMenus + SetBreadcrumb in one call.
+        /// </summary>
+        public void ApplyViewModel(UserBarViewModel vm)
         {
-            if (obj != null) action(obj);
+            if (vm == null) return;
+            SetUser(vm.DisplayName, vm.Department);
+            if (vm.AllowedMenus != null)
+                SetVisibleMenus(vm.AllowedMenus);
+            if (!string.IsNullOrEmpty(vm.Breadcrumb))
+                SetBreadcrumb(vm.Breadcrumb);
         }
     }
 }
