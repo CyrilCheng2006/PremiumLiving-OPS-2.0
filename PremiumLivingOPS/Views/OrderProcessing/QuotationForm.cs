@@ -54,7 +54,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             string statusFilter = (statusSelect == "All" || string.IsNullOrEmpty(statusSelect))
                                   ? null : statusSelect;
 
-            var vm = _ctrl.GetQuotationListVM(statusFilter, keyword);
+            var vm = _ctrl.GetQuotationVM(statusFilter, keyword);
 
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
@@ -89,7 +89,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         {
             pnlKpi.Controls.Clear();
 
-            var allQuotations = _ctrl.GetQuotationListVM().Quotations;
+            var allQuotations = _ctrl.GetQuotationVM().Quotations;
 
             int total     = allQuotations.Count;
             int pending   = allQuotations.FindAll(q => q.QuotationStatus == "Pending").Count;
@@ -185,7 +185,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         {
             bool sel = dgvQuotations.SelectedRows.Count > 0;
             btnViewDetail.Enabled   = sel;
-            btnCreateNew.Enabled    = true;   // Create New is always enabled
+            btnAddFrom.Enabled      = sel;
             btnUpdateStatus.Enabled = sel;
             cboNewStatus.Enabled    = sel;
         }
@@ -226,12 +226,28 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
         private void btnViewDetail_Click(object sender, EventArgs e) => OpenDetailDialog();
 
-        // ── Create New Quotation
-        private void btnCreateNew_Click(object sender, EventArgs e)
+        // ── Add From Quotation
+        private void btnAddFrom_Click(object sender, EventArgs e)
         {
-            using var dlg = new CreateNewQuotationForm();
+            string qid = SelectedQuotationId();
+            if (qid == null) return;
+
+            var q = _ctrl.GetQuotationDetail(qid);
+            if (q == null)
+            {
+                MessageBox.Show("Quotation not found.", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            using var dlg = new AddFromQuotationForm(q);
             if (dlg.ShowDialog(this) == DialogResult.OK)
             {
+                MessageBox.Show(
+                    $"Order {dlg.CreatedOrderID} has been created from Quotation {qid}.",
+                    "Order Created",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
                 RefreshGrid();
             }
         }
@@ -450,13 +466,13 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     Padding            = new Padding(12, 6, 12, 6)
                 }
             };
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cProduct",  HeaderText = "PRODUCT",    FillWeight = 30 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cQty",       HeaderText = "QTY",        FillWeight = 10 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cUnit",      HeaderText = "UNIT",       FillWeight = 10 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cUnitPrice", HeaderText = "UNIT PRICE", FillWeight = 15 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cDiscount",  HeaderText = "DISCOUNT %", FillWeight = 12 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cSubtotal",  HeaderText = "SUBTOTAL",   FillWeight = 15 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cNote",      HeaderText = "ITEM NOTE",  FillWeight = 18 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cProduct",   HeaderText = "PRODUCT",      FillWeight = 30 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cQty",        HeaderText = "QTY",          FillWeight = 10 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cUnit",       HeaderText = "UNIT",         FillWeight = 10 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cUnitPrice",  HeaderText = "UNIT PRICE",   FillWeight = 15 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cDiscount",   HeaderText = "DISCOUNT %",   FillWeight = 12 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cSubtotal",   HeaderText = "SUBTOTAL",     FillWeight = 15 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cNote",       HeaderText = "ITEM NOTE",    FillWeight = 18 });
 
             if (items != null)
                 foreach (var item in items)
