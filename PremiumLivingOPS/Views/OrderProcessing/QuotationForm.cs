@@ -54,7 +54,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             string statusFilter = (statusSelect == "All" || string.IsNullOrEmpty(statusSelect))
                                   ? null : statusSelect;
 
-            var vm = _ctrl.GetQuotationVM(statusFilter, keyword);
+            var vm = _ctrl.GetQuotationListVM(statusFilter, keyword);
 
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
@@ -89,7 +89,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         {
             pnlKpi.Controls.Clear();
 
-            var allQuotations = _ctrl.GetQuotationVM().Quotations;
+            var allQuotations = _ctrl.GetQuotationListVM().Quotations;
 
             int total     = allQuotations.Count;
             int pending   = allQuotations.FindAll(q => q.QuotationStatus == "Pending").Count;
