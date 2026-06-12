@@ -1,6 +1,7 @@
 using System;
 using System.Drawing;
 using System.Windows.Forms;
+using PremiumLivingOPS.Models.Entities;
 
 namespace PremiumLivingOPS.Views.Shared
 {
@@ -52,20 +53,20 @@ namespace PremiumLivingOPS.Views.Shared
     /// </summary>
     public class AppShell : Panel
     {
-        // ── Heights ──────────────────────────────────────────────────────
+        // ── Heights ──────────────────────────────────────────────────────────────────
         public const int NavBarHeight  = TopNavBar.FixedHeight;  //  44 px
         public const int UserBarHeight = UserBar.FixedHeight;    //  72 px
         public const int TotalHeight   = NavBarHeight + UserBarHeight; // 116 px
 
-        // ── Child controls ───────────────────────────────────────────────
+        // ── Child controls ───────────────────────────────────────────────────────────
         private readonly TopNavBar _topNavBar;
         private readonly UserBar   _userBar;
 
-        // ── Public events ───────────────────────────────────────────────
+        // ── Public events ────────────────────────────────────────────────────────────
         public event Action<string, string> MenuItemClicked;
         public event EventHandler           LogoutClicked;
 
-        // ── Constructor ──────────────────────────────────────────────────
+        // ── Constructor ──────────────────────────────────────────────────────────────
         public AppShell()
         {
             Dock        = DockStyle.Top;
@@ -74,7 +75,7 @@ namespace PremiumLivingOPS.Views.Shared
             BackColor   = Color.White;
             Padding     = new Padding(0);
 
-            // ── TopNavBar ────────────────────────────────────────────────
+            // ── TopNavBar ────────────────────────────────────────────────────────────
             _topNavBar = new TopNavBar();
             _topNavBar.MenuItemClicked += (menu, sub) =>
             {
@@ -82,16 +83,16 @@ namespace PremiumLivingOPS.Views.Shared
                 MenuItemClicked?.Invoke(menu, sub);
             };
 
-            // ── UserBar ───────────────────────────────────────────────────
+            // ── UserBar ──────────────────────────────────────────────────────────────
             _userBar = new UserBar();
             _userBar.LogoutClicked += (s, e) => LogoutClicked?.Invoke(s, e);
 
-            // ── Compose ────────────────────────────────────────────────────
+            // ── Compose ──────────────────────────────────────────────────────────────
             Controls.Add(_userBar);   // added first  → bottom of the Top stack
             Controls.Add(_topNavBar); // added second → top    of the Top stack
         }
 
-        // ── ScaleControl override ──────────────────────────────────────────
+        // ── ScaleControl override ────────────────────────────────────────────────────
         protected override void ScaleControl(SizeF factor, BoundsSpecified specified)
         {
             base.ScaleControl(
@@ -102,7 +103,7 @@ namespace PremiumLivingOPS.Views.Shared
             if (Height != TotalHeight) Height = TotalHeight;
         }
 
-        // ── Height lock ──────────────────────────────────────────────────
+        // ── Height lock ──────────────────────────────────────────────────────────────
         protected override void OnLayout(LayoutEventArgs levent)
         {
             base.OnLayout(levent);
@@ -113,7 +114,7 @@ namespace PremiumLivingOPS.Views.Shared
             }
         }
 
-        // ── Public API ──────────────────────────────────────────────────
+        // ── Public API ───────────────────────────────────────────────────────────────
 
         /// <summary>Delegates to UserBar.SetUser().</summary>
         public void SetUser(string displayName, string department)
