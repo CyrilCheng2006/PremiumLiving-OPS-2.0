@@ -27,6 +27,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         private void QuotationForm_Load(object sender, EventArgs e)
         {
             _vm = _ctrl.GetQuotationVM();
+            // _shell is declared internal in Designer so it is accessible here
             _shell.ApplyViewModel(_vm.UserBar, _vm.AllowedMenus, this);
             RefreshGrid();
         }
@@ -35,20 +36,25 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
         internal void RefreshGrid()
         {
-            string status  = cboStatus.SelectedItem?.ToString() == "All" ? null : cboStatus.SelectedItem?.ToString();
+            string status  = cboStatus.SelectedItem?.ToString() == "All"
+                             ? null : cboStatus.SelectedItem?.ToString();
             string keyword = txtSearchKeyword.Text.Trim();
             _vm = _ctrl.GetQuotationVM(status, keyword);
 
             dgvQuotations.Rows.Clear();
             foreach (var q in _vm.Quotations)
             {
+                // LeadTimeEstimated is a string field (e.g. "14 days") — display directly
+                string leadTime = string.IsNullOrEmpty(q.LeadTimeEstimated)
+                                  ? "" : q.LeadTimeEstimated;
+
                 dgvQuotations.Rows.Add(
                     q.QuotationID,
                     q.CustomerName,
                     q.ExpiryDate.ToString("yyyy-MM-dd"),
                     q.TotalAmount.ToString("C"),
                     q.DepositRequired.ToString("C"),
-                    q.LeadTimeDays > 0 ? $"{q.LeadTimeDays} days" : "",
+                    leadTime,
                     q.QuotationStatus);
             }
 
@@ -74,22 +80,53 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         private void BuildKpiPills(List<QuotationEntity> list)
         {
             pnlKpi.Controls.Clear();
-            var groups = new (string Label, Func<QuotationEntity, bool> Pred, Color Clr)[]{
-                ("All",       _ => true,                             Color.FromArgb( 59,130,246)),
-                ("Pending",   q => q.QuotationStatus == "Pending",   Color.FromArgb(245,158, 11)),
-                ("Converted", q => q.QuotationStatus == "Converted", Color.FromArgb( 16,185,129)),
-                ("Rejected",  q => q.QuotationStatus == "Rejected",  Color.FromArgb(239, 68, 68))
-            };
-            int x = 0;
-            foreach (var (lbl, pred, clr) in groups)
+
+            // Avoid tuple-array syntax to ensure compatibility with all target frameworks
+            BuildPill(list, "All",       q => true,                             Color.FromArgb( 59, 130, 246), 0);
+            BuildPill(list, "Pending",   q => q.QuotationStatus == "Pending",   Color.FromArgb(245, 158,  11), 140);
+            BuildPill(list, "Converted", q => q.QuotationStatus == "Converted", Color.FromArgb( 16, 185, 129), 280);
+            BuildPill(list, "Rejected",  q => q.QuotationStatus == "Rejected",  Color.FromArgb(239,  68,  68), 420);
+        }
+
+        private void BuildPill(List<QuotationEntity> list,
+                                string label,
+                                Func<QuotationEntity, bool> predicate,
+                                Color color,
+                                int xOffset)
+        {
+            int cnt  = 0;
+            foreach (var q in list) if (predicate(q)) cnt++;
+
+            var pill = new Panel
             {
-                int cnt  = list.FindAll(q => pred(q)).Count;
-                var pill = new Panel { Width = 130, Height = 48, Location = new Point(x, 0), BackColor = Color.Transparent };
-                pill.Controls.Add(new Label { Text = cnt.ToString(), Font = new Font("Segoe UI", 14f, FontStyle.Bold), ForeColor = clr,                     AutoSize = false, Location = new Point(0,  0), Width = 130, Height = 26, TextAlign = ContentAlignment.MiddleLeft });
-                pill.Controls.Add(new Label { Text = lbl,           Font = new Font("Segoe UI", 10f),                  ForeColor = Color.FromArgb(98,112,135), AutoSize = false, Location = new Point(0, 24), Width = 130, Height = 22, TextAlign = ContentAlignment.MiddleLeft });
-                pnlKpi.Controls.Add(pill);
-                x += 140;
-            }
+                Width     = 130,
+                Height    = 48,
+                Location  = new Point(xOffset, 0),
+                BackColor = Color.Transparent
+            };
+            pill.Controls.Add(new Label
+            {
+                Text      = cnt.ToString(),
+                Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
+                ForeColor = color,
+                AutoSize  = false,
+                Location  = new Point(0,  0),
+                Width     = 130,
+                Height    = 26,
+                TextAlign = ContentAlignment.MiddleLeft
+            });
+            pill.Controls.Add(new Label
+            {
+                Text      = label,
+                Font      = new Font("Segoe UI", 10f),
+                ForeColor = Color.FromArgb(98, 112, 135),
+                AutoSize  = false,
+                Location  = new Point(0, 24),
+                Width     = 130,
+                Height    = 22,
+                TextAlign = ContentAlignment.MiddleLeft
+            });
+            pnlKpi.Controls.Add(pill);
         }
 
         // ── Grid events
@@ -106,13 +143,15 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         {
             if (e.ColumnIndex != dgvQuotations.Columns["colStatus"]?.Index) return;
             var status = e.Value?.ToString();
-            e.CellStyle.ForeColor = status switch
+            Color fc;
+            switch (status)
             {
-                "Pending"   => Color.FromArgb(180, 100, 0),
-                "Converted" => Color.FromArgb( 16, 120, 80),
-                "Rejected"  => Color.FromArgb(185,  28, 28),
-                _           => Color.FromArgb( 75,  85, 99)
-            };
+                case "Pending":   fc = Color.FromArgb(180, 100,  0); break;
+                case "Converted": fc = Color.FromArgb( 16, 120, 80); break;
+                case "Rejected":  fc = Color.FromArgb(185,  28, 28); break;
+                default:          fc = Color.FromArgb( 75,  85, 99); break;
+            }
+            e.CellStyle.ForeColor   = fc;
             e.CellStyle.Font        = new Font("Segoe UI", 11f, FontStyle.Bold);
             e.FormattingApplied     = true;
         }
@@ -125,7 +164,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
         // ── Button handlers
 
-        private void btnViewDetail_Click(object sender, EventArgs e) => OpenViewDetail();
+        private void btnViewDetail_Click(object sender, EventArgs e)
+        {
+            OpenViewDetail();
+        }
 
         /// <summary>
         /// Opens CreateNewQuotationForm as a dialog to create a brand-new Quotation.
@@ -133,9 +175,12 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         /// </summary>
         private void btnCreateNew_Click(object sender, EventArgs e)
         {
-            using var form = new CreateNewQuotationForm();
-            if (form.ShowDialog(this) == DialogResult.OK)
-                RefreshGrid();
+            // Use classic using-block for .NET Framework 4.x compatibility
+            using (var form = new CreateNewQuotationForm())
+            {
+                if (form.ShowDialog(this) == DialogResult.OK)
+                    RefreshGrid();
+            }
         }
 
         private void btnUpdateStatus_Click(object sender, EventArgs e)
@@ -147,7 +192,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             if (_ctrl.UpdateQuotationStatus(qId, newStatus))
             {
-                MessageBox.Show($"Quotation {qId} updated to \u2018{newStatus}\u2019.",
+                MessageBox.Show(
+                    string.Format("Quotation {0} updated to '{1}'.", qId, newStatus),
                     "Status Updated", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 RefreshGrid();
             }
@@ -173,8 +219,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
-            using var detail = new QuotationDetailForm(entity);
-            detail.ShowDialog(this);
+            using (var detail = new QuotationDetailForm(entity))
+            {
+                detail.ShowDialog(this);
+            }
         }
     }
 }
