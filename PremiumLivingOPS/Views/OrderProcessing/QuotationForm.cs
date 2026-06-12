@@ -21,29 +21,40 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             Load += QuotationForm_Load;
         }
 
-        // ── Load ─────────────────────────────────────────────────────────────────────
+        // ── Load ──────────────────────────────────────────────────────────────────────────────
 
         private void QuotationForm_Load(object sender, EventArgs e)
         {
+            // ── Wire up AppShell navigation (MUST be here, not in Designer.cs)
+            _shell.MenuItemClicked += OnTopNavMenuItemClicked;
+            _shell.LogoutClicked   += btnLogout_Click;
+
             _vm = _ctrl.GetQuotationListVM();
 
-            // Apply session data to AppShell (SetUser + SetVisibleMenus + SetBreadcrumb).
-            // ApplyViewModel() is not available on AppShell; call individual methods instead.
             if (_vm?.UserBar != null)
-            {
                 _shell.SetUser(_vm.UserBar.DisplayName, _vm.UserBar.Department);
-            }
+
             if (_vm?.AllowedMenus != null)
-            {
                 _shell.SetVisibleMenus(_vm.AllowedMenus);
-            }
-            _shell.SetBreadcrumb("Quotation");
+
+            _shell.SetBreadcrumb("Order Processing  ›  Quotation");
 
             LoadGrid();
             UpdateKpiBar();
         }
 
-        // ── Grid ──────────────────────────────────────────────────────────────────────
+        // ── Navigation ───────────────────────────────────────────────────────────────────
+
+        private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
+            => FormNavigator.NavigateTo(this, menuLabel, subItem);
+
+        private void btnLogout_Click(object sender, EventArgs e)
+        {
+            SessionManager.Clear();
+            Application.Restart();
+        }
+
+        // ── Grid ──────────────────────────────────────────────────────────────────────────────
 
         private void LoadGrid()
         {
@@ -101,7 +112,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             UpdateKpiBar();
         }
 
-        // ── KPI bar ───────────────────────────────────────────────────────────────────
+        // ── KPI bar ───────────────────────────────────────────────────────────────────────
 
         private void UpdateKpiBar()
         {
@@ -141,7 +152,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             }
         }
 
-        // ── Selection changed ────────────────────────────────────────────────────────
+        // ── Selection changed ────────────────────────────────────────────────────────────
 
         private void dgvQuotations_SelectionChanged(object sender, EventArgs e)
         {
@@ -151,7 +162,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             cboNewStatus.Enabled    = sel;
         }
 
-        // ── Cell formatting (colour-code status) ─────────────────────────────────
+        // ── Cell formatting (colour-code status) ──────────────────────────────
 
         private void dgvQuotations_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
@@ -164,7 +175,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             }
         }
 
-        // ── Button handlers ────────────────────────────────────────────────────────────
+        // ── Button handlers ──────────────────────────────────────────────────────────────────
 
         /// <summary>Create New Quotation — opens CreateNewQuotationForm dialog.</summary>
         private void btnCreateNew_Click(object sender, EventArgs e)
