@@ -15,7 +15,7 @@ namespace PremiumLivingOPS.Controllers
     {
         private readonly OrderProcessingRepo _repo = new OrderProcessingRepo();
 
-        // ── View Order ─────────────────────────────────────────────────────────────────────────────────────
+        // ── View Order ────────────────────────────────────────────────────────────────────────────────────────
 
         public ViewOrderViewModel GetViewOrderVM(
             string    status   = null,
@@ -48,7 +48,7 @@ namespace PremiumLivingOPS.Controllers
         public List<OrderLineEntity> GetOrderLines(string orderId)
             => _repo.GetOrderLines(orderId);
 
-        // ── Quotation ─────────────────────────────────────────────────────────────────────────────────
+        // ── Quotation ──────────────────────────────────────────────────────────────────────────────────
 
         public QuotationViewModel GetQuotationListVM(
             string status  = null,
@@ -80,19 +80,20 @@ namespace PremiumLivingOPS.Controllers
             };
         }
 
+        /// <summary>
+        /// Returns a single Quotation for detail view.
+        /// QuotationItem table does not exist in schema — Items list is always empty.
+        /// </summary>
         public QuotationEntity GetQuotationDetail(string quotationId)
         {
             if (string.IsNullOrEmpty(quotationId)) return null;
-            var q = _repo.GetQuotationById(quotationId);
-            if (q == null) return null;
-            q.Items = _repo.GetQuotationItems(quotationId);
-            return q;
+            return _repo.GetQuotationById(quotationId);
         }
 
         public bool UpdateQuotationStatus(string quotationId, string newStatus)
             => _repo.UpdateQuotationStatus(quotationId, newStatus);
 
-        // ── Create New Quotation ────────────────────────────────────────────────────────────
+        // ── Create New Quotation ───────────────────────────────────────────────────────────────────
 
         public CreateQuotationViewModel GetCreateQuotationVM()
         {
@@ -129,20 +130,20 @@ namespace PremiumLivingOPS.Controllers
             return $"{prefix}{next:D4}";
         }
 
+        /// <summary>
+        /// Saves a new Quotation.
+        /// Schema has no QuotationItem table — only the Quotation header is persisted.
+        /// The items parameter is accepted for UI compatibility but not written to DB.
+        /// </summary>
         public bool SaveNewQuotation(QuotationEntity quotation,
                                      List<QuotationItemEntity> items,
                                      string salesStaffId)
         {
-            if (!_repo.CreateQuotation(quotation, salesStaffId)) return false;
-            foreach (var item in items)
-            {
-                item.QuotationID = quotation.QuotationID;
-                _repo.CreateQuotationItem(item);
-            }
-            return true;
+            // salesStaffId is not a Quotation column in schema; ignored.
+            return _repo.CreateQuotation(quotation);
         }
 
-        // ── Create Order ──────────────────────────────────────────────────────────────────────────
+        // ── Create Order ──────────────────────────────────────────────────────────────────────────────────
 
         public CreateOrderViewModel GetCreateOrderVM()
         {
@@ -175,9 +176,9 @@ namespace PremiumLivingOPS.Controllers
 
         public string GenerateOrderId()
         {
-            string prefix    = "ORD-" + DateTime.Today.ToString("yyyyMMdd") + "-";
-            var    existing  = _repo.GetOrderIdsByPrefix(prefix);
-            int    next      = 1;
+            string prefix   = "ORD-" + DateTime.Today.ToString("yyyyMMdd") + "-";
+            var    existing = _repo.GetOrderIdsByPrefix(prefix);
+            int    next     = 1;
             foreach (var id in existing)
             {
                 if (id.Length >= prefix.Length + 4 &&
@@ -200,7 +201,7 @@ namespace PremiumLivingOPS.Controllers
             return true;
         }
 
-        // ── Modify Order ─────────────────────────────────────────────────────────────────────────────────
+        // ── Modify Order ───────────────────────────────────────────────────────────────────────────────────────
 
         public ModifyOrderViewModel GetModifyOrderVM(string orderId = null)
         {
