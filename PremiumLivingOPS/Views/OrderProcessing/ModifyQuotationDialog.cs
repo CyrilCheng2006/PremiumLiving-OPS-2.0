@@ -145,7 +145,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             var btnAddItem = new Button
             {
-                Text      = "＋  Add Item",
+                Text      = "\uFF0B  Add Item",
                 Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
                 ForeColor = Color.White,
                 BackColor = Color.FromArgb(5, 150, 105),
@@ -194,59 +194,28 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 }
             };
 
-            // Columns — all ReadOnly except the Delete action button
-            _dgvItems.Columns.Add(new DataGridViewTextBoxColumn
-            {
-                Name = "cItemID",    HeaderText = "ITEM ID",    FillWeight = 18,
-                ReadOnly = true
-            });
-            _dgvItems.Columns.Add(new DataGridViewTextBoxColumn
-            {
-                Name = "cProduct",   HeaderText = "PRODUCT",    FillWeight = 30,
-                ReadOnly = true
-            });
-            _dgvItems.Columns.Add(new DataGridViewTextBoxColumn
-            {
-                Name = "cQty",       HeaderText = "QTY",        FillWeight = 10,
-                ReadOnly = true
-            });
-            _dgvItems.Columns.Add(new DataGridViewTextBoxColumn
-            {
-                Name = "cUnit",      HeaderText = "UNIT",       FillWeight = 10,
-                ReadOnly = true
-            });
-            _dgvItems.Columns.Add(new DataGridViewTextBoxColumn
-            {
-                Name = "cUnitPrice", HeaderText = "UNIT PRICE", FillWeight = 14,
-                ReadOnly = true
-            });
-            _dgvItems.Columns.Add(new DataGridViewTextBoxColumn
-            {
-                Name = "cDiscount",  HeaderText = "DISCOUNT %", FillWeight = 12,
-                ReadOnly = true
-            });
-            _dgvItems.Columns.Add(new DataGridViewTextBoxColumn
-            {
-                Name = "cSubtotal",  HeaderText = "SUBTOTAL",   FillWeight = 14,
-                ReadOnly = true
-            });
+            _dgvItems.Columns.Add(new DataGridViewTextBoxColumn { Name = "cItemID",    HeaderText = "ITEM ID",    FillWeight = 18, ReadOnly = true });
+            _dgvItems.Columns.Add(new DataGridViewTextBoxColumn { Name = "cProduct",   HeaderText = "PRODUCT",    FillWeight = 30, ReadOnly = true });
+            _dgvItems.Columns.Add(new DataGridViewTextBoxColumn { Name = "cQty",       HeaderText = "QTY",        FillWeight = 10, ReadOnly = true });
+            _dgvItems.Columns.Add(new DataGridViewTextBoxColumn { Name = "cUnit",      HeaderText = "UNIT",       FillWeight = 10, ReadOnly = true });
+            _dgvItems.Columns.Add(new DataGridViewTextBoxColumn { Name = "cUnitPrice", HeaderText = "UNIT PRICE", FillWeight = 14, ReadOnly = true });
+            _dgvItems.Columns.Add(new DataGridViewTextBoxColumn { Name = "cDiscount",  HeaderText = "DISCOUNT %", FillWeight = 12, ReadOnly = true });
+            _dgvItems.Columns.Add(new DataGridViewTextBoxColumn { Name = "cSubtotal",  HeaderText = "SUBTOTAL",   FillWeight = 14, ReadOnly = true });
 
-            // Delete action button column
             var colDelete = new DataGridViewButtonColumn
             {
                 Name           = "cDelete",
                 HeaderText     = "",
-                Text           = "✕  Delete",
+                Text           = "\u2715  Delete",
                 UseColumnTextForButtonValue = true,
                 FillWeight     = 12,
                 FlatStyle      = FlatStyle.Flat
             };
             _dgvItems.Columns.Add(colDelete);
 
-            _dgvItems.CellClick += DgvItems_CellClick;
+            _dgvItems.CellClick    += DgvItems_CellClick;
             _dgvItems.CellPainting += DgvItems_CellPainting;
 
-            // Populate from working copy
             RebuildItemGrid();
 
             // ── Total row
@@ -277,7 +246,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             var btnSave = new Button
             {
-                Text      = "✔  Save Changes",
+                Text      = "\u2714  Save Changes",
                 Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
                 ForeColor = Color.White,
                 BackColor = Color.FromArgb(5, 150, 105),
@@ -310,7 +279,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlFooter.Controls.Add(btnSave);
             pnlFooter.Controls.Add(btnCancel);
 
-            // ── Assemble (reverse DockStyle.Top order)
             this.Controls.Add(_dgvItems);
             this.Controls.Add(pnlTotalRow);
             this.Controls.Add(pnlLineLabel);
@@ -372,7 +340,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             }
         }
 
-        // Style the Delete button cell (red tint)
         private void DgvItems_CellPainting(object sender, DataGridViewCellPaintingEventArgs e)
         {
             if (e.RowIndex < 0) return;
@@ -383,25 +350,26 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             using var brush = new SolidBrush(Color.FromArgb(254, 226, 226));
             e.Graphics.FillRectangle(brush, e.CellBounds);
 
-            using var font = new Font("Segoe UI", 10f, FontStyle.Bold);
+            using var font    = new Font("Segoe UI", 10f, FontStyle.Bold);
             using var fgBrush = new SolidBrush(Color.FromArgb(153, 27, 27));
             var sf = new System.Drawing.StringFormat
             {
                 Alignment     = System.Drawing.StringAlignment.Center,
                 LineAlignment = System.Drawing.StringAlignment.Center
             };
-            e.Graphics.DrawString("✕  Delete", font, fgBrush, e.CellBounds, sf);
+            e.Graphics.DrawString("\u2715  Delete", font, fgBrush, e.CellBounds, sf);
             e.Handled = true;
         }
 
         // ──────────────────────────────────────────────────────────────────
         //  Add Item — inline mini-dialog
+        //  Uses ProductLookup (existing type) — no ItemLookup needed.
         // ──────────────────────────────────────────────────────────────────
         private void BtnAddItem_Click(object sender, EventArgs e)
         {
-            // Fetch available items for this customer via controller
+            // GetAvailableItemsForQuotation returns List<ProductLookup>
             var availableItems = _ctrl.GetAvailableItemsForQuotation(_q.CustomerID)
-                                 ?? new List<ItemLookup>();
+                                 ?? new System.Collections.Generic.List<ProductLookup>();
 
             using var addDlg = new Form
             {
@@ -415,7 +383,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 MinimizeBox     = false
             };
 
-            // ── Header
             var pnlH = new Panel { Dock = DockStyle.Top, Height = 54, BackColor = Color.FromArgb(19, 35, 61) };
             pnlH.Controls.Add(new Label
             {
@@ -426,11 +393,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Padding   = new Padding(20, 0, 0, 0), AutoSize = false
             });
 
-            // ── Fields
             var pnlF = new Panel
             {
-                Dock    = DockStyle.Fill,
-                Padding = new Padding(28, 16, 28, 8),
+                Dock      = DockStyle.Fill,
+                Padding   = new Padding(28, 16, 28, 8),
                 BackColor = Color.White
             };
             var tbl = new TableLayoutPanel
@@ -443,15 +409,16 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             for (int r = 0; r < 5; r++)
                 tbl.RowStyles.Add(new RowStyle(SizeType.Percent, 20f));
 
+            // ComboBox using ProductLookup.DisplayText
             var cboItem = new ComboBox
             {
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 Font          = new Font("Segoe UI", 12f),
                 Dock          = DockStyle.Fill
             };
-            cboItem.Items.Add(new ItemComboItem("-- Select Item --", "", 0, "pcs"));
-            foreach (var it in availableItems)
-                cboItem.Items.Add(new ItemComboItem(it.ItemName, it.ItemID, it.UnitPrice, it.Unit));
+            cboItem.Items.Add(new ProductComboItem("-- Select Item --", "", 0d, "pcs"));
+            foreach (var p in availableItems)
+                cboItem.Items.Add(new ProductComboItem(p.ItemName, p.ItemID, p.SalesPrice, "pcs"));
             cboItem.SelectedIndex = 0;
 
             var numQty = new NumericUpDown
@@ -481,30 +448,30 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 TextAlign = ContentAlignment.MiddleLeft
             };
 
-            Action recomputeSubtotal = () =>
+            Action recompute = () =>
             {
-                var sel = cboItem.SelectedItem as ItemComboItem;
-                if (sel == null || string.IsNullOrEmpty(sel.ItemID)) { lblSubtotal.Text = "HK$ 0.00"; return; }
-                double price   = sel.UnitPrice;
-                double qty     = (double)numQty.Value;
-                double disc    = (double)numDiscount.Value;
+                var sel = cboItem.SelectedItem as ProductComboItem;
+                if (sel == null || string.IsNullOrEmpty(sel.ItemID))
+                { lblUnitPrice.Text = "HK$ 0.00"; lblSubtotal.Text = "HK$ 0.00"; return; }
+                double price    = sel.UnitPrice;
+                double qty      = (double)numQty.Value;
+                double disc     = (double)numDiscount.Value;
                 double subtotal = price * qty * (1 - disc / 100.0);
                 lblUnitPrice.Text = $"HK$ {price:N2}";
                 lblSubtotal.Text  = $"HK$ {subtotal:N2}";
             };
 
-            cboItem.SelectedIndexChanged += (s, ev) => recomputeSubtotal();
-            numQty.ValueChanged          += (s, ev) => recomputeSubtotal();
-            numDiscount.ValueChanged     += (s, ev) => recomputeSubtotal();
+            cboItem.SelectedIndexChanged += (s, ev) => recompute();
+            numQty.ValueChanged          += (s, ev) => recompute();
+            numDiscount.ValueChanged     += (s, ev) => recompute();
 
-            tbl.Controls.Add(MakeFieldLabel("Item *"),       0, 0); tbl.Controls.Add(cboItem,      1, 0);
-            tbl.Controls.Add(MakeFieldLabel("Quantity *"),   0, 1); tbl.Controls.Add(numQty,       1, 1);
-            tbl.Controls.Add(MakeFieldLabel("Discount %"),   0, 2); tbl.Controls.Add(numDiscount,  1, 2);
-            tbl.Controls.Add(MakeFieldLabel("Unit Price"),   0, 3); tbl.Controls.Add(lblUnitPrice, 1, 3);
-            tbl.Controls.Add(MakeFieldLabel("Subtotal"),     0, 4); tbl.Controls.Add(lblSubtotal,  1, 4);
+            tbl.Controls.Add(MakeFieldLabel("Item *"),      0, 0); tbl.Controls.Add(cboItem,      1, 0);
+            tbl.Controls.Add(MakeFieldLabel("Quantity *"),  0, 1); tbl.Controls.Add(numQty,       1, 1);
+            tbl.Controls.Add(MakeFieldLabel("Discount %"),  0, 2); tbl.Controls.Add(numDiscount,  1, 2);
+            tbl.Controls.Add(MakeFieldLabel("Unit Price"),  0, 3); tbl.Controls.Add(lblUnitPrice, 1, 3);
+            tbl.Controls.Add(MakeFieldLabel("Subtotal"),    0, 4); tbl.Controls.Add(lblSubtotal,  1, 4);
             pnlF.Controls.Add(tbl);
 
-            // ── Footer  [✔ Add] (210×60)   [Cancel] (210×60)
             var pnlFoot = new Panel
             {
                 Dock = DockStyle.Bottom, Height = 80,
@@ -514,7 +481,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             var btnAdd = new Button
             {
-                Text      = "✔  Add Item",
+                Text      = "\u2714  Add Item",
                 Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
                 ForeColor = Color.White,
                 BackColor = Color.FromArgb(5, 150, 105),
@@ -543,23 +510,26 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             btnAdd.Click += (s, ev) =>
             {
-                var sel = cboItem.SelectedItem as ItemComboItem;
+                var sel = cboItem.SelectedItem as ProductComboItem;
                 if (sel == null || string.IsNullOrEmpty(sel.ItemID))
-                { MessageBox.Show("Please select an item.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+                {
+                    MessageBox.Show("Please select an item.", "Validation",
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
 
-                double qty      = (double)numQty.Value;
-                double disc     = (double)numDiscount.Value;
-                double subtotal = sel.UnitPrice * qty * (1 - disc / 100.0);
-
+                // Build entity — do NOT assign Subtotal (computed property)
                 _items.Add(new QuotationItemEntity
                 {
+                    QuotationID     = _q.QuotationID,
                     ItemID          = sel.ItemID,
                     ProductName     = sel.ItemName,
-                    Quantity        = (int)qty,
+                    Quantity        = (int)numQty.Value,
                     Unit            = sel.Unit,
                     UnitPrice       = sel.UnitPrice,
-                    DiscountPercent = disc,
-                    Subtotal        = subtotal
+                    DiscountPercent = (double)numDiscount.Value
+                    // Subtotal is a computed property: Quantity * UnitPrice * (1 - DiscountPercent/100)
+                    // Do NOT assign it — the getter calculates it automatically.
                 });
 
                 RebuildItemGrid();
@@ -672,14 +642,14 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
         private void InitializeComponent() { this.SuspendLayout(); this.ResumeLayout(false); }
 
-        // ── Inner helper types
-        private class ItemComboItem
+        // ── Inner helper type (replaces removed ItemLookup / ItemComboItem)
+        private class ProductComboItem
         {
             public string ItemName  { get; }
             public string ItemID    { get; }
             public double UnitPrice { get; }
             public string Unit      { get; }
-            public ItemComboItem(string name, string id, double price, string unit)
+            public ProductComboItem(string name, string id, double price, string unit)
             { ItemName = name; ItemID = id; UnitPrice = price; Unit = unit; }
             public override string ToString() => ItemName;
         }

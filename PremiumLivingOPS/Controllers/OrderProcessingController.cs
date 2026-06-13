@@ -96,8 +96,6 @@ namespace PremiumLivingOPS.Controllers
             if (q == null) return null;
 
             // Populate Items from OrderLine data (schema has no QuotationItem table).
-            // Result is an empty list when the Quotation has not yet been converted
-            // to any Order, so BuildLinesGrid always gets a non-null list.
             q.Items = _repo.GetOrderLinesByQuotationId(quotationId);
 
             return q;
@@ -105,6 +103,48 @@ namespace PremiumLivingOPS.Controllers
 
         public bool UpdateQuotationStatus(string quotationId, string newStatus)
             => _repo.UpdateQuotationStatus(quotationId, newStatus);
+
+        // ── Modify Quotation ───────────────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Returns true when the given Quotation has already been linked to at least
+        /// one Order (i.e. its status is "Converted" or an Order row references it).
+        /// Used by QuotationForm to guard the Modify action.
+        /// </summary>
+        public bool IsQuotationLinkedToOrder(string quotationId)
+        {
+            if (string.IsNullOrEmpty(quotationId)) return false;
+            var q = _repo.GetQuotationById(quotationId);
+            if (q == null) return false;
+            // Primary check via status column
+            if (q.QuotationStatus == "Converted") return true;
+            // Secondary check: any Order row references this Quotation
+            var linkedOrders = _repo.GetOrderLinesByQuotationId(quotationId);
+            return linkedOrders != null && linkedOrders.Count > 0;
+        }
+
+        /// <summary>
+        /// Persists the updated item list for a Quotation.
+        /// Schema has no QuotationItem table — changes are reflected through
+        /// updating the TotalAmount on the Quotation header.
+        /// Returns true on success.
+        /// </summary>
+        public bool SaveModifiedQuotation(string quotationId, List<QuotationItemEntity> items)
+        {
+            if (string.IsNullOrEmpty(quotationId) || items == null) return false;
+            double newTotal = 0;
+            foreach (var i in items) newTotal += i.Subtotal;
+            return _repo.UpdateQuotationTotalAmount(quotationId, newTotal);
+        }
+
+        /// <summary>
+        /// Returns the product list available to add as Quotation items.
+        /// Reuses the existing ProductLookup type (no new types needed).
+        /// customerId is accepted for future customer-specific pricing but
+        /// currently returns the full product catalogue.
+        /// </summary>
+        public List<ProductLookup> GetAvailableItemsForQuotation(string customerId)
+            => _repo.GetAllProducts();
 
         // ── Create New Quotation ───────────────────────────────────────────────────────────────────────────────
 

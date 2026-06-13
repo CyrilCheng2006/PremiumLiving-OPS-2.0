@@ -26,6 +26,11 @@ namespace PremiumLivingOPS.Views.OrderProcessing
     ///   • Inside ModifyQuotationDialog only Quotation Items (Add / Delete) are editable;
     ///     all header fields (Customer, ExpiryDate, TotalAmount, etc.) are read-only.
     ///   • Footer buttons are 210 × 60.
+    ///
+    /// Designer note:
+    ///   The KPI bar "Modify" button is declared as btnAddFrom in the Designer
+    ///   (QuotationForm.Designer.cs). Its Click event is wired to btnAddFrom_Click
+    ///   which opens ModifyQuotationDialog. There is no separate btnModify field.
     /// </summary>
     public partial class QuotationForm : Form
     {
@@ -193,8 +198,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         {
             bool sel = dgvQuotations.SelectedRows.Count > 0;
             btnViewDetail.Enabled   = sel;
-            btnModify.Enabled       = sel;
-            btnAddFrom.Enabled      = sel;
+            btnAddFrom.Enabled      = sel;   // Designer field — this is the "Modify" button
             btnUpdateStatus.Enabled = sel;
             cboNewStatus.Enabled    = sel;
         }
@@ -236,15 +240,16 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         private void btnViewDetail_Click(object sender, EventArgs e) => OpenDetailDialog();
 
         // ──────────────────────────────────────────────────────────────────
-        //  MODIFY QUOTATION
+        //  MODIFY QUOTATION  (btnAddFrom in Designer — text: "✎ Modify")
+        //
         //  Rules:
-        //    1. A Quotation linked to an Order (status == "Converted" or
-        //       controller confirms IsLinkedToOrder) cannot be modified.
-        //    2. Inside the dialog only Quotation Items may be added / deleted;
+        //    1. Quotation linked to an Order (status == "Converted" or
+        //       IsQuotationLinkedToOrder returns true) → blocked, show warning.
+        //    2. Inside ModifyQuotationDialog only Items may be added / deleted;
         //       all header fields are read-only.
         //    3. Footer action buttons are 210 × 60.
         // ──────────────────────────────────────────────────────────────────
-        private void btnModify_Click(object sender, EventArgs e)
+        private void btnAddFrom_Click(object sender, EventArgs e)
         {
             string qid = SelectedQuotationId();
             if (qid == null) return;
@@ -276,32 +281,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 MessageBox.Show(
                     $"Quotation {qid} has been updated successfully.",
                     "Saved",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Information);
-                RefreshGrid();
-            }
-        }
-
-        // ── Add From Quotation (create Order from Quotation)
-        private void btnAddFrom_Click(object sender, EventArgs e)
-        {
-            string qid = SelectedQuotationId();
-            if (qid == null) return;
-
-            var q = _ctrl.GetQuotationDetail(qid);
-            if (q == null)
-            {
-                MessageBox.Show("Quotation not found.", "Error",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
-            }
-
-            using var dlg = new AddFromQuotationForm(q);
-            if (dlg.ShowDialog(this) == DialogResult.OK)
-            {
-                MessageBox.Show(
-                    $"Order {dlg.CreatedOrderID} (from Quotation {qid}) has been saved.",
-                    "Changes Saved",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
                 RefreshGrid();
@@ -349,7 +328,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 MinimizeBox     = false
             };
 
-            // ── Header bar (dark navy)
             var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 80, BackColor = Color.FromArgb(19, 35, 61) };
             var tblHeader = new TableLayoutPanel
             {
@@ -360,7 +338,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
             tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 220f));
             tblHeader.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-
             tblHeader.Controls.Add(new Label
             {
                 Text      = $"Quotation Details  —  {q.QuotationID}",
@@ -368,7 +345,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 ForeColor = Color.White, Dock = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
             }, 0, 0);
-
             StatusColors.TryGetValue(q.QuotationStatus ?? "", out var sc);
             tblHeader.Controls.Add(new Label
             {
@@ -381,7 +357,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             }, 1, 0);
             pnlHeader.Controls.Add(tblHeader);
 
-            // ── Info panel
             var pnlInfo = new Panel
             {
                 Dock      = DockStyle.Top, Height = 280,
@@ -417,7 +392,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 tblInfo.Controls.Add(MakeLabelKey(leftFields[i].Item1), 0, i);
                 tblInfo.Controls.Add(MakeLabelVal(leftFields[i].Item2), 1, i);
             }
-
             var rightFields = new (string, string)[]
             {
                 ("Expiry Date",      q.ExpiryDate.ToString("yyyy-MM-dd")),
@@ -432,7 +406,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             }
             pnlInfo.Controls.Add(tblInfo);
 
-            // ── T&C bar
             Panel pnlTnC = null;
             if (hasTnC)
             {
@@ -455,7 +428,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 pnlTnC.Controls.Add(tblTnC);
             }
 
-            // ── QUOTATION ITEMS label bar
             var pnlLineLabel = new Panel
             {
                 Dock      = DockStyle.Top, Height = 40,
@@ -472,7 +444,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             });
             pnlLineLabel.Paint += PaintBottomBorderStatic;
 
-            // ── Items DataGridView
             var dgv = new DataGridView
             {
                 ReadOnly              = true,
@@ -524,7 +495,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                         $"{item.DiscountPercent:N1}%",
                         $"HK$ {item.Subtotal:N2}");
 
-            // ── Total row
             var pnlTotalRow = new Panel
             {
                 Dock      = DockStyle.Bottom, Height = 50,
@@ -555,7 +525,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             }, 1, 0);
             pnlTotalRow.Controls.Add(tblTotal);
 
-            // ── Footer
             var pnlFooter = new Panel
             {
                 Dock    = DockStyle.Bottom, Height = 80,
