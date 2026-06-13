@@ -17,10 +17,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
     /// Columns: ITEM ID | PRODUCT | QTY | UNIT PRICE | SUBTOTAL
     ///
     /// Header: pnlHeader (dark navy, Height 80) + TableLayoutPanel 2-col
-    ///   Col 0 — SizeType.Percent 100f  : title label, Font 13f Bold, white
-    ///   Col 1 — SizeType.AutoSize      : status badge, Font 14f Bold, MiddleCenter
-    ///   AutoSize on col 1 ensures any status text ("Converted" etc.) is never clipped.
-    ///   Mirrors ModifyQuotationDialog header structure.
+    ///   Col 0 — SizeType.Percent 100f  : title label, Font 13f Bold, white, Dock=Fill
+    ///   Col 1 — SizeType.Absolute 220f : status badge, Font 14f Bold, MiddleCenter
+    ///     220f = ~160px text ("Converted" @ 14f Bold) + 16px padding each side + margin
+    ///     Badge Label: Dock=Fill, AutoEllipsis=false — matches ModifyQuotationDialog.
     /// </summary>
     public class QuotationDetailForm : Form
     {
@@ -43,7 +43,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             this.Font            = new Font("Segoe UI", 12f);
             this.FormBorderStyle = FormBorderStyle.Sizable;
 
-            // ── Header  (identical structure to ModifyQuotationDialog.BuildDialog)
+            // ── Header
             var pnlHeader = new Panel
             {
                 Dock      = DockStyle.Top,
@@ -59,10 +59,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
                 Padding         = new Padding(24, 0, 24, 0)
             };
-            // Col 0: title — takes all remaining width
+            // Col 0: title text — takes all remaining width
             tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-            // Col 1: badge — AutoSize so the full status text is always visible
-            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            // Col 1: status badge — fixed 220px; wide enough for "Converted" @ Font 14f Bold
+            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 220f));
             tblHeader.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
             tblHeader.Controls.Add(new Label
@@ -86,7 +86,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 TextAlign    = ContentAlignment.MiddleCenter,
                 AutoSize     = false,
                 AutoEllipsis = false,
-                MinimumSize  = new Size(120, 0),   // soft floor — enough for any status word
                 Padding      = new Padding(16, 4, 16, 4)
             }, 1, 0);
 
@@ -141,7 +140,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             this.Controls.Add(pnlHeader);
         }
 
-        // Info fields inside the card (title is in pnlHeader above)
         private TableLayoutPanel BuildHeaderPanel()
         {
             var tbl = new TableLayoutPanel
@@ -205,7 +203,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             dgv.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "UNIT PRICE", FillWeight = 18 });
             dgv.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "SUBTOTAL",   FillWeight = 17 });
 
-            if (_q.Items != null)
+            if (_q.Items != null)"
                 foreach (var li in _q.Items)
                     dgv.Rows.Add(
                         li.ItemID, li.ProductName, li.Quantity,
