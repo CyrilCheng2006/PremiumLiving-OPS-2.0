@@ -214,17 +214,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             ShowDetailDialog(detail);
         }
 
-        private void btnModifyOrder_Click(object sender, EventArgs e)
-        {
-            string id = SelectedOrderId();
-            if (id == null) return;
-            ModifyOrderForm.PendingOrderId = id;
-            FormNavigator.NavigateTo(this, "Order Processing", "Modify Order");
-        }
-
-        // ──────────────────────────────────────────────────────────────────
-        //  Order Details dialog
-        // ──────────────────────────────────────────────────────────────────
         private void ShowDetailDialog(OrderDetailViewModel detail)
         {
             var o = detail.Order;
@@ -242,7 +231,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 MinimizeBox     = false
             };
 
-            // ── Header
             var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 80, BackColor = Color.FromArgb(19, 35, 61) };
             var tblHeader = new TableLayoutPanel
             {
@@ -251,7 +239,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Padding = new Padding(24, 0, 24, 0)
             };
             tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
-            // Status badge column: 220 × 1.2 = 264
             tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 264f));
             tblHeader.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
@@ -275,12 +262,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             }, 1, 0);
             pnlHeader.Controls.Add(tblHeader);
 
-            // ── Order Info panel
-            // 4 columns: Key(15%) | Value(35%) | Key(15%) | Value(35%)
-            // 5 rows: 0-2 & 4 single-line (15% each); row 3 address row (40%)
             var pnlInfo = new Panel
             {
-                Dock = DockStyle.Top, Height = 340,
+                Dock = DockStyle.Top, Height = 400,
                 Padding = new Padding(28, 18, 28, 8), BackColor = Color.White
             };
             pnlInfo.Paint += (s, e) =>
@@ -291,43 +275,47 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             var tblInfo = new TableLayoutPanel
             {
-                Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 5,
+                Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 6,
                 BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
-            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));  // left Key
-            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));  // left Value
-            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));  // right Key
-            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));  // right Value
+            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
+            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
+            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
+            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
 
-            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 15f)); // row 0
-            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 15f)); // row 1
-            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 15f)); // row 2
-            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 40f)); // row 3 — addresses
-            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 15f)); // row 4
+            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 14f));
+            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 14f));
+            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 14f));
+            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 14f));
+            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 30f));
+            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 14f));
 
             var leftFields = new[]
             {
-                ("Order ID",       o.OrderID),
-                ("Sales Name",     o.SalesName),
-                ("Delivery Date",  o.DeliveryDate.ToString("yyyy-MM-dd")),
-                ("Billing Address",o.BillingAddress),
+                ("Order ID",        o.OrderID),
+                ("Sales Name",      o.SalesName),
+                ("Issued Date",     o.IssuedTime.ToString("yyyy-MM-dd")),
+                ("Delivery Date",   o.DeliveryDate.ToString("yyyy-MM-dd")),
+                ("Billing Address", o.BillingAddress),
+                ("Address ID",      string.IsNullOrWhiteSpace(o.AddressID) ? "—" : o.AddressID),
             };
             for (int i = 0; i < leftFields.Length; i++)
             {
                 tblInfo.Controls.Add(MakeLabelKey(leftFields[i].Item1), 0, i);
                 tblInfo.Controls.Add(
-                    i == 3 ? MakeLabelValMultiLine(leftFields[i].Item2 ?? "—")
+                    i == 4 ? MakeLabelValMultiLine(leftFields[i].Item2 ?? "—")
                            : MakeLabelVal(leftFields[i].Item2 ?? "—"),
                     1, i);
             }
 
             var rightFields = new[]
             {
-                ("Quotation ID",    o.QuotationID,                       false),
-                ("Customer Name",   o.CustomerName,                      false),
-                ("Contact Name",    o.OrderContactName,                  false),
-                ("Shipping Address",o.ShippingAddress,                   true ),
-                ("Issued Date",     o.IssuedTime.ToString("yyyy-MM-dd"), false),
+                ("Quotation ID",     string.IsNullOrWhiteSpace(o.QuotationID) ? "—" : o.QuotationID, false),
+                ("Customer Name",    o.CustomerName,                                            false),
+                ("Contact Name",     o.OrderContactName,                                        false),
+                ("Order Status",     o.OrderStatus,                                             false),
+                ("Shipping Address", o.ShippingAddress,                                         true ),
+                ("Grand Total",      $"HK$ {o.GrandTotal:N2}",                                 false),
             };
             for (int i = 0; i < rightFields.Length; i++)
             {
@@ -339,7 +327,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             }
             pnlInfo.Controls.Add(tblInfo);
 
-            // ── Discount bar (conditional)
             Panel pnlDiscount = null;
             if (hasDiscount)
             {
@@ -372,12 +359,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 pnlDiscount.Controls.Add(tblDisc);
             }
 
-            // ── ORDER ITEMS label bar
             var pnlLineLabel = new Panel { Dock = DockStyle.Top, Height = 40, BackColor = Color.FromArgb(246, 249, 255), Padding = new Padding(28, 0, 0, 0) };
             pnlLineLabel.Controls.Add(new Label { Text = "ORDER ITEMS", Font = new Font("Segoe UI", 10f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft });
             pnlLineLabel.Paint += PaintBottomBorderStatic;
 
-            // ── Order items grid
             var dgv = new DataGridView
             {
                 ReadOnly = true, AllowUserToAddRows = false, RowHeadersVisible = false,
@@ -399,54 +384,45 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             foreach (var l in detail.Lines)
                 dgv.Rows.Add(l.ItemID, l.ItemName, l.Quantity, $"HK$ {l.Price:N2}", $"HK$ {l.LineTotal:N2}");
 
-            // ── Grand Total row
-            var pnlTotalRow = new Panel
-            {
-                Dock = DockStyle.Bottom, Height = 50,
-                BackColor = Color.FromArgb(246, 249, 255),
-                Padding = new Padding(28, 0, 28, 0)
-            };
-            var tblTotal = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
-                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
-            };
-            tblTotal.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
-            tblTotal.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
-            tblTotal.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-
-            tblTotal.Controls.Add(new Label
+            var pnlTotalRow = new Panel { Dock = DockStyle.Bottom, Height = 64, BackColor = Color.White, Padding = new Padding(28, 0, 28, 0) };
+            pnlTotalRow.Paint += PaintTopBorderStatic;
+            pnlTotalRow.Controls.Add(new Label
             {
                 Text      = $"Subtotal:   HK$ {o.SubTotal:N2}",
-                Font      = new Font("Segoe UI", 12f),
-                ForeColor = Color.FromArgb(98, 112, 135),
-                Dock      = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleLeft,
-                AutoSize  = false
-            }, 0, 0);
-
-            tblTotal.Controls.Add(new Label
+                Dock      = DockStyle.Left,
+                AutoSize  = false,
+                Width     = 360,
+                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(15, 31, 53),
+                TextAlign = ContentAlignment.MiddleLeft
+            });
+            pnlTotalRow.Controls.Add(new Label
             {
                 Text      = $"Grand Total:   HK$ {o.GrandTotal:N2}",
-                Font      = new Font("Segoe UI", 13f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(15, 31, 53),
-                Dock      = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleRight,
-                AutoSize  = false
-            }, 1, 0);
+                Dock      = DockStyle.Right,
+                AutoSize  = false,
+                Width     = 420,
+                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(47, 111, 237),
+                TextAlign = ContentAlignment.MiddleRight
+            });
 
-            pnlTotalRow.Controls.Add(tblTotal);
-
-            // ── Footer
-            var pnlFooter = new Panel { Dock = DockStyle.Bottom, Height = 80, BackColor = Color.White, Padding = new Padding(0, 10, 28, 10) };
+            var pnlFooter = new Panel { Dock = DockStyle.Bottom, Height = 86, BackColor = Color.White, Padding = new Padding(28, 14, 28, 14) };
             pnlFooter.Paint += PaintTopBorderStatic;
             var btnClose = new Button
             {
-                Text = "Close", Font = new Font("Segoe UI", 12f),
-                ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White,
-                FlatStyle = FlatStyle.Flat, Dock = DockStyle.Right, Width = 140, Cursor = Cursors.Hand
+                Text      = "Close",
+                Font      = new Font("Segoe UI", 12f),
+                ForeColor = Color.FromArgb(15, 31, 53),
+                BackColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Size      = new Size(150, 44),
+                Anchor    = AnchorStyles.Right | AnchorStyles.Top,
+                Location  = new Point(2500 - 28 - 150 - 16, 14),
+                Cursor    = Cursors.Hand
             };
             btnClose.FlatAppearance.BorderColor = Color.FromArgb(221, 227, 236);
+            btnClose.FlatAppearance.BorderSize = 1;
             btnClose.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
             btnClose.Click += (s, ev) => dlg.Close();
             pnlFooter.Controls.Add(btnClose);
@@ -462,7 +438,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             dlg.ShowDialog(this);
         }
 
-        // Single-line key label (bold grey, no ellipsis)
         private static Label MakeLabelKey(string text) => new Label
         {
             Text = text, Font = new Font("Segoe UI", 10f, FontStyle.Bold),
@@ -471,7 +446,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             AutoEllipsis = false
         };
 
-        // Single-line value label (middle-left, ellipsis on overflow)
         private static Label MakeLabelVal(string text) => new Label
         {
             Text = text, Font = new Font("Segoe UI", 12f),
@@ -479,7 +453,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             TextAlign = ContentAlignment.MiddleLeft, AutoEllipsis = true
         };
 
-        // Multi-line value label for address fields — wraps, top-aligned
         private static Label MakeLabelValMultiLine(string text) => new Label
         {
             Text         = text,

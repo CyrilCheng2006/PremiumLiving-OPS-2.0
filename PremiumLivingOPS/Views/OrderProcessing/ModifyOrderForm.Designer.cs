@@ -23,26 +23,26 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         private ComboBox       cboDiscountType;
         private TextBox        txtDiscountValue;
         private Label          lblDiscountUnit;
+        private Label          lblSalesValue;
+        private Label          lblIssuedDateValue;
 
-        // ── Customer — read-only display label ──────────────────────────────────
         private Label lblCustomerValue;
 
-        // ── Picker controls — Linked Quotation ─────────────────────────────────
         private Button btnPickQuotation;
         private Label  lblQuotationPicked;
 
-        // ── Order Items toolbar ─────────────────────────────────────────────────
         private Button       btnPickProduct;
         private Button       btnRemoveLine;
         private DataGridView dgvLines;
 
         private Label  lblSubtotalTitle;
         private Label  lblSubtotalValue;
+        private Label  lblDiscountAmountTitle;
+        private Label  lblDiscountAmountValue;
         private Label  lblGrandTotalTitle;
         private Label  lblGrandTotalValue;
         private Panel  pnlFooterContent;
 
-        // Footer: Save left, Discard right
         private Button btnSaveChanges;
         private Button btnDiscardChanges;
 
@@ -68,9 +68,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             _shell = new AppShell();
             _shell.SetPopupContainer(pnlMain);
 
-            // ==================================================================
-            // SEARCH BAR
-            // ==================================================================
             var (pnlSearchOuter, pnlSearchInner) = CardPanel.Create(outerHeight: 90);
             var lblSearchLbl = new Label
             {
@@ -92,9 +89,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlSearchRow.Controls.Add(lblSearchLbl);
             pnlSearchInner.Controls.Add(pnlSearchRow);
 
-            // ==================================================================
-            // CARD 1 — ORDER DETAILS
-            // ==================================================================
             lblOrderIdValue = new Label
             {
                 Text      = "",
@@ -108,13 +102,11 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             var pnlOrderIdChip = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(0, 8, 12, 8) };
             pnlOrderIdChip.Controls.Add(lblOrderIdValue);
 
-            // Linked Quotation picker
             btnPickQuotation   = MakePickerBtn("🔍  Link Quotation");
             lblQuotationPicked = MakePickerLabel("(None)");
             btnPickQuotation.Click += btnPickQuotation_Click;
             var pnlQuotationPicker = MakePickerCell(btnPickQuotation, lblQuotationPicked);
 
-            // Customer — read-only
             lblCustomerValue = new Label
             {
                 Text      = "—",
@@ -127,11 +119,35 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             var pnlCustomerReadOnly = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(246, 249, 255), Padding = new Padding(0, 8, 12, 8) };
             pnlCustomerReadOnly.Controls.Add(lblCustomerValue);
 
+            lblSalesValue = new Label
+            {
+                Text      = "—",
+                Font      = new Font("Segoe UI", 12f),
+                ForeColor = Color.FromArgb(15, 31, 53),
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Padding   = new Padding(10, 0, 0, 0)
+            };
+            var pnlSalesReadOnly = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(246, 249, 255), Padding = new Padding(0, 8, 12, 8) };
+            pnlSalesReadOnly.Controls.Add(lblSalesValue);
+
+            lblIssuedDateValue = new Label
+            {
+                Text      = "—",
+                Font      = new Font("Segoe UI", 12f),
+                ForeColor = Color.FromArgb(15, 31, 53),
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Padding   = new Padding(10, 0, 0, 0)
+            };
+            var pnlIssuedReadOnly = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(246, 249, 255), Padding = new Padding(0, 8, 12, 8) };
+            pnlIssuedReadOnly.Controls.Add(lblIssuedDateValue);
+
             cboAddressId = MakeCombo();
             cboAddressId.SelectedIndexChanged += cboAddressId_SelectedIndexChanged;
 
             cboStatus = MakeCombo();
-            cboStatus.Items.AddRange(new object[] { "Pending", "Processing", "Delivered", "Cancelled" });
+            cboStatus.Items.AddRange(new object[] { "Pending", "Processing", "Partially Delivered", "Delivered", "Cancelled", "Completed" });
 
             txtShippingAddr = MakeTextBox();
             txtShippingAddr.TextChanged += txtShippingAddr_TextChanged;
@@ -181,74 +197,76 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             var tblInfo = new TableLayoutPanel
             {
-                Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 16,
+                Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 20,
                 BackColor = Color.Transparent,
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
                 Padding = new Padding(18, 8, 18, 8)
             };
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
-            for (int i = 0; i < 8; i++)
+            for (int i = 0; i < 10; i++)
             {
                 tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, 40f));
                 tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, 72f));
             }
 
-            // Row 0-1: Order ID | Linked Quotation
             tblInfo.Controls.Add(FieldLabel("Order ID",         false), 0, 0);
             tblInfo.Controls.Add(FieldLabel("Linked Quotation", false), 1, 0);
             tblInfo.Controls.Add(pnlOrderIdChip,                        0, 1);
             tblInfo.Controls.Add(pnlQuotationPicker,                    1, 1);
-            // Row 2-3: Customer (read-only) | Address ID
+
             tblInfo.Controls.Add(FieldLabel("Customer",   false), 0, 2);
             tblInfo.Controls.Add(FieldLabel("Address ID", true),  1, 2);
             tblInfo.Controls.Add(pnlCustomerReadOnly,              0, 3);
             tblInfo.Controls.Add(Pad(cboAddressId),                1, 3);
-            // Row 4-5: Shipping Address (full width)
+
+            tblInfo.Controls.Add(FieldLabel("Sales",       false), 0, 4);
+            tblInfo.Controls.Add(FieldLabel("Issued Date", false), 1, 4);
+            tblInfo.Controls.Add(pnlSalesReadOnly,                 0, 5);
+            tblInfo.Controls.Add(pnlIssuedReadOnly,                1, 5);
+
             var lblShip = FieldLabel("Shipping Address", true);
-            tblInfo.Controls.Add(lblShip, 0, 4); tblInfo.SetColumnSpan(lblShip, 2);
+            tblInfo.Controls.Add(lblShip, 0, 6); tblInfo.SetColumnSpan(lblShip, 2);
             var pnlShip = Pad(txtShippingAddr);
-            tblInfo.Controls.Add(pnlShip, 0, 5); tblInfo.SetColumnSpan(pnlShip, 2);
-            // Row 6-7: Billing Address | Same-as-Shipping
-            tblInfo.Controls.Add(FieldLabel("Billing Address", true), 0, 6);
-            tblInfo.Controls.Add(pnlChk,                              1, 6);
+            tblInfo.Controls.Add(pnlShip, 0, 7); tblInfo.SetColumnSpan(pnlShip, 2);
+
+            tblInfo.Controls.Add(FieldLabel("Billing Address", true), 0, 8);
+            tblInfo.Controls.Add(pnlChk,                              1, 8);
             var pnlBill = Pad(txtBillingAddr);
-            tblInfo.Controls.Add(pnlBill, 0, 7); tblInfo.SetColumnSpan(pnlBill, 2);
-            // Row 8-9: Delivery Date | Contact Name
-            tblInfo.Controls.Add(FieldLabel("Delivery Date",      true), 0, 8);
-            tblInfo.Controls.Add(FieldLabel("Order Contact Name", true), 1, 8);
-            tblInfo.Controls.Add(Pad(dtpDelivery),                        0, 9);
-            tblInfo.Controls.Add(Pad(txtContactName),                     1, 9);
-            // Row 10-11: Order Status
-            tblInfo.Controls.Add(FieldLabel("Order Status", true), 0, 10);
-            tblInfo.Controls.Add(Pad(cboStatus),                   0, 11);
-            // Row 12-13: Discount Type | Discount Value
-            tblInfo.Controls.Add(FieldLabel("Discount Type",  false), 0, 12);
-            tblInfo.Controls.Add(FieldLabel("Discount Value", false), 1, 12);
-            tblInfo.Controls.Add(Pad(cboDiscountType),                 0, 13);
-            tblInfo.Controls.Add(pnlDiscountInput,                     1, 13);
+            tblInfo.Controls.Add(pnlBill, 0, 9); tblInfo.SetColumnSpan(pnlBill, 2);
+
+            tblInfo.Controls.Add(FieldLabel("Delivery Date",      true), 0, 10);
+            tblInfo.Controls.Add(FieldLabel("Order Contact Name", true), 1, 10);
+            tblInfo.Controls.Add(Pad(dtpDelivery),                        0, 11);
+            tblInfo.Controls.Add(Pad(txtContactName),                     1, 11);
+
+            tblInfo.Controls.Add(FieldLabel("Order Status", true), 0, 12);
+            tblInfo.Controls.Add(Pad(cboStatus),                   0, 13);
+
+            tblInfo.Controls.Add(FieldLabel("Discount Type",  false), 0, 14);
+            tblInfo.Controls.Add(FieldLabel("Discount Value", false), 1, 14);
+            tblInfo.Controls.Add(Pad(cboDiscountType),                 0, 15);
+            tblInfo.Controls.Add(pnlDiscountInput,                     1, 15);
 
             var pnlInfoTitle   = CardTitlePanel("Order Details");
             var pnlInfoContent = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             pnlInfoContent.Controls.Add(tblInfo);
             pnlInfoContent.Controls.Add(pnlInfoTitle);
-            var (pnlInfoOuter, pnlInfoInner) = CardPanel.Create(outerHeight: 900);
+            var (pnlInfoOuter, pnlInfoInner) = CardPanel.Create(outerHeight: 1120);
             pnlInfoInner.Controls.Add(pnlInfoContent);
 
-            // ==================================================================
-            // FOOTER  —  [Save Changes]  [↺ Discard Changes]
-            // ==================================================================
             const int BtnW   = 210;
             const int BtnH   = 60;
             const int BtnGap = 8;
             const int BtnPad = 12;
 
-            lblSubtotalTitle   = new Label { Text = "Subtotal:",    Font = new Font("Segoe UI", 12f),               ForeColor = Color.FromArgb(98, 112, 135), AutoSize = true, Anchor = AnchorStyles.Left | AnchorStyles.Top };
-            lblSubtotalValue   = new Label { Text = "HK$ 0.00",    Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), AutoSize = true, Anchor = AnchorStyles.Left | AnchorStyles.Top };
-            lblGrandTotalTitle = new Label { Text = "Grand Total:", Font = new Font("Segoe UI", 14f, FontStyle.Bold), ForeColor = Palette.TextMain,              AutoSize = true, Anchor = AnchorStyles.Left | AnchorStyles.Top };
-            lblGrandTotalValue = new Label { Text = "HK$ 0.00",    Font = new Font("Segoe UI", 14f, FontStyle.Bold), ForeColor = Palette.Primary,               AutoSize = true, Anchor = AnchorStyles.Left | AnchorStyles.Top };
+            lblSubtotalTitle       = new Label { Text = "Subtotal:",         Font = new Font("Segoe UI", 12f),               ForeColor = Color.FromArgb(98, 112, 135), AutoSize = true, Anchor = AnchorStyles.Left | AnchorStyles.Top };
+            lblSubtotalValue       = new Label { Text = "HK$ 0.00",         Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), AutoSize = true, Anchor = AnchorStyles.Left | AnchorStyles.Top };
+            lblDiscountAmountTitle = new Label { Text = "Discount Amount:", Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), AutoSize = true, Anchor = AnchorStyles.Left | AnchorStyles.Top };
+            lblDiscountAmountValue = new Label { Text = "HK$ 0.00",         Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), AutoSize = true, Anchor = AnchorStyles.Left | AnchorStyles.Top };
+            lblGrandTotalTitle     = new Label { Text = "Grand Total:",     Font = new Font("Segoe UI", 14f, FontStyle.Bold), ForeColor = Palette.TextMain,              AutoSize = true, Anchor = AnchorStyles.Left | AnchorStyles.Top };
+            lblGrandTotalValue     = new Label { Text = "HK$ 0.00",         Font = new Font("Segoe UI", 14f, FontStyle.Bold), ForeColor = Palette.Primary,               AutoSize = true, Anchor = AnchorStyles.Left | AnchorStyles.Top };
 
-            // Save = green (left), Discard = outline (right)
             btnSaveChanges    = MakeGreenBtn  ("✔  Save Changes",    Point.Empty, BtnW, BtnH);
             btnDiscardChanges = MakeOutlineBtn("↺  Discard Changes", Point.Empty, BtnW, BtnH);
             btnSaveChanges.Click    += btnSaveChanges_Click;
@@ -268,6 +286,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlFooterContent = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(4, 0, 0, 0) };
             pnlFooterContent.Controls.Add(lblSubtotalTitle);
             pnlFooterContent.Controls.Add(lblSubtotalValue);
+            pnlFooterContent.Controls.Add(lblDiscountAmountTitle);
+            pnlFooterContent.Controls.Add(lblDiscountAmountValue);
             pnlFooterContent.Controls.Add(lblGrandTotalTitle);
             pnlFooterContent.Controls.Add(lblGrandTotalValue);
             pnlFooterContent.Controls.Add(pnlActionBtns);
@@ -279,9 +299,16 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 lblSubtotalTitle.Location = new Point(8, subTop + (subRowH - lblSubtotalTitle.Height) / 2);
                 int subValX = 8 + lblSubtotalTitle.Width + 4;
                 lblSubtotalValue.Location = new Point(subValX, subTop + (subRowH - lblSubtotalValue.Height) / 2);
+
+                int discRowH = Math.Max(lblDiscountAmountTitle.Height, lblDiscountAmountValue.Height);
+                int discTop  = (h - discRowH) / 2; if (discTop < 0) discTop = 0;
+                int discTitleX = subValX + lblSubtotalValue.Width + 64;
+                lblDiscountAmountTitle.Location = new Point(discTitleX, discTop + (discRowH - lblDiscountAmountTitle.Height) / 2);
+                lblDiscountAmountValue.Location = new Point(discTitleX + lblDiscountAmountTitle.Width + 4, discTop + (discRowH - lblDiscountAmountValue.Height) / 2);
+
                 int grandRowH   = Math.Max(lblGrandTotalTitle.Height, lblGrandTotalValue.Height);
                 int grandTop    = (h - grandRowH) / 2; if (grandTop < 0) grandTop = 0;
-                int grandTitleX = subValX + lblSubtotalValue.Width + 120;
+                int grandTitleX = discTitleX + lblDiscountAmountTitle.Width + lblDiscountAmountValue.Width + 64;
                 lblGrandTotalTitle.Location = new Point(grandTitleX, grandTop + (grandRowH - lblGrandTotalTitle.Height) / 2);
                 lblGrandTotalValue.Location = new Point(grandTitleX + lblGrandTotalTitle.Width + 4, grandTop + (grandRowH - lblGrandTotalValue.Height) / 2);
                 CentreFooterBtns();
@@ -293,9 +320,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             var footerOuter = new Panel { Dock = DockStyle.Bottom, Height = 108, BackColor = Palette.BgPage, Padding = new Padding(20, 14, 20, 14) };
             footerOuter.Controls.Add(footerInner);
 
-            // ==================================================================
-            // CARD 2 — ORDER ITEMS
-            // ==================================================================
             const int ItemBtnW = 210;
             const int ItemBtnH = 60;
 
@@ -367,9 +391,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             var (pnlItemsOuter, pnlItemsInner) = CardPanel.CreateFill();
             pnlItemsInner.Controls.Add(pnlItemsContent);
 
-            // ==================================================================
-            // Assemble
-            // ==================================================================
             pnlMain.Controls.Add(pnlItemsOuter);
             pnlMain.Controls.Add(footerOuter);
             pnlMain.Controls.Add(pnlInfoOuter);
@@ -380,7 +401,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             this.ResumeLayout(false);
         }
 
-        // ── Builder helpers ──────────────────────────────────────────────────────
         private static Panel MakePickerCell(Button btn, Label lbl)
         {
             btn.Dock = DockStyle.Left; btn.Width = 160; lbl.Dock = DockStyle.Fill;
