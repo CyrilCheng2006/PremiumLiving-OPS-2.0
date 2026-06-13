@@ -13,9 +13,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
     /// Header layout (pnlHeader, Height=80, dark navy):
     ///   SplitContainer (Dock=Fill, Orientation=Vertical, IsSplitterFixed=true)
     ///     Panel1 (left)  — title Label, Dock=Fill, Font 13f Bold, white
-    ///     Panel2 (right) — status badge Label, Dock=Fill, Font 14f Bold
+    ///     Panel2 (right) — status badge Label, Dock=Fill, Font 12f Bold
     ///   SplitterDistance=580 → Panel2 ≈ 304px at 900px form width.
-    ///   Panel2MinSize=220 prevents 'Converted' from being clipped on resize.
+    ///   Panel2MinSize=220 prevents clipping on resize.
     /// </summary>
     public class QuotationDetailForm : Form
     {
@@ -75,7 +75,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             split.Panel2.Controls.Add(new Label
             {
                 Text         = _q.QuotationStatus ?? "Unknown",
-                Font         = new Font("Segoe UI", 14f, FontStyle.Bold),
+                Font         = new Font("Segoe UI", 12f, FontStyle.Bold),
                 ForeColor    = scFg,
                 BackColor    = scBg,
                 Dock         = DockStyle.Fill,
