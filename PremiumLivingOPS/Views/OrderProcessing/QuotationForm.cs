@@ -18,6 +18,14 @@ namespace PremiumLivingOPS.Views.OrderProcessing
     ///   • Uses AppShell (TopNavBar + UserBar) for navigation chrome.
     ///   • Contains NO business logic and NO direct DB calls.
     ///   • Layout uses CardPanel 三層巢層卡片結構 (參考 ViewOrderForm).
+    ///
+    /// Modify Quotation rules:
+    ///   • A Quotation that is already linked to an Order (QuotationStatus == "Converted"
+    ///     or controller reports IsLinkedToOrder == true) is NOT editable — the Modify
+    ///     button is disabled with a tooltip explaining the lock.
+    ///   • Inside ModifyQuotationDialog only Quotation Items (Add / Delete) are editable;
+    ///     all header fields (Customer, ExpiryDate, TotalAmount, etc.) are read-only.
+    ///   • Footer buttons are 210 × 60.
     /// </summary>
     public partial class QuotationForm : Form
     {
@@ -185,6 +193,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         {
             bool sel = dgvQuotations.SelectedRows.Count > 0;
             btnViewDetail.Enabled   = sel;
+            btnModify.Enabled       = sel;
             btnAddFrom.Enabled      = sel;
             btnUpdateStatus.Enabled = sel;
             cboNewStatus.Enabled    = sel;
@@ -226,7 +235,54 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
         private void btnViewDetail_Click(object sender, EventArgs e) => OpenDetailDialog();
 
-        // ── Modify Order From Quotation ("Add From" button)
+        // ──────────────────────────────────────────────────────────────────
+        //  MODIFY QUOTATION
+        //  Rules:
+        //    1. A Quotation linked to an Order (status == "Converted" or
+        //       controller confirms IsLinkedToOrder) cannot be modified.
+        //    2. Inside the dialog only Quotation Items may be added / deleted;
+        //       all header fields are read-only.
+        //    3. Footer action buttons are 210 × 60.
+        // ──────────────────────────────────────────────────────────────────
+        private void btnModify_Click(object sender, EventArgs e)
+        {
+            string qid = SelectedQuotationId();
+            if (qid == null) return;
+
+            var q = _ctrl.GetQuotationDetail(qid);
+            if (q == null)
+            {
+                MessageBox.Show("Quotation not found.", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            // Guard: already linked to an Order → cannot modify
+            bool linkedToOrder = q.QuotationStatus == "Converted"
+                                 || _ctrl.IsQuotationLinkedToOrder(qid);
+            if (linkedToOrder)
+            {
+                MessageBox.Show(
+                    $"Quotation {qid} has already been linked to an Order and cannot be modified.",
+                    "Modification Not Allowed",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
+
+            using var dlg = new ModifyQuotationDialog(q, _ctrl);
+            if (dlg.ShowDialog(this) == DialogResult.OK)
+            {
+                MessageBox.Show(
+                    $"Quotation {qid} has been updated successfully.",
+                    "Saved",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+                RefreshGrid();
+            }
+        }
+
+        // ── Add From Quotation (create Order from Quotation)
         private void btnAddFrom_Click(object sender, EventArgs e)
         {
             string qid = SelectedQuotationId();
@@ -243,7 +299,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             using var dlg = new AddFromQuotationForm(q);
             if (dlg.ShowDialog(this) == DialogResult.OK)
             {
-                // "Add From" launches the Modify Order dialog; report the saved order.
                 MessageBox.Show(
                     $"Order {dlg.CreatedOrderID} (from Quotation {qid}) has been saved.",
                     "Changes Saved",
@@ -277,20 +332,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
         // ──────────────────────────────────────────────────────────────────
         //  VIEW DETAIL DIALOG  (read-only snapshot of one Quotation record)
-        //
-        //  Fields shown are exactly those that exist in the Quotation table
-        //  per schema.sql:
-        //    QuotationID, CustomerID (resolved to CustomerName), ExpiryDate,
-        //    TotalAmount, DepositRequired, LeadTimeEstimated, TermsandCondition,
-        //    QuotationStatus.
-        //
-        //  SalesStaffName is a controller-populated display helper (JOIN to Staff);
-        //  it is shown for operator context but is NOT a Quotation table column.
-        //
-        //  The QUOTATION ITEMS grid shows items synthesised by the controller from
-        //  OrderLine records linked via Order.QuotationID. There is no QuotationItem
-        //  table in the schema, so there is no ItemNote column — that column has
-        //  been removed.
         // ──────────────────────────────────────────────────────────────────
         private void ShowDetailDialog(QuotationEntity q, List<QuotationItemEntity> items)
         {
@@ -341,8 +382,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlHeader.Controls.Add(tblHeader);
 
             // ── Info panel
-            // Displays only columns that exist in the Quotation table (schema.sql),
-            // plus SalesStaffName as a JOIN-derived display helper.
             var pnlInfo = new Panel
             {
                 Dock      = DockStyle.Top, Height = 280,
@@ -366,9 +405,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             for (int r = 0; r < 4; r++)
                 tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 25f));
 
-            // Left column: QuotationID | Customer | Lead Time | Sales Staff
-            // (All are sourced from the Quotation table or a JOIN helper; Notes
-            //  has been removed because there is no Notes column in schema.sql.)
             var leftFields = new[]
             {
                 ("Quotation ID",  q.QuotationID),
@@ -382,7 +418,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 tblInfo.Controls.Add(MakeLabelVal(leftFields[i].Item2), 1, i);
             }
 
-            // Right column: Expiry Date | Total Amount | Deposit Required | Status
             var rightFields = new (string, string)[]
             {
                 ("Expiry Date",      q.ExpiryDate.ToString("yyyy-MM-dd")),
@@ -397,7 +432,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             }
             pnlInfo.Controls.Add(tblInfo);
 
-            // ── T&C bar (TermsandCondition column from Quotation table)
+            // ── T&C bar
             Panel pnlTnC = null;
             if (hasTnC)
             {
@@ -438,10 +473,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlLineLabel.Paint += PaintBottomBorderStatic;
 
             // ── Items DataGridView
-            // Columns map to OrderLine (ItemID, Quantity, Price) joined with
-            // Item (ItemName) and Product (SalesPrice, Category).
-            // ITEM NOTE column has been removed — there is no QuotationItem table
-            // and no ItemNote column anywhere in the schema.
             var dgv = new DataGridView
             {
                 ReadOnly              = true,
@@ -474,7 +505,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     Padding            = new Padding(12, 6, 12, 6)
                 }
             };
-            // Columns: only fields that exist in DB tables (Item, OrderLine, Product)
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cItemID",    HeaderText = "ITEM ID",    FillWeight = 20 });
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cProduct",   HeaderText = "PRODUCT",    FillWeight = 30 });
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cQty",       HeaderText = "QTY",        FillWeight = 10 });
@@ -494,7 +524,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                         $"{item.DiscountPercent:N1}%",
                         $"HK$ {item.Subtotal:N2}");
 
-            // ── Total row (TotalAmount + DepositRequired from Quotation table)
+            // ── Total row
             var pnlTotalRow = new Panel
             {
                 Dock      = DockStyle.Bottom, Height = 50,
