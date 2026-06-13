@@ -140,7 +140,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlOrderTitle.Paint += PaintBottomBorder;
             pnlOrderTitle.Controls.Add(new Label
             {
-                Text      = "\uD83D\uDCCB  Modify Order Details  —  Update the required fields",
+                Text      = "📋  Modify Order Details  —  Update the required fields",
                 Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(29, 78, 216),
                 Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
@@ -164,10 +164,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 3,
                 BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
-            tblF.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 12f));  // label
-            tblF.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 38f));  // control
-            tblF.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 12f));  // label
-            tblF.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 38f));  // control
+            tblF.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 12f));
+            tblF.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 38f));
+            tblF.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 12f));
+            tblF.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 38f));
             tblF.RowStyles.Add(new RowStyle(SizeType.Percent, 33f));
             tblF.RowStyles.Add(new RowStyle(SizeType.Percent, 33f));
             tblF.RowStyles.Add(new RowStyle(SizeType.Percent, 34f));
@@ -179,7 +179,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 BorderStyle = BorderStyle.FixedSingle,
                 Dock = DockStyle.Fill,
                 PlaceholderText = "Enter contact name",
-                Text = _q.CustomerName   // pre-fill from quotation customer
+                Text = _q.CustomerName
             };
             dtpDelivery = new DateTimePicker
             {
@@ -344,7 +344,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             var btnSave = new Button
             {
-                Text      = "\u2714  Save Changes",
+                Text      = "✔  Save Changes",
                 Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
                 ForeColor = Color.White,
                 BackColor = Color.FromArgb(5, 150, 105),
@@ -374,11 +374,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             btnSave.Click += BtnSave_Click;
             btnCancel.Click += (o, ev) => { this.DialogResult = DialogResult.Cancel; this.Close(); };
 
-            // Add Cancel first (Dock.Right stacks right-to-left)
             pnlFooter.Controls.Add(btnSave);
             pnlFooter.Controls.Add(btnCancel);
 
-            // ── Assemble (Bottom → Fill → Top)
             this.Controls.Add(dgv);
             this.Controls.Add(pnlTotalRow);
             this.Controls.Add(pnlLineLabel);
@@ -389,12 +387,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             this.Controls.Add(pnlFooter);
         }
 
-        // ──────────────────────────────────────────────────────────────────
-        //  Save Changes handler
-        // ──────────────────────────────────────────────────────────────────
         private void BtnSave_Click(object sender, EventArgs e)
         {
-            // Validation
             if (string.IsNullOrWhiteSpace(txtContactName.Text))
             { ShowWarning("Contact name is required."); return; }
             if (string.IsNullOrWhiteSpace(txtShippingAddr.Text))
@@ -408,7 +402,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             {
                 var selAddr = cboAddress.SelectedItem as ComboItem;
 
-                // Build OrderLineEntity list from QuotationItems
                 var lines = (_q.Items ?? new List<QuotationItemEntity>())
                     .Select(qi => new OrderLineEntity
                     {
@@ -457,9 +450,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             }
         }
 
-        // ──────────────────────────────────────────────────────────────────
-        //  Event handlers for editable fields
-        // ──────────────────────────────────────────────────────────────────
         private void CboAddress_SelectedIndexChanged(object sender, EventArgs e)
         {
             var sel = cboAddress.SelectedItem as ComboItem;
@@ -492,9 +482,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         private void TxtShippingAddr_TextChanged(object sender, EventArgs e)
         { if (chkSameAddress.Checked) txtBillingAddr.Text = txtShippingAddr.Text; }
 
-        // ──────────────────────────────────────────────────────────────────
-        //  Helpers
-        // ──────────────────────────────────────────────────────────────────
         private static (Color bg, Color fg) GetStatusColor(string status)
         {
             return status switch
@@ -563,7 +550,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         private static void ShowWarning(string msg)
             => MessageBox.Show(msg, "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
 
-        // ── Designer stub (no Designer.cs needed — fully inline build)
         private void InitializeComponent() { this.SuspendLayout(); this.ResumeLayout(false); }
 
         private class ComboItem
