@@ -11,12 +11,11 @@ namespace PremiumLivingOPS.Views.OrderProcessing
     /// MVC View — receives a populated QuotationEntity and renders read-only.
     ///
     /// Header layout (pnlHeader, Height=80, dark navy):
-    ///   Both lblTitle and lblBadge are positioned via a shared repositionHeader()
-    ///   Action subscribed to pnlHeader.Resize and Form.Shown.
-    ///   NO Dock is used on either label.
-    ///
-    ///   lblTitle : Left=24, fills from left up to badge left edge minus 8px gap
-    ///   lblBadge : Width=290 (hard), right edge 16px from panel right, vertically centred
+    ///   SplitContainer (Dock=Fill, Orientation=Vertical, IsSplitterFixed=true)
+    ///     Panel1 (left)  — title Label, Dock=Fill, Font 13f Bold, white
+    ///     Panel2 (right) — status badge Label, Dock=Fill, Font 14f Bold
+    ///   SplitterDistance=580 → Panel2 width = Form(900) - chrome(≈16) - 580 ≈ 290px.
+    ///   SplitContainer avoids all manual Resize arithmetic and Shown/Load timing issues.
     /// </summary>
     public class QuotationDetailForm : Form
     {
@@ -47,47 +46,50 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 BackColor = Color.FromArgb(19, 35, 61)
             };
 
-            var lblTitle = new Label
+            // SplitContainer: left=title, right=badge
+            // SplitterDistance 580 ⇒ right panel ≈ 290px at 900px form width
+            var split = new SplitContainer
+            {
+                Dock             = DockStyle.Fill,
+                Orientation      = Orientation.Vertical,
+                IsSplitterFixed  = true,
+                SplitterDistance = 580,
+                SplitterWidth    = 1,
+                BackColor        = Color.Transparent,
+                Panel1MinSize    = 100,
+                Panel2MinSize    = 290
+            };
+            split.Panel1.BackColor = Color.Transparent;
+            split.Panel2.BackColor = Color.Transparent;
+
+            // Title label — left panel
+            split.Panel1.Controls.Add(new Label
             {
                 Text      = string.Format("Quotation Detail  \u2014  {0}", _q.QuotationID),
                 Font      = new Font("Segoe UI", 13f, FontStyle.Bold),
                 ForeColor = Color.White,
+                Dock      = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft,
-                AutoSize  = false
-            };
+                AutoSize  = false,
+                Padding   = new Padding(24, 0, 8, 0)
+            });
 
+            // Badge label — right panel, Dock=Fill so it always fills Panel2 fully
             var (scBg, scFg) = GetStatusColor(_q.QuotationStatus);
-            var lblBadge = new Label
+            split.Panel2.Controls.Add(new Label
             {
                 Text         = _q.QuotationStatus ?? "Unknown",
                 Font         = new Font("Segoe UI", 14f, FontStyle.Bold),
                 ForeColor    = scFg,
                 BackColor    = scBg,
+                Dock         = DockStyle.Fill,
                 TextAlign    = ContentAlignment.MiddleCenter,
                 AutoSize     = false,
                 AutoEllipsis = false,
-                Width        = 290,
-                Height       = 44,
                 Padding      = new Padding(12, 0, 12, 0)
-            };
+            });
 
-            Action repositionHeader = () =>
-            {
-                int badgeLeft = pnlHeader.Width - lblBadge.Width - 16;
-                int badgeTop  = (pnlHeader.Height - lblBadge.Height) / 2;
-
-                lblBadge.Left = badgeLeft;
-                lblBadge.Top  = badgeTop;
-
-                lblTitle.Left   = 24;
-                lblTitle.Top    = 0;
-                lblTitle.Width  = Math.Max(0, badgeLeft - 8 - 24);
-                lblTitle.Height = pnlHeader.Height;
-            };
-
-            pnlHeader.Resize += (s, ev) => repositionHeader();
-            pnlHeader.Controls.Add(lblTitle);
-            pnlHeader.Controls.Add(lblBadge);
+            pnlHeader.Controls.Add(split);
 
             // ── Body
             var tblOuter = new TableLayoutPanel
@@ -136,8 +138,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             this.Controls.Add(tblOuter);
             this.Controls.Add(pnlHeader);
-
-            this.Shown += (s, ev) => repositionHeader();
         }
 
         private TableLayoutPanel BuildHeaderPanel()
