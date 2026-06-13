@@ -17,9 +17,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
     /// Columns: ITEM ID | PRODUCT | QTY | UNIT PRICE | SUBTOTAL
     ///
     /// Header: pnlHeader (dark navy, Height 80) + TableLayoutPanel 2-col
-    ///   (Percent100 + Absolute260), mirroring ModifyQuotationDialog exactly.
-    ///   Title label Dock=Fill, Font 13f Bold, ForeColor White.
-    ///   Status badge: Label Dock=Fill, Font 14f Bold, TextAlign MiddleCenter.
+    ///   Col 0 — SizeType.Percent 100f  : title label, Font 13f Bold, white
+    ///   Col 1 — SizeType.AutoSize      : status badge, Font 14f Bold, MiddleCenter
+    ///   AutoSize on col 1 ensures any status text ("Converted" etc.) is never clipped.
+    ///   Mirrors ModifyQuotationDialog header structure.
     /// </summary>
     public class QuotationDetailForm : Form
     {
@@ -42,7 +43,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             this.Font            = new Font("Segoe UI", 12f);
             this.FormBorderStyle = FormBorderStyle.Sizable;
 
-            // ── Header  (mirrors ModifyQuotationDialog.BuildDialog header exactly)
+            // ── Header  (identical structure to ModifyQuotationDialog.BuildDialog)
             var pnlHeader = new Panel
             {
                 Dock      = DockStyle.Top,
@@ -58,9 +59,12 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
                 Padding         = new Padding(24, 0, 24, 0)
             };
-            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
-            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 260f));
+            // Col 0: title — takes all remaining width
+            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+            // Col 1: badge — AutoSize so the full status text is always visible
+            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             tblHeader.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+
             tblHeader.Controls.Add(new Label
             {
                 Text      = string.Format("Quotation Detail  \u2014  {0}", _q.QuotationID),
@@ -70,18 +74,22 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 TextAlign = ContentAlignment.MiddleLeft,
                 AutoSize  = false
             }, 0, 0);
+
             var (scBg, scFg) = GetStatusColor(_q.QuotationStatus);
             tblHeader.Controls.Add(new Label
             {
-                Text      = _q.QuotationStatus ?? "Unknown",
-                Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
-                ForeColor = scFg,
-                BackColor = scBg,
-                Dock      = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleCenter,
-                AutoSize  = false,
-                Padding   = new Padding(8, 4, 8, 4)
+                Text         = _q.QuotationStatus ?? "Unknown",
+                Font         = new Font("Segoe UI", 14f, FontStyle.Bold),
+                ForeColor    = scFg,
+                BackColor    = scBg,
+                Dock         = DockStyle.Fill,
+                TextAlign    = ContentAlignment.MiddleCenter,
+                AutoSize     = false,
+                AutoEllipsis = false,
+                MinimumSize  = new Size(120, 0),   // soft floor — enough for any status word
+                Padding      = new Padding(16, 4, 16, 4)
             }, 1, 0);
+
             pnlHeader.Controls.Add(tblHeader);
 
             // ── Body (CardPanel rows)
@@ -133,7 +141,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             this.Controls.Add(pnlHeader);
         }
 
-        // Info fields inside the card (no title row here — title is in pnlHeader above)
+        // Info fields inside the card (title is in pnlHeader above)
         private TableLayoutPanel BuildHeaderPanel()
         {
             var tbl = new TableLayoutPanel
@@ -154,10 +162,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             tbl.Controls.Add(MakeReadField("Issued Date", _q.IssuedDate.ToString("yyyy-MM-dd")), 2, 0);
             tbl.Controls.Add(MakeReadField("Expiry Date", _q.ExpiryDate.ToString("yyyy-MM-dd")), 3, 0);
 
-            tbl.Controls.Add(MakeReadField("Total Amount",  string.Format("HK$ {0:N2}", _q.TotalAmount)),     0, 1);
-            tbl.Controls.Add(MakeReadField("Deposit Req.",  string.Format("HK$ {0:N2}", _q.DepositRequired)), 1, 1);
-            tbl.Controls.Add(MakeReadField("Lead Time",     _q.LeadTimeEstimated ?? ""),                      2, 1);
-            tbl.Controls.Add(MakeReadField("Status",        _q.QuotationStatus   ?? ""),                      3, 1);
+            tbl.Controls.Add(MakeReadField("Total Amount", string.Format("HK$ {0:N2}", _q.TotalAmount)),     0, 1);
+            tbl.Controls.Add(MakeReadField("Deposit Req.", string.Format("HK$ {0:N2}", _q.DepositRequired)), 1, 1);
+            tbl.Controls.Add(MakeReadField("Lead Time",    _q.LeadTimeEstimated ?? ""),                      2, 1);
+            tbl.Controls.Add(MakeReadField("Status",       _q.QuotationStatus   ?? ""),                      3, 1);
 
             return tbl;
         }
