@@ -18,19 +18,17 @@ namespace PremiumLivingOPS.Views.OrderProcessing
     ///   • On Confirm: calls _ctrl.SaveModifiedQuotation() with the updated item list.
     ///
     /// Layout:
-    ///   – pnlHeader      Top  80   — dark navy, title "Modify Quotation — {ID}" + status badge (260px)
-    ///   – pnlQuoteInfo   Top  220  — read-only 4-col: header fields (non-editable)
+    ///   – pnlHeader      Top  80   — dark navy, title + status badge (260px)
+    ///   – pnlQuoteInfo   Top  220  — read-only 4-col header fields
     ///   – pnlLineLabel   Top  50   — "QUOTATION ITEMS" bar + [＋ Add Item] button
     ///   – dgvItems       Fill      — item list (ITEM ID | PRODUCT | QTY | UNIT PRICE | SUBTOTAL | DELETE)
-    ///                                Unit and Discount % omitted — no Unit/Discount in schema OrderLine
     ///   – pnlTotalRow    Bottom 50 — live-computed Total Amount
-    ///   – pnlFooter      Bottom 80 — [✔ Save Changes] (210×60)  [Cancel] (210×60)
+    ///   – pnlFooter      Bottom 80 — [✔ Save Changes]  [Cancel]
     ///
-    /// Add Item dialog: 1200×600.
+    /// Add Item dialog: 1350×600.
     ///   Left 55%: search textbox + filtered ListBox (ItemID — ItemName).
     ///   Right 45%: Qty (NumericUpDown), Unit Price (auto), Subtotal (auto).
-    ///   Right panel uses Absolute 140px label col + Percent 100 value col to prevent truncation.
-    ///   Discount field removed — no discount column in schema.
+    ///   Right panel: Absolute 140px label col + Percent 100 value col.
     ///   Duplicate item: Quantity is incremented by the entered qty.
     ///
     /// Size: 2500 × 1200, StartPosition CenterParent.
@@ -39,9 +37,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
     {
         private readonly OrderProcessingController _ctrl;
         private readonly QuotationEntity           _q;
-
         private readonly List<QuotationItemEntity> _items;
-
         private DataGridView _dgvItems;
         private Label        _lblTotal;
 
@@ -54,7 +50,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             BuildDialog();
         }
 
-        // ──────────────────────────────────────────────────────────────────
         private void BuildDialog()
         {
             this.Text            = $"Modify Quotation  —  {_q.QuotationID}";
@@ -66,7 +61,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             this.MaximizeBox     = false;
             this.MinimizeBox     = false;
 
-            // ── Header (dark navy) — status badge 260px
+            // ── Header
             var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 80, BackColor = Color.FromArgb(19, 35, 61) };
             var tblHeader = new TableLayoutPanel
             {
@@ -95,7 +90,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             }, 1, 0);
             pnlHeader.Controls.Add(tblHeader);
 
-            // ── Quotation header info (read-only, 4-col)
+            // ── Quotation header info
             var pnlQuoteInfo = new Panel
             {
                 Dock = DockStyle.Top, Height = 220,
@@ -113,12 +108,12 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             tblQ.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
             for (int r = 0; r < 3; r++)
                 tblQ.RowStyles.Add(new RowStyle(SizeType.Percent, 33.3f));
-            AddReadRow(tblQ, 0, "Quotation ID:", _q.QuotationID,               "Customer:",         _q.CustomerName);
-            AddReadRow(tblQ, 1, "Total Amount:", $"HK$ {_q.TotalAmount:N2}",   "Deposit Required:", $"HK$ {_q.DepositRequired:N2}");
-            AddReadRow(tblQ, 2, "Lead Time:",    _q.LeadTimeEstimated ?? "—",  "Expiry Date:",      _q.ExpiryDate.ToString("yyyy-MM-dd"));
+            AddReadRow(tblQ, 0, "Quotation ID:", _q.QuotationID,              "Customer:",         _q.CustomerName);
+            AddReadRow(tblQ, 1, "Total Amount:", $"HK$ {_q.TotalAmount:N2}",  "Deposit Required:", $"HK$ {_q.DepositRequired:N2}");
+            AddReadRow(tblQ, 2, "Lead Time:",    _q.LeadTimeEstimated ?? "—", "Expiry Date:",      _q.ExpiryDate.ToString("yyyy-MM-dd"));
             pnlQuoteInfo.Controls.Add(tblQ);
 
-            // ── QUOTATION ITEMS label bar
+            // ── QUOTATION ITEMS bar
             var pnlLineLabel = new Panel
             {
                 Dock = DockStyle.Top, Height = 50,
@@ -249,7 +244,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             this.Controls.Add(pnlFooter);
         }
 
-        // ──────────────────────────────────────────────────────────────────
         private void RebuildItemGrid()
         {
             _dgvItems.Rows.Clear();
@@ -272,7 +266,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             return $"Total Amount:   HK$ {total:N2}";
         }
 
-        // ── Delete
         private void DgvItems_CellClick(object sender, DataGridViewCellEventArgs e)
         {
             if (e.RowIndex < 0) return;
@@ -296,7 +289,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             using var fgBrush = new SolidBrush(Color.FromArgb(153, 27, 27));
             var sf = new System.Drawing.StringFormat
             {
-                Alignment = System.Drawing.StringAlignment.Center,
+                Alignment     = System.Drawing.StringAlignment.Center,
                 LineAlignment = System.Drawing.StringAlignment.Center
             };
             e.Graphics.DrawString("\u2715  Delete", font, fgBrush, e.CellBounds, sf);
@@ -304,10 +297,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         }
 
         // ──────────────────────────────────────────────────────────────────
-        //  Add Item dialog  1200 × 600
+        //  Add Item dialog  1350 × 600
         //  Left 55%: Search TextBox + ListBox ("ItemID — ItemName")
         //  Right 45%: Qty / Unit Price / Subtotal
-        //    ↳ right panel uses Absolute 140px label col to prevent value truncation
+        //    label col Absolute 140px; value col Percent 100f; row height 76f
         // ──────────────────────────────────────────────────────────────────
         private void BtnAddItem_Click(object sender, EventArgs e)
         {
@@ -317,7 +310,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             using var addDlg = new Form
             {
                 Text            = "Add Quotation Item",
-                Size            = new Size(1200, 600),
+                Size            = new Size(1350, 600),   // ← 1350×600
                 StartPosition   = FormStartPosition.CenterParent,
                 FormBorderStyle = FormBorderStyle.FixedDialog,
                 BackColor       = Color.White,
@@ -364,7 +357,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             btnCancelAdd.FlatAppearance.BorderSize         = 1;
             btnCancelAdd.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
 
-            // Body  — left 55% | right 45%
+            // Body — left 55% | right 45%
             var pnlBody = new Panel
             {
                 Dock = DockStyle.Fill,
@@ -380,29 +373,25 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             tblBody.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 45f));
             tblBody.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
-            // ── Left: label + search + listbox
+            // Left: caption + search + listbox
             var pnlLeft = new Panel { Dock = DockStyle.Fill, Padding = new Padding(0, 0, 14, 0), BackColor = Color.Transparent };
             var lblItemCaption = new Label
             {
                 Text = "Item",
                 Font = new Font("Segoe UI", 10f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(98, 112, 135),
-                Dock = DockStyle.Top, Height = 24,
-                TextAlign = ContentAlignment.BottomLeft
+                Dock = DockStyle.Top, Height = 24, TextAlign = ContentAlignment.BottomLeft
             };
             var txtSearch = new TextBox
             {
-                Font = new Font("Segoe UI", 12f),
-                Dock = DockStyle.Top, Height = 36,
+                Font = new Font("Segoe UI", 12f), Dock = DockStyle.Top, Height = 36,
                 BorderStyle = BorderStyle.FixedSingle,
                 PlaceholderText = "\uD83D\uDD0E  Search by ID or name..."
             };
             var lstItems = new ListBox
             {
-                Font = new Font("Segoe UI", 11f),
-                Dock = DockStyle.Fill,
-                BorderStyle = BorderStyle.FixedSingle,
-                IntegralHeight = false
+                Font = new Font("Segoe UI", 11f), Dock = DockStyle.Fill,
+                BorderStyle = BorderStyle.FixedSingle, IntegralHeight = false
             };
 
             var productItems = availableItems
@@ -424,28 +413,23 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             FilterList("");
             txtSearch.TextChanged += (s, ev) => FilterList(txtSearch.Text);
 
-            // Add in reverse dock order: Fill first, then Top items on top
-            pnlLeft.Controls.Add(lstItems);        // Fill
-            pnlLeft.Controls.Add(txtSearch);       // Top (above Fill)
-            pnlLeft.Controls.Add(lblItemCaption);  // Top (topmost)
+            pnlLeft.Controls.Add(lstItems);
+            pnlLeft.Controls.Add(txtSearch);
+            pnlLeft.Controls.Add(lblItemCaption);
 
-            // ── Right: 3 rows — Qty / Unit Price / Subtotal
-            //    Label col: Absolute 140px  →  prevents "HK$ 36,000.00" truncation
-            //    Value col: Percent 100f
+            // Right: 3 rows — label Absolute 140px / value Percent 100f / row height 76f
             var pnlRight = new Panel { Dock = DockStyle.Fill, Padding = new Padding(12, 0, 0, 0), BackColor = Color.Transparent };
             var tblRight = new TableLayoutPanel
             {
-                Dock = DockStyle.Top,
-                ColumnCount = 2, RowCount = 3,
-                BackColor = Color.Transparent,
-                CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                Dock = DockStyle.Top, ColumnCount = 2, RowCount = 3,
+                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
                 AutoSize = true
             };
-            tblRight.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140f));  // label
-            tblRight.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));  // value — fills remaining width
-            tblRight.RowStyles.Add(new RowStyle(SizeType.Absolute, 76f));  // Qty
-            tblRight.RowStyles.Add(new RowStyle(SizeType.Absolute, 76f));  // Unit Price
-            tblRight.RowStyles.Add(new RowStyle(SizeType.Absolute, 76f));  // Subtotal
+            tblRight.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140f));
+            tblRight.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
+            tblRight.RowStyles.Add(new RowStyle(SizeType.Absolute, 76f));
+            tblRight.RowStyles.Add(new RowStyle(SizeType.Absolute, 76f));
+            tblRight.RowStyles.Add(new RowStyle(SizeType.Absolute, 76f));
 
             var numQty = new NumericUpDown
             {
@@ -454,16 +438,14 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             };
             var lblUnitPriceVal = new Label
             {
-                Text = "HK$ 0.00",
-                Font = new Font("Segoe UI", 13f),
+                Text = "HK$ 0.00", Font = new Font("Segoe UI", 13f),
                 ForeColor = Color.FromArgb(15, 31, 53),
                 Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft,
                 AutoEllipsis = false
             };
             var lblSubtotalVal = new Label
             {
-                Text = "HK$ 0.00",
-                Font = new Font("Segoe UI", 14f, FontStyle.Bold),
+                Text = "HK$ 0.00", Font = new Font("Segoe UI", 14f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(5, 150, 105),
                 Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft,
                 AutoEllipsis = false
@@ -481,19 +463,18 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             lstItems.SelectedIndexChanged += (s, ev) => recompute();
             numQty.ValueChanged           += (s, ev) => recompute();
 
-            tblRight.Controls.Add(MakeFieldLabel("Quantity *"),  0, 0);
-            tblRight.Controls.Add(numQty,                        1, 0);
-            tblRight.Controls.Add(MakeFieldLabel("Unit Price"),  0, 1);
-            tblRight.Controls.Add(lblUnitPriceVal,               1, 1);
-            tblRight.Controls.Add(MakeFieldLabel("Subtotal"),    0, 2);
-            tblRight.Controls.Add(lblSubtotalVal,                1, 2);
+            tblRight.Controls.Add(MakeFieldLabel("Quantity *"), 0, 0);
+            tblRight.Controls.Add(numQty,                       1, 0);
+            tblRight.Controls.Add(MakeFieldLabel("Unit Price"), 0, 1);
+            tblRight.Controls.Add(lblUnitPriceVal,              1, 1);
+            tblRight.Controls.Add(MakeFieldLabel("Subtotal"),   0, 2);
+            tblRight.Controls.Add(lblSubtotalVal,               1, 2);
 
             pnlRight.Controls.Add(tblRight);
             tblBody.Controls.Add(pnlLeft,  0, 0);
             tblBody.Controls.Add(pnlRight, 1, 0);
             pnlBody.Controls.Add(tblBody);
 
-            // ── Add button logic — duplicate → increment qty
             btnAdd.Click += (s, ev) =>
             {
                 var sel = lstItems.SelectedItem as ProductComboItem;
@@ -503,7 +484,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                         MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
                 }
-                int addQty = (int)numQty.Value;
+                int addQty  = (int)numQty.Value;
                 var existing = _items.FirstOrDefault(i => i.ItemID == sel.ItemID);
                 if (existing != null)
                     existing.Quantity += addQty;
@@ -528,7 +509,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             addDlg.ShowDialog(this);
         }
 
-        // ── Save
         private void BtnSave_Click(object sender, EventArgs e)
         {
             if (_items.Count == 0)
@@ -550,7 +530,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             }
         }
 
-        // ── Helpers
         private static (Color bg, Color fg) GetStatusColor(string status)
             => status switch
             {

@@ -17,7 +17,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
     /// Columns: ITEM ID | PRODUCT | QTY | UNIT PRICE | SUBTOTAL
     /// (Unit and Discount % omitted — no Unit/Discount column in schema OrderLine)
     ///
-    /// Status badge: Absolute 260f — same width as ModifyQuotationDialog header badge.
+    /// Status badge: fixed Panel 160×30, anchored TopRight inside title row.
+    /// AutoSize=false + MinimumSize ensures text never clips.
     /// </summary>
     public class QuotationDetailForm : Form
     {
@@ -92,36 +93,54 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             tbl.RowStyles.Add(new RowStyle(SizeType.Percent, 50f));
             tbl.RowStyles.Add(new RowStyle(SizeType.Percent, 50f));
 
-            // Title row — status badge Absolute 260f (same as ModifyQuotationDialog)
-            var tblTitle = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
-                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
-            };
-            tblTitle.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
-            tblTitle.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 260f));
-            tblTitle.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+            // Title row — use Panel anchor instead of TableLayoutPanel col
+            // so the badge always has guaranteed width regardless of card size.
+            var pnlTitleRow = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
 
-            tblTitle.Controls.Add(new Label
+            var lblTitle = new Label
             {
                 Text = string.Format("Quotation  {0}", _q.QuotationID),
                 Font = new Font("Segoe UI", 13f, FontStyle.Bold),
                 ForeColor = Palette.Primary,
-                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft
-            }, 0, 0);
+                AutoSize = false,
+                TextAlign = ContentAlignment.MiddleLeft
+            };
 
             var (scBg, scFg) = GetStatusColor(_q.QuotationStatus);
-            tblTitle.Controls.Add(new Label
+            // Badge: fixed size Panel containing a Label; anchored to TopRight.
+            // MinimumSize guarantees text never clips even at narrow form widths.
+            var pnlBadge = new Panel
             {
-                Text = _q.QuotationStatus ?? "Unknown",
-                Font = new Font("Segoe UI", 11f, FontStyle.Bold),
-                ForeColor = scFg, BackColor = scBg,
-                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter,
-                AutoSize = false, Padding = new Padding(8, 4, 8, 4)
-            }, 1, 0);
+                BackColor   = scBg,
+                Size        = new Size(160, 28),
+                MinimumSize = new Size(120, 24),
+                Anchor      = AnchorStyles.Top | AnchorStyles.Right
+            };
+            var lblBadge = new Label
+            {
+                Text      = _q.QuotationStatus ?? "Unknown",
+                Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
+                ForeColor = scFg,
+                BackColor = Color.Transparent,
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleCenter,
+                AutoSize  = false
+            };
+            pnlBadge.Controls.Add(lblBadge);
 
-            tbl.Controls.Add(tblTitle, 0, 0);
-            tbl.SetColumnSpan(tblTitle, 4);
+            // Position badge and title on resize
+            pnlTitleRow.Controls.Add(lblTitle);
+            pnlTitleRow.Controls.Add(pnlBadge);
+            pnlTitleRow.Resize += (s, ev) =>
+            {
+                int badgeW = pnlBadge.Width;
+                int h      = pnlTitleRow.Height;
+                pnlBadge.Location = new Point(pnlTitleRow.Width - badgeW - 2, Math.Max(0, (h - pnlBadge.Height) / 2));
+                lblTitle.SetBounds(0, 0, pnlTitleRow.Width - badgeW - 8, h);
+            };
+
+            tbl.Controls.Add(pnlTitleRow, 0, 0);
+            tbl.SetColumnSpan(pnlTitleRow, 4);
 
             tbl.Controls.Add(MakeReadField("Customer",    _q.CustomerName),                      0, 1);
             tbl.Controls.Add(MakeReadField("Sales Staff", _q.SalesStaffName ?? ""),              1, 1);
