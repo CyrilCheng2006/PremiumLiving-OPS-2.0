@@ -10,6 +10,14 @@ namespace PremiumLivingOPS.Views.OrderProcessing
     /// <summary>
     /// Dialog for creating a brand-new Quotation.
     /// Returns DialogResult.OK when the Quotation is saved successfully.
+    ///
+    /// Fields shown map directly to the Quotation table in schema.sql:
+    ///   QuotationID, CustomerID, ExpiryDate, TotalAmount, DepositRequired,
+    ///   LeadTimeEstimated, TermsandCondition, QuotationStatus.
+    ///
+    /// There is NO Notes column in the Quotation table and NO QuotationItem
+    /// table in the schema. txtNotes and txtItemNote controls have been
+    /// removed/ignored accordingly.
     /// </summary>
     public partial class CreateNewQuotationForm : Form
     {
@@ -37,7 +45,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             txtDeposit.Text       = "0";
             txtLeadTime.Text      = "";
             txtTerms.Text         = "";
-            txtNotes.Text         = "";
+            // txtNotes removed — no Notes column in schema.sql Quotation table
 
             // Customer combo
             cboCustomer.DisplayMember = "CustomerName";
@@ -68,6 +76,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             {
                 double sub = li.Quantity * li.UnitPrice * (1 - li.DiscountPercent / 100.0);
                 total += sub;
+                // No ItemNote column: grid row contains ItemID, ProductName, Qty,
+                // Unit, UnitPrice, DiscountPercent, Subtotal only.
                 dgvLines.Rows.Add(
                     li.ItemID,
                     li.ProductName,
@@ -75,8 +85,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     li.Unit,
                     li.UnitPrice.ToString("N2"),
                     li.DiscountPercent.ToString("N1"),
-                    sub.ToString("N2"),
-                    li.ItemNote);
+                    sub.ToString("N2"));
             }
             lblTotal.Text = string.Format("Total:  HK$ {0:N2}", total);
         }
@@ -108,6 +117,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 double.TryParse(txtDiscount.Text.Trim(), out disc);
 
             var prod = (ProductLookup)cboProduct.SelectedItem;
+            // ItemNote is NOT added — no such column in schema.sql
             _lines.Add(new QuotationItemEntity
             {
                 ItemID          = prod.ItemID,
@@ -115,8 +125,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Quantity        = qty,
                 Unit            = txtUnit.Text.Trim(),
                 UnitPrice       = price,
-                DiscountPercent = disc,
-                ItemNote        = txtItemNote.Text.Trim()
+                DiscountPercent = disc
             });
 
             // Clear line entry
@@ -125,7 +134,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             txtUnitPrice.Clear();
             txtDiscount.Clear();
             txtUnit.Clear();
-            txtItemNote.Clear();
+            // txtItemNote.Clear() removed — control should be deleted from Designer
 
             RefreshLineGrid();
         }
@@ -153,13 +162,15 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 return;
             }
 
-            double deposit  = 0;
+            double deposit = 0;
             double.TryParse(txtDeposit.Text.Trim(), out deposit);
 
             double total = 0;
             foreach (var li in _lines)
                 total += li.Quantity * li.UnitPrice * (1 - li.DiscountPercent / 100.0);
 
+            // Build entity using only columns that exist in schema.sql Quotation table.
+            // Notes has been removed — no such column.
             var q = new QuotationEntity
             {
                 QuotationID       = txtQuotationId.Text.Trim(),
@@ -172,8 +183,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 LeadTimeEstimated = txtLeadTime.Text.Trim(),
                 TermsandCondition = txtTerms.Text.Trim(),
                 QuotationStatus   = cboStatus.SelectedItem?.ToString() ?? "Pending",
-                SalesStaffName    = _vm.SalesStaffName,
-                Notes             = txtNotes.Text.Trim()
+                SalesStaffName    = _vm.SalesStaffName
             };
 
             bool ok = _ctrl.SaveNewQuotation(q, _lines, _vm.SalesStaffId);
