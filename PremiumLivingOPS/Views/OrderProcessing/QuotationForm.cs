@@ -58,7 +58,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
-            _shell.SetBreadcrumb("Order Processing  \u203A  Quotation");
+            _shell.SetBreadcrumb("Order Processing  ›  Quotation");
 
             _currentQuotations = vm.Quotations;
 
@@ -226,7 +226,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
         private void btnViewDetail_Click(object sender, EventArgs e) => OpenDetailDialog();
 
-        // ── Add From Quotation
+        // ── Modify Order From Quotation ("Add From" button)
         private void btnAddFrom_Click(object sender, EventArgs e)
         {
             string qid = SelectedQuotationId();
@@ -243,9 +243,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             using var dlg = new AddFromQuotationForm(q);
             if (dlg.ShowDialog(this) == DialogResult.OK)
             {
+                // "Add From" launches the Modify Order dialog; report the saved order.
                 MessageBox.Show(
-                    $"Order {dlg.CreatedOrderID} has been created from Quotation {qid}.",
-                    "Order Created",
+                    $"Order {dlg.CreatedOrderID} (from Quotation {qid}) has been saved.",
+                    "Changes Saved",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
                 RefreshGrid();
@@ -275,7 +276,21 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         }
 
         // ──────────────────────────────────────────────────────────────────
-        //  DETAIL DIALOG  — based on ViewOrderForm.ShowDetailDialog
+        //  VIEW DETAIL DIALOG  (read-only snapshot of one Quotation record)
+        //
+        //  Fields shown are exactly those that exist in the Quotation table
+        //  per schema.sql:
+        //    QuotationID, CustomerID (resolved to CustomerName), ExpiryDate,
+        //    TotalAmount, DepositRequired, LeadTimeEstimated, TermsandCondition,
+        //    QuotationStatus.
+        //
+        //  SalesStaffName is a controller-populated display helper (JOIN to Staff);
+        //  it is shown for operator context but is NOT a Quotation table column.
+        //
+        //  The QUOTATION ITEMS grid shows items synthesised by the controller from
+        //  OrderLine records linked via Order.QuotationID. There is no QuotationItem
+        //  table in the schema, so there is no ItemNote column — that column has
+        //  been removed.
         // ──────────────────────────────────────────────────────────────────
         private void ShowDetailDialog(QuotationEntity q, List<QuotationItemEntity> items)
         {
@@ -293,7 +308,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 MinimizeBox     = false
             };
 
-            // ── Header bar (dark navy, same as ViewOrderForm)
+            // ── Header bar (dark navy)
             var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 80, BackColor = Color.FromArgb(19, 35, 61) };
             var tblHeader = new TableLayoutPanel
             {
@@ -326,9 +341,11 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlHeader.Controls.Add(tblHeader);
 
             // ── Info panel
+            // Displays only columns that exist in the Quotation table (schema.sql),
+            // plus SalesStaffName as a JOIN-derived display helper.
             var pnlInfo = new Panel
             {
-                Dock      = DockStyle.Top, Height = 340,
+                Dock      = DockStyle.Top, Height = 280,
                 Padding   = new Padding(28, 18, 28, 8), BackColor = Color.White
             };
             pnlInfo.Paint += (s, e) =>
@@ -339,61 +356,48 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             var tblInfo = new TableLayoutPanel
             {
-                Dock            = DockStyle.Fill, ColumnCount = 4, RowCount = 5,
+                Dock            = DockStyle.Fill, ColumnCount = 4, RowCount = 4,
                 BackColor       = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
-            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 15f));
-            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 15f));
-            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 15f));
-            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 40f));
-            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 15f));
+            for (int r = 0; r < 4; r++)
+                tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 25f));
 
+            // Left column: QuotationID | Customer | Lead Time | Sales Staff
+            // (All are sourced from the Quotation table or a JOIN helper; Notes
+            //  has been removed because there is no Notes column in schema.sql.)
             var leftFields = new[]
             {
-                ("Quotation ID", q.QuotationID),
-                ("Customer",     q.CustomerName),
-                ("Lead Time",    q.LeadTimeEstimated ?? "—"),
-                ("Notes",        q.Notes ?? ""),
+                ("Quotation ID",  q.QuotationID),
+                ("Customer",      q.CustomerName),
+                ("Lead Time",     q.LeadTimeEstimated ?? "—"),
+                ("Sales Staff",   q.SalesStaffName    ?? "—"),
             };
             for (int i = 0; i < leftFields.Length; i++)
             {
                 tblInfo.Controls.Add(MakeLabelKey(leftFields[i].Item1), 0, i);
-                tblInfo.Controls.Add(
-                    i == 3 ? MakeLabelValMultiLine(leftFields[i].Item2)
-                           : MakeLabelVal(leftFields[i].Item2),
-                    1, i);
+                tblInfo.Controls.Add(MakeLabelVal(leftFields[i].Item2), 1, i);
             }
-            tblInfo.Controls.Add(new Label { Dock = DockStyle.Fill, BackColor = Color.Transparent }, 0, 4);
-            tblInfo.Controls.Add(new Label { Dock = DockStyle.Fill, BackColor = Color.Transparent }, 1, 4);
 
-            var rightFields = new (string, string, bool)[]
+            // Right column: Expiry Date | Total Amount | Deposit Required | Status
+            var rightFields = new (string, string)[]
             {
-                ("Expiry Date",      q.ExpiryDate.ToString("yyyy-MM-dd"), false),
-                ("Total Amount",     $"HK$ {q.TotalAmount:N2}",           false),
-                ("Deposit Required", $"HK$ {q.DepositRequired:N2}",       false),
-                ("", "", false),
-                ("Status",           q.QuotationStatus ?? "—",           false),
+                ("Expiry Date",      q.ExpiryDate.ToString("yyyy-MM-dd")),
+                ("Total Amount",     $"HK$ {q.TotalAmount:N2}"),
+                ("Deposit Required", $"HK$ {q.DepositRequired:N2}"),
+                ("Status",           q.QuotationStatus ?? "—"),
             };
             for (int i = 0; i < rightFields.Length; i++)
             {
-                if (string.IsNullOrEmpty(rightFields[i].Item1))
-                {
-                    tblInfo.Controls.Add(new Label { Dock = DockStyle.Fill, BackColor = Color.Transparent }, 2, i);
-                    tblInfo.Controls.Add(new Label { Dock = DockStyle.Fill, BackColor = Color.Transparent }, 3, i);
-                }
-                else
-                {
-                    tblInfo.Controls.Add(MakeLabelKey(rightFields[i].Item1), 2, i);
-                    tblInfo.Controls.Add(MakeLabelVal(rightFields[i].Item2), 3, i);
-                }
+                tblInfo.Controls.Add(MakeLabelKey(rightFields[i].Item1), 2, i);
+                tblInfo.Controls.Add(MakeLabelVal(rightFields[i].Item2), 3, i);
             }
             pnlInfo.Controls.Add(tblInfo);
 
-            // ── T&C bar
+            // ── T&C bar (TermsandCondition column from Quotation table)
             Panel pnlTnC = null;
             if (hasTnC)
             {
@@ -434,6 +438,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlLineLabel.Paint += PaintBottomBorderStatic;
 
             // ── Items DataGridView
+            // Columns map to OrderLine (ItemID, Quantity, Price) joined with
+            // Item (ItemName) and Product (SalesPrice, Category).
+            // ITEM NOTE column has been removed — there is no QuotationItem table
+            // and no ItemNote column anywhere in the schema.
             var dgv = new DataGridView
             {
                 ReadOnly              = true,
@@ -466,21 +474,27 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     Padding            = new Padding(12, 6, 12, 6)
                 }
             };
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cProduct",   HeaderText = "PRODUCT",      FillWeight = 30 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cQty",        HeaderText = "QTY",          FillWeight = 10 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cUnit",       HeaderText = "UNIT",         FillWeight = 10 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cUnitPrice",  HeaderText = "UNIT PRICE",   FillWeight = 15 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cDiscount",   HeaderText = "DISCOUNT %",   FillWeight = 12 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cSubtotal",   HeaderText = "SUBTOTAL",     FillWeight = 15 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cNote",       HeaderText = "ITEM NOTE",    FillWeight = 18 });
+            // Columns: only fields that exist in DB tables (Item, OrderLine, Product)
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cItemID",    HeaderText = "ITEM ID",    FillWeight = 20 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cProduct",   HeaderText = "PRODUCT",    FillWeight = 30 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cQty",       HeaderText = "QTY",        FillWeight = 10 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cUnit",      HeaderText = "UNIT",       FillWeight = 10 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cUnitPrice", HeaderText = "UNIT PRICE", FillWeight = 15 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cDiscount",  HeaderText = "DISCOUNT %", FillWeight = 12 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cSubtotal",  HeaderText = "SUBTOTAL",   FillWeight = 15 });
 
             if (items != null)
                 foreach (var item in items)
-                    dgv.Rows.Add(item.ProductName, item.Quantity, item.Unit,
-                        $"HK$ {item.UnitPrice:N2}", $"{item.DiscountPercent:N1}%",
-                        $"HK$ {item.Subtotal:N2}", item.ItemNote);
+                    dgv.Rows.Add(
+                        item.ItemID,
+                        item.ProductName,
+                        item.Quantity,
+                        item.Unit,
+                        $"HK$ {item.UnitPrice:N2}",
+                        $"{item.DiscountPercent:N1}%",
+                        $"HK$ {item.Subtotal:N2}");
 
-            // ── Total row
+            // ── Total row (TotalAmount + DepositRequired from Quotation table)
             var pnlTotalRow = new Panel
             {
                 Dock      = DockStyle.Bottom, Height = 50,
@@ -563,17 +577,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             Dock         = DockStyle.Fill,
             TextAlign    = ContentAlignment.MiddleLeft,
             AutoEllipsis = true
-        };
-        private static Label MakeLabelValMultiLine(string text) => new Label
-        {
-            Text         = text ?? "—",
-            Font         = new Font("Segoe UI", 12f),
-            ForeColor    = Color.FromArgb(15, 31, 53),
-            Dock         = DockStyle.Fill,
-            TextAlign    = ContentAlignment.TopLeft,
-            AutoEllipsis = false,
-            AutoSize     = false,
-            Padding      = new Padding(0, 8, 8, 4)
         };
         private static void PaintBottomBorderStatic(object s, PaintEventArgs e)
         {
