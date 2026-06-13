@@ -8,18 +8,16 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 {
     /// <summary>
     /// Read-only detail dialog for a single Quotation.
-    /// Receives a populated QuotationEntity (header + items) and renders it.
+    /// MVC View — receives a populated QuotationEntity and renders read-only.
     ///
-    /// Fields shown map directly to schema.sql Quotation table:
-    ///   QuotationID, CustomerID (→CustomerName), ExpiryDate, TotalAmount,
-    ///   DepositRequired, LeadTimeEstimated, TermsandCondition, QuotationStatus.
+    /// Header layout (pnlHeader, Height=80, dark navy):
+    ///   Both lblTitle and lblBadge are positioned via a shared repositionHeader()
+    ///   Action subscribed to pnlHeader.Resize and Form.Shown.
+    ///   NO Dock is used on either label — Dock=Fill on lblTitle caused lblBadge
+    ///   to be visually clipped even when Width was correct.
     ///
-    /// Columns: ITEM ID | PRODUCT | QTY | UNIT PRICE | SUBTOTAL
-    ///
-    /// Header: pnlHeader (dark navy, Height 80)
-    ///   lblTitle : Dock=Fill, Padding(24,0,294,0) — right padding reserves space for badge
-    ///   lblBadge : Anchor=Top|Right, Width=270, Height=44 — positioned via positionBadge()
-    ///   Badge position is set by a shared Action called from pnlHeader.Resize and Form.Shown.
+    ///   lblTitle : Left=24, fills from left up to badge left edge minus 8px gap
+    ///   lblBadge : Width=270 (hard), right edge 16px from panel right, vertically centred
     /// </summary>
     public class QuotationDetailForm : Form
     {
@@ -50,7 +48,15 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 BackColor = Color.FromArgb(19, 35, 61)
             };
 
-            // Badge — Width=270 is guaranteed; positioned by positionBadge()
+            var lblTitle = new Label
+            {
+                Text      = string.Format("Quotation Detail  \u2014  {0}", _q.QuotationID),
+                Font      = new Font("Segoe UI", 13f, FontStyle.Bold),
+                ForeColor = Color.White,
+                TextAlign = ContentAlignment.MiddleLeft,
+                AutoSize  = false
+            };
+
             var (scBg, scFg) = GetStatusColor(_q.QuotationStatus);
             var lblBadge = new Label
             {
@@ -66,32 +72,29 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Padding      = new Padding(12, 0, 12, 0)
             };
 
-            // Title — Dock=Fill, right Padding reserves room for badge (270+16+8=294)
-            var lblTitle = new Label
+            // Shared repositioning — called on every Resize and on Shown
+            Action repositionHeader = () =>
             {
-                Text      = string.Format("Quotation Detail  \u2014  {0}", _q.QuotationID),
-                Font      = new Font("Segoe UI", 13f, FontStyle.Bold),
-                ForeColor = Color.White,
-                Dock      = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleLeft,
-                AutoSize  = false,
-                Padding   = new Padding(24, 0, 294, 0)
+                int badgeRight  = 16;                          // gap from panel right edge
+                int badgeLeft   = pnlHeader.Width - lblBadge.Width - badgeRight;
+                int badgeTop    = (pnlHeader.Height - lblBadge.Height) / 2;
+
+                lblBadge.Left = badgeLeft;
+                lblBadge.Top  = badgeTop;
+
+                int titleLeft  = 24;
+                int titleRight = badgeLeft - 8;                // 8px gap between title and badge
+                lblTitle.Left   = titleLeft;
+                lblTitle.Top    = 0;
+                lblTitle.Width  = Math.Max(0, titleRight - titleLeft);
+                lblTitle.Height = pnlHeader.Height;
             };
 
-            // Shared lambda — positions badge right-aligned, vertically centred in pnlHeader
-            Action positionBadge = () =>
-            {
-                lblBadge.Left = pnlHeader.Width - lblBadge.Width - 16;
-                lblBadge.Top  = (pnlHeader.Height - lblBadge.Height) / 2;
-            };
-
-            pnlHeader.Resize += (s, ev) => positionBadge();
-
-            // Add title first (Dock=Fill sits behind badge in z-order)
+            pnlHeader.Resize += (s, ev) => repositionHeader();
             pnlHeader.Controls.Add(lblTitle);
             pnlHeader.Controls.Add(lblBadge);
 
-            // ── Body (CardPanel rows)
+            // ── Body
             var tblOuter = new TableLayoutPanel
             {
                 Dock        = DockStyle.Fill,
@@ -139,8 +142,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             this.Controls.Add(tblOuter);
             this.Controls.Add(pnlHeader);
 
-            // Fire initial badge position once the form is fully laid out
-            this.Shown += (s, ev) => positionBadge();
+            this.Shown += (s, ev) => repositionHeader();
         }
 
         private TableLayoutPanel BuildHeaderPanel()
