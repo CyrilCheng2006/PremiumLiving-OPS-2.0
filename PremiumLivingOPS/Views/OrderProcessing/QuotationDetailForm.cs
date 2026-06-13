@@ -14,12 +14,15 @@ namespace PremiumLivingOPS.Views.OrderProcessing
     ///   SplitContainer (Dock=Fill, Orientation=Vertical, IsSplitterFixed=true)
     ///     Panel1 (left)  — title Label, Dock=Fill, Font 13f Bold, white
     ///     Panel2 (right) — status badge Label, Dock=Fill, Font 12f Bold
-    ///   SplitterDistance=580 → Panel2 ≈ 304px at 900px form width.
-    ///   Panel2MinSize=220 prevents clipping on resize.
+    ///
+    ///   IMPORTANT: SplitterDistance is set inside this.Load (not constructor) so
+    ///   the form handle is guaranteed to exist, preventing WinForms from silently
+    ///   discarding the value during pre-handle layout.
     /// </summary>
     public class QuotationDetailForm : Form
     {
         private readonly QuotationEntity _q;
+        private SplitContainer _headerSplit;
 
         public QuotationDetailForm(QuotationEntity quotation)
         {
@@ -46,21 +49,20 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 BackColor = Color.FromArgb(19, 35, 61)
             };
 
-            var split = new SplitContainer
+            _headerSplit = new SplitContainer
             {
-                Dock             = DockStyle.Fill,
-                Orientation      = Orientation.Vertical,
-                IsSplitterFixed  = true,
-                SplitterDistance = 580,
-                SplitterWidth    = 1,
-                BackColor        = Color.Transparent,
-                Panel1MinSize    = 100,
-                Panel2MinSize    = 220
+                Dock            = DockStyle.Fill,
+                Orientation     = Orientation.Vertical,
+                IsSplitterFixed = true,
+                SplitterWidth   = 1,
+                BackColor       = Color.Transparent,
+                Panel1MinSize   = 100,
+                Panel2MinSize   = 220
             };
-            split.Panel1.BackColor = Color.Transparent;
-            split.Panel2.BackColor = Color.Transparent;
+            _headerSplit.Panel1.BackColor = Color.Transparent;
+            _headerSplit.Panel2.BackColor = Color.Transparent;
 
-            split.Panel1.Controls.Add(new Label
+            _headerSplit.Panel1.Controls.Add(new Label
             {
                 Text      = string.Format("Quotation Detail  \u2014  {0}", _q.QuotationID),
                 Font      = new Font("Segoe UI", 13f, FontStyle.Bold),
@@ -72,7 +74,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             });
 
             var (scBg, scFg) = GetStatusColor(_q.QuotationStatus);
-            split.Panel2.Controls.Add(new Label
+            _headerSplit.Panel2.Controls.Add(new Label
             {
                 Text         = _q.QuotationStatus ?? "Unknown",
                 Font         = new Font("Segoe UI", 12f, FontStyle.Bold),
@@ -85,7 +87,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Padding      = new Padding(16, 0, 16, 0)
             });
 
-            pnlHeader.Controls.Add(split);
+            pnlHeader.Controls.Add(_headerSplit);
 
             // ── Body
             var tblOuter = new TableLayoutPanel
@@ -134,6 +136,14 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             this.Controls.Add(tblOuter);
             this.Controls.Add(pnlHeader);
+
+            // Set SplitterDistance AFTER handle is created to prevent silent discard
+            this.Load += (s, ev) =>
+            {
+                _headerSplit.SplitterDistance = Math.Max(
+                    _headerSplit.Panel1MinSize,
+                    _headerSplit.Width - 300 - _headerSplit.SplitterWidth);
+            };
         }
 
         private TableLayoutPanel BuildHeaderPanel()
