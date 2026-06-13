@@ -17,11 +17,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
     /// Columns: ITEM ID | PRODUCT | QTY | UNIT PRICE | SUBTOTAL
     ///
     /// Header: pnlHeader (dark navy, Height 80)
-    ///   lblTitle  : Dock=Fill, Padding(24,0,300,0) — right padding reserves space for badge
-    ///   lblBadge  : Anchor=Top|Right, Width=270, Height=44, top-margin=18
-    ///               right-offset=16px from panel edge
-    ///   Both labels added directly to pnlHeader — no TableLayoutPanel to avoid
-    ///   column-width compression when mixing Percent + Absolute columns.
+    ///   lblTitle : Dock=Fill, Padding(24,0,294,0) — right padding reserves space for badge
+    ///   lblBadge : Anchor=Top|Right, Width=270, Height=44 — positioned via positionBadge()
+    ///   Badge position is set by a shared Action called from pnlHeader.Resize and Form.Shown.
     /// </summary>
     public class QuotationDetailForm : Form
     {
@@ -52,8 +50,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 BackColor = Color.FromArgb(19, 35, 61)
             };
 
-            // Badge — Anchor=Top|Right so it stays right-aligned on resize
-            // Width=270 is hard guarantee; no TableLayoutPanel involved
+            // Badge — Width=270 is guaranteed; positioned by positionBadge()
             var (scBg, scFg) = GetStatusColor(_q.QuotationStatus);
             var lblBadge = new Label
             {
@@ -66,18 +63,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 AutoEllipsis = false,
                 Width        = 270,
                 Height       = 44,
-                Padding      = new Padding(12, 0, 12, 0),
-                Anchor       = AnchorStyles.Top | AnchorStyles.Right
-            };
-            // Position badge: right edge 16px from panel right, vertically centred
-            pnlHeader.Controls.Add(lblBadge);
-            pnlHeader.Resize += (s, ev) =>
-            {
-                lblBadge.Left = pnlHeader.Width - lblBadge.Width - 16;
-                lblBadge.Top  = (pnlHeader.Height - lblBadge.Height) / 2;
+                Padding      = new Padding(12, 0, 12, 0)
             };
 
-            // Title — Dock=Fill, right Padding reserves room for badge (270 + 16 + 8 = 294)
+            // Title — Dock=Fill, right Padding reserves room for badge (270+16+8=294)
             var lblTitle = new Label
             {
                 Text      = string.Format("Quotation Detail  \u2014  {0}", _q.QuotationID),
@@ -88,11 +77,19 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 AutoSize  = false,
                 Padding   = new Padding(24, 0, 294, 0)
             };
-            // Add title first (Dock=Fill behind badge)
-            pnlHeader.Controls.Add(lblTitle);
 
-            // Trigger initial badge position
-            pnlHeader.Load += (s, ev) => pnlHeader.OnResize(EventArgs.Empty);
+            // Shared lambda — positions badge right-aligned, vertically centred in pnlHeader
+            Action positionBadge = () =>
+            {
+                lblBadge.Left = pnlHeader.Width - lblBadge.Width - 16;
+                lblBadge.Top  = (pnlHeader.Height - lblBadge.Height) / 2;
+            };
+
+            pnlHeader.Resize += (s, ev) => positionBadge();
+
+            // Add title first (Dock=Fill sits behind badge in z-order)
+            pnlHeader.Controls.Add(lblTitle);
+            pnlHeader.Controls.Add(lblBadge);
 
             // ── Body (CardPanel rows)
             var tblOuter = new TableLayoutPanel
@@ -142,8 +139,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             this.Controls.Add(tblOuter);
             this.Controls.Add(pnlHeader);
 
-            // Fire resize once after layout to position badge correctly
-            this.Shown += (s, ev) => pnlHeader.OnResize(EventArgs.Empty);
+            // Fire initial badge position once the form is fully laid out
+            this.Shown += (s, ev) => positionBadge();
         }
 
         private TableLayoutPanel BuildHeaderPanel()
