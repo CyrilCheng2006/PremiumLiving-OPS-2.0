@@ -13,11 +13,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
     /// Header layout (pnlHeader, Height=80, dark navy):
     ///   Both lblTitle and lblBadge are positioned via a shared repositionHeader()
     ///   Action subscribed to pnlHeader.Resize and Form.Shown.
-    ///   NO Dock is used on either label — Dock=Fill on lblTitle caused lblBadge
-    ///   to be visually clipped even when Width was correct.
+    ///   NO Dock is used on either label.
     ///
     ///   lblTitle : Left=24, fills from left up to badge left edge minus 8px gap
-    ///   lblBadge : Width=270 (hard), right edge 16px from panel right, vertically centred
+    ///   lblBadge : Width=290 (hard), right edge 16px from panel right, vertically centred
     /// </summary>
     public class QuotationDetailForm : Form
     {
@@ -67,26 +66,22 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 TextAlign    = ContentAlignment.MiddleCenter,
                 AutoSize     = false,
                 AutoEllipsis = false,
-                Width        = 270,
+                Width        = 290,
                 Height       = 44,
                 Padding      = new Padding(12, 0, 12, 0)
             };
 
-            // Shared repositioning — called on every Resize and on Shown
             Action repositionHeader = () =>
             {
-                int badgeRight  = 16;                          // gap from panel right edge
-                int badgeLeft   = pnlHeader.Width - lblBadge.Width - badgeRight;
-                int badgeTop    = (pnlHeader.Height - lblBadge.Height) / 2;
+                int badgeLeft = pnlHeader.Width - lblBadge.Width - 16;
+                int badgeTop  = (pnlHeader.Height - lblBadge.Height) / 2;
 
                 lblBadge.Left = badgeLeft;
                 lblBadge.Top  = badgeTop;
 
-                int titleLeft  = 24;
-                int titleRight = badgeLeft - 8;                // 8px gap between title and badge
-                lblTitle.Left   = titleLeft;
+                lblTitle.Left   = 24;
                 lblTitle.Top    = 0;
-                lblTitle.Width  = Math.Max(0, titleRight - titleLeft);
+                lblTitle.Width  = Math.Max(0, badgeLeft - 8 - 24);
                 lblTitle.Height = pnlHeader.Height;
             };
 
