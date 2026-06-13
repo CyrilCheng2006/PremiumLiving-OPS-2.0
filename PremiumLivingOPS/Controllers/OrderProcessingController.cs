@@ -15,7 +15,7 @@ namespace PremiumLivingOPS.Controllers
     {
         private readonly OrderProcessingRepo _repo = new OrderProcessingRepo();
 
-        // ── View Order ────────────────────────────────────────────────────────────────────────────────────────
+        // ── View Order ─────────────────────────────────────────────────────────────────────────────────────────
 
         public ViewOrderViewModel GetViewOrderVM(
             string    status   = null,
@@ -81,19 +81,32 @@ namespace PremiumLivingOPS.Controllers
         }
 
         /// <summary>
-        /// Returns a single Quotation for detail view.
-        /// QuotationItem table does not exist in schema — Items list is always empty.
+        /// Returns a single Quotation for detail view, with Items populated.
+        ///
+        /// There is no QuotationItem table in the schema (Database/schema.sql).
+        /// Items are synthesised from OrderLine rows linked to this Quotation
+        /// via Order.QuotationID. If no Orders have been raised against this
+        /// Quotation yet, Items will be an empty list (never null).
         /// </summary>
         public QuotationEntity GetQuotationDetail(string quotationId)
         {
             if (string.IsNullOrEmpty(quotationId)) return null;
-            return _repo.GetQuotationById(quotationId);
+
+            var q = _repo.GetQuotationById(quotationId);
+            if (q == null) return null;
+
+            // Populate Items from OrderLine data (schema has no QuotationItem table).
+            // Result is an empty list when the Quotation has not yet been converted
+            // to any Order, so BuildLinesGrid always gets a non-null list.
+            q.Items = _repo.GetOrderLinesByQuotationId(quotationId);
+
+            return q;
         }
 
         public bool UpdateQuotationStatus(string quotationId, string newStatus)
             => _repo.UpdateQuotationStatus(quotationId, newStatus);
 
-        // ── Create New Quotation ───────────────────────────────────────────────────────────────────
+        // ── Create New Quotation ───────────────────────────────────────────────────────────────────────────────
 
         public CreateQuotationViewModel GetCreateQuotationVM()
         {
@@ -131,9 +144,9 @@ namespace PremiumLivingOPS.Controllers
         }
 
         /// <summary>
-        /// Saves a new Quotation.
+        /// Saves a new Quotation header.
         /// Schema has no QuotationItem table — only the Quotation header is persisted.
-        /// The items parameter is accepted for UI compatibility but not written to DB.
+        /// The items parameter is accepted for UI/future compatibility but not written to DB.
         /// </summary>
         public bool SaveNewQuotation(QuotationEntity quotation,
                                      List<QuotationItemEntity> items,
@@ -143,7 +156,7 @@ namespace PremiumLivingOPS.Controllers
             return _repo.CreateQuotation(quotation);
         }
 
-        // ── Create Order ──────────────────────────────────────────────────────────────────────────────────
+        // ── Create Order ─────────────────────────────────────────────────────────────────────────────────────────
 
         public CreateOrderViewModel GetCreateOrderVM()
         {
@@ -201,7 +214,7 @@ namespace PremiumLivingOPS.Controllers
             return true;
         }
 
-        // ── Modify Order ───────────────────────────────────────────────────────────────────────────────────────
+        // ── Modify Order ─────────────────────────────────────────────────────────────────────────────────────────────
 
         public ModifyOrderViewModel GetModifyOrderVM(string orderId = null)
         {

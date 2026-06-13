@@ -143,6 +143,60 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
+        /// <summary>
+        /// Returns QuotationItemEntity rows synthesised from OrderLine data.
+        ///
+        /// There is no QuotationItem table in the schema (Database/schema.sql).
+        /// Items belonging to a Quotation are stored as OrderLine rows attached
+        /// to the Order(s) that reference the Quotation via Order.QuotationID.
+        ///
+        /// Query:
+        ///   OrderLine JOIN Item ON ItemID
+        ///   JOIN Order ON OrderLine.OrderID = Order.OrderID
+        ///   WHERE Order.QuotationID = @quotationId
+        ///
+        /// One Quotation may produce multiple Orders (partial conversions), so
+        /// DISTINCT is applied on (ItemID) and quantities are summed.
+        /// UnitPrice comes from OrderLine.Price; DiscountPercent is always 0
+        /// because the Quotation table has no discount column.
+        /// </summary>
+        public List<QuotationItemEntity> GetOrderLinesByQuotationId(string quotationId)
+        {
+            var list = new List<QuotationItemEntity>();
+            using (var conn = DatabaseHelper.GetConnection())
+            {
+                conn.Open();
+                const string sql =
+                    @"SELECT ol.ItemID,
+                             i.ItemName  AS ProductName,
+                             SUM(ol.Quantity)         AS TotalQty,
+                             AVG(ol.Price)            AS AvgPrice
+                      FROM OrderLine ol
+                      JOIN `Order`   o  ON ol.OrderID = o.OrderID
+                      JOIN Item      i  ON ol.ItemID  = i.ItemID
+                      WHERE o.QuotationID = @qid
+                      GROUP BY ol.ItemID, i.ItemName
+                      ORDER BY i.ItemName";
+                using (var cmd = new MySqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@qid", quotationId);
+                    using (var rdr = cmd.ExecuteReader())
+                        while (rdr.Read())
+                            list.Add(new QuotationItemEntity
+                            {
+                                QuotationID     = quotationId,
+                                ItemID          = rdr.GetString("ItemID"),
+                                ProductName     = rdr.GetString("ProductName"),
+                                Quantity        = Convert.ToInt32(rdr["TotalQty"]),
+                                Unit            = "",   // no Unit column in OrderLine/schema
+                                UnitPrice       = Convert.ToDouble(rdr["AvgPrice"]),
+                                DiscountPercent = 0     // no discount column in Quotation/OrderLine
+                            });
+                }
+            }
+            return list;
+        }
+
         public bool CreateOrder(OrderEntity order)
         {
             using (var conn = DatabaseHelper.GetConnection())
@@ -421,7 +475,6 @@ namespace PremiumLivingOPS.Models.DAL
                         {
                             CustomerID   = rdr.GetString("CustomerID"),
                             CustomerName = rdr.GetString("CustomerName"),
-                            // Use alias properties so both naming conventions work
                             EmailAddress = rdr.IsDBNull(rdr.GetOrdinal("EmailAddress")) ? "" : rdr.GetString("EmailAddress"),
                             PhoneNumber  = rdr.IsDBNull(rdr.GetOrdinal("PhoneNumber"))  ? "" : rdr.GetString("PhoneNumber")
                         });
@@ -501,10 +554,10 @@ namespace PremiumLivingOPS.Models.DAL
             DeliveryDate     = r.GetDateTime("DeliveryDate"),
             ShippingAddress  = r.IsDBNull(r.GetOrdinal("ShippingAddress"))  ? null : r.GetString("ShippingAddress"),
             BillingAddress   = r.IsDBNull(r.GetOrdinal("BillingAddress"))   ? null : r.GetString("BillingAddress"),
-            SubTotal         = ToDouble(r, "SubTotal"),        // nullable in schema
+            SubTotal         = ToDouble(r, "SubTotal"),
             DiscountType     = r.IsDBNull(r.GetOrdinal("DiscountType"))     ? null : r.GetString("DiscountType"),
-            DiscountValue    = ToDouble(r, "DiscountValue"),   // nullable in schema
-            DiscountAmount   = ToDouble(r, "DiscountAmount"),  // nullable in schema
+            DiscountValue    = ToDouble(r, "DiscountValue"),
+            DiscountAmount   = ToDouble(r, "DiscountAmount"),
             GrandTotal       = ToDouble(r, "GrandTotal"),
             OrderContactName = r.IsDBNull(r.GetOrdinal("OrderContactName")) ? null : r.GetString("OrderContactName"),
             OrderStatus      = r.GetString("OrderStatus")
@@ -517,10 +570,12 @@ namespace PremiumLivingOPS.Models.DAL
             CustomerName      = r.GetString("CustomerName"),
             ExpiryDate        = r.GetDateTime("ExpiryDate"),
             TotalAmount       = ToDouble(r, "TotalAmount"),
-            DepositRequired   = ToDouble(r, "DepositRequired"),  // nullable in schema
+            DepositRequired   = ToDouble(r, "DepositRequired"),
             LeadTimeEstimated = r.IsDBNull(r.GetOrdinal("LeadTimeEstimated")) ? null : r.GetString("LeadTimeEstimated"),
             TermsandCondition = r.IsDBNull(r.GetOrdinal("TermsandCondition")) ? null : r.GetString("TermsandCondition"),
             QuotationStatus   = r.GetString("QuotationStatus")
+            // Items is NOT mapped here — populated separately by GetOrderLinesByQuotationId
+            // SalesStaffName is NOT mapped here — no SalesStaffID column in Quotation table
         };
     }
 }
