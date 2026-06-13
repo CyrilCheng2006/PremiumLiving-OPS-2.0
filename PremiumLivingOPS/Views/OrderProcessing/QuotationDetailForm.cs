@@ -14,8 +14,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
     ///   SplitContainer (Dock=Fill, Orientation=Vertical, IsSplitterFixed=true)
     ///     Panel1 (left)  — title Label, Dock=Fill, Font 13f Bold, white
     ///     Panel2 (right) — status badge Label, Dock=Fill, Font 14f Bold
-    ///   SplitterDistance=580 → Panel2 width = Form(900) - chrome(≈16) - 580 ≈ 290px.
-    ///   SplitContainer avoids all manual Resize arithmetic and Shown/Load timing issues.
+    ///   SplitterDistance=700 → Panel2 width ≈ 184px at 900px form width.
+    ///   Panel2MinSize=160 ensures badge is never crushed on resize.
     /// </summary>
     public class QuotationDetailForm : Form
     {
@@ -46,23 +46,20 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 BackColor = Color.FromArgb(19, 35, 61)
             };
 
-            // SplitContainer: left=title, right=badge
-            // SplitterDistance 580 ⇒ right panel ≈ 290px at 900px form width
             var split = new SplitContainer
             {
                 Dock             = DockStyle.Fill,
                 Orientation      = Orientation.Vertical,
                 IsSplitterFixed  = true,
-                SplitterDistance = 580,
+                SplitterDistance = 700,
                 SplitterWidth    = 1,
                 BackColor        = Color.Transparent,
                 Panel1MinSize    = 100,
-                Panel2MinSize    = 290
+                Panel2MinSize    = 160
             };
             split.Panel1.BackColor = Color.Transparent;
             split.Panel2.BackColor = Color.Transparent;
 
-            // Title label — left panel
             split.Panel1.Controls.Add(new Label
             {
                 Text      = string.Format("Quotation Detail  \u2014  {0}", _q.QuotationID),
@@ -74,7 +71,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Padding   = new Padding(24, 0, 8, 0)
             });
 
-            // Badge label — right panel, Dock=Fill so it always fills Panel2 fully
             var (scBg, scFg) = GetStatusColor(_q.QuotationStatus);
             split.Panel2.Controls.Add(new Label
             {
