@@ -36,6 +36,17 @@ namespace PremiumLivingOPS.Models.Entities
         public double LineTotal => Quantity * Price;
     }
 
+    /// <summary>
+    /// Maps directly to the Quotation table in schema.sql.
+    /// Columns: QuotationID, CustomerID, ExpiryDate, TotalAmount,
+    ///          DepositRequired, LeadTimeEstimated, TermsandCondition, QuotationStatus.
+    ///
+    /// SalesStaffName is NOT a Quotation column; it is populated by the controller
+    /// via a JOIN to the Order / Staff tables when available (nullable display helper).
+    ///
+    /// NOTE: There is no Notes column in the Quotation table and no QuotationItem
+    ///       table in the schema — those properties have been removed.
+    /// </summary>
     public class QuotationEntity
     {
         public string          QuotationID       { get; set; }
@@ -49,15 +60,23 @@ namespace PremiumLivingOPS.Models.Entities
         public string          TermsandCondition { get; set; }
         public string          QuotationStatus   { get; set; }
         public string          Status            => QuotationStatus;  // picker-friendly alias
+
+        /// <summary>
+        /// Display helper — populated by controller JOIN to Staff table.
+        /// Not a column in the Quotation table.
+        /// </summary>
         public string          SalesStaffName    { get; set; }
-        public string          Notes             { get; set; }
 
         /// <summary>Line items — populated only by GetQuotationDetail, null in list queries.</summary>
         public List<QuotationItemEntity> Items   { get; set; }
     }
 
     /// <summary>
-    /// One line item inside a Quotation.
+    /// Represents one line item carried from a Quotation into an Order.
+    /// There is no separate QuotationItem table in the schema; these records
+    /// are synthesised by the controller from OrderLine data linked to the
+    /// Quotation via Order.QuotationID.
+    ///
     /// ItemID references Item(ItemID) / Product(ItemID) in the DB.
     /// ProductName is the display name carried from Item.ItemName.
     /// </summary>
@@ -72,7 +91,6 @@ namespace PremiumLivingOPS.Models.Entities
         public double UnitPrice        { get; set; }
         public double DiscountPercent  { get; set; }
         public double Subtotal         => Quantity * UnitPrice * (1 - DiscountPercent / 100.0);
-        public string ItemNote         { get; set; }
     }
 
     public class ProductLookup
