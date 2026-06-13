@@ -203,7 +203,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             dgv.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "UNIT PRICE", FillWeight = 18 });
             dgv.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "SUBTOTAL",   FillWeight = 17 });
 
-            if (_q.Items != null)"
+            if (_q.Items != null)
                 foreach (var li in _q.Items)
                     dgv.Rows.Add(
                         li.ItemID, li.ProductName, li.Quantity,
