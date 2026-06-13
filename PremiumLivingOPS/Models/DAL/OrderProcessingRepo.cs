@@ -404,6 +404,27 @@ namespace PremiumLivingOPS.Models.DAL
             }
         }
 
+        /// <summary>
+        /// Updates the TotalAmount column on a Quotation row.
+        /// Called by OrderProcessingController.SaveModifiedQuotation() after
+        /// the user edits items in ModifyQuotationDialog.
+        /// Schema column: Quotation.TotalAmount (DECIMAL)
+        /// </summary>
+        public bool UpdateQuotationTotalAmount(string quotationId, double newTotal)
+        {
+            using (var conn = DatabaseHelper.GetConnection())
+            {
+                conn.Open();
+                const string sql = "UPDATE Quotation SET TotalAmount = @total WHERE QuotationID = @id";
+                using (var cmd = new MySqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@total", newTotal);
+                    cmd.Parameters.AddWithValue("@id",    quotationId);
+                    return cmd.ExecuteNonQuery() > 0;
+                }
+            }
+        }
+
         public List<string> GetQuotationIdsByPrefix(string prefix)
         {
             var list = new List<string>();
