@@ -201,30 +201,14 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
         private void btnViewDetail_Click(object sender, EventArgs e) => OpenDetailDialog();
 
-        // ── Modify Order handler — opens ModifyOrderForm for the selected order
+        // ── Modify Order handler — uses PendingOrderId to pre-select the order in ModifyOrderForm
         private void btnModifyOrder_Click(object sender, EventArgs e)
         {
             string id = SelectedOrderId();
             if (id == null) return;
 
-            var detail = _ctrl.GetOrderDetail(id);
-            if (detail?.Order == null)
-            {
-                MessageBox.Show("Order not found.", "Error",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-
-            using var dlg = new ModifyOrderForm(detail.Order);
-            if (dlg.ShowDialog(this) == DialogResult.OK)
-            {
-                MessageBox.Show(
-                    $"Order {id} has been updated successfully.",
-                    "Changes Saved",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Information);
-                RefreshGrid();
-            }
+            ModifyOrderForm.PendingOrderId = id;
+            FormNavigator.NavigateTo(this, "Order Processing", "Modify Order");
         }
 
         private void OpenDetailDialog()
