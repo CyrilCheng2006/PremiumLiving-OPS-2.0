@@ -16,11 +16,12 @@ namespace PremiumLivingOPS.Views.OrderProcessing
     ///
     /// Columns: ITEM ID | PRODUCT | QTY | UNIT PRICE | SUBTOTAL
     ///
-    /// Header: pnlHeader (dark navy, Height 80) + TableLayoutPanel 2-col
-    ///   Col 0 — SizeType.Percent 100f  : title label, Font 13f Bold, white, Dock=Fill
-    ///   Col 1 — SizeType.Absolute 290f : status badge, Font 14f Bold, MiddleCenter
-    ///     tblHeader Padding left/right reduced to 12px so Absolute col is not compressed.
-    ///     Badge Label: Dock=Fill, AutoEllipsis=false — matches ModifyQuotationDialog.
+    /// Header: pnlHeader (dark navy, Height 80)
+    ///   lblTitle  : Dock=Fill, Padding(24,0,300,0) — right padding reserves space for badge
+    ///   lblBadge  : Anchor=Top|Right, Width=270, Height=44, top-margin=18
+    ///               right-offset=16px from panel edge
+    ///   Both labels added directly to pnlHeader — no TableLayoutPanel to avoid
+    ///   column-width compression when mixing Percent + Absolute columns.
     /// </summary>
     public class QuotationDetailForm : Form
     {
@@ -50,49 +51,48 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Height    = 80,
                 BackColor = Color.FromArgb(19, 35, 61)
             };
-            var tblHeader = new TableLayoutPanel
-            {
-                Dock            = DockStyle.Fill,
-                ColumnCount     = 2,
-                RowCount        = 1,
-                BackColor       = Color.Transparent,
-                CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                // Padding left/right 12px (down from 24px) so the Absolute 290f badge col
-                // is not compressed — TableLayoutPanel deducts Padding from total width
-                // before distributing columns, so smaller padding = more room for Absolute cols.
-                Padding         = new Padding(12, 0, 12, 0)
-            };
-            // Col 0: title text — takes all remaining width
-            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-            // Col 1: status badge — fixed 290px
-            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 290f));
-            tblHeader.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
-            tblHeader.Controls.Add(new Label
+            // Badge — Anchor=Top|Right so it stays right-aligned on resize
+            // Width=270 is hard guarantee; no TableLayoutPanel involved
+            var (scBg, scFg) = GetStatusColor(_q.QuotationStatus);
+            var lblBadge = new Label
+            {
+                Text         = _q.QuotationStatus ?? "Unknown",
+                Font         = new Font("Segoe UI", 14f, FontStyle.Bold),
+                ForeColor    = scFg,
+                BackColor    = scBg,
+                TextAlign    = ContentAlignment.MiddleCenter,
+                AutoSize     = false,
+                AutoEllipsis = false,
+                Width        = 270,
+                Height       = 44,
+                Padding      = new Padding(12, 0, 12, 0),
+                Anchor       = AnchorStyles.Top | AnchorStyles.Right
+            };
+            // Position badge: right edge 16px from panel right, vertically centred
+            pnlHeader.Controls.Add(lblBadge);
+            pnlHeader.Resize += (s, ev) =>
+            {
+                lblBadge.Left = pnlHeader.Width - lblBadge.Width - 16;
+                lblBadge.Top  = (pnlHeader.Height - lblBadge.Height) / 2;
+            };
+
+            // Title — Dock=Fill, right Padding reserves room for badge (270 + 16 + 8 = 294)
+            var lblTitle = new Label
             {
                 Text      = string.Format("Quotation Detail  \u2014  {0}", _q.QuotationID),
                 Font      = new Font("Segoe UI", 13f, FontStyle.Bold),
                 ForeColor = Color.White,
                 Dock      = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft,
-                AutoSize  = false
-            }, 0, 0);
+                AutoSize  = false,
+                Padding   = new Padding(24, 0, 294, 0)
+            };
+            // Add title first (Dock=Fill behind badge)
+            pnlHeader.Controls.Add(lblTitle);
 
-            var (scBg, scFg) = GetStatusColor(_q.QuotationStatus);
-            tblHeader.Controls.Add(new Label
-            {
-                Text         = _q.QuotationStatus ?? "Unknown",
-                Font         = new Font("Segoe UI", 14f, FontStyle.Bold),
-                ForeColor    = scFg,
-                BackColor    = scBg,
-                Dock         = DockStyle.Fill,
-                TextAlign    = ContentAlignment.MiddleCenter,
-                AutoSize     = false,
-                AutoEllipsis = false,
-                Padding      = new Padding(16, 4, 16, 4)
-            }, 1, 0);
-
-            pnlHeader.Controls.Add(tblHeader);
+            // Trigger initial badge position
+            pnlHeader.Load += (s, ev) => pnlHeader.OnResize(EventArgs.Empty);
 
             // ── Body (CardPanel rows)
             var tblOuter = new TableLayoutPanel
@@ -141,6 +141,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             this.Controls.Add(tblOuter);
             this.Controls.Add(pnlHeader);
+
+            // Fire resize once after layout to position badge correctly
+            this.Shown += (s, ev) => pnlHeader.OnResize(EventArgs.Empty);
         }
 
         private TableLayoutPanel BuildHeaderPanel()
