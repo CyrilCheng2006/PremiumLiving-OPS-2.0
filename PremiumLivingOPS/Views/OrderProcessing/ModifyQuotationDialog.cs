@@ -26,10 +26,12 @@ namespace PremiumLivingOPS.Views.OrderProcessing
     ///   – pnlTotalRow    Bottom 50 — live-computed Total Amount
     ///   – pnlFooter      Bottom 80 — [✔ Save Changes] (210×60)  [Cancel] (210×60)
     ///
-    /// Add Item dialog: 1200×600. Item search textbox + filtered ListBox, Qty, Unit Price (auto), Subtotal (auto)
+    /// Add Item dialog: 1200×600.
+    ///   Left 55%: search textbox + filtered ListBox (ItemID — ItemName).
+    ///   Right 45%: Qty (NumericUpDown), Unit Price (auto), Subtotal (auto).
+    ///   Right panel uses Absolute 140px label col + Percent 100 value col to prevent truncation.
     ///   Discount field removed — no discount column in schema.
-    ///   ListBox displays "ItemID  —  ItemName" for clear identification.
-    ///   Duplicate item: Quantity is incremented by the entered qty instead of showing a warning.
+    ///   Duplicate item: Quantity is incremented by the entered qty.
     ///
     /// Size: 2500 × 1200, StartPosition CenterParent.
     /// </summary>
@@ -38,30 +40,23 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         private readonly OrderProcessingController _ctrl;
         private readonly QuotationEntity           _q;
 
-        // Working copy of items — mutated by Add / Delete
         private readonly List<QuotationItemEntity> _items;
 
-        // Controls that need cross-method access
         private DataGridView _dgvItems;
         private Label        _lblTotal;
 
-        // ── Constructor
         public ModifyQuotationDialog(QuotationEntity q, OrderProcessingController ctrl)
         {
             _q    = q    ?? throw new ArgumentNullException(nameof(q));
             _ctrl = ctrl ?? throw new ArgumentNullException(nameof(ctrl));
             _items = new List<QuotationItemEntity>(q.Items ?? new List<QuotationItemEntity>());
-
             InitializeComponent();
             BuildDialog();
         }
 
         // ──────────────────────────────────────────────────────────────────
-        //  Full inline build
-        // ──────────────────────────────────────────────────────────────────
         private void BuildDialog()
         {
-            // ── Form
             this.Text            = $"Modify Quotation  —  {_q.QuotationID}";
             this.Size            = new Size(2500, 1200);
             this.StartPosition   = FormStartPosition.CenterParent;
@@ -71,29 +66,29 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             this.MaximizeBox     = false;
             this.MinimizeBox     = false;
 
-            // ── Header (dark navy) — status badge width 260px
+            // ── Header (dark navy) — status badge 260px
             var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 80, BackColor = Color.FromArgb(19, 35, 61) };
             var tblHeader = new TableLayoutPanel
             {
-                Dock            = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
-                BackColor       = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                Padding         = new Padding(24, 0, 24, 0)
+                Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
+                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                Padding = new Padding(24, 0, 24, 0)
             };
             tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
             tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 260f));
             tblHeader.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
             tblHeader.Controls.Add(new Label
             {
-                Text      = $"Modify Quotation  —  {_q.QuotationID}",
-                Font      = new Font("Segoe UI", 18f, FontStyle.Bold),
+                Text = $"Modify Quotation  —  {_q.QuotationID}",
+                Font = new Font("Segoe UI", 18f, FontStyle.Bold),
                 ForeColor = Color.White, Dock = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
             }, 0, 0);
             var (scBg, scFg) = GetStatusColor(_q.QuotationStatus);
             tblHeader.Controls.Add(new Label
             {
-                Text      = _q.QuotationStatus ?? "Unknown",
-                Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
+                Text = _q.QuotationStatus ?? "Unknown",
+                Font = new Font("Segoe UI", 14f, FontStyle.Bold),
                 ForeColor = scFg, BackColor = scBg,
                 Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter,
                 AutoSize = false, Padding = new Padding(8, 4, 8, 4)
@@ -103,11 +98,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             // ── Quotation header info (read-only, 4-col)
             var pnlQuoteInfo = new Panel
             {
-                Dock    = DockStyle.Top, Height = 220,
+                Dock = DockStyle.Top, Height = 220,
                 Padding = new Padding(28, 14, 28, 8), BackColor = Color.White
             };
             pnlQuoteInfo.Paint += PaintBottomBorder;
-
             var tblQ = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 3,
@@ -119,170 +113,131 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             tblQ.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
             for (int r = 0; r < 3; r++)
                 tblQ.RowStyles.Add(new RowStyle(SizeType.Percent, 33.3f));
-
-            AddReadRow(tblQ, 0, "Quotation ID:",  _q.QuotationID,                     "Customer:",         _q.CustomerName);
-            AddReadRow(tblQ, 1, "Total Amount:",  $"HK$ {_q.TotalAmount:N2}",         "Deposit Required:", $"HK$ {_q.DepositRequired:N2}");
-            AddReadRow(tblQ, 2, "Lead Time:",     _q.LeadTimeEstimated ?? "—",        "Expiry Date:",      _q.ExpiryDate.ToString("yyyy-MM-dd"));
+            AddReadRow(tblQ, 0, "Quotation ID:", _q.QuotationID,               "Customer:",         _q.CustomerName);
+            AddReadRow(tblQ, 1, "Total Amount:", $"HK$ {_q.TotalAmount:N2}",   "Deposit Required:", $"HK$ {_q.DepositRequired:N2}");
+            AddReadRow(tblQ, 2, "Lead Time:",    _q.LeadTimeEstimated ?? "—",  "Expiry Date:",      _q.ExpiryDate.ToString("yyyy-MM-dd"));
             pnlQuoteInfo.Controls.Add(tblQ);
 
-            // ── QUOTATION ITEMS label bar (with Add Item button)
+            // ── QUOTATION ITEMS label bar
             var pnlLineLabel = new Panel
             {
-                Dock      = DockStyle.Top, Height = 50,
-                BackColor = Color.FromArgb(239, 246, 255),
-                Padding   = new Padding(28, 0, 16, 0)
+                Dock = DockStyle.Top, Height = 50,
+                BackColor = Color.FromArgb(239, 246, 255), Padding = new Padding(28, 0, 16, 0)
             };
             pnlLineLabel.Paint += PaintBottomBorder;
-
             var tblLineBar = new TableLayoutPanel
             {
-                Dock            = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
-                BackColor       = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+                Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
+                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
             tblLineBar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
             tblLineBar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 200f));
             tblLineBar.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
             tblLineBar.Controls.Add(new Label
             {
-                Text      = "QUOTATION ITEMS",
-                Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
+                Text = "QUOTATION ITEMS",
+                Font = new Font("Segoe UI", 11f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(29, 78, 216),
-                Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
+                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
             }, 0, 0);
-
             var btnAddItem = new Button
             {
-                Text      = "\uFF0B  Add Item",
-                Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
-                ForeColor = Color.White,
-                BackColor = Color.FromArgb(5, 150, 105),
-                FlatStyle = FlatStyle.Flat,
-                Dock      = DockStyle.Fill,
-                Cursor    = Cursors.Hand
+                Text = "\uFF0B  Add Item",
+                Font = new Font("Segoe UI", 11f, FontStyle.Bold),
+                ForeColor = Color.White, BackColor = Color.FromArgb(5, 150, 105),
+                FlatStyle = FlatStyle.Flat, Dock = DockStyle.Fill, Cursor = Cursors.Hand
             };
-            btnAddItem.FlatAppearance.BorderSize         = 0;
+            btnAddItem.FlatAppearance.BorderSize = 0;
             btnAddItem.FlatAppearance.MouseOverBackColor = Color.FromArgb(4, 120, 87);
             btnAddItem.Click += BtnAddItem_Click;
             tblLineBar.Controls.Add(btnAddItem, 1, 0);
             pnlLineLabel.Controls.Add(tblLineBar);
 
             // ── Items DataGridView
-            // Columns: ITEM ID | PRODUCT | QTY | UNIT PRICE | SUBTOTAL | DELETE
-            // Unit and Discount % omitted — no Unit/Discount column in schema OrderLine
             _dgvItems = new DataGridView
             {
-                AllowUserToAddRows    = false,
-                AllowUserToDeleteRows = false,
-                ReadOnly              = false,
-                RowHeadersVisible     = false,
-                SelectionMode         = DataGridViewSelectionMode.FullRowSelect,
-                BackgroundColor       = Color.White,
-                BorderStyle           = BorderStyle.None,
-                GridColor             = Color.FromArgb(221, 227, 236),
-                Font                  = new Font("Segoe UI", 12f),
-                AutoSizeColumnsMode   = DataGridViewAutoSizeColumnsMode.Fill,
-                CellBorderStyle       = DataGridViewCellBorderStyle.SingleHorizontal,
-                RowTemplate           = { Height = 46 },
-                Dock                  = DockStyle.Fill,
-                ColumnHeadersHeight   = 40,
-                EnableHeadersVisualStyles = false,
+                AllowUserToAddRows = false, AllowUserToDeleteRows = false,
+                ReadOnly = false, RowHeadersVisible = false,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                BackgroundColor = Color.White, BorderStyle = BorderStyle.None,
+                GridColor = Color.FromArgb(221, 227, 236),
+                Font = new Font("Segoe UI", 12f),
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal,
+                RowTemplate = { Height = 46 }, Dock = DockStyle.Fill,
+                ColumnHeadersHeight = 40, EnableHeadersVisualStyles = false,
                 ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
                 {
                     BackColor = Color.FromArgb(239, 246, 255),
                     ForeColor = Color.FromArgb(98, 112, 135),
-                    Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
-                    Padding   = new Padding(12, 0, 0, 0)
+                    Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+                    Padding = new Padding(12, 0, 0, 0)
                 },
                 DefaultCellStyle = new DataGridViewCellStyle
                 {
-                    BackColor          = Color.White,
-                    ForeColor          = Color.FromArgb(15, 31, 53),
+                    BackColor = Color.White, ForeColor = Color.FromArgb(15, 31, 53),
                     SelectionBackColor = Color.FromArgb(219, 234, 254),
                     SelectionForeColor = Color.FromArgb(15, 31, 53),
-                    Padding            = new Padding(12, 6, 12, 6)
+                    Padding = new Padding(12, 6, 12, 6)
                 }
             };
-
             _dgvItems.Columns.Add(new DataGridViewTextBoxColumn { Name = "cItemID",    HeaderText = "ITEM ID",    FillWeight = 18, ReadOnly = true });
             _dgvItems.Columns.Add(new DataGridViewTextBoxColumn { Name = "cProduct",   HeaderText = "PRODUCT",    FillWeight = 32, ReadOnly = true });
             _dgvItems.Columns.Add(new DataGridViewTextBoxColumn { Name = "cQty",       HeaderText = "QTY",        FillWeight = 10, ReadOnly = true });
             _dgvItems.Columns.Add(new DataGridViewTextBoxColumn { Name = "cUnitPrice", HeaderText = "UNIT PRICE", FillWeight = 18, ReadOnly = true });
             _dgvItems.Columns.Add(new DataGridViewTextBoxColumn { Name = "cSubtotal",  HeaderText = "SUBTOTAL",   FillWeight = 18, ReadOnly = true });
-
             var colDelete = new DataGridViewButtonColumn
             {
-                Name           = "cDelete",
-                HeaderText     = "",
-                Text           = "\u2715  Delete",
-                UseColumnTextForButtonValue = true,
-                FillWeight     = 12,
-                FlatStyle      = FlatStyle.Flat
+                Name = "cDelete", HeaderText = "", Text = "\u2715  Delete",
+                UseColumnTextForButtonValue = true, FillWeight = 12, FlatStyle = FlatStyle.Flat
             };
             _dgvItems.Columns.Add(colDelete);
-
             _dgvItems.CellClick    += DgvItems_CellClick;
             _dgvItems.CellPainting += DgvItems_CellPainting;
-
             RebuildItemGrid();
 
             // ── Total row
             var pnlTotalRow = new Panel
             {
-                Dock      = DockStyle.Bottom, Height = 50,
-                BackColor = Color.FromArgb(246, 249, 255),
-                Padding   = new Padding(0, 0, 28, 0)
+                Dock = DockStyle.Bottom, Height = 50,
+                BackColor = Color.FromArgb(246, 249, 255), Padding = new Padding(0, 0, 28, 0)
             };
             _lblTotal = new Label
             {
-                Text      = FormatTotal(),
-                Font      = new Font("Segoe UI", 13f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(15, 31, 53),
-                Dock      = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleRight,
-                AutoSize  = false
+                Text = FormatTotal(), Font = new Font("Segoe UI", 13f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(15, 31, 53), Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleRight, AutoSize = false
             };
             pnlTotalRow.Controls.Add(_lblTotal);
 
-            // ── Footer  [✔ Save Changes] (210×60)   [Cancel] (210×60)
+            // ── Footer
             var pnlFooter = new Panel
             {
-                Dock      = DockStyle.Bottom, Height = 80,
+                Dock = DockStyle.Bottom, Height = 80,
                 BackColor = Color.White, Padding = new Padding(0, 10, 28, 10)
             };
             pnlFooter.Paint += PaintTopBorder;
-
             var btnSave = new Button
             {
-                Text      = "\u2714  Save Changes",
-                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
-                ForeColor = Color.White,
-                BackColor = Color.FromArgb(5, 150, 105),
-                FlatStyle = FlatStyle.Flat,
-                Size      = new Size(210, 60),
-                Dock      = DockStyle.Right,
-                Cursor    = Cursors.Hand
+                Text = "\u2714  Save Changes", Font = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.White, BackColor = Color.FromArgb(5, 150, 105),
+                FlatStyle = FlatStyle.Flat, Size = new Size(210, 60),
+                Dock = DockStyle.Right, Cursor = Cursors.Hand
             };
-            btnSave.FlatAppearance.BorderSize         = 0;
+            btnSave.FlatAppearance.BorderSize = 0;
             btnSave.FlatAppearance.MouseOverBackColor = Color.FromArgb(4, 120, 87);
-
             var btnCancel = new Button
             {
-                Text      = "Cancel",
-                Font      = new Font("Segoe UI", 12f),
-                ForeColor = Color.FromArgb(15, 31, 53),
-                BackColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Size      = new Size(210, 60),
-                Dock      = DockStyle.Right,
-                Cursor    = Cursors.Hand
+                Text = "Cancel", Font = new Font("Segoe UI", 12f),
+                ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White,
+                FlatStyle = FlatStyle.Flat, Size = new Size(210, 60),
+                Dock = DockStyle.Right, Cursor = Cursors.Hand
             };
             btnCancel.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
             btnCancel.FlatAppearance.BorderSize         = 1;
             btnCancel.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
-
             btnSave.Click   += BtnSave_Click;
             btnCancel.Click += (o, ev) => { this.DialogResult = DialogResult.Cancel; this.Close(); };
-
             pnlFooter.Controls.Add(btnSave);
             pnlFooter.Controls.Add(btnCancel);
 
@@ -295,26 +250,19 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         }
 
         // ──────────────────────────────────────────────────────────────────
-        //  Grid helpers
-        // ──────────────────────────────────────────────────────────────────
         private void RebuildItemGrid()
         {
             _dgvItems.Rows.Clear();
             foreach (var item in _items)
                 _dgvItems.Rows.Add(
-                    item.ItemID,
-                    item.ProductName,
-                    item.Quantity,
-                    $"HK$ {item.UnitPrice:N2}",
-                    $"HK$ {item.Subtotal:N2}");
-
+                    item.ItemID, item.ProductName, item.Quantity,
+                    $"HK$ {item.UnitPrice:N2}", $"HK$ {item.Subtotal:N2}");
             RefreshTotal();
         }
 
         private void RefreshTotal()
         {
-            if (_lblTotal != null)
-                _lblTotal.Text = FormatTotal();
+            if (_lblTotal != null) _lblTotal.Text = FormatTotal();
         }
 
         private string FormatTotal()
@@ -324,21 +272,13 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             return $"Total Amount:   HK$ {total:N2}";
         }
 
-        // ──────────────────────────────────────────────────────────────────
-        //  Delete column — cell click
-        // ──────────────────────────────────────────────────────────────────
+        // ── Delete
         private void DgvItems_CellClick(object sender, DataGridViewCellEventArgs e)
         {
             if (e.RowIndex < 0) return;
             if (_dgvItems.Columns[e.ColumnIndex].Name != "cDelete") return;
-
-            var confirm = MessageBox.Show(
-                "Remove this item from the quotation?",
-                "Confirm Delete",
-                MessageBoxButtons.YesNo,
-                MessageBoxIcon.Question);
-
-            if (confirm == DialogResult.Yes)
+            if (MessageBox.Show("Remove this item from the quotation?", "Confirm Delete",
+                MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
             {
                 _items.RemoveAt(e.RowIndex);
                 RebuildItemGrid();
@@ -349,17 +289,14 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         {
             if (e.RowIndex < 0) return;
             if (_dgvItems.Columns[e.ColumnIndex].Name != "cDelete") return;
-
             e.Paint(e.ClipBounds, DataGridViewPaintParts.Background | DataGridViewPaintParts.Border);
-
             using var brush = new SolidBrush(Color.FromArgb(254, 226, 226));
             e.Graphics.FillRectangle(brush, e.CellBounds);
-
             using var font    = new Font("Segoe UI", 10f, FontStyle.Bold);
             using var fgBrush = new SolidBrush(Color.FromArgb(153, 27, 27));
             var sf = new System.Drawing.StringFormat
             {
-                Alignment     = System.Drawing.StringAlignment.Center,
+                Alignment = System.Drawing.StringAlignment.Center,
                 LineAlignment = System.Drawing.StringAlignment.Center
             };
             e.Graphics.DrawString("\u2715  Delete", font, fgBrush, e.CellBounds, sf);
@@ -367,11 +304,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         }
 
         // ──────────────────────────────────────────────────────────────────
-        //  Add Item — inline mini-dialog with Search  (1200 × 600)
-        //  - Search TextBox filters the item ListBox in real-time
-        //  - ListBox shows "ItemID  —  ItemName" for clear identification
-        //  - No Discount field (no discount column in schema)
-        //  - Duplicate item: Quantity is incremented by entered qty (no warning)
+        //  Add Item dialog  1200 × 600
+        //  Left 55%: Search TextBox + ListBox ("ItemID — ItemName")
+        //  Right 45%: Qty / Unit Price / Subtotal
+        //    ↳ right panel uses Absolute 140px label col to prevent value truncation
         // ──────────────────────────────────────────────────────────────────
         private void BtnAddItem_Click(object sender, EventArgs e)
         {
@@ -381,7 +317,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             using var addDlg = new Form
             {
                 Text            = "Add Quotation Item",
-                Size            = new Size(1200, 600),   // ← updated from 860×520
+                Size            = new Size(1200, 600),
                 StartPosition   = FormStartPosition.CenterParent,
                 FormBorderStyle = FormBorderStyle.FixedDialog,
                 BackColor       = Color.White,
@@ -390,93 +326,82 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 MinimizeBox     = false
             };
 
-            // ── Header bar
+            // Header
             var pnlH = new Panel { Dock = DockStyle.Top, Height = 54, BackColor = Color.FromArgb(19, 35, 61) };
             pnlH.Controls.Add(new Label
             {
-                Text      = "Add Quotation Item",
-                Font      = new Font("Segoe UI", 15f, FontStyle.Bold),
+                Text = "Add Quotation Item",
+                Font = new Font("Segoe UI", 15f, FontStyle.Bold),
                 ForeColor = Color.White, Dock = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft,
-                Padding   = new Padding(20, 0, 0, 0), AutoSize = false
+                Padding = new Padding(20, 0, 0, 0), AutoSize = false
             });
 
-            // ── Footer buttons
+            // Footer
             var pnlFoot = new Panel
             {
                 Dock = DockStyle.Bottom, Height = 70,
                 BackColor = Color.White, Padding = new Padding(0, 10, 24, 10)
             };
             pnlFoot.Paint += PaintTopBorder;
-
             var btnAdd = new Button
             {
-                Text      = "\u2714  Add Item",
-                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
-                ForeColor = Color.White,
-                BackColor = Color.FromArgb(5, 150, 105),
-                FlatStyle = FlatStyle.Flat,
-                Size      = new Size(180, 50),
-                Dock      = DockStyle.Right,
-                Cursor    = Cursors.Hand
+                Text = "\u2714  Add", Font = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.White, BackColor = Color.FromArgb(5, 150, 105),
+                FlatStyle = FlatStyle.Flat, Size = new Size(160, 50),
+                Dock = DockStyle.Right, Cursor = Cursors.Hand
             };
-            btnAdd.FlatAppearance.BorderSize         = 0;
+            btnAdd.FlatAppearance.BorderSize = 0;
             btnAdd.FlatAppearance.MouseOverBackColor = Color.FromArgb(4, 120, 87);
-
             var btnCancelAdd = new Button
             {
-                Text      = "Cancel",
-                Font      = new Font("Segoe UI", 12f),
-                ForeColor = Color.FromArgb(15, 31, 53),
-                BackColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Size      = new Size(140, 50),
-                Dock      = DockStyle.Right,
-                Cursor    = Cursors.Hand
+                Text = "Cancel", Font = new Font("Segoe UI", 12f),
+                ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White,
+                FlatStyle = FlatStyle.Flat, Size = new Size(120, 50),
+                Dock = DockStyle.Right, Cursor = Cursors.Hand
             };
             btnCancelAdd.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
             btnCancelAdd.FlatAppearance.BorderSize         = 1;
             btnCancelAdd.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
 
-            // ── Body: left = item search + list; right = qty + price preview
-            var pnlBody = new Panel { Dock = DockStyle.Fill, Padding = new Padding(24, 16, 24, 8), BackColor = Color.White };
-
+            // Body  — left 55% | right 45%
+            var pnlBody = new Panel
+            {
+                Dock = DockStyle.Fill,
+                Padding = new Padding(24, 14, 24, 8),
+                BackColor = Color.White
+            };
             var tblBody = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
                 BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
-            tblBody.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 60f));
-            tblBody.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40f));
+            tblBody.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 55f));
+            tblBody.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 45f));
             tblBody.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
-            // ── Left: Search + ListBox
-            var pnlLeft = new Panel { Dock = DockStyle.Fill, Padding = new Padding(0, 0, 12, 0), BackColor = Color.Transparent };
-
-            pnlLeft.Controls.Add(new Label
+            // ── Left: label + search + listbox
+            var pnlLeft = new Panel { Dock = DockStyle.Fill, Padding = new Padding(0, 0, 14, 0), BackColor = Color.Transparent };
+            var lblItemCaption = new Label
             {
-                Text      = "Item",
-                Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
+                Text = "Item",
+                Font = new Font("Segoe UI", 10f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(98, 112, 135),
-                Dock      = DockStyle.Top, Height = 22,
+                Dock = DockStyle.Top, Height = 24,
                 TextAlign = ContentAlignment.BottomLeft
-            });
-
+            };
             var txtSearch = new TextBox
             {
-                Font            = new Font("Segoe UI", 12f),
-                Dock            = DockStyle.Top,
-                Height          = 34,
-                BorderStyle     = BorderStyle.FixedSingle,
+                Font = new Font("Segoe UI", 12f),
+                Dock = DockStyle.Top, Height = 36,
+                BorderStyle = BorderStyle.FixedSingle,
                 PlaceholderText = "\uD83D\uDD0E  Search by ID or name..."
             };
-
-            // ListBox displays "ItemID  —  ItemName"
             var lstItems = new ListBox
             {
-                Font           = new Font("Segoe UI", 11f),
-                Dock           = DockStyle.Fill,
-                BorderStyle    = BorderStyle.FixedSingle,
+                Font = new Font("Segoe UI", 11f),
+                Dock = DockStyle.Fill,
+                BorderStyle = BorderStyle.FixedSingle,
                 IntegralHeight = false
             };
 
@@ -490,81 +415,85 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 lstItems.Items.Clear();
                 string kw = (keyword ?? "").ToLowerInvariant().Trim();
                 foreach (var pi in productItems)
-                {
                     if (string.IsNullOrEmpty(kw)
                         || pi.ItemID.ToLowerInvariant().Contains(kw)
                         || pi.ItemName.ToLowerInvariant().Contains(kw))
                         lstItems.Items.Add(pi);
-                }
                 lstItems.EndUpdate();
             }
             FilterList("");
-
             txtSearch.TextChanged += (s, ev) => FilterList(txtSearch.Text);
 
-            pnlLeft.Controls.Add(lstItems);
-            pnlLeft.Controls.Add(txtSearch);
+            // Add in reverse dock order: Fill first, then Top items on top
+            pnlLeft.Controls.Add(lstItems);        // Fill
+            pnlLeft.Controls.Add(txtSearch);       // Top (above Fill)
+            pnlLeft.Controls.Add(lblItemCaption);  // Top (topmost)
 
-            // ── Right: Qty + auto price preview
-            var pnlRight = new Panel { Dock = DockStyle.Fill, Padding = new Padding(8, 0, 0, 0), BackColor = Color.Transparent };
-
+            // ── Right: 3 rows — Qty / Unit Price / Subtotal
+            //    Label col: Absolute 140px  →  prevents "HK$ 36,000.00" truncation
+            //    Value col: Percent 100f
+            var pnlRight = new Panel { Dock = DockStyle.Fill, Padding = new Padding(12, 0, 0, 0), BackColor = Color.Transparent };
             var tblRight = new TableLayoutPanel
             {
-                Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 4,
-                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+                Dock = DockStyle.Top,
+                ColumnCount = 2, RowCount = 3,
+                BackColor = Color.Transparent,
+                CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                AutoSize = true
             };
-            tblRight.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40f));
-            tblRight.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 60f));
-            for (int r = 0; r < 4; r++)
-                tblRight.RowStyles.Add(new RowStyle(SizeType.Absolute, 64f));
+            tblRight.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140f));  // label
+            tblRight.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));  // value — fills remaining width
+            tblRight.RowStyles.Add(new RowStyle(SizeType.Absolute, 76f));  // Qty
+            tblRight.RowStyles.Add(new RowStyle(SizeType.Absolute, 76f));  // Unit Price
+            tblRight.RowStyles.Add(new RowStyle(SizeType.Absolute, 76f));  // Subtotal
 
             var numQty = new NumericUpDown
             {
                 Minimum = 1, Maximum = 9999, Value = 1,
-                Font = new Font("Segoe UI", 12f), Dock = DockStyle.Fill
+                Font = new Font("Segoe UI", 13f), Dock = DockStyle.Fill
             };
-            var lblUnitPrice = new Label
+            var lblUnitPriceVal = new Label
             {
-                Text      = "HK$ 0.00",
-                Font      = new Font("Segoe UI", 12f),
+                Text = "HK$ 0.00",
+                Font = new Font("Segoe UI", 13f),
                 ForeColor = Color.FromArgb(15, 31, 53),
-                Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft
+                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft,
+                AutoEllipsis = false
             };
-            var lblSubtotal = new Label
+            var lblSubtotalVal = new Label
             {
-                Text      = "HK$ 0.00",
-                Font      = new Font("Segoe UI", 13f, FontStyle.Bold),
+                Text = "HK$ 0.00",
+                Font = new Font("Segoe UI", 14f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(5, 150, 105),
-                Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft
+                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft,
+                AutoEllipsis = false
             };
 
             Action recompute = () =>
             {
                 var sel = lstItems.SelectedItem as ProductComboItem;
                 if (sel == null)
-                { lblUnitPrice.Text = "HK$ 0.00"; lblSubtotal.Text = "HK$ 0.00"; return; }
-                double price    = sel.UnitPrice;
-                double qty      = (double)numQty.Value;
-                double subtotal = price * qty;
-                lblUnitPrice.Text = $"HK$ {price:N2}";
-                lblSubtotal.Text  = $"HK$ {subtotal:N2}";
+                { lblUnitPriceVal.Text = "HK$ 0.00"; lblSubtotalVal.Text = "HK$ 0.00"; return; }
+                double subtotal = sel.UnitPrice * (double)numQty.Value;
+                lblUnitPriceVal.Text = $"HK$ {sel.UnitPrice:N2}";
+                lblSubtotalVal.Text  = $"HK$ {subtotal:N2}";
             };
-
             lstItems.SelectedIndexChanged += (s, ev) => recompute();
             numQty.ValueChanged           += (s, ev) => recompute();
 
-            tblRight.Controls.Add(MakeFieldLabel("Quantity *"),  0, 0); tblRight.Controls.Add(numQty,       1, 0);
-            tblRight.Controls.Add(MakeFieldLabel("Unit Price"),  0, 1); tblRight.Controls.Add(lblUnitPrice, 1, 1);
-            tblRight.Controls.Add(MakeFieldLabel("Subtotal"),    0, 2); tblRight.Controls.Add(lblSubtotal,  1, 2);
-            // Row 3 intentionally empty — spacer
+            tblRight.Controls.Add(MakeFieldLabel("Quantity *"),  0, 0);
+            tblRight.Controls.Add(numQty,                        1, 0);
+            tblRight.Controls.Add(MakeFieldLabel("Unit Price"),  0, 1);
+            tblRight.Controls.Add(lblUnitPriceVal,               1, 1);
+            tblRight.Controls.Add(MakeFieldLabel("Subtotal"),    0, 2);
+            tblRight.Controls.Add(lblSubtotalVal,                1, 2);
 
             pnlRight.Controls.Add(tblRight);
             tblBody.Controls.Add(pnlLeft,  0, 0);
             tblBody.Controls.Add(pnlRight, 1, 0);
             pnlBody.Controls.Add(tblBody);
 
-            // ── Wire Add button
-            // Duplicate item: increment Quantity by the entered qty instead of showing a warning
+            // ── Add button logic — duplicate → increment qty
             btnAdd.Click += (s, ev) =>
             {
                 var sel = lstItems.SelectedItem as ProductComboItem;
@@ -574,30 +503,17 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                         MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
                 }
-
                 int addQty = (int)numQty.Value;
-
                 var existing = _items.FirstOrDefault(i => i.ItemID == sel.ItemID);
                 if (existing != null)
-                {
-                    // Duplicate — add qty to existing item instead of inserting a new row
                     existing.Quantity += addQty;
-                }
                 else
-                {
                     _items.Add(new QuotationItemEntity
                     {
-                        QuotationID     = _q.QuotationID,
-                        ItemID          = sel.ItemID,
-                        ProductName     = sel.ItemName,
-                        Quantity        = addQty,
-                        Unit            = "",
-                        UnitPrice       = sel.UnitPrice,
-                        DiscountPercent = 0
-                        // Subtotal is a computed property: Quantity * UnitPrice * (1 - DiscountPercent/100)
+                        QuotationID = _q.QuotationID, ItemID = sel.ItemID,
+                        ProductName = sel.ItemName,   Quantity = addQty,
+                        Unit = "",  UnitPrice = sel.UnitPrice,  DiscountPercent = 0
                     });
-                }
-
                 RebuildItemGrid();
                 addDlg.DialogResult = DialogResult.OK;
                 addDlg.Close();
@@ -606,37 +522,27 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             pnlFoot.Controls.Add(btnAdd);
             pnlFoot.Controls.Add(btnCancelAdd);
-
             addDlg.Controls.Add(pnlBody);
             addDlg.Controls.Add(pnlH);
             addDlg.Controls.Add(pnlFoot);
             addDlg.ShowDialog(this);
         }
 
-        // ──────────────────────────────────────────────────────────────────
-        //  Save
-        // ──────────────────────────────────────────────────────────────────
+        // ── Save
         private void BtnSave_Click(object sender, EventArgs e)
         {
             if (_items.Count == 0)
             {
-                MessageBox.Show(
-                    "A quotation must have at least one item.",
+                MessageBox.Show("A quotation must have at least one item.",
                     "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
-
             try
             {
                 bool ok = _ctrl.SaveModifiedQuotation(_q.QuotationID, _items);
-                if (ok)
-                {
-                    this.DialogResult = DialogResult.OK;
-                    this.Close();
-                }
-                else
-                    MessageBox.Show("Failed to save changes. Please try again.",
-                        "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                if (ok) { this.DialogResult = DialogResult.OK; this.Close(); }
+                else MessageBox.Show("Failed to save changes. Please try again.",
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             catch (Exception ex)
             {
@@ -644,16 +550,14 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             }
         }
 
-        // ──────────────────────────────────────────────────────────────────
-        //  Helpers
-        // ──────────────────────────────────────────────────────────────────
+        // ── Helpers
         private static (Color bg, Color fg) GetStatusColor(string status)
             => status switch
             {
                 "Pending"   => (Color.FromArgb(254, 243, 199), Color.FromArgb(146,  64,  14)),
                 "Converted" => (Color.FromArgb(209, 250, 229), Color.FromArgb(  6,  95,  70)),
                 "Rejected"  => (Color.FromArgb(254, 226, 226), Color.FromArgb(153,  27,  27)),
-                _           => (Color.FromArgb(80, 80, 80),    Color.White)
+                _           => (Color.FromArgb(80,   80,  80), Color.White)
             };
 
         private static void AddReadRow(TableLayoutPanel tbl, int row,
@@ -664,34 +568,24 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             tbl.Controls.Add(MakeLabelKey(keyR),        2, row);
             tbl.Controls.Add(MakeLabelVal(valR ?? "—"), 3, row);
         }
-
         private static Label MakeLabelKey(string text) => new Label
         {
-            Text      = text,
-            Font      = new Font("Segoe UI", 11f),
+            Text = text, Font = new Font("Segoe UI", 11f),
             ForeColor = Color.FromArgb(98, 112, 135),
-            Dock      = DockStyle.Fill,
-            TextAlign = ContentAlignment.MiddleLeft,
-            AutoSize  = false
+            Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
         };
         private static Label MakeLabelVal(string text) => new Label
         {
-            Text         = text ?? "—",
-            Font         = new Font("Segoe UI", 12f, FontStyle.Bold),
-            ForeColor    = Color.FromArgb(15, 31, 53),
-            Dock         = DockStyle.Fill,
-            TextAlign    = ContentAlignment.MiddleLeft,
-            AutoEllipsis = true
+            Text = text ?? "—", Font = new Font("Segoe UI", 12f, FontStyle.Bold),
+            ForeColor = Color.FromArgb(15, 31, 53),
+            Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoEllipsis = true
         };
         private static Label MakeFieldLabel(string text) => new Label
         {
-            Text      = text,
-            Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
+            Text = text, Font = new Font("Segoe UI", 10f, FontStyle.Bold),
             ForeColor = Color.FromArgb(98, 112, 135),
-            Dock      = DockStyle.Fill,
-            TextAlign = ContentAlignment.MiddleLeft,
-            AutoSize  = false,
-            Padding   = new Padding(0, 0, 8, 0)
+            Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft,
+            AutoSize = false, Padding = new Padding(0, 0, 8, 0)
         };
         private static void PaintBottomBorder(object sender, PaintEventArgs e)
         {
@@ -705,11 +599,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
             e.Graphics.DrawLine(pen, 0, 0, p.Width, 0);
         }
-
         private void InitializeComponent() { this.SuspendLayout(); this.ResumeLayout(false); }
 
-        // ── Inner helper type
-        // ToString() returns "ItemID  —  ItemName" so ListBox shows both for easy identification
         private class ProductComboItem
         {
             public string ItemName  { get; }

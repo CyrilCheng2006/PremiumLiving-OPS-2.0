@@ -16,6 +16,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
     ///
     /// Columns: ITEM ID | PRODUCT | QTY | UNIT PRICE | SUBTOTAL
     /// (Unit and Discount % omitted — no Unit/Discount column in schema OrderLine)
+    ///
+    /// Status badge: Absolute 260f — same width as ModifyQuotationDialog header badge.
     /// </summary>
     public class QuotationDetailForm : Form
     {
@@ -27,8 +29,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             _q = quotation;
             BuildUI();
         }
-
-        // ── UI Construction ───────────────────────────────────────────────────────
 
         private void BuildUI()
         {
@@ -42,36 +42,26 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             var tblOuter = new TableLayoutPanel
             {
-                Dock        = DockStyle.Fill,
-                RowCount    = 3,
-                ColumnCount = 1,
-                Padding     = new Padding(18, 14, 18, 12),
-                BackColor   = Color.Transparent
+                Dock = DockStyle.Fill, RowCount = 3, ColumnCount = 1,
+                Padding = new Padding(18, 14, 18, 12), BackColor = Color.Transparent
             };
             tblOuter.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
             tblOuter.RowStyles.Add(new RowStyle(SizeType.Absolute, 220f));
-            tblOuter.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-            tblOuter.RowStyles.Add(new RowStyle(SizeType.Absolute, 56f));
+            tblOuter.RowStyles.Add(new RowStyle(SizeType.Percent,  100f));
+            tblOuter.RowStyles.Add(new RowStyle(SizeType.Absolute,  56f));
 
-            // ── Header card
             var headerCards = CardPanel.Create(outerHeight: 220);
             headerCards.Item2.Controls.Add(BuildHeaderPanel());
 
-            // ── Lines card
             var linesCards = CardPanel.CreateFill();
             linesCards.Item2.Controls.Add(BuildLinesGrid());
 
-            // ── Footer close button
             var btnClose = new Button
             {
-                Text      = "Close",
-                Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
-                ForeColor = Palette.TextMain,
-                BackColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Width     = 110,
-                Height    = 40,
-                Cursor    = Cursors.Hand
+                Text = "Close",
+                Font = new Font("Segoe UI", 11f, FontStyle.Bold),
+                ForeColor = Palette.TextMain, BackColor = Color.White,
+                FlatStyle = FlatStyle.Flat, Width = 110, Height = 40, Cursor = Cursors.Hand
             };
             btnClose.FlatAppearance.BorderColor        = Palette.BorderColor;
             btnClose.FlatAppearance.BorderSize         = 1;
@@ -81,9 +71,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             var pnlFooter = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             pnlFooter.Controls.Add(btnClose);
             pnlFooter.Resize += (s, ev) =>
-            {
                 btnClose.Location = new Point(pnlFooter.Width - 122, Math.Max(0, (pnlFooter.Height - 40) / 2));
-            };
 
             tblOuter.Controls.Add(headerCards.Item1, 0, 0);
             tblOuter.Controls.Add(linesCards.Item1,  0, 1);
@@ -95,11 +83,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         {
             var tbl = new TableLayoutPanel
             {
-                Dock        = DockStyle.Fill,
-                RowCount    = 3,
-                ColumnCount = 4,
-                BackColor   = Color.Transparent,
-                Padding     = new Padding(12, 8, 12, 8)
+                Dock = DockStyle.Fill, RowCount = 3, ColumnCount = 4,
+                BackColor = Color.Transparent, Padding = new Padding(12, 8, 12, 8)
             };
             for (int i = 0; i < 4; i++)
                 tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
@@ -107,56 +92,46 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             tbl.RowStyles.Add(new RowStyle(SizeType.Percent, 50f));
             tbl.RowStyles.Add(new RowStyle(SizeType.Percent, 50f));
 
-            // Title row — Quotation ID and status badge
-            // status badge width 260 aligns with ModifyQuotationDialog header badge
+            // Title row — status badge Absolute 260f (same as ModifyQuotationDialog)
             var tblTitle = new TableLayoutPanel
             {
-                Dock            = DockStyle.Fill,
-                ColumnCount     = 2,
-                RowCount        = 1,
-                BackColor       = Color.Transparent,
-                CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+                Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
+                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
-            tblTitle.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+            tblTitle.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
             tblTitle.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 260f));
             tblTitle.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
             tblTitle.Controls.Add(new Label
             {
-                Text      = string.Format("Quotation  {0}", _q.QuotationID),
-                Font      = new Font("Segoe UI", 13f, FontStyle.Bold),
+                Text = string.Format("Quotation  {0}", _q.QuotationID),
+                Font = new Font("Segoe UI", 13f, FontStyle.Bold),
                 ForeColor = Palette.Primary,
-                Dock      = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleLeft
+                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft
             }, 0, 0);
 
             var (scBg, scFg) = GetStatusColor(_q.QuotationStatus);
             tblTitle.Controls.Add(new Label
             {
-                Text      = _q.QuotationStatus ?? "Unknown",
-                Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
-                ForeColor = scFg,
-                BackColor = scBg,
-                Dock      = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleCenter,
-                AutoSize  = false,
-                Padding   = new Padding(8, 4, 8, 4)
+                Text = _q.QuotationStatus ?? "Unknown",
+                Font = new Font("Segoe UI", 11f, FontStyle.Bold),
+                ForeColor = scFg, BackColor = scBg,
+                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter,
+                AutoSize = false, Padding = new Padding(8, 4, 8, 4)
             }, 1, 0);
 
             tbl.Controls.Add(tblTitle, 0, 0);
             tbl.SetColumnSpan(tblTitle, 4);
 
-            // Row 1: Customer | Sales Staff | Issued Date | Expiry Date
-            tbl.Controls.Add(MakeReadField("Customer",    _q.CustomerName),                       0, 1);
-            tbl.Controls.Add(MakeReadField("Sales Staff", _q.SalesStaffName ?? ""),               1, 1);
-            tbl.Controls.Add(MakeReadField("Issued Date", _q.IssuedDate.ToString("yyyy-MM-dd")),  2, 1);
-            tbl.Controls.Add(MakeReadField("Expiry Date", _q.ExpiryDate.ToString("yyyy-MM-dd")),  3, 1);
+            tbl.Controls.Add(MakeReadField("Customer",    _q.CustomerName),                      0, 1);
+            tbl.Controls.Add(MakeReadField("Sales Staff", _q.SalesStaffName ?? ""),              1, 1);
+            tbl.Controls.Add(MakeReadField("Issued Date", _q.IssuedDate.ToString("yyyy-MM-dd")), 2, 1);
+            tbl.Controls.Add(MakeReadField("Expiry Date", _q.ExpiryDate.ToString("yyyy-MM-dd")), 3, 1);
 
-            // Row 2: Total Amount | Deposit Required | Lead Time | Status
-            tbl.Controls.Add(MakeReadField("Total Amount",  string.Format("HK$ {0:N2}", _q.TotalAmount)),    0, 2);
-            tbl.Controls.Add(MakeReadField("Deposit Req.",  string.Format("HK$ {0:N2}", _q.DepositRequired)),1, 2);
-            tbl.Controls.Add(MakeReadField("Lead Time",     _q.LeadTimeEstimated ?? ""),                     2, 2);
-            tbl.Controls.Add(MakeReadField("Status",        _q.QuotationStatus   ?? ""),                     3, 2);
+            tbl.Controls.Add(MakeReadField("Total Amount",  string.Format("HK$ {0:N2}", _q.TotalAmount)),     0, 2);
+            tbl.Controls.Add(MakeReadField("Deposit Req.",  string.Format("HK$ {0:N2}", _q.DepositRequired)), 1, 2);
+            tbl.Controls.Add(MakeReadField("Lead Time",     _q.LeadTimeEstimated ?? ""),                      2, 2);
+            tbl.Controls.Add(MakeReadField("Status",        _q.QuotationStatus   ?? ""),                      3, 2);
 
             return tbl;
         }
@@ -165,23 +140,18 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         {
             var dgv = new DataGridView
             {
-                ReadOnly                  = true,
-                AllowUserToAddRows        = false,
-                AllowUserToDeleteRows     = false,
-                RowHeadersVisible         = false,
-                SelectionMode             = DataGridViewSelectionMode.FullRowSelect,
-                BackgroundColor           = Color.White,
-                BorderStyle               = BorderStyle.None,
-                Dock                      = DockStyle.Fill,
-                Font                      = new Font("Segoe UI", 11f),
-                AutoSizeColumnsMode       = DataGridViewAutoSizeColumnsMode.Fill,
-                ColumnHeadersHeight       = 38,
-                EnableHeadersVisualStyles = false,
+                ReadOnly = true, AllowUserToAddRows = false, AllowUserToDeleteRows = false,
+                RowHeadersVisible = false,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                BackgroundColor = Color.White, BorderStyle = BorderStyle.None,
+                Dock = DockStyle.Fill, Font = new Font("Segoe UI", 11f),
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                ColumnHeadersHeight = 38, EnableHeadersVisualStyles = false,
                 ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
                 {
                     BackColor = Color.FromArgb(246, 249, 255),
-                    ForeColor = Color.FromArgb(98,  112, 135),
-                    Font      = new Font("Segoe UI", 10f, FontStyle.Bold)
+                    ForeColor = Color.FromArgb(98, 112, 135),
+                    Font = new Font("Segoe UI", 10f, FontStyle.Bold)
                 },
                 DefaultCellStyle = new DataGridViewCellStyle
                 {
@@ -190,8 +160,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 },
                 RowTemplate = { Height = 38 }
             };
-
-            // Unit and Discount % omitted — no Unit/Discount column in schema OrderLine
             dgv.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "ITEM ID",    FillWeight = 15 });
             dgv.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "PRODUCT",    FillWeight = 40 });
             dgv.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "QTY",        FillWeight = 10 });
@@ -199,21 +167,12 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             dgv.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "SUBTOTAL",   FillWeight = 17 });
 
             if (_q.Items != null)
-            {
                 foreach (var li in _q.Items)
-                {
                     dgv.Rows.Add(
-                        li.ItemID,
-                        li.ProductName,
-                        li.Quantity,
-                        li.UnitPrice.ToString("N2"),
-                        li.Subtotal.ToString("N2"));
-                }
-            }
+                        li.ItemID, li.ProductName, li.Quantity,
+                        li.UnitPrice.ToString("N2"), li.Subtotal.ToString("N2"));
             return dgv;
         }
-
-        // ── Helpers
 
         private static (Color bg, Color fg) GetStatusColor(string status)
             => status switch
@@ -221,7 +180,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 "Pending"   => (Color.FromArgb(254, 243, 199), Color.FromArgb(146,  64,  14)),
                 "Converted" => (Color.FromArgb(209, 250, 229), Color.FromArgb(  6,  95,  70)),
                 "Rejected"  => (Color.FromArgb(254, 226, 226), Color.FromArgb(153,  27,  27)),
-                _           => (Color.FromArgb(230, 230, 230), Color.FromArgb(80,   80,  80))
+                _           => (Color.FromArgb(230, 230, 230), Color.FromArgb( 80,  80,  80))
             };
 
         private static Panel MakeReadField(string caption, string value)
@@ -229,20 +188,17 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             var pnl = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(0, 0, 8, 0) };
             pnl.Controls.Add(new Label
             {
-                Text      = caption,
-                Font      = new Font("Segoe UI", 9f, FontStyle.Bold),
+                Text = caption,
+                Font = new Font("Segoe UI", 9f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(98, 112, 135),
-                Dock      = DockStyle.Top,
-                Height    = 22,
-                TextAlign = ContentAlignment.BottomLeft
+                Dock = DockStyle.Top, Height = 22, TextAlign = ContentAlignment.BottomLeft
             });
             pnl.Controls.Add(new Label
             {
-                Text      = value,
-                Font      = new Font("Segoe UI", 11f),
+                Text = value,
+                Font = new Font("Segoe UI", 11f),
                 ForeColor = Palette.TextMain,
-                Dock      = DockStyle.Fill,
-                TextAlign = ContentAlignment.TopLeft
+                Dock = DockStyle.Fill, TextAlign = ContentAlignment.TopLeft
             });
             return pnl;
         }
