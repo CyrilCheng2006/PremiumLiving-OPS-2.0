@@ -26,9 +26,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
     ///   – pnlTotalRow    Bottom 50 — live-computed Total Amount
     ///   – pnlFooter      Bottom 80 — [✔ Save Changes] (210×60)  [Cancel] (210×60)
     ///
-    /// Add Item dialog: Item search textbox + filtered ListBox, Qty, Unit Price (auto), Subtotal (auto)
+    /// Add Item dialog: 1200×600. Item search textbox + filtered ListBox, Qty, Unit Price (auto), Subtotal (auto)
     ///   Discount field removed — no discount column in schema.
-    ///   ComboBox displays "ItemID  —  ItemName" for clear identification.
+    ///   ListBox displays "ItemID  —  ItemName" for clear identification.
+    ///   Duplicate item: Quantity is incremented by the entered qty instead of showing a warning.
     ///
     /// Size: 2500 × 1200, StartPosition CenterParent.
     /// </summary>
@@ -70,7 +71,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             this.MaximizeBox     = false;
             this.MinimizeBox     = false;
 
-            // ── Header (dark navy) — status badge width 260 matches AddFromQuotationForm
+            // ── Header (dark navy) — status badge width 260px
             var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 80, BackColor = Color.FromArgb(19, 35, 61) };
             var tblHeader = new TableLayoutPanel
             {
@@ -366,10 +367,11 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         }
 
         // ──────────────────────────────────────────────────────────────────
-        //  Add Item — inline mini-dialog with Search
+        //  Add Item — inline mini-dialog with Search  (1200 × 600)
         //  - Search TextBox filters the item ListBox in real-time
         //  - ListBox shows "ItemID  —  ItemName" for clear identification
         //  - No Discount field (no discount column in schema)
+        //  - Duplicate item: Quantity is incremented by entered qty (no warning)
         // ──────────────────────────────────────────────────────────────────
         private void BtnAddItem_Click(object sender, EventArgs e)
         {
@@ -379,7 +381,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             using var addDlg = new Form
             {
                 Text            = "Add Quotation Item",
-                Size            = new Size(860, 520),
+                Size            = new Size(1200, 600),   // ← updated from 860×520
                 StartPosition   = FormStartPosition.CenterParent,
                 FormBorderStyle = FormBorderStyle.FixedDialog,
                 BackColor       = Color.White,
@@ -472,13 +474,12 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             // ListBox displays "ItemID  —  ItemName"
             var lstItems = new ListBox
             {
-                Font          = new Font("Segoe UI", 11f),
-                Dock          = DockStyle.Fill,
-                BorderStyle   = BorderStyle.FixedSingle,
+                Font           = new Font("Segoe UI", 11f),
+                Dock           = DockStyle.Fill,
+                BorderStyle    = BorderStyle.FixedSingle,
                 IntegralHeight = false
             };
 
-            // Populate helper list
             var productItems = availableItems
                 .Select(p => new ProductComboItem(p.ItemName, p.ItemID, p.SalesPrice))
                 .ToList();
@@ -501,10 +502,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             txtSearch.TextChanged += (s, ev) => FilterList(txtSearch.Text);
 
-            // Stack: label (already added), search box, then list
             pnlLeft.Controls.Add(lstItems);
             pnlLeft.Controls.Add(txtSearch);
-            // Controls added in reverse dock order so label is at top
 
             // ── Right: Qty + auto price preview
             var pnlRight = new Panel { Dock = DockStyle.Fill, Padding = new Padding(8, 0, 0, 0), BackColor = Color.Transparent };
@@ -565,6 +564,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlBody.Controls.Add(tblBody);
 
             // ── Wire Add button
+            // Duplicate item: increment Quantity by the entered qty instead of showing a warning
             btnAdd.Click += (s, ev) =>
             {
                 var sel = lstItems.SelectedItem as ProductComboItem;
@@ -575,25 +575,28 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     return;
                 }
 
-                // Prevent duplicate
-                if (_items.Any(i => i.ItemID == sel.ItemID))
-                {
-                    MessageBox.Show("This item is already in the quotation.", "Duplicate",
-                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
+                int addQty = (int)numQty.Value;
 
-                _items.Add(new QuotationItemEntity
+                var existing = _items.FirstOrDefault(i => i.ItemID == sel.ItemID);
+                if (existing != null)
                 {
-                    QuotationID     = _q.QuotationID,
-                    ItemID          = sel.ItemID,
-                    ProductName     = sel.ItemName,
-                    Quantity        = (int)numQty.Value,
-                    Unit            = "",
-                    UnitPrice       = sel.UnitPrice,
-                    DiscountPercent = 0
-                    // Subtotal is a computed property: Quantity * UnitPrice * (1 - DiscountPercent/100)
-                });
+                    // Duplicate — add qty to existing item instead of inserting a new row
+                    existing.Quantity += addQty;
+                }
+                else
+                {
+                    _items.Add(new QuotationItemEntity
+                    {
+                        QuotationID     = _q.QuotationID,
+                        ItemID          = sel.ItemID,
+                        ProductName     = sel.ItemName,
+                        Quantity        = addQty,
+                        Unit            = "",
+                        UnitPrice       = sel.UnitPrice,
+                        DiscountPercent = 0
+                        // Subtotal is a computed property: Quantity * UnitPrice * (1 - DiscountPercent/100)
+                    });
+                }
 
                 RebuildItemGrid();
                 addDlg.DialogResult = DialogResult.OK;
