@@ -14,8 +14,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
     ///   SplitContainer (Dock=Fill, Orientation=Vertical, IsSplitterFixed=true)
     ///     Panel1 (left)  — title Label, Dock=Fill, Font 13f Bold, white
     ///     Panel2 (right) — status badge Label, Dock=Fill, Font 14f Bold
-    ///   SplitterDistance=700 → Panel2 width ≈ 184px at 900px form width.
-    ///   Panel2MinSize=160 ensures badge is never crushed on resize.
+    ///   SplitterDistance=580 → Panel2 ≈ 304px at 900px form width.
+    ///   Panel2MinSize=220 prevents 'Converted' from being clipped on resize.
     /// </summary>
     public class QuotationDetailForm : Form
     {
@@ -51,11 +51,11 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Dock             = DockStyle.Fill,
                 Orientation      = Orientation.Vertical,
                 IsSplitterFixed  = true,
-                SplitterDistance = 700,
+                SplitterDistance = 580,
                 SplitterWidth    = 1,
                 BackColor        = Color.Transparent,
                 Panel1MinSize    = 100,
-                Panel2MinSize    = 160
+                Panel2MinSize    = 220
             };
             split.Panel1.BackColor = Color.Transparent;
             split.Panel2.BackColor = Color.Transparent;
@@ -82,7 +82,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 TextAlign    = ContentAlignment.MiddleCenter,
                 AutoSize     = false,
                 AutoEllipsis = false,
-                Padding      = new Padding(12, 0, 12, 0)
+                Padding      = new Padding(16, 0, 16, 0)
             });
 
             pnlHeader.Controls.Add(split);
