@@ -28,7 +28,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
     /// Add Item dialog: 1350×600.
     ///   Left 55%: search textbox + filtered ListBox (ItemID — ItemName).
     ///   Right 45%: Qty (NumericUpDown), Unit Price (auto), Subtotal (auto).
-    ///   Right panel: Absolute 140px label col + Percent 100 value col.
+    ///   Right panel: Absolute 160px label col + Percent 100 value col.
     ///   Duplicate item: Quantity is incremented by the entered qty.
     ///
     /// Size: 2500 × 1200, StartPosition CenterParent.
@@ -300,7 +300,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         //  Add Item dialog  1350 × 600
         //  Left 55%: Search TextBox + ListBox ("ItemID — ItemName")
         //  Right 45%: Qty / Unit Price / Subtotal
-        //    label col Absolute 140px; value col Percent 100f; row height 76f
+        //    label col Absolute 160px; value col Percent 100f; row height 76f
+        //    tblRight: Dock=Fill (no AutoSize) to fill right panel width
         // ──────────────────────────────────────────────────────────────────
         private void BtnAddItem_Click(object sender, EventArgs e)
         {
@@ -310,7 +311,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             using var addDlg = new Form
             {
                 Text            = "Add Quotation Item",
-                Size            = new Size(1350, 600),   // ← 1350×600
+                Size            = new Size(1350, 600),
                 StartPosition   = FormStartPosition.CenterParent,
                 FormBorderStyle = FormBorderStyle.FixedDialog,
                 BackColor       = Color.White,
@@ -375,12 +376,15 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             // Left: caption + search + listbox
             var pnlLeft = new Panel { Dock = DockStyle.Fill, Padding = new Padding(0, 0, 14, 0), BackColor = Color.Transparent };
+            // Fix 1: Height 24→28, AutoEllipsis=false — prevents bottom character clip
             var lblItemCaption = new Label
             {
                 Text = "Item",
                 Font = new Font("Segoe UI", 10f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(98, 112, 135),
-                Dock = DockStyle.Top, Height = 24, TextAlign = ContentAlignment.BottomLeft
+                Dock = DockStyle.Top, Height = 28,
+                TextAlign = ContentAlignment.BottomLeft,
+                AutoEllipsis = false
             };
             var txtSearch = new TextBox
             {
@@ -417,15 +421,16 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlLeft.Controls.Add(txtSearch);
             pnlLeft.Controls.Add(lblItemCaption);
 
-            // Right: 3 rows — label Absolute 140px / value Percent 100f / row height 76f
+            // Right: 3 rows — label Absolute 160px / value Percent 100f / row height 76f
+            // Fix 2: Dock=Fill (removed AutoSize=true), label col 140→160px
             var pnlRight = new Panel { Dock = DockStyle.Fill, Padding = new Padding(12, 0, 0, 0), BackColor = Color.Transparent };
             var tblRight = new TableLayoutPanel
             {
-                Dock = DockStyle.Top, ColumnCount = 2, RowCount = 3,
-                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                AutoSize = true
+                Dock = DockStyle.Fill,        // was AutoSize=true — caused narrow width & label wrapping
+                ColumnCount = 2, RowCount = 3,
+                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
-            tblRight.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140f));
+            tblRight.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 160f));  // was 140f
             tblRight.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
             tblRight.RowStyles.Add(new RowStyle(SizeType.Absolute, 76f));
             tblRight.RowStyles.Add(new RowStyle(SizeType.Absolute, 76f));
