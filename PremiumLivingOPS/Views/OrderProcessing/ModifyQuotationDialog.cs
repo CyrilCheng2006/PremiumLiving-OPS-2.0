@@ -28,7 +28,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
     /// Add Item dialog: 1350×600.
     ///   Left 55%: search textbox + filtered ListBox (ItemID — ItemName).
     ///   Right 45%: Qty (NumericUpDown), Unit Price (auto), Subtotal (auto).
-    ///   Right panel: Absolute 160px label col + Percent 100 value col.
+    ///   Right panel: Absolute 170px label col + Percent 100 value col.
+    ///   lblItemCaption.Height = 40.
     ///   Duplicate item: Quantity is incremented by the entered qty.
     ///
     /// Size: 2500 × 1200, StartPosition CenterParent.
@@ -300,7 +301,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         //  Add Item dialog  1350 × 600
         //  Left 55%: Search TextBox + ListBox ("ItemID — ItemName")
         //  Right 45%: Qty / Unit Price / Subtotal
-        //    label col Absolute 160px; value col Percent 100f; row height 76f
+        //    label col Absolute 170px; value col Percent 100f; row height 76f
+        //    lblItemCaption.Height = 40
         //    tblRight: Dock=Fill (no AutoSize) to fill right panel width
         // ──────────────────────────────────────────────────────────────────
         private void BtnAddItem_Click(object sender, EventArgs e)
@@ -376,26 +378,30 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             // Left: caption + search + listbox
             var pnlLeft = new Panel { Dock = DockStyle.Fill, Padding = new Padding(0, 0, 14, 0), BackColor = Color.Transparent };
-            // Fix 1: Height 24→28, AutoEllipsis=false — prevents bottom character clip
             var lblItemCaption = new Label
             {
-                Text = "Item",
-                Font = new Font("Segoe UI", 10f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(98, 112, 135),
-                Dock = DockStyle.Top, Height = 28,
-                TextAlign = ContentAlignment.BottomLeft,
+                Text         = "Item",
+                Font         = new Font("Segoe UI", 10f, FontStyle.Bold),
+                ForeColor    = Color.FromArgb(98, 112, 135),
+                Dock         = DockStyle.Top,
+                Height       = 40,              // was 28
+                TextAlign    = ContentAlignment.BottomLeft,
                 AutoEllipsis = false
             };
             var txtSearch = new TextBox
             {
-                Font = new Font("Segoe UI", 12f), Dock = DockStyle.Top, Height = 36,
-                BorderStyle = BorderStyle.FixedSingle,
+                Font            = new Font("Segoe UI", 12f),
+                Dock            = DockStyle.Top,
+                Height          = 36,
+                BorderStyle     = BorderStyle.FixedSingle,
                 PlaceholderText = "\uD83D\uDD0E  Search by ID or name..."
             };
             var lstItems = new ListBox
             {
-                Font = new Font("Segoe UI", 11f), Dock = DockStyle.Fill,
-                BorderStyle = BorderStyle.FixedSingle, IntegralHeight = false
+                Font         = new Font("Segoe UI", 11f),
+                Dock         = DockStyle.Fill,
+                BorderStyle  = BorderStyle.FixedSingle,
+                IntegralHeight = false
             };
 
             var productItems = availableItems
@@ -421,16 +427,17 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlLeft.Controls.Add(txtSearch);
             pnlLeft.Controls.Add(lblItemCaption);
 
-            // Right: 3 rows — label Absolute 160px / value Percent 100f / row height 76f
-            // Fix 2: Dock=Fill (removed AutoSize=true), label col 140→160px
+            // Right: 3 rows — label Absolute 170px / value Percent 100f / row height 76f
             var pnlRight = new Panel { Dock = DockStyle.Fill, Padding = new Padding(12, 0, 0, 0), BackColor = Color.Transparent };
             var tblRight = new TableLayoutPanel
             {
-                Dock = DockStyle.Fill,        // was AutoSize=true — caused narrow width & label wrapping
-                ColumnCount = 2, RowCount = 3,
-                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+                Dock            = DockStyle.Fill,   // no AutoSize — fills parent width
+                ColumnCount     = 2,
+                RowCount        = 3,
+                BackColor       = Color.Transparent,
+                CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
-            tblRight.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 160f));  // was 140f
+            tblRight.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 170f));  // was 160f
             tblRight.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
             tblRight.RowStyles.Add(new RowStyle(SizeType.Absolute, 76f));
             tblRight.RowStyles.Add(new RowStyle(SizeType.Absolute, 76f));
@@ -443,16 +450,20 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             };
             var lblUnitPriceVal = new Label
             {
-                Text = "HK$ 0.00", Font = new Font("Segoe UI", 13f),
-                ForeColor = Color.FromArgb(15, 31, 53),
-                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft,
+                Text         = "HK$ 0.00",
+                Font         = new Font("Segoe UI", 13f),
+                ForeColor    = Color.FromArgb(15, 31, 53),
+                Dock         = DockStyle.Fill,
+                TextAlign    = ContentAlignment.MiddleLeft,
                 AutoEllipsis = false
             };
             var lblSubtotalVal = new Label
             {
-                Text = "HK$ 0.00", Font = new Font("Segoe UI", 14f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(5, 150, 105),
-                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft,
+                Text         = "HK$ 0.00",
+                Font         = new Font("Segoe UI", 14f, FontStyle.Bold),
+                ForeColor    = Color.FromArgb(5, 150, 105),
+                Dock         = DockStyle.Fill,
+                TextAlign    = ContentAlignment.MiddleLeft,
                 AutoEllipsis = false
             };
 
@@ -489,7 +500,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                         MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
                 }
-                int addQty  = (int)numQty.Value;
+                int addQty   = (int)numQty.Value;
                 var existing = _items.FirstOrDefault(i => i.ItemID == sel.ItemID);
                 if (existing != null)
                     existing.Quantity += addQty;
