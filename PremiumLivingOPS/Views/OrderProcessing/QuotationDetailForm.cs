@@ -18,8 +18,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
     ///
     /// Header: pnlHeader (dark navy, Height 80) + TableLayoutPanel 2-col
     ///   Col 0 — SizeType.Percent 100f  : title label, Font 13f Bold, white, Dock=Fill
-    ///   Col 1 — SizeType.Absolute 220f : status badge, Font 14f Bold, MiddleCenter
-    ///     220f = ~160px text ("Converted" @ 14f Bold) + 16px padding each side + margin
+    ///   Col 1 — SizeType.Absolute 290f : status badge, Font 14f Bold, MiddleCenter
+    ///     290f = ~160px text ("Converted" @ 14f Bold) + 16px padding each side + margin
     ///     Badge Label: Dock=Fill, AutoEllipsis=false — matches ModifyQuotationDialog.
     /// </summary>
     public class QuotationDetailForm : Form
@@ -61,8 +61,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             };
             // Col 0: title text — takes all remaining width
             tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-            // Col 1: status badge — fixed 220px; wide enough for "Converted" @ Font 14f Bold
-            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 220f));
+            // Col 1: status badge — fixed 290px; wide enough for "Converted" @ Font 14f Bold
+            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 290f));
             tblHeader.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
             tblHeader.Controls.Add(new Label
