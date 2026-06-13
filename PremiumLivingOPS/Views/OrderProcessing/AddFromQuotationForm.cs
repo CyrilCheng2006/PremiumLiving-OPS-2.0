@@ -10,7 +10,7 @@ using System.Windows.Forms;
 namespace PremiumLivingOPS.Views.OrderProcessing
 {
     /// <summary>
-    /// Add From Quotation — inline-rendered dialog.
+    /// Modify Order From Quotation — inline-rendered dialog.
     ///
     /// MVC contract
     /// ─────────────────────────────────────────────────────────────────────
@@ -18,13 +18,13 @@ namespace PremiumLivingOPS.Views.OrderProcessing
     /// • Visually mirrors the ShowDetailDialog language from QuotationForm:
     ///     – pnlHeader      Top  80   — dark navy, Quotation ID + status badge
     ///     – pnlQuoteInfo   Top  220  — read-only 4-col: Quotation fields (pre-filled)
-    ///     – pnlOrderTitle  Top  44   — blue title bar  "New Order Details"
+    ///     – pnlOrderTitle  Top  44   — blue title bar  "Modify Order Details"
     ///     – pnlOrderFields Top  300  — editable: Contact, Delivery Date,
     ///                                  Address selector, Shipping Addr, Billing Addr
     ///     – pnlLineLabel   Top  40   — "QUOTATION ITEMS" bar
     ///     – dgv            Fill      — Quotation items (read-only preview)
     ///     – pnlTotalRow    Bottom 50 — Total Amount
-    ///     – pnlFooter      Bottom 80 — [✔ Create Order] [Cancel]
+    ///     – pnlFooter      Bottom 80 — [✔ Save Changes] [Cancel]
     /// • On Confirm: calls _ctrl.SaveNewOrder(), exposes CreatedOrderID.
     /// • Size: 2500 × 1200, StartPosition CenterParent.
     /// </summary>
@@ -61,7 +61,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         private void BuildDialog()
         {
             // ── Form
-            this.Text            = $"Add Order From Quotation  —  {_q.QuotationID}";
+            this.Text            = $"Modify Order From Quotation  —  {_q.QuotationID}";
             this.Size            = new Size(2500, 1200);
             this.StartPosition   = FormStartPosition.CenterParent;
             this.BackColor       = Color.White;
@@ -88,7 +88,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             tblHeader.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
             tblHeader.Controls.Add(new Label
             {
-                Text      = $"Add Order From Quotation  —  {_q.QuotationID}",
+                Text      = $"Modify Order From Quotation  —  {_q.QuotationID}",
                 Font      = new Font("Segoe UI", 18f, FontStyle.Bold),
                 ForeColor = Color.White, Dock = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
@@ -130,7 +130,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             AddReadRow(tblQ, 2, "Lead Time:",        _q.LeadTimeEstimated ?? "—",         "Expiry Date:",       _q.ExpiryDate.ToString("yyyy-MM-dd"));
             pnlQuoteInfo.Controls.Add(tblQ);
 
-            // ── New Order title bar
+            // ── Modify Order title bar
             var pnlOrderTitle = new Panel
             {
                 Dock = DockStyle.Top, Height = 44,
@@ -140,7 +140,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlOrderTitle.Paint += PaintBottomBorder;
             pnlOrderTitle.Controls.Add(new Label
             {
-                Text      = "\uD83D\uDCCB  New Order Details  —  Fill in the required fields",
+                Text      = "\uD83D\uDCCB  Modify Order Details  —  Update the required fields",
                 Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(29, 78, 216),
                 Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
@@ -334,7 +334,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 AutoSize  = false
             });
 
-            // ── Footer  [✔ Create Order]  [Cancel]
+            // ── Footer  [✔ Save Changes]  [Cancel]
             var pnlFooter = new Panel
             {
                 Dock = DockStyle.Bottom, Height = 80,
@@ -342,9 +342,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             };
             pnlFooter.Paint += PaintTopBorder;
 
-            var btnCreate = new Button
+            var btnSave = new Button
             {
-                Text      = "\u2714  Create Order",
+                Text      = "\u2714  Save Changes",
                 Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
                 ForeColor = Color.White,
                 BackColor = Color.FromArgb(5, 150, 105),
@@ -353,8 +353,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Width     = 210,
                 Cursor    = Cursors.Hand
             };
-            btnCreate.FlatAppearance.BorderSize = 0;
-            btnCreate.FlatAppearance.MouseOverBackColor = Color.FromArgb(4, 120, 87);
+            btnSave.FlatAppearance.BorderSize = 0;
+            btnSave.FlatAppearance.MouseOverBackColor = Color.FromArgb(4, 120, 87);
 
             var btnCancel = new Button
             {
@@ -371,11 +371,11 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             btnCancel.FlatAppearance.BorderSize         = 1;
             btnCancel.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
 
-            btnCreate.Click += BtnCreate_Click;
+            btnSave.Click += BtnSave_Click;
             btnCancel.Click += (o, ev) => { this.DialogResult = DialogResult.Cancel; this.Close(); };
 
             // Add Cancel first (Dock.Right stacks right-to-left)
-            pnlFooter.Controls.Add(btnCreate);
+            pnlFooter.Controls.Add(btnSave);
             pnlFooter.Controls.Add(btnCancel);
 
             // ── Assemble (Bottom → Fill → Top)
@@ -390,9 +390,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         }
 
         // ──────────────────────────────────────────────────────────────────
-        //  Create Order handler
+        //  Save Changes handler
         // ──────────────────────────────────────────────────────────────────
-        private void BtnCreate_Click(object sender, EventArgs e)
+        private void BtnSave_Click(object sender, EventArgs e)
         {
             // Validation
             if (string.IsNullOrWhiteSpace(txtContactName.Text))
@@ -448,7 +448,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     this.Close();
                 }
                 else
-                    MessageBox.Show("Failed to create order. Please verify the details.",
+                    MessageBox.Show("Failed to save changes. Please verify the details.",
                         "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             catch (Exception ex)
