@@ -704,7 +704,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             using var dlg = new Form
             {
                 Text            = $"Shipment — {s.ShipmentID}",
-                Size            = new Size(2500, 1300),
+                Size            = new Size(1700, 1000),
                 StartPosition   = FormStartPosition.CenterParent,
                 BackColor       = Color.White,
                 Font            = new Font("Segoe UI", 13f),
