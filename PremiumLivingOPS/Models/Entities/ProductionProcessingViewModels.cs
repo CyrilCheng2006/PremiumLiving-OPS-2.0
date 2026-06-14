@@ -46,14 +46,42 @@ namespace PremiumLivingOPS.Models.Entities
     }
 
     /// <summary>
+    /// Full detail projection for the Material Request Detail dialog.
+    /// Combines MaterialRequest + RawMaterial + Item + WarehouseItem + Warehouse
+    /// + LEFT JOIN PurchaseOrder (if any).
+    /// </summary>
+    public class MaterialRequestDetailEntity
+    {
+        // Core request fields
+        public string   RequestID         { get; set; }
+        public string   OrderID           { get; set; }
+        public string   RawMaterialItemID { get; set; }
+        public string   RawMaterialName   { get; set; }
+        public string   MaterialType      { get; set; }
+        public string   WarehouseItemID   { get; set; }
+        public string   WarehouseID       { get; set; }
+        public string   WarehouseLocation { get; set; }
+        public int      RequestedQty      { get; set; }
+        public string   UrgencyLevel      { get; set; }
+        public string   TriggerType       { get; set; }
+        public int      CurrentStock      { get; set; }
+        public int      ReorderLevel      { get; set; }
+
+        // Linked Purchase Order (null if none)
+        public string   PurchaseID        { get; set; }
+        public string   PurchaseStatus    { get; set; }
+        public decimal? POTotalAmount     { get; set; }
+    }
+
+    /// <summary>
     /// Lookup for Raw Material dropdown in Create Raw Material Request.
     /// Maps to RawMaterial JOIN Item.
     /// </summary>
     public class RawMaterialLookup
     {
-        public string ItemID       { get; set; }
-        public string ItemName     { get; set; }
-        public string MaterialType { get; set; }
+        public string  ItemID        { get; set; }
+        public string  ItemName      { get; set; }
+        public string  MaterialType  { get; set; }
         public decimal PurchasePrice { get; set; }
         public override string ToString() =>
             $"{ItemID}  —  {ItemName}  ({MaterialType})";
@@ -99,20 +127,20 @@ namespace PremiumLivingOPS.Models.ViewModels
     /// <summary>ViewModel for Search Raw Material Request page.</summary>
     public class SearchMaterialRequestViewModel
     {
-        public UserBarViewModel              UserBar      { get; set; }
-        public string[]                      AllowedMenus { get; set; }
-        public System.Collections.Generic.List<MaterialRequestEntity> Requests { get; set; }
+        public UserBarViewModel                                        UserBar      { get; set; }
+        public string[]                                                AllowedMenus { get; set; }
+        public System.Collections.Generic.List<MaterialRequestEntity> Requests     { get; set; }
     }
 
     /// <summary>ViewModel for Create Raw Material Request page.</summary>
     public class CreateMaterialRequestViewModel
     {
-        public UserBarViewModel                         UserBar       { get; set; }
-        public string[]                                 AllowedMenus  { get; set; }
-        public System.Collections.Generic.List<RawMaterialLookup>    RawMaterials  { get; set; }
-        public System.Collections.Generic.List<WarehouseItemLookup>  WarehouseItems{ get; set; }
-        public System.Collections.Generic.List<OrderLookup>          Orders        { get; set; }
+        public UserBarViewModel                                        UserBar        { get; set; }
+        public string[]                                                AllowedMenus   { get; set; }
+        public System.Collections.Generic.List<RawMaterialLookup>     RawMaterials   { get; set; }
+        public System.Collections.Generic.List<WarehouseItemLookup>   WarehouseItems { get; set; }
+        public System.Collections.Generic.List<OrderLookup>           Orders         { get; set; }
         /// <summary>Auto-generated next RequestID (e.g. MRQ-20260604-0025).</summary>
-        public string                                   NextRequestID { get; set; }
+        public string                                                  NextRequestID  { get; set; }
     }
 }
