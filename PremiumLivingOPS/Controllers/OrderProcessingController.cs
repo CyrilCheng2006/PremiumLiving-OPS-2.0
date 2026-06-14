@@ -15,14 +15,14 @@ namespace PremiumLivingOPS.Controllers
     {
         private readonly OrderProcessingRepo _repo = new OrderProcessingRepo();
 
-        // ── In-memory Quotation item store ──────────────────────────────────────────────────────────────────────
+        // ── In-memory Quotation item store ──────────────────────────────────────────────────────────────────────────────────────────────────────
         // Schema has no QuotationItem table. Items entered during Create/Modify are kept
         // in this dictionary so Detail can display them within the same session.
         // Key = QuotationID, Value = list of items at time of last save.
         private static readonly Dictionary<string, List<QuotationItemEntity>> _quotationItemCache
             = new Dictionary<string, List<QuotationItemEntity>>(StringComparer.OrdinalIgnoreCase);
 
-        // ── View Order ─────────────────────────────────────────────────────────────────────────────────────────
+        // ── View Order ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
         public ViewOrderViewModel GetViewOrderVM(
             string    status   = null,
@@ -55,7 +55,7 @@ namespace PremiumLivingOPS.Controllers
         public List<OrderLineEntity> GetOrderLines(string orderId)
             => _repo.GetOrderLines(orderId);
 
-        // ── Quotation ──────────────────────────────────────────────────────────────────────────────────
+        // ── Quotation ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
         public QuotationViewModel GetQuotationListVM(
             string status  = null,
@@ -90,10 +90,16 @@ namespace PremiumLivingOPS.Controllers
         /// <summary>
         /// Returns a single Quotation for detail view, with Items populated.
         ///
-        /// Schema (Database/schema.sql) has no QuotationItem table.
-        /// Items are served from _quotationItemCache — populated when the user
-        /// creates or modifies a quotation in the same session.
-        /// If the quotation was created in a previous session, Items will be empty.
+        /// Priority:
+        ///   1. _quotationItemCache — populated in the current session by
+        ///      SaveNewQuotation / SaveModifiedQuotation. Always up-to-date for
+        ///      quotations the user just created or edited.
+        ///   2. DB fallback via GetOrderLinesByQuotationId() — synthesises items
+        ///      from OrderLine rows linked through Order.QuotationID FK.
+        ///      Covers quotations that were converted to orders in a previous
+        ///      session. Result is warmed into cache to avoid repeat DB calls.
+        ///   3. Empty list — for Pending/Rejected quotations that have never had
+        ///      an Order created from them and were loaded from a prior session.
         /// </summary>
         public QuotationEntity GetQuotationDetail(string quotationId)
         {
@@ -102,11 +108,27 @@ namespace PremiumLivingOPS.Controllers
             var q = _repo.GetQuotationById(quotationId);
             if (q == null) return null;
 
-            // Serve from in-memory cache first (populated by SaveNewQuotation / SaveModifiedQuotation).
             if (_quotationItemCache.TryGetValue(quotationId, out var cached))
+            {
+                // Session cache hit — most current data.
                 q.Items = new List<QuotationItemEntity>(cached);
+            }
             else
-                q.Items = new List<QuotationItemEntity>();
+            {
+                // Cache miss: attempt DB fallback via OrderLine → Order.QuotationID.
+                var fromDb = _repo.GetOrderLinesByQuotationId(quotationId);
+                if (fromDb != null && fromDb.Count > 0)
+                {
+                    // Warm cache so subsequent Detail opens are served in-memory.
+                    _quotationItemCache[quotationId] = new List<QuotationItemEntity>(fromDb);
+                    q.Items = new List<QuotationItemEntity>(fromDb);
+                }
+                else
+                {
+                    // Quotation is Pending/Rejected with no linked Order — no items available.
+                    q.Items = new List<QuotationItemEntity>();
+                }
+            }
 
             return q;
         }
@@ -114,7 +136,7 @@ namespace PremiumLivingOPS.Controllers
         public bool UpdateQuotationStatus(string quotationId, string newStatus)
             => _repo.UpdateQuotationStatus(quotationId, newStatus);
 
-        // ── Modify Quotation ───────────────────────────────────────────────────────────────────────────
+        // ── Modify Quotation ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
         /// <summary>
         /// Returns true when the given Quotation has already been linked to at least
@@ -154,7 +176,7 @@ namespace PremiumLivingOPS.Controllers
         public List<ProductLookup> GetAvailableItemsForQuotation(string customerId)
             => _repo.GetAllProducts();
 
-        // ── Create New Quotation ───────────────────────────────────────────────────────────────────────────────
+        // ── Create New Quotation ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
         public CreateQuotationViewModel GetCreateQuotationVM()
         {
@@ -207,7 +229,7 @@ namespace PremiumLivingOPS.Controllers
             return ok;
         }
 
-        // ── Create Order ─────────────────────────────────────────────────────────────────────────────────────────
+        // ── Create Order ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
         public CreateOrderViewModel GetCreateOrderVM()
         {
@@ -265,7 +287,7 @@ namespace PremiumLivingOPS.Controllers
             return true;
         }
 
-        // ── Modify Order ─────────────────────────────────────────────────────────────────────────────────────────────
+        // ── Modify Order ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
         public ModifyOrderViewModel GetModifyOrderVM(string orderId = null)
         {
