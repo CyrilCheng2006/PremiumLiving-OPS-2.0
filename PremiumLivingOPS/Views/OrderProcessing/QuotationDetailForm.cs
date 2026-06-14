@@ -11,18 +11,14 @@ namespace PremiumLivingOPS.Views.OrderProcessing
     /// MVC View — receives a populated QuotationEntity and renders read-only.
     ///
     /// Header layout (pnlHeader, Height=80, dark navy):
-    ///   SplitContainer (Dock=Fill, Orientation=Vertical, IsSplitterFixed=true)
-    ///     Panel1 (left)  — title Label, Dock=Fill, Font 13f Bold, white
-    ///     Panel2 (right) — status badge Label, Dock=Fill, Font 12f Bold
-    ///
-    ///   IMPORTANT: SplitterDistance is set inside this.Load (not constructor) so
-    ///   the form handle is guaranteed to exist, preventing WinForms from silently
-    ///   discarding the value during pre-handle layout.
+    ///   TableLayoutPanel (Dock=Fill, 2 columns, Padding 24 0 24 0)
+    ///     Col 0 — Percent 100f  : title Label
+    ///     Col 1 — Absolute 260f : status badge Label
+    ///   (mirrors ModifyQuotationDialog header exactly)
     /// </summary>
     public class QuotationDetailForm : Form
     {
         private readonly QuotationEntity _q;
-        private SplitContainer _headerSplit;
 
         public QuotationDetailForm(QuotationEntity quotation)
         {
@@ -41,53 +37,47 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             this.Font            = new Font("Segoe UI", 12f);
             this.FormBorderStyle = FormBorderStyle.Sizable;
 
-            // ── Header
+            // ── Header  (mirrors ModifyQuotationDialog pnlHeader exactly)
             var pnlHeader = new Panel
             {
                 Dock      = DockStyle.Top,
                 Height    = 80,
                 BackColor = Color.FromArgb(19, 35, 61)
             };
-
-            _headerSplit = new SplitContainer
+            var tblHeader = new TableLayoutPanel
             {
                 Dock            = DockStyle.Fill,
-                Orientation     = Orientation.Vertical,
-                IsSplitterFixed = true,
-                SplitterWidth   = 1,
+                ColumnCount     = 2,
+                RowCount        = 1,
                 BackColor       = Color.Transparent,
-                Panel1MinSize   = 100,
-                Panel2MinSize   = 220
+                CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                Padding         = new Padding(24, 0, 24, 0)
             };
-            _headerSplit.Panel1.BackColor = Color.Transparent;
-            _headerSplit.Panel2.BackColor = Color.Transparent;
-
-            _headerSplit.Panel1.Controls.Add(new Label
+            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
+            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 260f));
+            tblHeader.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+            tblHeader.Controls.Add(new Label
             {
                 Text      = string.Format("Quotation Detail  \u2014  {0}", _q.QuotationID),
-                Font      = new Font("Segoe UI", 13f, FontStyle.Bold),
+                Font      = new Font("Segoe UI", 18f, FontStyle.Bold),
                 ForeColor = Color.White,
                 Dock      = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft,
-                AutoSize  = false,
-                Padding   = new Padding(24, 0, 8, 0)
-            });
-
+                AutoSize  = false
+            }, 0, 0);
             var (scBg, scFg) = GetStatusColor(_q.QuotationStatus);
-            _headerSplit.Panel2.Controls.Add(new Label
+            tblHeader.Controls.Add(new Label
             {
-                Text         = _q.QuotationStatus ?? "Unknown",
-                Font         = new Font("Segoe UI", 12f, FontStyle.Bold),
-                ForeColor    = scFg,
-                BackColor    = scBg,
-                Dock         = DockStyle.Fill,
-                TextAlign    = ContentAlignment.MiddleCenter,
-                AutoSize     = false,
-                AutoEllipsis = false,
-                Padding      = new Padding(16, 0, 16, 0)
-            });
-
-            pnlHeader.Controls.Add(_headerSplit);
+                Text      = _q.QuotationStatus ?? "Unknown",
+                Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
+                ForeColor = scFg,
+                BackColor = scBg,
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleCenter,
+                AutoSize  = false,
+                Padding   = new Padding(8, 4, 8, 4)
+            }, 1, 0);
+            pnlHeader.Controls.Add(tblHeader);
 
             // ── Body
             var tblOuter = new TableLayoutPanel
@@ -136,14 +126,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             this.Controls.Add(tblOuter);
             this.Controls.Add(pnlHeader);
-
-            // Set SplitterDistance AFTER handle is created to prevent silent discard
-            this.Load += (s, ev) =>
-            {
-                _headerSplit.SplitterDistance = Math.Max(
-                    _headerSplit.Panel1MinSize,
-                    _headerSplit.Width - 300 - _headerSplit.SplitterWidth);
-            };
         }
 
         private TableLayoutPanel BuildHeaderPanel()
@@ -217,41 +199,39 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             return dgv;
         }
 
-        private static (Color bg, Color fg) GetStatusColor(string status)
-            => status switch
-            {
-                "Pending"   => (Color.FromArgb(254, 243, 199), Color.FromArgb(146,  64,  14)),
-                "Converted" => (Color.FromArgb(209, 250, 229), Color.FromArgb(  6,  95,  70)),
-                "Rejected"  => (Color.FromArgb(254, 226, 226), Color.FromArgb(153,  27,  27)),
-                _           => (Color.FromArgb(230, 230, 230), Color.FromArgb( 80,  80,  80))
-            };
-
-        private static Panel MakeReadField(string caption, string value)
+        private static Panel MakeReadField(string label, string value)
         {
-            var pnl = new Panel
-            {
-                Dock      = DockStyle.Fill,
-                BackColor = Color.Transparent,
-                Padding   = new Padding(0, 0, 8, 0)
-            };
+            var pnl = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(4) };
             pnl.Controls.Add(new Label
             {
-                Text      = caption,
-                Font      = new Font("Segoe UI", 9f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(98, 112, 135),
+                Text      = label,
+                Font      = new Font("Segoe UI", 9f),
+                ForeColor = Palette.TextMuted,
                 Dock      = DockStyle.Top,
-                Height    = 22,
-                TextAlign = ContentAlignment.BottomLeft
+                AutoSize  = false,
+                Height    = 20
             });
             pnl.Controls.Add(new Label
             {
                 Text      = value,
-                Font      = new Font("Segoe UI", 11f),
+                Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
                 ForeColor = Palette.TextMain,
                 Dock      = DockStyle.Fill,
-                TextAlign = ContentAlignment.TopLeft
+                AutoSize  = false,
+                TextAlign = ContentAlignment.MiddleLeft
             });
             return pnl;
         }
+
+        private static (Color bg, Color fg) GetStatusColor(string status)
+            => status switch
+            {
+                "Pending"   => (Color.FromArgb(254, 243, 199), Color.FromArgb(146,  64,  14)),
+                "Approved"  => (Color.FromArgb(209, 250, 229), Color.FromArgb( 6,  95,  70)),
+                "Rejected"  => (Color.FromArgb(254, 226, 226), Color.FromArgb(153,  27,  27)),
+                "Expired"   => (Color.FromArgb(243, 244, 246), Color.FromArgb( 75,  85,  99)),
+                "Converted" => (Color.FromArgb(219, 234, 254), Color.FromArgb( 30,  64, 175)),
+                _           => (Color.FromArgb(243, 244, 246), Color.FromArgb( 55,  65,  81))
+            };
     }
 }
