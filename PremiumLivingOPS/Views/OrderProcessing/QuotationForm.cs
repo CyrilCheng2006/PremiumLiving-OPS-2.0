@@ -328,15 +328,16 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 MinimizeBox     = false
             };
 
+            // ── Header (aligned to ModifyQuotationDialog)
             var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 80, BackColor = Color.FromArgb(19, 35, 61) };
             var tblHeader = new TableLayoutPanel
             {
                 Dock            = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
                 BackColor       = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                Padding         = new Padding(24, 0, 24, 0)
+                Padding         = new Padding(24, 0, 0, 0)   // right=0: prevents Absolute col being clipped
             };
             tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
-            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 220f));
+            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 260f));  // Badge width = 260f
             tblHeader.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
             tblHeader.Controls.Add(new Label
             {
@@ -348,12 +349,14 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             StatusColors.TryGetValue(q.QuotationStatus ?? "", out var sc);
             tblHeader.Controls.Add(new Label
             {
-                Text      = q.QuotationStatus ?? "Unknown",
-                Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
-                ForeColor = sc.fg != default ? sc.fg : Color.White,
-                BackColor = sc.bg != default ? sc.bg : Color.FromArgb(80, 80, 80),
-                Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter,
-                AutoSize  = false, Padding = new Padding(8, 4, 8, 4)
+                Text         = q.QuotationStatus ?? "Unknown",
+                Font         = new Font("Segoe UI", 10f, FontStyle.Bold),
+                ForeColor    = sc.fg != default ? sc.fg : Color.White,
+                BackColor    = sc.bg != default ? sc.bg : Color.FromArgb(80, 80, 80),
+                Dock         = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter,
+                AutoSize     = false,
+                AutoEllipsis = false,
+                Padding      = new Padding(8, 4, 8, 4)
             }, 1, 0);
             pnlHeader.Controls.Add(tblHeader);
 
