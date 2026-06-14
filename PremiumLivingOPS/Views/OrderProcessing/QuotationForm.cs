@@ -40,41 +40,35 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         }
 
         /// <summary>
-        /// Injects [+ Create] to the left of btnViewDetail inside pnlActionArea.
+        /// Injects [New 210×60] to the left of btnViewDetail inside pnlActionArea.
         ///
-        /// pnlActionArea uses absolute Location+Size layout (Dock=Right on its parent).
-        /// All buttons are repositioned by a local CentreAll() closure that mirrors
-        /// the Designer's CentreActions() logic but now covers five controls.
-        ///
-        /// Layout (left → right, all same ItemH=60):
-        ///   [+ Create 140] [View Detail 210] [Modify 210] [Status CB 210] [Update Status 210]
+        /// Layout (left → right, all ItemH=60):
+        ///   [New 210] [View Detail 210] [Modify 210] [Status CB 210] [Update Status 210]
         ///   gaps = 8px between each
         /// </summary>
         private void InjectCreateButton()
         {
-            // pnlActionArea is btnViewDetail.Parent (a Panel with Dock=Right)
             var pnlActionArea = btnViewDetail.Parent as Panel;
             if (pnlActionArea == null) return;
 
-            const int CreateW = 140;
-            const int ItemW   = 210;
-            const int ItemH   =  60;
-            const int Gap     =   8;
-            const int Pad     =  12;
+            const int ItemW = 210;
+            const int ItemH =  60;
+            const int Gap   =   8;
+            const int Pad   =  12;
 
-            // Widen pnlActionArea to accommodate the new button
-            pnlActionArea.Width += CreateW + Gap;
+            // Widen to accommodate the new button (same width as other buttons)
+            pnlActionArea.Width += ItemW + Gap;
 
             _btnCreate = new Button
             {
-                Text      = "+ Create",
+                Text      = "New",
                 Name      = "btnCreateQuotation",
                 Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
                 ForeColor = Color.White,
                 BackColor = Color.FromArgb(6, 95, 70),
                 FlatStyle = FlatStyle.Flat,
                 Cursor    = Cursors.Hand,
-                Size      = new Size(CreateW, ItemH)
+                Size      = new Size(ItemW, ItemH)   // explicit 210×60
             };
             _btnCreate.FlatAppearance.BorderSize         = 0;
             _btnCreate.FlatAppearance.MouseOverBackColor = Color.FromArgb(4, 78, 57);
@@ -82,7 +76,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             _btnCreate.Click += BtnCreateQuotation_Click;
             pnlActionArea.Controls.Add(_btnCreate);
 
-            // Repositions all five controls whenever pnlActionArea is resized
             void CentreAll()
             {
                 int top = (pnlActionArea.Height - ItemH) / 2;
@@ -91,8 +84,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 int x = Pad;
 
                 _btnCreate.Location  = new Point(x, top);
-                _btnCreate.Size      = new Size(CreateW, ItemH);
-                x += CreateW + Gap;
+                _btnCreate.Size      = new Size(ItemW, ItemH);
+                x += ItemW + Gap;
 
                 btnViewDetail.Location = new Point(x, top);
                 btnViewDetail.Size     = new Size(ItemW, ItemH);
@@ -110,11 +103,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 btnUpdateStatus.Size     = new Size(ItemW, ItemH);
             }
 
-            // Replace the old Resize handler by subscribing a new one
-            // (old anonymous lambda is unreachable but harmless — new one runs last)
             pnlActionArea.Resize += (s, e) => CentreAll();
-
-            // Run immediately so layout is correct on first paint
             CentreAll();
         }
 
@@ -256,7 +245,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         private void UpdateActionButtons()
         {
             bool sel = dgvQuotations.SelectedRows.Count > 0;
-            // _btnCreate is always enabled (no row selection needed)
             btnViewDetail.Enabled   = sel;
             btnAddFrom.Enabled      = sel;
             btnUpdateStatus.Enabled = sel;

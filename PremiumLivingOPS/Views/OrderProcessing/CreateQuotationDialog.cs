@@ -18,7 +18,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
     ///   – pnlLineLabel   Top  50   — "QUOTATION ITEMS" bar + [＋ Add Item] button
     ///   – dgvItems       Fill      — ITEM ID | PRODUCT | QTY | UNIT PRICE | SUBTOTAL | DELETE
     ///   – pnlTotalRow    Bottom 50 — live Total Amount
-    ///   – pnlFooter      Bottom 80 — [✔ New 210×60]  [Cancel 210×60]
+    ///   – pnlFooter      Bottom 80 — [✔ Create 210×60]  [Cancel 210×60]
     ///
     /// Customer field: Label showing picked value + [Pick…] button
     ///   → opens SearchPickerDialog ("CustomerID  –  CustomerName"), same as CreateOrderForm.
@@ -248,39 +248,39 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             };
             pnlTotalRow.Controls.Add(_lblTotal);
 
-            // ── Footer  [✔ New 210×60]  [Cancel 210×60]
+            // ── Footer  [✔ Create 210×60]  [Cancel 210×60]
             var pnlFooter = new Panel
             {
                 Dock = DockStyle.Bottom, Height = 80,
                 BackColor = Color.White, Padding = new Padding(0, 10, 28, 10)
             };
             pnlFooter.Paint += PaintTopBorder;
-            var btnNew = new Button
+            var btnCreate = new Button
             {
-                Text      = "\u2714  New",
+                Text      = "\u2714  Create",
                 Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
                 ForeColor = Color.White, BackColor = Color.FromArgb(5, 150, 105),
                 FlatStyle = FlatStyle.Flat,
-                Size      = new Size(210, 60),   // explicit 210×60
+                Size      = new Size(210, 60),
                 Dock      = DockStyle.Right, Cursor = Cursors.Hand
             };
-            btnNew.FlatAppearance.BorderSize = 0;
-            btnNew.FlatAppearance.MouseOverBackColor = Color.FromArgb(4, 120, 87);
+            btnCreate.FlatAppearance.BorderSize = 0;
+            btnCreate.FlatAppearance.MouseOverBackColor = Color.FromArgb(4, 120, 87);
             var btnCancel = new Button
             {
                 Text      = "Cancel",
                 Font      = new Font("Segoe UI", 12f),
                 ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Size      = new Size(210, 60),   // explicit 210×60
+                Size      = new Size(210, 60),
                 Dock      = DockStyle.Right, Cursor = Cursors.Hand
             };
             btnCancel.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
             btnCancel.FlatAppearance.BorderSize         = 1;
             btnCancel.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
-            btnNew.Click    += BtnNew_Click;
+            btnCreate.Click += BtnCreate_Click;
             btnCancel.Click += (o, ev) => { DialogResult = DialogResult.Cancel; Close(); };
-            pnlFooter.Controls.Add(btnNew);
+            pnlFooter.Controls.Add(btnCreate);
             pnlFooter.Controls.Add(btnCancel);
 
             // ── Assemble
@@ -292,9 +292,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             Controls.Add(pnlFooter);
         }
 
-        // ──────────────────────────────────────────────────────────────────
+        // ──────────────────────────────────────────────────────────────────────
         //  Customer picker cell  (Label + [Pick…] button in a TableLayoutPanel)
-        // ──────────────────────────────────────────────────────────────────
+        // ──────────────────────────────────────────────────────────────────────
         private Control BuildCustomerPickerCell()
         {
             var tbl = new TableLayoutPanel
@@ -318,7 +318,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             var btnPick = new Button
             {
-                Text      = "Pick…",
+                Text      = "Pick\u2026",
                 Font      = new Font("Segoe UI", 11f),
                 ForeColor = Color.FromArgb(15, 31, 53),
                 BackColor = Color.White,
@@ -356,9 +356,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             _lblCustomerPicked.ForeColor = Color.FromArgb(15, 31, 53);
         }
 
-        // ──────────────────────────────────────────────────────────────────
+        // ──────────────────────────────────────────────────────────────────────
         //  Grid helpers
-        // ──────────────────────────────────────────────────────────────────
+        // ──────────────────────────────────────────────────────────────────────
         private void RebuildGrid()
         {
             _dgvItems.Rows.Clear();
@@ -411,9 +411,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             e.Handled = true;
         }
 
-        // ──────────────────────────────────────────────────────────────────
+        // ──────────────────────────────────────────────────────────────────────
         //  Add Item dialog (mirrors ModifyQuotationDialog.BtnAddItem_Click)
-        // ──────────────────────────────────────────────────────────────────
+        // ──────────────────────────────────────────────────────────────────────
         private void BtnAddItem_Click(object sender, EventArgs e)
         {
             var availableItems = _ctrl.GetAvailableItemsForQuotation(_selectedCustomerId)
@@ -483,7 +483,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Text = "Item", Font = new Font("Segoe UI", 10f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(98, 112, 135),
                 Dock = DockStyle.Top, Height = 40,
-                TextAlign = ContentAlignment.BottomLeft, AutoEllipsis = false
+                TextAlign = ContentAlignment.BottomLeft
             };
             var txtSearch = new TextBox
             {
@@ -530,8 +530,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             tblRight.RowStyles.Add(new RowStyle(SizeType.Absolute, 76f));
 
             var numQty = new NumericUpDown { Minimum = 1, Maximum = 9999, Value = 1, Font = new Font("Segoe UI", 13f), Dock = DockStyle.Fill };
-            var lblUnitPriceVal = new Label { Text = "HK$ 0.00", Font = new Font("Segoe UI", 13f), ForeColor = Color.FromArgb(15, 31, 53), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoEllipsis = false };
-            var lblSubtotalVal  = new Label { Text = "HK$ 0.00", Font = new Font("Segoe UI", 14f, FontStyle.Bold), ForeColor = Color.FromArgb(5, 150, 105), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoEllipsis = false };
+            var lblUnitPriceVal = new Label { Text = "HK$ 0.00", Font = new Font("Segoe UI", 13f), ForeColor = Color.FromArgb(15, 31, 53), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft };
+            var lblSubtotalVal  = new Label { Text = "HK$ 0.00", Font = new Font("Segoe UI", 14f, FontStyle.Bold), ForeColor = Color.FromArgb(5, 150, 105), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft };
 
             Action recompute = () =>
             {
@@ -579,10 +579,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             addDlg.ShowDialog(this);
         }
 
-        // ──────────────────────────────────────────────────────────────────
+        // ──────────────────────────────────────────────────────────────────────
         //  Save
-        // ──────────────────────────────────────────────────────────────────
-        private void BtnNew_Click(object sender, EventArgs e)
+        // ──────────────────────────────────────────────────────────────────────
+        private void BtnCreate_Click(object sender, EventArgs e)
         {
             if (string.IsNullOrEmpty(_selectedCustomerId))
             {
@@ -632,9 +632,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             }
         }
 
-        // ──────────────────────────────────────────────────────────────────
+        // ──────────────────────────────────────────────────────────────────────
         //  Paint / Label helpers
-        // ──────────────────────────────────────────────────────────────────
+        // ──────────────────────────────────────────────────────────────────────
         private static void PaintBottomBorder(object sender, PaintEventArgs e)
         {
             var p = (Panel)sender;
@@ -669,9 +669,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
         private void InitializeComponent() { SuspendLayout(); ResumeLayout(false); }
 
-        // ──────────────────────────────────────────────────────────────────
+        // ──────────────────────────────────────────────────────────────────────
         //  Inner class — Add Item sub-dialog
-        // ──────────────────────────────────────────────────────────────────
+        // ──────────────────────────────────────────────────────────────────────
         private class ProductComboItem
         {
             public string ItemName  { get; }
@@ -679,7 +679,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             public double UnitPrice { get; }
             public ProductComboItem(string name, string id, double price)
             { ItemName = name; ItemID = id; UnitPrice = price; }
-            public override string ToString() => $"{ItemID}  \u2014  {ItemName}";
+            public override string ToString() => $"{ItemID}  —  {ItemName}";
         }
     }
 }
