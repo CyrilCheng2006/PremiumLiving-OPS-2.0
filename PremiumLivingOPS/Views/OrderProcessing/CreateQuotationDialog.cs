@@ -13,15 +13,15 @@ namespace PremiumLivingOPS.Views.OrderProcessing
     /// Create New Quotation — popup dialog (MVC View layer).
     ///
     /// Layout (mirrors ModifyQuotationDialog):
-    ///   – pnlHeader      Top  80   — dark navy, title + "Pending" badge (260px)
+    ///   – pnlHeader      Top  80   — dark navy, title + “Pending” badge (260px)
     ///   – pnlQuoteInfo   Top  220  — 4-col header fields
-    ///   – pnlLineLabel   Top  50   — "QUOTATION ITEMS" bar + [＋ Add Item] button
+    ///   – pnlLineLabel   Top  50   — “QUOTATION ITEMS” bar + [＋ Add Item] button
     ///   – dgvItems       Fill      — ITEM ID | PRODUCT | QTY | UNIT PRICE | SUBTOTAL | DELETE
     ///   – pnlTotalRow    Bottom 50 — live Total Amount
     ///   – pnlFooter      Bottom 80 — [✔ Create 210×60]  [Cancel 210×60]
     ///
     /// Customer field: Label showing picked value + [Pick…] button
-    ///   → opens SearchPickerDialog ("CustomerID  –  CustomerName"), same as CreateOrderForm.
+    ///   → opens SearchPickerDialog (“CustomerID  –  CustomerName”), same as CreateOrderForm.
     /// </summary>
     public class CreateQuotationDialog : Form
     {
@@ -125,8 +125,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             tblQ.Controls.Add(MakeLabelVal(_salesStaffName ?? "—"), 3, 0);
 
             // Row 1: Customer (picker) | Expiry Date
-            tblQ.Controls.Add(MakeLabelKey("Customer *:"), 0, 1);
-            tblQ.Controls.Add(BuildCustomerPickerCell(),   1, 1);
+            tblQ.Controls.Add(MakeLabelKey("Customer *:"),    0, 1);
+            tblQ.Controls.Add(BuildCustomerPickerCell(),       1, 1);
             tblQ.Controls.Add(MakeLabelKey("Expiry Date *:"), 2, 1);
             _dtpExpiry = new DateTimePicker
             {
@@ -137,7 +137,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             };
             tblQ.Controls.Add(_dtpExpiry, 3, 1);
 
-            // Row 2: Deposit Required | Lead Time
+            // Row 2: Deposit Required (optional, nullable) | Lead Time
             tblQ.Controls.Add(MakeLabelKey("Deposit Required:"), 0, 2);
             _nudDeposit = new NumericUpDown
             {
@@ -190,6 +190,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlLineLabel.Controls.Add(tblLineBar);
 
             // ── Items DataGridView
+            // Columns: ITEM ID | PRODUCT | QTY | UNIT PRICE | SUBTOTAL | DELETE
+            // Unit and Discount omitted — no backing in schema.sql.
             _dgvItems = new DataGridView
             {
                 AllowUserToAddRows = false, AllowUserToDeleteRows = false,
@@ -219,7 +221,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 }
             };
             _dgvItems.Columns.Add(new DataGridViewTextBoxColumn { Name = "cItemID",    HeaderText = "ITEM ID",    FillWeight = 18, ReadOnly = true });
-            _dgvItems.Columns.Add(new DataGridViewTextBoxColumn { Name = "cProduct",   HeaderText = "PRODUCT",    FillWeight = 32, ReadOnly = true });
+            _dgvItems.Columns.Add(new DataGridViewTextBoxColumn { Name = "cProduct",   HeaderText = "PRODUCT",    FillWeight = 36, ReadOnly = true });
             _dgvItems.Columns.Add(new DataGridViewTextBoxColumn { Name = "cQty",       HeaderText = "QTY",        FillWeight = 10, ReadOnly = true });
             _dgvItems.Columns.Add(new DataGridViewTextBoxColumn { Name = "cUnitPrice", HeaderText = "UNIT PRICE", FillWeight = 18, ReadOnly = true });
             _dgvItems.Columns.Add(new DataGridViewTextBoxColumn { Name = "cSubtotal",  HeaderText = "SUBTOTAL",   FillWeight = 18, ReadOnly = true });
@@ -555,16 +557,30 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             btnAdd.Click += (s, ev) =>
             {
                 var sel = lstItems.SelectedItem as ProductComboItem;
-                if (sel == null) { MessageBox.Show("Please select an item from the list.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+                if (sel == null)
+                {
+                    MessageBox.Show("Please select an item from the list.", "Validation",
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
                 int addQty   = (int)numQty.Value;
                 var existing = _items.FirstOrDefault(i => i.ItemID == sel.ItemID);
-                if (existing != null) existing.Quantity += addQty;
-                else _items.Add(new QuotationItemEntity
+                if (existing != null)
                 {
-                    QuotationID = _quotationId, ItemID = sel.ItemID,
-                    ProductName = sel.ItemName, Quantity = addQty,
-                    Unit = "", UnitPrice = sel.UnitPrice, DiscountPercent = 0
-                });
+                    existing.Quantity += addQty;
+                }
+                else
+                {
+                    // Unit and DiscountPercent removed — no backing columns in schema.sql.
+                    _items.Add(new QuotationItemEntity
+                    {
+                        QuotationID = _quotationId,
+                        ItemID      = sel.ItemID,
+                        ProductName = sel.ItemName,
+                        Quantity    = addQty,
+                        UnitPrice   = sel.UnitPrice
+                    });
+                }
                 RebuildGrid();
                 addDlg.DialogResult = DialogResult.OK;
                 addDlg.Close();
@@ -598,6 +614,11 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             }
 
             double total = _items.Sum(i => i.Subtotal);
+
+            // DepositRequired is double? (nullable) — schema DEFAULT NULL.
+            // If the user left it at 0, store null (no deposit required).
+            double? deposit = _nudDeposit.Value > 0 ? (double?)_nudDeposit.Value : null;
+
             var quotation = new QuotationEntity
             {
                 QuotationID       = _quotationId,
@@ -605,7 +626,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 CustomerName      = _selectedCustomerName,
                 ExpiryDate        = _dtpExpiry.Value.Date,
                 TotalAmount       = total,
-                DepositRequired   = (double)_nudDeposit.Value,
+                DepositRequired   = deposit,
                 LeadTimeEstimated = _txtLeadTime.Text.Trim(),
                 TermsandCondition = string.Empty,
                 QuotationStatus   = "Pending"
