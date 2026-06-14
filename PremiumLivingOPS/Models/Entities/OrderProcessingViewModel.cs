@@ -2,7 +2,7 @@ using System.Collections.Generic;
 
 namespace PremiumLivingOPS.Models.Entities
 {
-    // ── Order domain entities (map directly to DB tables) ─────────────────────────────
+    // ── Order domain entities (map directly to DB tables) ──────────────────────────────
 
     public class OrderEntity
     {
@@ -77,15 +77,34 @@ namespace PremiumLivingOPS.Models.Entities
     /// One line item held in the in-memory quotation cache.
     /// There is no QuotationItem table in the schema; items are stored
     /// by the controller in _quotationItemCache after Create / Modify.
+    ///
+    /// Unit and DiscountPercent are in-memory display helpers only.
+    /// They have no corresponding column in schema.sql and are never
+    /// written to the database. They exist solely so that DAL readers
+    /// (OrderProcessingRepo) and View forms (CreateNewQuotationForm,
+    /// ModifyQuotationDialog, AddFromQuotationForm) can map legacy
+    /// columns without compile errors.
     /// </summary>
     public class QuotationItemEntity
     {
-        public string QuotationID  { get; set; }
-        public string ItemID       { get; set; }
-        public string ProductName  { get; set; }
-        public int    Quantity     { get; set; }
-        public double UnitPrice    { get; set; }
-        public double Subtotal     => Quantity * UnitPrice;
+        public string QuotationID      { get; set; }
+        public string ItemID           { get; set; }
+        public string ProductName      { get; set; }
+        public int    Quantity         { get; set; }
+        public double UnitPrice        { get; set; }
+        public double Subtotal         => Quantity * UnitPrice;
+
+        /// <summary>
+        /// In-memory display helper (e.g. "pcs", "set").
+        /// NOT persisted to DB — no column in schema.sql.
+        /// </summary>
+        public string Unit             { get; set; } = string.Empty;
+
+        /// <summary>
+        /// In-memory display helper (0–100).
+        /// NOT persisted to DB — no column in schema.sql.
+        /// </summary>
+        public double DiscountPercent  { get; set; } = 0;
     }
 
     public class ProductLookup
@@ -112,7 +131,7 @@ namespace PremiumLivingOPS.Models.Entities
             + (IsDefault ? "  [\u2605 Default]" : "");
     }
 
-    // ── ViewModels ────────────────────────────────────────────────────────────────────────────────────
+    // ── ViewModels ──────────────────────────────────────────────────────────────────────────────────
 
     public class ViewOrderViewModel
     {
@@ -136,10 +155,10 @@ namespace PremiumLivingOPS.Models.Entities
 
     public class CreateQuotationViewModel
     {
-        public UserBarViewModel     UserBar        { get; set; }
-        public string[]             AllowedMenus   { get; set; }
-        public List<CustomerEntity> Customers      { get; set; }
-        public List<ProductLookup>  Products       { get; set; }
+        public UserBarViewModel     UserBar         { get; set; }
+        public string[]             AllowedMenus    { get; set; }
+        public List<CustomerEntity> Customers       { get; set; }
+        public List<ProductLookup>  Products        { get; set; }
         public string               NextQuotationId { get; set; }
         public string               SalesStaffName  { get; set; }
         public string               SalesStaffId    { get; set; }
