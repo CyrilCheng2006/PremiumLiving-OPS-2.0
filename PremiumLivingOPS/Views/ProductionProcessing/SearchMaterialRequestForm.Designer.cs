@@ -131,19 +131,19 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 Padding   = new Padding(12, 10, 12, 10)
             };
 
-            const int BtnW   = 250;
-            const int BtnH   = 60;
-            const int BtnGap = 8;
-            const int BtnPad = 12;
+            const int BtnW   = 290;   // each button width — aligned with ViewOrderForm
+            const int BtnH   = 60;    // each button height
+            const int BtnGap = 8;     // horizontal gap between the two buttons
+            const int BtnPad = 12;    // left/right outer padding inside pnlActionBtns
 
-            btnViewDetail = MakePrimaryBtn("🔍 View Detail", Point.Empty, BtnW, BtnH);
-            btnCreateNew  = MakeGreenBtn  ("＋ Create New",  Point.Empty, BtnW, BtnH);
+            btnViewDetail = MakePrimaryBtn("🔍  View Details", Point.Empty, BtnW, BtnH);
+            btnCreateNew  = MakeGreenBtn  ("＋  Create New",   Point.Empty, BtnW, BtnH);
             btnViewDetail.Enabled = false;
 
             var pnlActionBtns = new Panel
             {
                 Dock      = DockStyle.Right,
-                Width     = BtnPad + BtnW + BtnGap + BtnW + BtnPad,
+                Width     = BtnPad + BtnW + BtnGap + BtnW + BtnPad,  // 12+290+8+290+12 = 612
                 BackColor = Color.Transparent
             };
             void CentreActionBtns()
@@ -209,14 +209,15 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
 
             dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colRequestID",  HeaderText = "REQUEST ID",      FillWeight = 16 });
             dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colMaterial",   HeaderText = "RAW MATERIAL",    FillWeight = 22 });
-            dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colType",       HeaderText = "TYPE",            FillWeight =  9 });
-            dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colReqQty",     HeaderText = "REQ QTY",         FillWeight =  7 });
-            dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colUrgency",    HeaderText = "URGENCY",         FillWeight = 10 });
-            dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTrigger",    HeaderText = "TRIGGER",         FillWeight = 12 });
-            dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colOrderID",    HeaderText = "LINKED ORDER",    FillWeight = 16 });
-            dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colWarehouse",  HeaderText = "WAREHOUSE",       FillWeight = 18 });
-            dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStock",      HeaderText = "CURRENT STOCK",   FillWeight =  9 });
-            dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLinkedPO",   HeaderText = "LINKED TO PO",    FillWeight =  9 });
+            dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colItemID",     HeaderText = "ITEM ID",         FillWeight = 14 });
+            dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colQty",        HeaderText = "QTY REQUESTED",   FillWeight = 14 });
+            dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colUrgency",    HeaderText = "URGENCY",         FillWeight = 12 });
+            dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTrigger",    HeaderText = "TRIGGER",         FillWeight = 14 });
+            dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",     HeaderText = "STATUS",          FillWeight = 10 });
+            dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCreatedDate",HeaderText = "CREATED DATE",    FillWeight = 14 });
+
+            dgvRequests.SelectionChanged += (s, _) => UpdateActionButtons();
+            dgvRequests.CellDoubleClick  += (s, ce) => { if (ce.RowIndex >= 0) OpenDetailDialog(); };
 
             var pnlGridCard = new Panel
             {
@@ -238,24 +239,17 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
 
             this.Controls.Add(pnlMain);
             this.ResumeLayout(false);
-            this.PerformLayout();
-            _shell.Height      = AppShell.TotalHeight;             // RULE 3
-            _shell.MinimumSize = new System.Drawing.Size(0, AppShell.TotalHeight); // RULE 3
         }
 
-        // ── Title panel helper
         private static Panel BuildTitlePanel(string title, bool isSectionTitle)
         {
             var pnl = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             pnl.Controls.Add(new Label
             {
                 Text      = title,
-                Font      = isSectionTitle
-                                ? new Font("Segoe UI", 13f, FontStyle.Bold)
-                                : new Font("Segoe UI", 14f, FontStyle.Bold),
-                ForeColor = isSectionTitle
-                                ? Color.FromArgb(47, 111, 237)
-                                : Color.FromArgb(15, 31, 53),
+                Font      = isSectionTitle ? new Font("Segoe UI", 15f, FontStyle.Bold)
+                                           : new Font("Segoe UI", 13f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(15, 31, 53),
                 Dock      = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft
             });
@@ -266,7 +260,6 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             return pnl;
         }
 
-        // ── Labelled-cell helper
         private static TableLayoutPanel MakeCell(string caption, Control ctrl, bool rightPad)
         {
             var tlp = new TableLayoutPanel
@@ -274,28 +267,27 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 Dock            = DockStyle.Fill, RowCount = 2, ColumnCount = 1,
                 BackColor       = Color.Transparent,
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                Padding         = rightPad ? new Padding(0, 0, 12, 0) : Padding.Empty
+                Padding         = rightPad ? new Padding(0, 0, 14, 0) : new Padding(0)
             };
-            tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-            tlp.RowStyles.Add(new RowStyle(SizeType.Absolute,  34f));
-            tlp.RowStyles.Add(new RowStyle(SizeType.Percent,  100f));
+            tlp.RowStyles.Add(new RowStyle(SizeType.Absolute, 28f));
+            tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
             tlp.Controls.Add(new Label
             {
-                Text = caption, Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+                Text      = caption,
                 ForeColor = Color.FromArgb(98, 112, 135), Dock = DockStyle.Fill,
-                TextAlign = ContentAlignment.BottomLeft, Padding = new Padding(0, 0, 0, 2)
+                Font      = new Font("Segoe UI", 11f), TextAlign = ContentAlignment.BottomLeft
             }, 0, 0);
             ctrl.Dock = DockStyle.Fill;
             tlp.Controls.Add(ctrl, 0, 1);
             return tlp;
         }
 
-        // ── Button factories
-        private static Button MakePrimaryBtn(string text, Point loc, int w, int h)
+        // ── Button factories — aligned with ViewOrderForm standard
+        private Button MakePrimaryBtn(string text, Point loc, int w, int h)
         {
             var b = new Button
             {
-                Text = text, Font = new Font("Segoe UI", 11f),
+                Text = text, Font = new Font("Segoe UI", 12f, FontStyle.Bold),
                 ForeColor = Color.White, BackColor = Color.FromArgb(47, 111, 237),
                 FlatStyle = FlatStyle.Flat, Location = loc, Size = new Size(w, h), Cursor = Cursors.Hand
             };
@@ -304,11 +296,11 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             b.FlatAppearance.MouseDownBackColor = Color.FromArgb(21, 60, 155);
             return b;
         }
-        private static Button MakeGreenBtn(string text, Point loc, int w, int h)
+        private Button MakeGreenBtn(string text, Point loc, int w, int h)
         {
             var b = new Button
             {
-                Text = text, Font = new Font("Segoe UI", 11f),
+                Text = text, Font = new Font("Segoe UI", 12f, FontStyle.Bold),
                 ForeColor = Color.White, BackColor = Color.FromArgb(22, 163, 74),
                 FlatStyle = FlatStyle.Flat, Location = loc, Size = new Size(w, h), Cursor = Cursors.Hand
             };
@@ -317,12 +309,12 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             b.FlatAppearance.MouseDownBackColor = Color.FromArgb(10, 100, 40);
             return b;
         }
-        private static Button MakeOutlineBtn(string text, Point loc, int w, int h)
+        private Button MakeOutlineBtn(string text, Point loc, int w, int h)
         {
             var b = new Button
             {
-                Text = text, Font = new Font("Segoe UI", 11f),
-                ForeColor = Color.FromArgb(98, 112, 135), BackColor = Color.White,
+                Text = text, Font = new Font("Segoe UI", 12f),
+                ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White,
                 FlatStyle = FlatStyle.Flat, Location = loc, Size = new Size(w, h), Cursor = Cursors.Hand
             };
             b.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
