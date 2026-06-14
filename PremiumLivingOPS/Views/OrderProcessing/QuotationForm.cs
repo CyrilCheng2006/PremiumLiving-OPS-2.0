@@ -19,6 +19,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
     ///   • Contains NO business logic and NO direct DB calls.
     ///   • Layout uses CardPanel 三層巢層卡片結構 (參考 ViewOrderForm).
     ///
+    /// KPI Bar action buttons (left → right):
+    ///   [+ Create]  [View Details]  [Modify]  [Status ▼]  [Update Status]
+    ///
     /// Modify Quotation rules:
     ///   • A Quotation that is already linked to an Order (QuotationStatus == "Converted"
     ///     or controller reports IsLinkedToOrder == true) is NOT editable — the Modify
@@ -56,7 +59,49 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         {
             _shell.MenuItemClicked += OnTopNavMenuItemClicked;
             _shell.LogoutClicked   += btnLogout_Click;
+            InjectCreateButton();
             RefreshGrid();
+        }
+
+        /// <summary>
+        /// Injects the [+ Create] button into the KPI action bar (pnlKpiActions)
+        /// immediately to the left of btnViewDetail.
+        /// Called once in QuotationForm_Load after Designer controls are ready.
+        /// </summary>
+        private void InjectCreateButton()
+        {
+            var btnCreate = new Button
+            {
+                Text      = "+ Create",
+                Name      = "btnCreateQuotation",
+                Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
+                ForeColor = Color.White,
+                BackColor = Color.FromArgb(6, 95, 70),
+                FlatStyle = FlatStyle.Flat,
+                Height    = btnViewDetail.Height,
+                Width     = 140,
+                Cursor    = Cursors.Hand
+            };
+            btnCreate.FlatAppearance.BorderSize        = 0;
+            btnCreate.FlatAppearance.MouseOverBackColor = Color.FromArgb(4, 78, 57);
+            btnCreate.Click += BtnCreateQuotation_Click;
+
+            // Insert at the same parent as btnViewDetail, immediately before it
+            var parent = btnViewDetail.Parent;
+            if (parent is FlowLayoutPanel flow)
+            {
+                int idx = flow.Controls.GetChildIndex(btnViewDetail);
+                flow.Controls.Add(btnCreate);
+                flow.Controls.SetChildIndex(btnCreate, idx);
+            }
+            else
+            {
+                // Fallback: add to parent with matching location offset
+                btnCreate.Location = new Point(
+                    btnViewDetail.Left - btnCreate.Width - 8,
+                    btnViewDetail.Top);
+                parent.Controls.Add(btnCreate);
+            }
         }
 
         // ── Core refresh
@@ -240,6 +285,16 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         private void btnViewDetail_Click(object sender, EventArgs e) => OpenDetailDialog();
 
         // ──────────────────────────────────────────────────────────────────
+        //  CREATE NEW QUOTATION
+        // ──────────────────────────────────────────────────────────────────
+        private void BtnCreateQuotation_Click(object sender, EventArgs e)
+        {
+            using var dlg = new CreateQuotationDialog(_ctrl);
+            if (dlg.ShowDialog(this) == DialogResult.OK)
+                RefreshGrid();
+        }
+
+        // ──────────────────────────────────────────────────────────────────
         //  MODIFY QUOTATION  (btnAddFrom in Designer — text: "✎ Modify")
         // ──────────────────────────────────────────────────────────────────
         private void btnAddFrom_Click(object sender, EventArgs e)
@@ -326,10 +381,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             {
                 Dock            = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
                 BackColor       = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                Padding         = new Padding(24, 0, 0, 0)   // right=0: prevents Absolute col being clipped
+                Padding         = new Padding(24, 0, 0, 0)
             };
             tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
-            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 260f));  // Badge width = 260f
+            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 260f));
             tblHeader.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
             tblHeader.Controls.Add(new Label
             {
