@@ -13,9 +13,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
     /// Header layout (pnlHeader, Height=80, dark navy):
     ///   TableLayoutPanel (Dock=Fill, 2 columns, Padding 24 0 0 0)
     ///     Col 0 — Percent 100f  : title Label
-    ///     Col 1 — Absolute 290f : status badge Label  (AutoEllipsis=false)
-    ///   Right padding removed from tblHeader to prevent Absolute col being clipped
-    ///   at narrow form widths; right visual gap provided by Badge Label padding only.
+    ///     Col 1 — Absolute 290f : status badge Label (Font 10f Bold, AutoEllipsis=false)
     /// </summary>
     public class QuotationDetailForm : Form
     {
@@ -52,7 +50,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 RowCount        = 1,
                 BackColor       = Color.Transparent,
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                Padding         = new Padding(24, 0, 0, 0)  // right=0: prevents Absolute col shrink
+                Padding         = new Padding(24, 0, 0, 0)
             };
             tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
             tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 290f));
@@ -70,7 +68,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             tblHeader.Controls.Add(new Label
             {
                 Text         = _q.QuotationStatus ?? "Unknown",
-                Font         = new Font("Segoe UI", 14f, FontStyle.Bold),
+                Font         = new Font("Segoe UI", 10f, FontStyle.Bold),
                 ForeColor    = scFg,
                 BackColor    = scBg,
                 Dock         = DockStyle.Fill,
