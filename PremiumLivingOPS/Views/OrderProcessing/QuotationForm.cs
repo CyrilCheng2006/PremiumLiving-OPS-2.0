@@ -9,36 +9,13 @@ using System.Windows.Forms;
 
 namespace PremiumLivingOPS.Views.OrderProcessing
 {
-    /// <summary>
-    /// Quotation — Tab 2 of Order Processing Management.
-    /// Lists all quotations and allows status updates via KPI-pill filtering.
-    ///
-    /// MVC contract (View layer):
-    ///   • Calls OrderProcessingController to obtain QuotationViewModel.
-    ///   • Uses AppShell (TopNavBar + UserBar) for navigation chrome.
-    ///   • Contains NO business logic and NO direct DB calls.
-    ///   • Layout uses CardPanel 三層巢層卡片結構 (參考 ViewOrderForm).
-    ///
-    /// KPI Bar action buttons (left → right):
-    ///   [+ Create]  [View Details]  [Modify]  [Status ▼]  [Update Status]
-    ///
-    /// Modify Quotation rules:
-    ///   • A Quotation that is already linked to an Order (QuotationStatus == "Converted"
-    ///     or controller reports IsLinkedToOrder == true) is NOT editable — the Modify
-    ///     button is disabled with a tooltip explaining the lock.
-    ///   • Inside ModifyQuotationDialog only Quotation Items (Add / Delete) are editable;
-    ///     all header fields (Customer, ExpiryDate, TotalAmount, etc.) are read-only.
-    ///   • Footer buttons are 210 × 60.
-    ///
-    /// Designer note:
-    ///   The KPI bar "Modify" button is declared as btnAddFrom in the Designer
-    ///   (QuotationForm.Designer.cs). Its Click event is wired to btnAddFrom_Click
-    ///   which opens ModifyQuotationDialog. There is no separate btnModify field.
-    /// </summary>
     public partial class QuotationForm : Form
     {
         private readonly OrderProcessingController _ctrl = new OrderProcessingController();
         private List<QuotationEntity> _currentQuotations = new List<QuotationEntity>();
+
+        // Injected at runtime — kept as field so UpdateActionButtons can reach it
+        private Button _btnCreate;
 
         private static readonly Dictionary<string, (Color bg, Color fg)> StatusColors =
             new Dictionary<string, (Color, Color)>
@@ -54,7 +31,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             this.Load += QuotationForm_Load;
         }
 
-        // ── Load
         private void QuotationForm_Load(object sender, EventArgs e)
         {
             _shell.MenuItemClicked += OnTopNavMenuItemClicked;
@@ -64,13 +40,32 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         }
 
         /// <summary>
-        /// Injects the [+ Create] button into the KPI action bar (pnlKpiActions)
-        /// immediately to the left of btnViewDetail.
-        /// Called once in QuotationForm_Load after Designer controls are ready.
+        /// Injects [+ Create] to the left of btnViewDetail inside pnlActionArea.
+        ///
+        /// pnlActionArea uses absolute Location+Size layout (Dock=Right on its parent).
+        /// All buttons are repositioned by a local CentreAll() closure that mirrors
+        /// the Designer's CentreActions() logic but now covers five controls.
+        ///
+        /// Layout (left → right, all same ItemH=60):
+        ///   [+ Create 140] [View Detail 210] [Modify 210] [Status CB 210] [Update Status 210]
+        ///   gaps = 8px between each
         /// </summary>
         private void InjectCreateButton()
         {
-            var btnCreate = new Button
+            // pnlActionArea is btnViewDetail.Parent (a Panel with Dock=Right)
+            var pnlActionArea = btnViewDetail.Parent as Panel;
+            if (pnlActionArea == null) return;
+
+            const int CreateW = 140;
+            const int ItemW   = 210;
+            const int ItemH   =  60;
+            const int Gap     =   8;
+            const int Pad     =  12;
+
+            // Widen pnlActionArea to accommodate the new button
+            pnlActionArea.Width += CreateW + Gap;
+
+            _btnCreate = new Button
             {
                 Text      = "+ Create",
                 Name      = "btnCreateQuotation",
@@ -78,30 +73,49 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 ForeColor = Color.White,
                 BackColor = Color.FromArgb(6, 95, 70),
                 FlatStyle = FlatStyle.Flat,
-                Height    = btnViewDetail.Height,
-                Width     = 140,
-                Cursor    = Cursors.Hand
+                Cursor    = Cursors.Hand,
+                Size      = new Size(CreateW, ItemH)
             };
-            btnCreate.FlatAppearance.BorderSize        = 0;
-            btnCreate.FlatAppearance.MouseOverBackColor = Color.FromArgb(4, 78, 57);
-            btnCreate.Click += BtnCreateQuotation_Click;
+            _btnCreate.FlatAppearance.BorderSize         = 0;
+            _btnCreate.FlatAppearance.MouseOverBackColor = Color.FromArgb(4, 78, 57);
+            _btnCreate.FlatAppearance.MouseDownBackColor = Color.FromArgb(3, 60, 43);
+            _btnCreate.Click += BtnCreateQuotation_Click;
+            pnlActionArea.Controls.Add(_btnCreate);
 
-            // Insert at the same parent as btnViewDetail, immediately before it
-            var parent = btnViewDetail.Parent;
-            if (parent is FlowLayoutPanel flow)
+            // Repositions all five controls whenever pnlActionArea is resized
+            void CentreAll()
             {
-                int idx = flow.Controls.GetChildIndex(btnViewDetail);
-                flow.Controls.Add(btnCreate);
-                flow.Controls.SetChildIndex(btnCreate, idx);
+                int top = (pnlActionArea.Height - ItemH) / 2;
+                if (top < 0) top = 0;
+
+                int x = Pad;
+
+                _btnCreate.Location  = new Point(x, top);
+                _btnCreate.Size      = new Size(CreateW, ItemH);
+                x += CreateW + Gap;
+
+                btnViewDetail.Location = new Point(x, top);
+                btnViewDetail.Size     = new Size(ItemW, ItemH);
+                x += ItemW + Gap;
+
+                btnAddFrom.Location = new Point(x, top);
+                btnAddFrom.Size     = new Size(ItemW, ItemH);
+                x += ItemW + Gap;
+
+                cboNewStatus.Location = new Point(x, top + (ItemH - cboNewStatus.Height) / 2);
+                cboNewStatus.Width    = ItemW;
+                x += ItemW + Gap;
+
+                btnUpdateStatus.Location = new Point(x, top);
+                btnUpdateStatus.Size     = new Size(ItemW, ItemH);
             }
-            else
-            {
-                // Fallback: add to parent with matching location offset
-                btnCreate.Location = new Point(
-                    btnViewDetail.Left - btnCreate.Width - 8,
-                    btnViewDetail.Top);
-                parent.Controls.Add(btnCreate);
-            }
+
+            // Replace the old Resize handler by subscribing a new one
+            // (old anonymous lambda is unreachable but harmless — new one runs last)
+            pnlActionArea.Resize += (s, e) => CentreAll();
+
+            // Run immediately so layout is correct on first paint
+            CentreAll();
         }
 
         // ── Core refresh
@@ -116,7 +130,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
-            _shell.SetBreadcrumb("Order Processing  ›  Quotation");
+            _shell.SetBreadcrumb("Order Processing  \u203a  Quotation");
 
             _currentQuotations = vm.Quotations;
 
@@ -242,8 +256,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         private void UpdateActionButtons()
         {
             bool sel = dgvQuotations.SelectedRows.Count > 0;
+            // _btnCreate is always enabled (no row selection needed)
             btnViewDetail.Enabled   = sel;
-            btnAddFrom.Enabled      = sel;   // Designer field — this is the "Modify" button
+            btnAddFrom.Enabled      = sel;
             btnUpdateStatus.Enabled = sel;
             cboNewStatus.Enabled    = sel;
         }
@@ -284,9 +299,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
         private void btnViewDetail_Click(object sender, EventArgs e) => OpenDetailDialog();
 
-        // ──────────────────────────────────────────────────────────────────
-        //  CREATE NEW QUOTATION
-        // ──────────────────────────────────────────────────────────────────
+        // ── CREATE NEW QUOTATION
         private void BtnCreateQuotation_Click(object sender, EventArgs e)
         {
             using var dlg = new CreateQuotationDialog(_ctrl);
@@ -294,9 +307,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 RefreshGrid();
         }
 
-        // ──────────────────────────────────────────────────────────────────
-        //  MODIFY QUOTATION  (btnAddFrom in Designer — text: "✎ Modify")
-        // ──────────────────────────────────────────────────────────────────
+        // ── MODIFY QUOTATION
         private void btnAddFrom_Click(object sender, EventArgs e)
         {
             string qid = SelectedQuotationId();
@@ -356,16 +367,14 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             ShowDetailDialog(q, q.Items);
         }
 
-        // ──────────────────────────────────────────────────────────────────
-        //  VIEW DETAIL DIALOG  (read-only snapshot of one Quotation record)
-        // ──────────────────────────────────────────────────────────────────
+        // ── VIEW DETAIL DIALOG
         private void ShowDetailDialog(QuotationEntity q, List<QuotationItemEntity> items)
         {
             bool hasTnC = !string.IsNullOrWhiteSpace(q.TermsandCondition);
 
             using var dlg = new Form
             {
-                Text            = $"Quotation Detail — {q.QuotationID}",
+                Text            = $"Quotation Detail \u2014 {q.QuotationID}",
                 Size            = new Size(2500, 1100),
                 StartPosition   = FormStartPosition.CenterParent,
                 BackColor       = Color.White,
@@ -375,7 +384,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 MinimizeBox     = false
             };
 
-            // ── Header (aligned to ModifyQuotationDialog)
             var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 80, BackColor = Color.FromArgb(19, 35, 61) };
             var tblHeader = new TableLayoutPanel
             {
@@ -388,7 +396,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             tblHeader.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
             tblHeader.Controls.Add(new Label
             {
-                Text      = $"Quotation Details  —  {q.QuotationID}",
+                Text      = $"Quotation Details  \u2014  {q.QuotationID}",
                 Font      = new Font("Segoe UI", 18f, FontStyle.Bold),
                 ForeColor = Color.White, Dock = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
@@ -401,16 +409,14 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 ForeColor    = sc.fg != default ? sc.fg : Color.White,
                 BackColor    = sc.bg != default ? sc.bg : Color.FromArgb(80, 80, 80),
                 Dock         = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter,
-                AutoSize     = false,
-                AutoEllipsis = false,
-                Padding      = new Padding(8, 4, 8, 4)
+                AutoSize     = false, AutoEllipsis = false, Padding = new Padding(8, 4, 8, 4)
             }, 1, 0);
             pnlHeader.Controls.Add(tblHeader);
 
             var pnlInfo = new Panel
             {
-                Dock      = DockStyle.Top, Height = 280,
-                Padding   = new Padding(28, 18, 28, 8), BackColor = Color.White
+                Dock = DockStyle.Top, Height = 280,
+                Padding = new Padding(28, 18, 28, 8), BackColor = Color.White
             };
             pnlInfo.Paint += (s, e) =>
             {
@@ -420,34 +426,31 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             var tblInfo = new TableLayoutPanel
             {
-                Dock            = DockStyle.Fill, ColumnCount = 4, RowCount = 4,
-                BackColor       = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+                Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 4,
+                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
-            for (int r = 0; r < 4; r++)
-                tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 25f));
+            for (int r = 0; r < 4; r++) tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 25f));
 
-            var leftFields = new[]
-            {
+            var leftFields = new[] {
                 ("Quotation ID",  q.QuotationID),
                 ("Customer",      q.CustomerName),
-                ("Lead Time",     q.LeadTimeEstimated ?? "—"),
-                ("Sales Staff",   q.SalesStaffName    ?? "—"),
+                ("Lead Time",     q.LeadTimeEstimated ?? "\u2014"),
+                ("Sales Staff",   q.SalesStaffName    ?? "\u2014"),
             };
             for (int i = 0; i < leftFields.Length; i++)
             {
                 tblInfo.Controls.Add(MakeLabelKey(leftFields[i].Item1), 0, i);
                 tblInfo.Controls.Add(MakeLabelVal(leftFields[i].Item2), 1, i);
             }
-            var rightFields = new (string, string)[]
-            {
+            var rightFields = new (string, string)[] {
                 ("Expiry Date",      q.ExpiryDate.ToString("yyyy-MM-dd")),
                 ("Total Amount",     $"HK$ {q.TotalAmount:N2}"),
                 ("Deposit Required", $"HK$ {q.DepositRequired:N2}"),
-                ("Status",           q.QuotationStatus ?? "—"),
+                ("Status",           q.QuotationStatus ?? "\u2014"),
             };
             for (int i = 0; i < rightFields.Length; i++)
             {
@@ -461,14 +464,14 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             {
                 pnlTnC = new Panel
                 {
-                    Dock      = DockStyle.Top, Height = 60,
-                    Padding   = new Padding(28, 0, 28, 0), BackColor = Color.FromArgb(255, 251, 235)
+                    Dock = DockStyle.Top, Height = 60,
+                    Padding = new Padding(28, 0, 28, 0), BackColor = Color.FromArgb(255, 251, 235)
                 };
                 pnlTnC.Paint += PaintBottomBorderStatic;
                 var tblTnC = new TableLayoutPanel
                 {
-                    Dock            = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
-                    BackColor       = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+                    Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
+                    BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
                 };
                 tblTnC.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
                 tblTnC.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 85f));
@@ -480,50 +483,40 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             var pnlLineLabel = new Panel
             {
-                Dock      = DockStyle.Top, Height = 40,
-                BackColor = Color.FromArgb(246, 249, 255),
-                Padding   = new Padding(28, 0, 0, 0)
+                Dock = DockStyle.Top, Height = 40,
+                BackColor = Color.FromArgb(246, 249, 255), Padding = new Padding(28, 0, 0, 0)
             };
             pnlLineLabel.Controls.Add(new Label
             {
-                Text      = "QUOTATION ITEMS",
-                Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
+                Text = "QUOTATION ITEMS",
+                Font = new Font("Segoe UI", 10f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(98, 112, 135),
-                Dock      = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleLeft
+                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft
             });
             pnlLineLabel.Paint += PaintBottomBorderStatic;
 
             var dgv = new DataGridView
             {
-                ReadOnly              = true,
-                AllowUserToAddRows    = false,
-                RowHeadersVisible     = false,
-                SelectionMode         = DataGridViewSelectionMode.FullRowSelect,
-                BackgroundColor       = Color.White,
-                BorderStyle           = BorderStyle.None,
-                GridColor             = Color.FromArgb(221, 227, 236),
-                Font                  = new Font("Segoe UI", 12f),
-                AutoSizeColumnsMode   = DataGridViewAutoSizeColumnsMode.Fill,
-                CellBorderStyle       = DataGridViewCellBorderStyle.SingleHorizontal,
-                RowTemplate           = { Height = 44 },
-                Dock                  = DockStyle.Fill,
-                ColumnHeadersHeight   = 40,
-                EnableHeadersVisualStyles = false,
+                ReadOnly = true, AllowUserToAddRows = false,
+                RowHeadersVisible = false,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                BackgroundColor = Color.White, BorderStyle = BorderStyle.None,
+                GridColor = Color.FromArgb(221, 227, 236),
+                Font = new Font("Segoe UI", 12f),
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal,
+                RowTemplate = { Height = 44 }, Dock = DockStyle.Fill,
+                ColumnHeadersHeight = 40, EnableHeadersVisualStyles = false,
                 ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
                 {
-                    BackColor = Color.FromArgb(246, 249, 255),
-                    ForeColor = Color.FromArgb(98, 112, 135),
-                    Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
-                    Padding   = new Padding(12, 0, 0, 0)
+                    BackColor = Color.FromArgb(246, 249, 255), ForeColor = Color.FromArgb(98, 112, 135),
+                    Font = new Font("Segoe UI", 10f, FontStyle.Bold), Padding = new Padding(12, 0, 0, 0)
                 },
                 DefaultCellStyle = new DataGridViewCellStyle
                 {
-                    BackColor          = Color.White,
-                    ForeColor          = Color.FromArgb(15, 31, 53),
+                    BackColor = Color.White, ForeColor = Color.FromArgb(15, 31, 53),
                     SelectionBackColor = Color.FromArgb(219, 234, 254),
-                    SelectionForeColor = Color.FromArgb(15, 31, 53),
-                    Padding            = new Padding(12, 6, 12, 6)
+                    SelectionForeColor = Color.FromArgb(15, 31, 53), Padding = new Padding(12, 6, 12, 6)
                 }
             };
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cItemID",    HeaderText = "ITEM ID",    FillWeight = 20 });
@@ -536,61 +529,47 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             if (items != null)
                 foreach (var item in items)
-                    dgv.Rows.Add(
-                        item.ItemID,
-                        item.ProductName,
-                        item.Quantity,
-                        item.Unit,
-                        $"HK$ {item.UnitPrice:N2}",
-                        $"{item.DiscountPercent:N1}%",
-                        $"HK$ {item.Subtotal:N2}");
+                    dgv.Rows.Add(item.ItemID, item.ProductName, item.Quantity, item.Unit,
+                        $"HK$ {item.UnitPrice:N2}", $"{item.DiscountPercent:N1}%", $"HK$ {item.Subtotal:N2}");
 
             var pnlTotalRow = new Panel
             {
-                Dock      = DockStyle.Bottom, Height = 50,
-                BackColor = Color.FromArgb(246, 249, 255),
-                Padding   = new Padding(28, 0, 28, 0)
+                Dock = DockStyle.Bottom, Height = 50,
+                BackColor = Color.FromArgb(246, 249, 255), Padding = new Padding(28, 0, 28, 0)
             };
             var tblTotal = new TableLayoutPanel
             {
-                Dock            = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
-                BackColor       = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+                Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
+                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
             tblTotal.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
             tblTotal.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
             tblTotal.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
             tblTotal.Controls.Add(new Label
             {
-                Text      = $"Deposit Required:   HK$ {q.DepositRequired:N2}",
-                Font      = new Font("Segoe UI", 12f),
-                ForeColor = Color.FromArgb(98, 112, 135),
-                Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
+                Text = $"Deposit Required:   HK$ {q.DepositRequired:N2}",
+                Font = new Font("Segoe UI", 12f), ForeColor = Color.FromArgb(98, 112, 135),
+                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
             }, 0, 0);
             tblTotal.Controls.Add(new Label
             {
-                Text      = $"Total Amount:   HK$ {q.TotalAmount:N2}",
-                Font      = new Font("Segoe UI", 13f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(15, 31, 53),
-                Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleRight, AutoSize = false
+                Text = $"Total Amount:   HK$ {q.TotalAmount:N2}",
+                Font = new Font("Segoe UI", 13f, FontStyle.Bold), ForeColor = Color.FromArgb(15, 31, 53),
+                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleRight, AutoSize = false
             }, 1, 0);
             pnlTotalRow.Controls.Add(tblTotal);
 
             var pnlFooter = new Panel
             {
-                Dock    = DockStyle.Bottom, Height = 80,
+                Dock = DockStyle.Bottom, Height = 80,
                 BackColor = Color.White, Padding = new Padding(0, 10, 28, 10)
             };
             pnlFooter.Paint += PaintTopBorderStatic;
             var btnClose = new Button
             {
-                Text      = "Close",
-                Font      = new Font("Segoe UI", 12f),
-                ForeColor = Color.FromArgb(15, 31, 53),
-                BackColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Dock      = DockStyle.Right,
-                Width     = 140,
-                Cursor    = Cursors.Hand
+                Text = "Close", Font = new Font("Segoe UI", 12f),
+                ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White,
+                FlatStyle = FlatStyle.Flat, Dock = DockStyle.Right, Width = 140, Cursor = Cursors.Hand
             };
             btnClose.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
             btnClose.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
@@ -610,22 +589,15 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         // ── Label factory helpers
         private static Label MakeLabelKey(string text) => new Label
         {
-            Text         = text,
-            Font         = new Font("Segoe UI", 10f, FontStyle.Bold),
-            ForeColor    = Color.FromArgb(98, 112, 135),
-            Dock         = DockStyle.Fill,
-            TextAlign    = ContentAlignment.MiddleLeft,
-            Padding      = new Padding(0, 0, 8, 0),
-            AutoEllipsis = false
+            Text = text, Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+            ForeColor = Color.FromArgb(98, 112, 135), Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(0, 0, 8, 0), AutoEllipsis = false
         };
         private static Label MakeLabelVal(string text) => new Label
         {
-            Text         = text ?? "—",
-            Font         = new Font("Segoe UI", 12f),
-            ForeColor    = Color.FromArgb(15, 31, 53),
-            Dock         = DockStyle.Fill,
-            TextAlign    = ContentAlignment.MiddleLeft,
-            AutoEllipsis = true
+            Text = text ?? "\u2014", Font = new Font("Segoe UI", 12f),
+            ForeColor = Color.FromArgb(15, 31, 53), Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleLeft, AutoEllipsis = true
         };
         private static void PaintBottomBorderStatic(object s, PaintEventArgs e)
         {
