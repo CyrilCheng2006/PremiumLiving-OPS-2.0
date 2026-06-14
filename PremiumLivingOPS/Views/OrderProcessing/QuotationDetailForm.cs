@@ -13,7 +13,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
     /// Header layout (pnlHeader, Height=80, dark navy):
     ///   TableLayoutPanel (Dock=Fill, 2 columns, Padding 24 0 24 0)
     ///     Col 0 — Percent 100f  : title Label
-    ///     Col 1 — Absolute 290f : status badge Label
+    ///     Col 1 — Absolute 290f : status badge Label  (AutoEllipsis=false)
     ///   (mirrors ModifyQuotationDialog header exactly)
     /// </summary>
     public class QuotationDetailForm : Form
@@ -68,14 +68,15 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             var (scBg, scFg) = GetStatusColor(_q.QuotationStatus);
             tblHeader.Controls.Add(new Label
             {
-                Text      = _q.QuotationStatus ?? "Unknown",
-                Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
-                ForeColor = scFg,
-                BackColor = scBg,
-                Dock      = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleCenter,
-                AutoSize  = false,
-                Padding   = new Padding(8, 4, 8, 4)
+                Text         = _q.QuotationStatus ?? "Unknown",
+                Font         = new Font("Segoe UI", 14f, FontStyle.Bold),
+                ForeColor    = scFg,
+                BackColor    = scBg,
+                Dock         = DockStyle.Fill,
+                TextAlign    = ContentAlignment.MiddleCenter,
+                AutoSize     = false,
+                AutoEllipsis = false,
+                Padding      = new Padding(8, 4, 8, 4)
             }, 1, 0);
             pnlHeader.Controls.Add(tblHeader);
 
