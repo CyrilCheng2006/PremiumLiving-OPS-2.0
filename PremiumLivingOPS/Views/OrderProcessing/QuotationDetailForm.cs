@@ -13,7 +13,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
     /// Header layout (pnlHeader, Height=80, dark navy):
     ///   TableLayoutPanel (Dock=Fill, 2 columns, Padding 24 0 24 0)
     ///     Col 0 — Percent 100f  : title Label
-    ///     Col 1 — Absolute 260f : status badge Label
+    ///     Col 1 — Absolute 290f : status badge Label
     ///   (mirrors ModifyQuotationDialog header exactly)
     /// </summary>
     public class QuotationDetailForm : Form
@@ -54,7 +54,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Padding         = new Padding(24, 0, 24, 0)
             };
             tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
-            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 260f));
+            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 290f));
             tblHeader.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
             tblHeader.Controls.Add(new Label
             {
