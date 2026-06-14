@@ -11,11 +11,11 @@ namespace PremiumLivingOPS.Views.OrderProcessing
     /// MVC View — receives a populated QuotationEntity and renders read-only.
     ///
     /// Header layout (pnlHeader, Height=80, dark navy):
-    ///   TableLayoutPanel (Dock=Fill, 2 columns, Padding 24 0 24 0)
+    ///   TableLayoutPanel (Dock=Fill, 2 columns, Padding 24 0 0 0)
     ///     Col 0 — Percent 100f  : title Label
-    ///     Col 1 — Absolute 314f : status badge Label
-    ///                             (290f net + 24f to compensate right Padding)
-    ///   (mirrors ModifyQuotationDialog header exactly)
+    ///     Col 1 — Absolute 290f : status badge Label  (AutoEllipsis=false)
+    ///   Right padding removed from tblHeader to prevent Absolute col being clipped
+    ///   at narrow form widths; right visual gap provided by Badge Label padding only.
     /// </summary>
     public class QuotationDetailForm : Form
     {
@@ -38,7 +38,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             this.Font            = new Font("Segoe UI", 12f);
             this.FormBorderStyle = FormBorderStyle.Sizable;
 
-            // ── Header  (mirrors ModifyQuotationDialog pnlHeader exactly)
+            // ── Header
             var pnlHeader = new Panel
             {
                 Dock      = DockStyle.Top,
@@ -52,10 +52,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 RowCount        = 1,
                 BackColor       = Color.Transparent,
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                Padding         = new Padding(24, 0, 24, 0)
+                Padding         = new Padding(24, 0, 0, 0)  // right=0: prevents Absolute col shrink
             };
             tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
-            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 314f)); // 290f net + 24f right-padding compensation
+            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 290f));
             tblHeader.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
             tblHeader.Controls.Add(new Label
             {
