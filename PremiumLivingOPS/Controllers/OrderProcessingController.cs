@@ -15,6 +15,13 @@ namespace PremiumLivingOPS.Controllers
     {
         private readonly OrderProcessingRepo _repo = new OrderProcessingRepo();
 
+        // ── In-memory Quotation item store ──────────────────────────────────────────────────────────────────────
+        // Schema has no QuotationItem table. Items entered during Create/Modify are kept
+        // in this dictionary so Detail can display them within the same session.
+        // Key = QuotationID, Value = list of items at time of last save.
+        private static readonly Dictionary<string, List<QuotationItemEntity>> _quotationItemCache
+            = new Dictionary<string, List<QuotationItemEntity>>(StringComparer.OrdinalIgnoreCase);
+
         // ── View Order ─────────────────────────────────────────────────────────────────────────────────────────
 
         public ViewOrderViewModel GetViewOrderVM(
@@ -83,10 +90,10 @@ namespace PremiumLivingOPS.Controllers
         /// <summary>
         /// Returns a single Quotation for detail view, with Items populated.
         ///
-        /// There is no QuotationItem table in the schema (Database/schema.sql).
-        /// Items are synthesised from OrderLine rows linked to this Quotation
-        /// via Order.QuotationID. If no Orders have been raised against this
-        /// Quotation yet, Items will be an empty list (never null).
+        /// Schema (Database/schema.sql) has no QuotationItem table.
+        /// Items are served from _quotationItemCache — populated when the user
+        /// creates or modifies a quotation in the same session.
+        /// If the quotation was created in a previous session, Items will be empty.
         /// </summary>
         public QuotationEntity GetQuotationDetail(string quotationId)
         {
@@ -95,8 +102,11 @@ namespace PremiumLivingOPS.Controllers
             var q = _repo.GetQuotationById(quotationId);
             if (q == null) return null;
 
-            // Populate Items from OrderLine data (schema has no QuotationItem table).
-            q.Items = _repo.GetOrderLinesByQuotationId(quotationId);
+            // Serve from in-memory cache first (populated by SaveNewQuotation / SaveModifiedQuotation).
+            if (_quotationItemCache.TryGetValue(quotationId, out var cached))
+                q.Items = new List<QuotationItemEntity>(cached);
+            else
+                q.Items = new List<QuotationItemEntity>();
 
             return q;
         }
@@ -116,17 +126,15 @@ namespace PremiumLivingOPS.Controllers
             if (string.IsNullOrEmpty(quotationId)) return false;
             var q = _repo.GetQuotationById(quotationId);
             if (q == null) return false;
-            // Primary check via status column
             if (q.QuotationStatus == "Converted") return true;
-            // Secondary check: any Order row references this Quotation
             var linkedOrders = _repo.GetOrderLinesByQuotationId(quotationId);
             return linkedOrders != null && linkedOrders.Count > 0;
         }
 
         /// <summary>
         /// Persists the updated item list for a Quotation.
-        /// Schema has no QuotationItem table — changes are reflected through
-        /// updating the TotalAmount on the Quotation header.
+        /// Schema has no QuotationItem table — TotalAmount on the header is updated,
+        /// and items are kept in _quotationItemCache for the current session.
         /// Returns true on success.
         /// </summary>
         public bool SaveModifiedQuotation(string quotationId, List<QuotationItemEntity> items)
@@ -134,14 +142,14 @@ namespace PremiumLivingOPS.Controllers
             if (string.IsNullOrEmpty(quotationId) || items == null) return false;
             double newTotal = 0;
             foreach (var i in items) newTotal += i.Subtotal;
-            return _repo.UpdateQuotationTotalAmount(quotationId, newTotal);
+            bool ok = _repo.UpdateQuotationTotalAmount(quotationId, newTotal);
+            if (ok)
+                _quotationItemCache[quotationId] = new List<QuotationItemEntity>(items);
+            return ok;
         }
 
         /// <summary>
         /// Returns the product list available to add as Quotation items.
-        /// Reuses the existing ProductLookup type (no new types needed).
-        /// customerId is accepted for future customer-specific pricing but
-        /// currently returns the full product catalogue.
         /// </summary>
         public List<ProductLookup> GetAvailableItemsForQuotation(string customerId)
             => _repo.GetAllProducts();
@@ -184,16 +192,19 @@ namespace PremiumLivingOPS.Controllers
         }
 
         /// <summary>
-        /// Saves a new Quotation header.
-        /// Schema has no QuotationItem table — only the Quotation header is persisted.
-        /// The items parameter is accepted for UI/future compatibility but not written to DB.
+        /// Saves a new Quotation header to DB and caches its items in-memory.
+        /// Schema has no QuotationItem table — only the Quotation header row is written.
+        /// Items are stored in _quotationItemCache so Detail can display them this session.
         /// </summary>
         public bool SaveNewQuotation(QuotationEntity quotation,
                                      List<QuotationItemEntity> items,
                                      string salesStaffId)
         {
             // salesStaffId is not a Quotation column in schema; ignored.
-            return _repo.CreateQuotation(quotation);
+            bool ok = _repo.CreateQuotation(quotation);
+            if (ok && items != null && items.Count > 0)
+                _quotationItemCache[quotation.QuotationID] = new List<QuotationItemEntity>(items);
+            return ok;
         }
 
         // ── Create Order ─────────────────────────────────────────────────────────────────────────────────────────
