@@ -91,8 +91,8 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             tblFields.Controls.Add(MakeCell("Urgency",      cboUrgency, true),  1, 0);
             tblFields.Controls.Add(MakeCell("Trigger Type", cboTrigger, false), 2, 0);
 
-            btnSearch = MakePrimaryBtn("🔍  Search", Point.Empty,       210, 52);
-            btnReset  = MakeOutlineBtn("↺  Reset",  new Point(218, 0), 210, 52);
+            btnSearch = MakePrimaryBtn("\uD83D\uDD0D  Search", Point.Empty,       210, 52);
+            btnReset  = MakeOutlineBtn("\u21BA  Reset",  new Point(218, 0), 210, 52);
             var pnlSearchBtns = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             pnlSearchBtns.Controls.Add(btnSearch);
             pnlSearchBtns.Controls.Add(btnReset);
@@ -136,8 +136,8 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             const int BtnGap = 8;     // horizontal gap between the two buttons
             const int BtnPad = 12;    // left/right outer padding inside pnlActionBtns
 
-            btnViewDetail = MakePrimaryBtn("🔍  View Details", Point.Empty, BtnW, BtnH);
-            btnCreateNew  = MakeGreenBtn  ("＋  Create New",   Point.Empty, BtnW, BtnH);
+            btnViewDetail = MakePrimaryBtn("\uD83D\uDD0D  View Details", Point.Empty, BtnW, BtnH);
+            btnCreateNew  = MakeGreenBtn  ("\uFF0B  Create New",         Point.Empty, BtnW, BtnH);
             btnViewDetail.Enabled = false;
 
             var pnlActionBtns = new Panel
@@ -173,6 +173,22 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
 
             // ════════════════════════════════════════════════════════════
             // CARD 3 — Results Grid (Fill)
+            //
+            // Columns strictly follow schema.sql MaterialRequest +
+            // JOIN fields from RawMaterial, Item, WarehouseItem, Warehouse
+            // and a derived IsLinkedToPO flag from PurchaseOrder.
+            //
+            // Removed (did NOT exist in schema):
+            //   colItemID     — redundant; ID already merged into colMaterial
+            //   colStatus     — MaterialRequest has NO Status column
+            //   colCreatedDate — MaterialRequest has NO Date column
+            //
+            // Added (exist in schema / DAL query):
+            //   colMaterialType — RawMaterial.MaterialType
+            //   colOrderID      — MaterialRequest.OrderID (nullable)
+            //   colWarehouse    — Warehouse.WarehouseLocation
+            //   colStock        — WarehouseItem.WarehouseItemQuantity
+            //   colLinkedPO     — derived: PurchaseOrder exists for RequestID
             // ════════════════════════════════════════════════════════════
             dgvRequests = new DataGridView
             {
@@ -207,14 +223,17 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             };
             dgvRequests.RowTemplate.Height = 48;
 
-            dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colRequestID",  HeaderText = "REQUEST ID",      FillWeight = 16 });
-            dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colMaterial",   HeaderText = "RAW MATERIAL",    FillWeight = 22 });
-            dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colItemID",     HeaderText = "ITEM ID",         FillWeight = 14 });
-            dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colQty",        HeaderText = "QTY REQUESTED",   FillWeight = 14 });
-            dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colUrgency",    HeaderText = "URGENCY",         FillWeight = 12 });
-            dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTrigger",    HeaderText = "TRIGGER",         FillWeight = 14 });
-            dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",     HeaderText = "STATUS",          FillWeight = 10 });
-            dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCreatedDate",HeaderText = "CREATED DATE",    FillWeight = 14 });
+            // ── 10 columns — all grounded in schema / DAL ──────────────────────────
+            dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colRequestID",    HeaderText = "REQUEST ID",     FillWeight = 15 });
+            dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colMaterial",     HeaderText = "RAW MATERIAL",   FillWeight = 20 });
+            dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colMaterialType", HeaderText = "TYPE",           FillWeight =  9 });
+            dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colQty",          HeaderText = "QTY REQUESTED",  FillWeight = 10 });
+            dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colUrgency",      HeaderText = "URGENCY",        FillWeight = 10 });
+            dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTrigger",      HeaderText = "TRIGGER",        FillWeight = 11 });
+            dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colOrderID",      HeaderText = "LINKED ORDER",   FillWeight = 14 });
+            dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colWarehouse",    HeaderText = "WAREHOUSE",      FillWeight = 14 });
+            dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStock",        HeaderText = "CURRENT STOCK",  FillWeight =  9 });
+            dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLinkedPO",     HeaderText = "PO LINKED",      FillWeight =  8 });
 
             dgvRequests.SelectionChanged += (s, _) => UpdateActionButtons();
             dgvRequests.CellDoubleClick  += (s, ce) => { if (ce.RowIndex >= 0) OpenDetailDialog(); };

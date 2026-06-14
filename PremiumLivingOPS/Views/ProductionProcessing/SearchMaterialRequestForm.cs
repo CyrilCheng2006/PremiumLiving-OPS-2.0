@@ -16,12 +16,14 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
     /// AppShell  : mandatory chrome (TopNavBar + UserBar).
     /// CardPanel : all content wrapped in 3-layer nested cards.
     ///
-    /// Schema coverage:
-    ///   MaterialRequest  — primary list
-    ///   RawMaterial/Item — joined for material name + type
-    ///   WarehouseItem    — joined for stock info
-    ///   Warehouse        — joined for location
-    ///   PurchaseOrder    — checked to flag whether a PO is linked
+    /// Schema coverage (strictly follows schema.sql):
+    ///   MaterialRequest  — RequestID, OrderID, RawMaterialItemID, WarehouseItemID,
+    ///                       RequestedQty, UrgencyLevel, TriggerType
+    ///   Item             — ItemName  (JOIN via RawMaterial.ItemID)
+    ///   RawMaterial      — MaterialType
+    ///   WarehouseItem    — WarehouseItemQuantity (CurrentStock), ReorderLevel
+    ///   Warehouse        — WarehouseLocation
+    ///   PurchaseOrder    — derived IsLinkedToPO flag
     /// </summary>
     public partial class SearchMaterialRequestForm : Form
     {
@@ -94,14 +96,25 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             dgvRequests.Rows.Clear();
             foreach (var r in _current)
             {
+                // 10 values — one per column in Designer.cs (all grounded in schema):
+                // col 0  colRequestID    — MaterialRequest.RequestID
+                // col 1  colMaterial     — RawMaterialItemID + ItemName (merged for readability)
+                // col 2  colMaterialType — RawMaterial.MaterialType  (ENUM: Wood/Metal/Fabric/Foam/Glass/Paint)
+                // col 3  colQty          — MaterialRequest.RequestedQty
+                // col 4  colUrgency      — MaterialRequest.UrgencyLevel (ENUM: Critical/High/Medium)
+                // col 5  colTrigger      — MaterialRequest.TriggerType  (ENUM: Reorder/OrderDemand)
+                // col 6  colOrderID      — MaterialRequest.OrderID (nullable FK → Order)
+                // col 7  colWarehouse    — Warehouse.WarehouseLocation
+                // col 8  colStock        — WarehouseItem.WarehouseItemQuantity
+                // col 9  colLinkedPO     — derived: PurchaseOrder row exists for this RequestID
                 dgvRequests.Rows.Add(
                     r.RequestID,
-                    $"{r.RawMaterialItemID}  —  {r.RawMaterialName}",
+                    $"{r.RawMaterialItemID}  \u2014  {r.RawMaterialName}",
                     r.MaterialType,
                     r.RequestedQty,
                     r.UrgencyLevel,
                     r.TriggerType,
-                    r.OrderID ?? "—",
+                    r.OrderID ?? "\u2014",
                     r.WarehouseLocation,
                     r.CurrentStock,
                     r.IsLinkedToPO ? "Yes" : "No");
@@ -251,6 +264,16 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 }
                 e.FormattingApplied = true;
             }
+            else if (colName == "colStock")
+            {
+                // Highlight low stock in amber
+                if (int.TryParse(val, out int stockVal) && stockVal == 0)
+                {
+                    e.CellStyle.ForeColor = Color.FromArgb(153, 27, 27);
+                    e.CellStyle.Font = new Font("Segoe UI", 11f, FontStyle.Bold);
+                    e.FormattingApplied = true;
+                }
+            }
         }
 
         private void BtnCreateNew_Click(object sender, EventArgs e)
@@ -282,7 +305,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
         {
             using var dlg = new Form
             {
-                Text            = $"Material Request Detail — {d.RequestID}",
+                Text            = $"Material Request Detail \u2014 {d.RequestID}",
                 Size            = new Size(1600, 900),
                 StartPosition   = FormStartPosition.CenterParent,
                 BackColor       = Color.White,
@@ -314,7 +337,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
 
             tblHeader.Controls.Add(new Label
             {
-                Text      = $"Material Request Details  —  {d.RequestID}",
+                Text      = $"Material Request Details  \u2014  {d.RequestID}",
                 Font      = new Font("Segoe UI", 18f, FontStyle.Bold),
                 ForeColor = Color.White,
                 Dock      = DockStyle.Fill,
@@ -361,7 +384,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             for (int i = 0; i < 5; i++)
                 tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 20f));
 
-            // Left column
+            // Left column — fields from MaterialRequest + joined tables
             var leftFields = new (string key, string val)[]
             {
                 ("Request ID",    d.RequestID),
@@ -373,7 +396,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             for (int i = 0; i < leftFields.Length; i++)
             {
                 tblInfo.Controls.Add(DlgMakeLabelKey(leftFields[i].key), 0, i);
-                tblInfo.Controls.Add(DlgMakeLabelVal(leftFields[i].val ?? "—"), 1, i);
+                tblInfo.Controls.Add(DlgMakeLabelVal(leftFields[i].val ?? "\u2014"), 1, i);
             }
 
             // Right column
@@ -381,14 +404,14 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             {
                 ("Trigger Type",      d.TriggerType),
                 ("Urgency Level",     d.UrgencyLevel),
-                ("Linked Order",      string.IsNullOrEmpty(d.OrderID) ? "— (Reorder)" : d.OrderID),
+                ("Linked Order",      string.IsNullOrEmpty(d.OrderID) ? "\u2014 (Reorder)" : d.OrderID),
                 ("Warehouse Item ID", d.WarehouseItemID),
-                ("Warehouse",         $"{d.WarehouseID}  —  {d.WarehouseLocation}")
+                ("Warehouse",         $"{d.WarehouseID}  \u2014  {d.WarehouseLocation}")
             };
             for (int i = 0; i < rightFields.Length; i++)
             {
                 tblInfo.Controls.Add(DlgMakeLabelKey(rightFields[i].key), 2, i);
-                tblInfo.Controls.Add(DlgMakeLabelVal(rightFields[i].val ?? "—"), 3, i);
+                tblInfo.Controls.Add(DlgMakeLabelVal(rightFields[i].val ?? "\u2014"), 3, i);
             }
             pnlInfo.Controls.Add(tblInfo);
 
@@ -427,7 +450,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             tblStock.Controls.Add(DlgMakeLabelVal(d.ReorderLevel.ToString()), 3, 0);
             tblStock.Controls.Add(DlgMakeLabelKey("Stock Status"),   4, 0);
             tblStock.Controls.Add(DlgMakeLabelVal(
-                isBelowReorder ? "⚠  Below Reorder Level" : "✔  Sufficient Stock"), 5, 0);
+                isBelowReorder ? "\u26A0  Below Reorder Level" : "\u2714  Sufficient Stock"), 5, 0);
             pnlStock.Controls.Add(tblStock);
 
             // ── Purchase Order section label ────────────────────────────────────────────
@@ -477,12 +500,12 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 tblPo.Controls.Add(DlgMakeLabelKey("Purchase Order ID"), 0, 0);
                 tblPo.Controls.Add(DlgMakeLabelVal(d.PurchaseID),         1, 0);
                 tblPo.Controls.Add(DlgMakeLabelKey("PO Status"),          2, 0);
-                tblPo.Controls.Add(DlgMakeLabelVal(d.PurchaseStatus ?? "—"), 3, 0);
+                tblPo.Controls.Add(DlgMakeLabelVal(d.PurchaseStatus ?? "\u2014"), 3, 0);
                 tblPo.Controls.Add(DlgMakeLabelKey("PO Total Amount"),    4, 0);
                 tblPo.Controls.Add(DlgMakeLabelVal(
                     d.POTotalAmount.HasValue
                         ? $"HK$ {d.POTotalAmount.Value:N2}"
-                        : "—"), 5, 0);
+                        : "\u2014"), 5, 0);
                 pnlPoDetail.Controls.Add(tblPo);
             }
             else
@@ -544,10 +567,10 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
         // ── Urgency badge text ──────────────────────────────────────────────────────────────
         private static string UrgencyBadgeText(string urgency) => urgency switch
         {
-            "Critical" => "🔴  CRITICAL",
-            "High"     => "🟠  HIGH",
-            "Medium"   => "🟡  MEDIUM",
-            _          => urgency ?? "—"
+            "Critical" => "\uD83D\uDD34  CRITICAL",
+            "High"     => "\uD83D\uDFE0  HIGH",
+            "Medium"   => "\uD83D\uDFE1  MEDIUM",
+            _          => urgency ?? "\u2014"
         };
 
         // ── Label factories (aligned with ViewOrderForm) ────────────────────────────────
