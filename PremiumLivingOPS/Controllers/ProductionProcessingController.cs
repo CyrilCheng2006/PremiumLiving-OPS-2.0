@@ -38,6 +38,16 @@ namespace PremiumLivingOPS.Controllers
         }
 
         // ════════════════════════════════════════════════════════════════
+        //  MATERIAL REQUEST DETAIL
+        // ════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Returns full detail for a single Material Request (used by the detail dialog).
+        /// </summary>
+        public MaterialRequestDetailEntity GetMaterialRequestDetail(string requestId)
+            => _repo.GetMaterialRequestDetail(requestId);
+
+        // ════════════════════════════════════════════════════════════════
         //  CREATE RAW MATERIAL REQUEST
         // ════════════════════════════════════════════════════════════════
 

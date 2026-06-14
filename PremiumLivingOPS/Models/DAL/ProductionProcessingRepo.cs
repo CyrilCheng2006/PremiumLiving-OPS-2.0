@@ -76,6 +76,73 @@ namespace PremiumLivingOPS.Models.DAL
         }
 
         // ════════════════════════════════════════════════════════════════
+        //  GET MATERIAL REQUEST DETAIL — single record for detail dialog
+        // ════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Returns full detail for a single MaterialRequest,
+        /// including linked PurchaseOrder (LEFT JOIN — nullable).
+        /// </summary>
+        public MaterialRequestDetailEntity GetMaterialRequestDetail(string requestId)
+        {
+            using (var conn = DatabaseHelper.GetConnection())
+            {
+                conn.Open();
+                const string sql =
+                    @"SELECT mr.RequestID, mr.OrderID,
+                             mr.RawMaterialItemID,
+                             i.ItemName           AS RawMaterialName,
+                             rm.MaterialType,
+                             mr.WarehouseItemID,
+                             wi.WarehouseID,
+                             w.WarehouseLocation,
+                             mr.RequestedQty, mr.UrgencyLevel, mr.TriggerType,
+                             wi.WarehouseItemQuantity AS CurrentStock,
+                             wi.ReorderLevel,
+                             po.PurchaseID,
+                             po.PurchaseStatus,
+                             po.POTotalAmount
+                      FROM   MaterialRequest mr
+                      JOIN   RawMaterial  rm  ON mr.RawMaterialItemID = rm.ItemID
+                      JOIN   Item         i   ON rm.ItemID            = i.ItemID
+                      JOIN   WarehouseItem wi  ON mr.WarehouseItemID  = wi.WarehouseItemID
+                      JOIN   Warehouse    w   ON wi.WarehouseID       = w.WarehouseID
+                      LEFT JOIN PurchaseOrder po ON po.RequestID      = mr.RequestID
+                      WHERE  mr.RequestID = @id
+                      LIMIT  1";
+
+                using (var cmd = new MySqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@id", requestId);
+                    using (var r = cmd.ExecuteReader())
+                    {
+                        if (!r.Read()) return null;
+                        return new MaterialRequestDetailEntity
+                        {
+                            RequestID         = r["RequestID"].ToString(),
+                            OrderID           = r["OrderID"]        == DBNull.Value ? null : r["OrderID"].ToString(),
+                            RawMaterialItemID = r["RawMaterialItemID"].ToString(),
+                            RawMaterialName   = r["RawMaterialName"].ToString(),
+                            MaterialType      = r["MaterialType"].ToString(),
+                            WarehouseItemID   = r["WarehouseItemID"].ToString(),
+                            WarehouseID       = r["WarehouseID"].ToString(),
+                            WarehouseLocation = r["WarehouseLocation"].ToString(),
+                            RequestedQty      = Convert.ToInt32(r["RequestedQty"]),
+                            UrgencyLevel      = r["UrgencyLevel"].ToString(),
+                            TriggerType       = r["TriggerType"].ToString(),
+                            CurrentStock      = Convert.ToInt32(r["CurrentStock"]),
+                            ReorderLevel      = Convert.ToInt32(r["ReorderLevel"]),
+                            PurchaseID        = r["PurchaseID"]     == DBNull.Value ? null : r["PurchaseID"].ToString(),
+                            PurchaseStatus    = r["PurchaseStatus"] == DBNull.Value ? null : r["PurchaseStatus"].ToString(),
+                            POTotalAmount     = r["POTotalAmount"]  == DBNull.Value ? (decimal?)null
+                                                                                    : Convert.ToDecimal(r["POTotalAmount"])
+                        };
+                    }
+                }
+            }
+        }
+
+        // ════════════════════════════════════════════════════════════════
         //  CREATE RAW MATERIAL REQUEST — lookups
         // ════════════════════════════════════════════════════════════════
 
@@ -204,57 +271,49 @@ namespace PremiumLivingOPS.Models.DAL
                             cmd.Parameters.AddWithValue("@trigger",   triggerType);
                             cmd.ExecuteNonQuery();
                         }
-
-                        const string insertLog =
-                            @"INSERT INTO Log (LogID, StaffID, LogType, TargetTable, NewValue)
-                              VALUES (@logId, @staffId, 'Create', 'MaterialRequest', @newVal)";
-                        using (var cmd = new MySqlCommand(insertLog, conn, trx))
-                        {
-                            cmd.Parameters.AddWithValue("@logId",   Guid.NewGuid().ToString());
-                            cmd.Parameters.AddWithValue("@staffId", staffId);
-                            cmd.Parameters.AddWithValue("@newVal",  requestId);
-                            cmd.ExecuteNonQuery();
-                        }
-
                         trx.Commit();
                     }
-                    catch { trx.Rollback(); throw; }
+                    catch
+                    {
+                        trx.Rollback();
+                        throw;
+                    }
                 }
             }
         }
 
         // ════════════════════════════════════════════════════════════════
-        //  ID GENERATOR
+        //  HELPERS
         // ════════════════════════════════════════════════════════════════
 
         public string GenerateNextRequestId()
         {
-            string prefix = $"MRQ-{DateTime.Today:yyyyMMdd}-";
             using (var conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
+                string today = DateTime.Now.ToString("yyyyMMdd");
+                string prefix = $"MRQ-{today}-";
                 const string sql =
-                    @"SELECT COALESCE(MAX(CAST(SUBSTRING(RequestID, 15) AS UNSIGNED)), 0) + 1
-                      FROM   MaterialRequest
-                      WHERE  RequestID LIKE @prefix";
+                    @"SELECT RequestID FROM MaterialRequest
+                      WHERE  RequestID LIKE @prefix
+                      ORDER  BY RequestID DESC LIMIT 1";
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
                     cmd.Parameters.AddWithValue("@prefix", prefix + "%");
-                    var next = Convert.ToInt32(cmd.ExecuteScalar());
-                    return $"{prefix}{next:D4}";
+                    var last = cmd.ExecuteScalar()?.ToString();
+                    if (string.IsNullOrEmpty(last))
+                        return prefix + "0001";
+                    int seq = int.Parse(last.Substring(last.LastIndexOf('-') + 1)) + 1;
+                    return prefix + seq.ToString("D4");
                 }
             }
         }
-
-        // ════════════════════════════════════════════════════════════════
-        //  MAPPER
-        // ════════════════════════════════════════════════════════════════
 
         private static MaterialRequestEntity MapMaterialRequest(MySqlDataReader r)
             => new MaterialRequestEntity
             {
                 RequestID         = r["RequestID"].ToString(),
-                OrderID           = r["OrderID"] == DBNull.Value ? null : r["OrderID"].ToString(),
+                OrderID           = r["OrderID"]        == DBNull.Value ? null : r["OrderID"].ToString(),
                 RawMaterialItemID = r["RawMaterialItemID"].ToString(),
                 RawMaterialName   = r["RawMaterialName"].ToString(),
                 MaterialType      = r["MaterialType"].ToString(),
