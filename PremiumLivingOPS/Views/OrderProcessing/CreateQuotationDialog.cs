@@ -1,5 +1,6 @@
 using PremiumLivingOPS.Controllers;
 using PremiumLivingOPS.Models.Entities;
+using PremiumLivingOPS.Views.Shared;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -13,15 +14,14 @@ namespace PremiumLivingOPS.Views.OrderProcessing
     ///
     /// Layout (mirrors ModifyQuotationDialog):
     ///   – pnlHeader      Top  80   — dark navy, title + "Pending" badge (260px)
-    ///   – pnlQuoteInfo   Top  220  — 4-col editable header fields
+    ///   – pnlQuoteInfo   Top  220  — 4-col header fields
     ///   – pnlLineLabel   Top  50   — "QUOTATION ITEMS" bar + [＋ Add Item] button
     ///   – dgvItems       Fill      — ITEM ID | PRODUCT | QTY | UNIT PRICE | SUBTOTAL | DELETE
     ///   – pnlTotalRow    Bottom 50 — live Total Amount
-    ///   – pnlFooter      Bottom 80 — [✔ New]  [Cancel]  (210×60 each)
+    ///   – pnlFooter      Bottom 80 — [✔ New 210×60]  [Cancel 210×60]
     ///
-    /// Customer ComboBox displays "CustomerName  (CustomerID)".
-    /// Items grid Delete column: inline CellPainting red button (same as Modify).
-    /// Add Item dialog: 1350×600, left 55% search+listbox, right 45% qty/price/subtotal.
+    /// Customer field: Label showing picked value + [Pick…] button
+    ///   → opens SearchPickerDialog ("CustomerID  –  CustomerName"), same as CreateOrderForm.
     /// </summary>
     public class CreateQuotationDialog : Form
     {
@@ -37,11 +37,14 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         private DataGridView  _dgvItems;
         private Label         _lblTotal;
 
-        private ComboBox       _cboCustomer;
+        // Customer picker state
+        private string _selectedCustomerId   = "";
+        private string _selectedCustomerName = "";
+        private Label  _lblCustomerPicked;
+
         private DateTimePicker _dtpExpiry;
         private NumericUpDown  _nudDeposit;
         private TextBox        _txtLeadTime;
-        private TextBox        _txtTnC;
 
         public CreateQuotationDialog(OrderProcessingController ctrl)
         {
@@ -67,7 +70,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             MaximizeBox     = false;
             MinimizeBox     = false;
 
-            // ── Header (identical to ModifyQuotationDialog)
+            // ── Header
             var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 80, BackColor = Color.FromArgb(19, 35, 61) };
             var tblHeader = new TableLayoutPanel
             {
@@ -96,7 +99,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             }, 1, 0);
             pnlHeader.Controls.Add(tblHeader);
 
-            // ── Quote Info (editable fields, mirrors Modify read-only layout)
+            // ── Quote Info (editable fields)
             var pnlQuoteInfo = new Panel
             {
                 Dock = DockStyle.Top, Height = 220,
@@ -116,21 +119,14 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 tblQ.RowStyles.Add(new RowStyle(SizeType.Percent, 33.3f));
 
             // Row 0: Quotation ID (read-only) | Sales Staff (read-only)
-            tblQ.Controls.Add(MakeLabelKey("Quotation ID:"),         0, 0);
-            tblQ.Controls.Add(MakeLabelVal(_quotationId),            1, 0);
-            tblQ.Controls.Add(MakeLabelKey("Sales Staff:"),          2, 0);
-            tblQ.Controls.Add(MakeLabelVal(_salesStaffName ?? "—"),  3, 0);
+            tblQ.Controls.Add(MakeLabelKey("Quotation ID:"),        0, 0);
+            tblQ.Controls.Add(MakeLabelVal(_quotationId),           1, 0);
+            tblQ.Controls.Add(MakeLabelKey("Sales Staff:"),         2, 0);
+            tblQ.Controls.Add(MakeLabelVal(_salesStaffName ?? "—"), 3, 0);
 
-            // Row 1: Customer (ComboBox shows Name + ID) | Expiry Date
+            // Row 1: Customer (picker) | Expiry Date
             tblQ.Controls.Add(MakeLabelKey("Customer *:"), 0, 1);
-            _cboCustomer = new ComboBox
-            {
-                Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList,
-                Font = new Font("Segoe UI", 12f), FlatStyle = FlatStyle.Flat
-            };
-            foreach (var c in _customers)
-                _cboCustomer.Items.Add(new CustomerComboItem(c));
-            tblQ.Controls.Add(_cboCustomer, 1, 1);
+            tblQ.Controls.Add(BuildCustomerPickerCell(),   1, 1);
             tblQ.Controls.Add(MakeLabelKey("Expiry Date *:"), 2, 1);
             _dtpExpiry = new DateTimePicker
             {
@@ -158,7 +154,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             tblQ.Controls.Add(_txtLeadTime, 3, 2);
             pnlQuoteInfo.Controls.Add(tblQ);
 
-            // ── QUOTATION ITEMS bar (identical to ModifyQuotationDialog)
+            // ── QUOTATION ITEMS bar
             var pnlLineLabel = new Panel
             {
                 Dock = DockStyle.Top, Height = 50,
@@ -193,7 +189,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             tblLineBar.Controls.Add(btnAddItem, 1, 0);
             pnlLineLabel.Controls.Add(tblLineBar);
 
-            // ── Items DataGridView (identical column set to ModifyQuotationDialog)
+            // ── Items DataGridView
             _dgvItems = new DataGridView
             {
                 AllowUserToAddRows = false, AllowUserToDeleteRows = false,
@@ -264,7 +260,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Text      = "\u2714  New",
                 Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
                 ForeColor = Color.White, BackColor = Color.FromArgb(5, 150, 105),
-                FlatStyle = FlatStyle.Flat, Size = new Size(210, 60),
+                FlatStyle = FlatStyle.Flat,
+                Size      = new Size(210, 60),   // explicit 210×60
                 Dock      = DockStyle.Right, Cursor = Cursors.Hand
             };
             btnNew.FlatAppearance.BorderSize = 0;
@@ -274,7 +271,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Text      = "Cancel",
                 Font      = new Font("Segoe UI", 12f),
                 ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White,
-                FlatStyle = FlatStyle.Flat, Size = new Size(210, 60),
+                FlatStyle = FlatStyle.Flat,
+                Size      = new Size(210, 60),   // explicit 210×60
                 Dock      = DockStyle.Right, Cursor = Cursors.Hand
             };
             btnCancel.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
@@ -285,13 +283,77 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlFooter.Controls.Add(btnNew);
             pnlFooter.Controls.Add(btnCancel);
 
-            // ── Assemble (DockStyle.Top stacks top-down; Fill goes last in Controls.Add)
+            // ── Assemble
             Controls.Add(_dgvItems);
             Controls.Add(pnlTotalRow);
             Controls.Add(pnlLineLabel);
             Controls.Add(pnlQuoteInfo);
             Controls.Add(pnlHeader);
             Controls.Add(pnlFooter);
+        }
+
+        // ──────────────────────────────────────────────────────────────────
+        //  Customer picker cell  (Label + [Pick…] button in a TableLayoutPanel)
+        // ──────────────────────────────────────────────────────────────────
+        private Control BuildCustomerPickerCell()
+        {
+            var tbl = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
+                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+            };
+            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
+            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110f));
+            tbl.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+
+            _lblCustomerPicked = new Label
+            {
+                Text      = "(None selected)",
+                Font      = new Font("Segoe UI", 12f),
+                ForeColor = Color.FromArgb(98, 112, 135),
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft,
+                AutoEllipsis = true
+            };
+
+            var btnPick = new Button
+            {
+                Text      = "Pick…",
+                Font      = new Font("Segoe UI", 11f),
+                ForeColor = Color.FromArgb(15, 31, 53),
+                BackColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Dock      = DockStyle.Fill,
+                Cursor    = Cursors.Hand
+            };
+            btnPick.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
+            btnPick.FlatAppearance.BorderSize         = 1;
+            btnPick.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
+            btnPick.Click += BtnPickCustomer_Click;
+
+            tbl.Controls.Add(_lblCustomerPicked, 0, 0);
+            tbl.Controls.Add(btnPick,            1, 0);
+            return tbl;
+        }
+
+        // ── Customer picker: opens SearchPickerDialog (mirrors CreateOrderForm) ──
+        private void BtnPickCustomer_Click(object sender, EventArgs e)
+        {
+            var items = _customers
+                .Select(c => new SearchPickerDialog.PickerItem
+                {
+                    Id      = c.CustomerID,
+                    Display = $"{c.CustomerID}  –  {c.CustomerName}"
+                }).ToList();
+
+            using var dlg = new SearchPickerDialog("Select Customer", items);
+            if (dlg.ShowDialog(this) != DialogResult.OK || dlg.SelectedItem == null) return;
+
+            _selectedCustomerId   = dlg.SelectedItem.Id;
+            _selectedCustomerName = dlg.SelectedItem.Display;
+
+            _lblCustomerPicked.Text      = dlg.SelectedItem.Display;
+            _lblCustomerPicked.ForeColor = Color.FromArgb(15, 31, 53);
         }
 
         // ──────────────────────────────────────────────────────────────────
@@ -350,15 +412,11 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         }
 
         // ──────────────────────────────────────────────────────────────────
-        //  Add Item dialog — 1350×600 (mirrors ModifyQuotationDialog exactly)
-        //  Left 55%: search TextBox + filtered ListBox (ItemID — ItemName)
-        //  Right 45%: Qty / Unit Price / Subtotal
+        //  Add Item dialog (mirrors ModifyQuotationDialog.BtnAddItem_Click)
         // ──────────────────────────────────────────────────────────────────
         private void BtnAddItem_Click(object sender, EventArgs e)
         {
-            // Determine CustomerID from selected ComboBox item for product lookup
-            string custId = (_cboCustomer.SelectedItem as CustomerComboItem)?.CustomerID ?? string.Empty;
-            var availableItems = _ctrl.GetAvailableItemsForQuotation(custId)
+            var availableItems = _ctrl.GetAvailableItemsForQuotation(_selectedCustomerId)
                                  ?? new List<ProductLookup>();
 
             using var addDlg = new Form
@@ -373,7 +431,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 MinimizeBox     = false
             };
 
-            // Header
             var pnlH = new Panel { Dock = DockStyle.Top, Height = 54, BackColor = Color.FromArgb(19, 35, 61) };
             pnlH.Controls.Add(new Label
             {
@@ -384,7 +441,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Padding   = new Padding(20, 0, 0, 0), AutoSize = false
             });
 
-            // Footer
             var pnlFoot = new Panel
             {
                 Dock = DockStyle.Bottom, Height = 70,
@@ -411,13 +467,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             btnCancelAdd.FlatAppearance.BorderSize         = 1;
             btnCancelAdd.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
 
-            // Body — left 55% | right 45%
-            var pnlBody = new Panel
-            {
-                Dock = DockStyle.Fill,
-                Padding = new Padding(24, 14, 24, 8),
-                BackColor = Color.White
-            };
+            var pnlBody = new Panel { Dock = DockStyle.Fill, Padding = new Padding(24, 14, 24, 8), BackColor = Color.White };
             var tblBody = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
@@ -427,22 +477,18 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             tblBody.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 45f));
             tblBody.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
-            // Left: caption + search + listbox
             var pnlLeft = new Panel { Dock = DockStyle.Fill, Padding = new Padding(0, 0, 14, 0), BackColor = Color.Transparent };
             var lblItemCaption = new Label
             {
-                Text      = "Item",
-                Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
+                Text = "Item", Font = new Font("Segoe UI", 10f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(98, 112, 135),
-                Dock      = DockStyle.Top, Height = 40,
+                Dock = DockStyle.Top, Height = 40,
                 TextAlign = ContentAlignment.BottomLeft, AutoEllipsis = false
             };
             var txtSearch = new TextBox
             {
-                Font            = new Font("Segoe UI", 12f),
-                Dock            = DockStyle.Top, Height = 36,
-                BorderStyle     = BorderStyle.FixedSingle,
-                PlaceholderText = "\uD83D\uDD0E  Search by ID or name..."
+                Font = new Font("Segoe UI", 12f), Dock = DockStyle.Top, Height = 36,
+                BorderStyle = BorderStyle.FixedSingle, PlaceholderText = "\uD83D\uDD0E  Search by ID or name..."
             };
             var lstItems = new ListBox
             {
@@ -451,13 +497,11 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             };
 
             var productItems = availableItems
-                .Select(p => new ProductComboItem(p.ItemName, p.ItemID, p.SalesPrice))
-                .ToList();
+                .Select(p => new ProductComboItem(p.ItemName, p.ItemID, p.SalesPrice)).ToList();
 
             void FilterList(string keyword)
             {
-                lstItems.BeginUpdate();
-                lstItems.Items.Clear();
+                lstItems.BeginUpdate(); lstItems.Items.Clear();
                 string kw = (keyword ?? "").ToLowerInvariant().Trim();
                 foreach (var pi in productItems)
                     if (string.IsNullOrEmpty(kw)
@@ -473,7 +517,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlLeft.Controls.Add(txtSearch);
             pnlLeft.Controls.Add(lblItemCaption);
 
-            // Right: label col Absolute 170px / value col Percent 100f / row height 76f
             var pnlRight = new Panel { Dock = DockStyle.Fill, Padding = new Padding(12, 0, 0, 0), BackColor = Color.Transparent };
             var tblRight = new TableLayoutPanel
             {
@@ -486,42 +529,23 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             tblRight.RowStyles.Add(new RowStyle(SizeType.Absolute, 76f));
             tblRight.RowStyles.Add(new RowStyle(SizeType.Absolute, 76f));
 
-            var numQty = new NumericUpDown
-            {
-                Minimum = 1, Maximum = 9999, Value = 1,
-                Font = new Font("Segoe UI", 13f), Dock = DockStyle.Fill
-            };
-            var lblUnitPriceVal = new Label
-            {
-                Text      = "HK$ 0.00", Font = new Font("Segoe UI", 13f),
-                ForeColor = Color.FromArgb(15, 31, 53),
-                Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoEllipsis = false
-            };
-            var lblSubtotalVal = new Label
-            {
-                Text      = "HK$ 0.00", Font = new Font("Segoe UI", 14f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(5, 150, 105),
-                Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoEllipsis = false
-            };
+            var numQty = new NumericUpDown { Minimum = 1, Maximum = 9999, Value = 1, Font = new Font("Segoe UI", 13f), Dock = DockStyle.Fill };
+            var lblUnitPriceVal = new Label { Text = "HK$ 0.00", Font = new Font("Segoe UI", 13f), ForeColor = Color.FromArgb(15, 31, 53), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoEllipsis = false };
+            var lblSubtotalVal  = new Label { Text = "HK$ 0.00", Font = new Font("Segoe UI", 14f, FontStyle.Bold), ForeColor = Color.FromArgb(5, 150, 105), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoEllipsis = false };
 
             Action recompute = () =>
             {
                 var sel = lstItems.SelectedItem as ProductComboItem;
-                if (sel == null)
-                { lblUnitPriceVal.Text = "HK$ 0.00"; lblSubtotalVal.Text = "HK$ 0.00"; return; }
-                double subtotal = sel.UnitPrice * (double)numQty.Value;
+                if (sel == null) { lblUnitPriceVal.Text = "HK$ 0.00"; lblSubtotalVal.Text = "HK$ 0.00"; return; }
                 lblUnitPriceVal.Text = $"HK$ {sel.UnitPrice:N2}";
-                lblSubtotalVal.Text  = $"HK$ {subtotal:N2}";
+                lblSubtotalVal.Text  = $"HK$ {sel.UnitPrice * (double)numQty.Value:N2}";
             };
             lstItems.SelectedIndexChanged += (s, ev) => recompute();
             numQty.ValueChanged           += (s, ev) => recompute();
 
-            tblRight.Controls.Add(MakeFieldLabel("Quantity *"), 0, 0);
-            tblRight.Controls.Add(numQty,                       1, 0);
-            tblRight.Controls.Add(MakeFieldLabel("Unit Price"),  0, 1);
-            tblRight.Controls.Add(lblUnitPriceVal,               1, 1);
-            tblRight.Controls.Add(MakeFieldLabel("Subtotal"),    0, 2);
-            tblRight.Controls.Add(lblSubtotalVal,                1, 2);
+            tblRight.Controls.Add(MakeFieldLabel("Quantity *"),  0, 0); tblRight.Controls.Add(numQty,          1, 0);
+            tblRight.Controls.Add(MakeFieldLabel("Unit Price"),  0, 1); tblRight.Controls.Add(lblUnitPriceVal, 1, 1);
+            tblRight.Controls.Add(MakeFieldLabel("Subtotal"),    0, 2); tblRight.Controls.Add(lblSubtotalVal,  1, 2);
 
             pnlRight.Controls.Add(tblRight);
             tblBody.Controls.Add(pnlLeft,  0, 0);
@@ -531,23 +555,16 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             btnAdd.Click += (s, ev) =>
             {
                 var sel = lstItems.SelectedItem as ProductComboItem;
-                if (sel == null)
-                {
-                    MessageBox.Show("Please select an item from the list.", "Validation",
-                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
+                if (sel == null) { MessageBox.Show("Please select an item from the list.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
                 int addQty   = (int)numQty.Value;
                 var existing = _items.FirstOrDefault(i => i.ItemID == sel.ItemID);
-                if (existing != null)
-                    existing.Quantity += addQty;
-                else
-                    _items.Add(new QuotationItemEntity
-                    {
-                        QuotationID = _quotationId, ItemID = sel.ItemID,
-                        ProductName = sel.ItemName,  Quantity = addQty,
-                        Unit = "", UnitPrice = sel.UnitPrice, DiscountPercent = 0
-                    });
+                if (existing != null) existing.Quantity += addQty;
+                else _items.Add(new QuotationItemEntity
+                {
+                    QuotationID = _quotationId, ItemID = sel.ItemID,
+                    ProductName = sel.ItemName, Quantity = addQty,
+                    Unit = "", UnitPrice = sel.UnitPrice, DiscountPercent = 0
+                });
                 RebuildGrid();
                 addDlg.DialogResult = DialogResult.OK;
                 addDlg.Close();
@@ -567,7 +584,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         // ──────────────────────────────────────────────────────────────────
         private void BtnNew_Click(object sender, EventArgs e)
         {
-            if (_cboCustomer.SelectedItem == null)
+            if (string.IsNullOrEmpty(_selectedCustomerId))
             {
                 MessageBox.Show("Please select a Customer.", "Validation",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -580,19 +597,17 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 return;
             }
 
-            var ci       = (CustomerComboItem)_cboCustomer.SelectedItem;
             double total = _items.Sum(i => i.Subtotal);
-
             var quotation = new QuotationEntity
             {
                 QuotationID       = _quotationId,
-                CustomerID        = ci.CustomerID,
-                CustomerName      = ci.CustomerName,
+                CustomerID        = _selectedCustomerId,
+                CustomerName      = _selectedCustomerName,
                 ExpiryDate        = _dtpExpiry.Value.Date,
                 TotalAmount       = total,
                 DepositRequired   = (double)_nudDeposit.Value,
                 LeadTimeEstimated = _txtLeadTime.Text.Trim(),
-                TermsandCondition = _txtTnC?.Text.Trim() ?? string.Empty,
+                TermsandCondition = string.Empty,
                 QuotationStatus   = "Pending"
             };
 
@@ -618,7 +633,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         }
 
         // ──────────────────────────────────────────────────────────────────
-        //  Paint helpers (identical to ModifyQuotationDialog)
+        //  Paint / Label helpers
         // ──────────────────────────────────────────────────────────────────
         private static void PaintBottomBorder(object sender, PaintEventArgs e)
         {
@@ -632,10 +647,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
             e.Graphics.DrawLine(pen, 0, 0, p.Width, 0);
         }
-
-        // ──────────────────────────────────────────────────────────────────
-        //  Label factories (identical naming to ModifyQuotationDialog)
-        // ──────────────────────────────────────────────────────────────────
         private static Label MakeLabelKey(string text) => new Label
         {
             Text = text, Font = new Font("Segoe UI", 11f),
@@ -659,20 +670,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         private void InitializeComponent() { SuspendLayout(); ResumeLayout(false); }
 
         // ──────────────────────────────────────────────────────────────────
-        //  Inner classes
+        //  Inner class — Add Item sub-dialog
         // ──────────────────────────────────────────────────────────────────
-
-        /// <summary>ComboBox item that renders "CustomerName  (CustomerID)".</summary>
-        private class CustomerComboItem
-        {
-            public string CustomerID   { get; }
-            public string CustomerName { get; }
-            public CustomerComboItem(CustomerEntity c)
-            { CustomerID = c.CustomerID; CustomerName = c.CustomerName; }
-            public override string ToString() => $"{CustomerName}  ({CustomerID})";
-        }
-
-        /// <summary>ListBox item in the Add Item sub-dialog.</summary>
         private class ProductComboItem
         {
             public string ItemName  { get; }
