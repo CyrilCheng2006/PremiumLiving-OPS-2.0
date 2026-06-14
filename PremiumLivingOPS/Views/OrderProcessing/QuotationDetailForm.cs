@@ -12,8 +12,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
     ///
     /// Header layout (pnlHeader, Height=80, dark navy):
     ///   TableLayoutPanel (Dock=Fill, 2 columns, Padding 24 0 0 0)
-    ///     Col 0 — Percent 100f  : title Label
-    ///     Col 1 — Absolute 290f : status badge Label (Font 10f Bold, AutoEllipsis=false)
+    ///     Col 0 — Percent 100f  : title Label (Font 18f Bold, white)
+    ///     Col 1 — Absolute 260f : status badge Label (Font 14f Bold, AutoEllipsis=false)
     /// </summary>
     public class QuotationDetailForm : Form
     {
@@ -36,7 +36,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             this.Font            = new Font("Segoe UI", 12f);
             this.FormBorderStyle = FormBorderStyle.Sizable;
 
-            // ── Header
+            // ── Header (mirrors ModifyQuotationDialog pnlHeader exactly)
             var pnlHeader = new Panel
             {
                 Dock      = DockStyle.Top,
@@ -53,7 +53,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Padding         = new Padding(24, 0, 0, 0)
             };
             tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
-            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 290f));
+            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 260f));  // Badge width = 260f
             tblHeader.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
             tblHeader.Controls.Add(new Label
             {
@@ -68,7 +68,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             tblHeader.Controls.Add(new Label
             {
                 Text         = _q.QuotationStatus ?? "Unknown",
-                Font         = new Font("Segoe UI", 10f, FontStyle.Bold),
+                Font         = new Font("Segoe UI", 14f, FontStyle.Bold),
                 ForeColor    = scFg,
                 BackColor    = scBg,
                 Dock         = DockStyle.Fill,
@@ -227,7 +227,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             => status switch
             {
                 "Pending"   => (Color.FromArgb(254, 243, 199), Color.FromArgb(146,  64,  14)),
-                "Approved"  => (Color.FromArgb(209, 250, 229), Color.FromArgb( 6,  95,  70)),
+                "Approved"  => (Color.FromArgb(209, 250, 229), Color.FromArgb(  6,  95,  70)),
                 "Rejected"  => (Color.FromArgb(254, 226, 226), Color.FromArgb(153,  27,  27)),
                 "Expired"   => (Color.FromArgb(243, 244, 246), Color.FromArgb( 75,  85,  99)),
                 "Converted" => (Color.FromArgb(219, 234, 254), Color.FromArgb( 30,  64, 175)),
