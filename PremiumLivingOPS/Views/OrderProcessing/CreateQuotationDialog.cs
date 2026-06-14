@@ -12,7 +12,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
     ///
     /// Schema columns mapped (Database/schema.sql → Quotation table):
     ///   QuotationID         AUTO-GENERATED  (QUO-yyyyMMdd-####)
-    ///   CustomerID          ComboBox        (FK → Customer)
+    ///   CustomerID          ComboBox        (FK → Customer, List<CustomerEntity>)
     ///   ExpiryDate          DateTimePicker
     ///   TotalAmount         Calculated from item rows
     ///   DepositRequired     NumericUpDown
@@ -26,18 +26,17 @@ namespace PremiumLivingOPS.Views.OrderProcessing
     public class CreateQuotationDialog : Form
     {
         private readonly OrderProcessingController _ctrl;
-        private readonly List<CustomerLookup>      _customers;
+        private readonly List<CustomerEntity>      _customers;
         private readonly List<ProductLookup>       _products;
         private readonly string                    _quotationId;
         private readonly string                    _salesStaffName;
         private readonly string                    _salesStaffId;
 
-        // ── Item grid ──────────────────────────────────────────────────────────
+        // ── Item grid
         private DataGridView     _dgvItems;
         private Label            _lblGrandTotal;
-        private List<QuotationItemEntity> _itemRows = new List<QuotationItemEntity>();
 
-        // ── Header fields ──────────────────────────────────────────────────────
+        // ── Header fields
         private ComboBox       _cboCustomer;
         private DateTimePicker _dtpExpiry;
         private NumericUpDown  _nudDeposit;
@@ -48,7 +47,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         {
             _ctrl = ctrl;
             var vm = _ctrl.GetCreateQuotationVM();
-            _customers      = vm.Customers   ?? new List<CustomerLookup>();
+            _customers      = vm.Customers   ?? new List<CustomerEntity>();
             _products       = vm.Products    ?? new List<ProductLookup>();
             _quotationId    = vm.NextQuotationId;
             _salesStaffName = vm.SalesStaffName;
@@ -56,7 +55,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             BuildUI();
         }
 
-        // ── UI construction ────────────────────────────────────────────────────
         private void BuildUI()
         {
             Text            = "Create New Quotation";
@@ -74,10 +72,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             {
                 Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
                 BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                Padding = new Padding(24, 0, 24, 0)
+                Padding = new Padding(24, 0, 0, 0)
             };
             tblH.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-            tblH.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 280f));
+            tblH.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 260f));
             tblH.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
             tblH.Controls.Add(new Label
             {
@@ -98,7 +96,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             }, 1, 0);
             pnlHeader.Controls.Add(tblH);
 
-            // ── Info section (Card)
+            // ── Info section
             var pnlInfoCard = BuildCard(240);
             pnlInfoCard.Padding = new Padding(24, 16, 24, 16);
             var tblInfo = new TableLayoutPanel
@@ -112,7 +110,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 38f));
             for (int r = 0; r < 4; r++) tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 25f));
 
-            // Row 0: Quotation ID (RO) | Sales Staff (RO)
+            // Row 0: Quotation ID (read-only) | Sales Staff (read-only)
             tblInfo.Controls.Add(FieldLabel("Quotation ID"), 0, 0);
             tblInfo.Controls.Add(ReadOnlyField(_quotationId), 1, 0);
             tblInfo.Controls.Add(FieldLabel("Sales Staff"), 2, 0);
@@ -126,7 +124,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 Font = new Font("Segoe UI", 12f), FlatStyle = FlatStyle.Flat
             };
             foreach (var c in _customers) _cboCustomer.Items.Add(c);
-            _cboCustomer.DisplayMember = "CustomerName";
+            _cboCustomer.DisplayMember = "CustomerName";   // CustomerEntity.CustomerName
             tblInfo.Controls.Add(_cboCustomer, 1, 1);
             tblInfo.Controls.Add(FieldLabel("Expiry Date *"), 2, 1);
             _dtpExpiry = new DateTimePicker
@@ -163,10 +161,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             };
             tblInfo.SetColumnSpan(_txtTnC, 3);
             tblInfo.Controls.Add(_txtTnC, 1, 3);
-
             pnlInfoCard.Controls.Add(tblInfo);
 
-            // ── Section label: Items
+            // ── Items section label
             var pnlItemsLabel = new Panel
             {
                 Dock = DockStyle.Top, Height = 44,
@@ -239,11 +236,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 }
             };
 
-            // Product combobox column
             var colProduct = new DataGridViewComboBoxColumn
             {
                 Name = "colProduct", HeaderText = "PRODUCT", FillWeight = 30,
-                DisplayMember = "ItemName", ValueMember = "ItemId", FlatStyle = FlatStyle.Flat
+                DisplayMember = "DisplayText", ValueMember = "ItemId", FlatStyle = FlatStyle.Flat
             };
             foreach (var p in _products) colProduct.Items.Add(p);
             _dgvItems.Columns.Add(colProduct);
@@ -251,11 +247,13 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             _dgvItems.Columns.Add(new DataGridViewTextBoxColumn { Name = "colUnit",     HeaderText = "UNIT",       FillWeight = 10 });
             _dgvItems.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPrice",    HeaderText = "UNIT PRICE", FillWeight = 15 });
             _dgvItems.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDiscount", HeaderText = "DISC %",     FillWeight = 10 });
-            _dgvItems.Columns.Add(new DataGridViewReadOnlyTextBoxColumn { Name = "colSubtotal", HeaderText = "SUBTOTAL", FillWeight = 15 });
-            _dgvItems.CellValueChanged    += DgvItems_CellValueChanged;
+            var colSub = new DataGridViewTextBoxColumn { Name = "colSubtotal", HeaderText = "SUBTOTAL", FillWeight = 15, ReadOnly = true };
+            _dgvItems.Columns.Add(colSub);
+            _dgvItems.CellValueChanged += DgvItems_CellValueChanged;
             _dgvItems.CurrentCellDirtyStateChanged += (s, e) =>
             {
-                if (_dgvItems.IsCurrentCellDirty) _dgvItems.CommitEdit(DataGridViewDataErrorContexts.Commit);
+                if (_dgvItems.IsCurrentCellDirty)
+                    _dgvItems.CommitEdit(DataGridViewDataErrorContexts.Commit);
             };
 
             // ── Grand Total row
@@ -301,35 +299,33 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlFooter.Controls.Add(btnSave);
             pnlFooter.Controls.Add(btnCancel);
 
-            // ── Items outer card (fills remaining space)
+            // ── Items card (Fill)
             var pnlItemsCard = new Panel
             {
-                Dock = DockStyle.Fill,
-                BackColor = Color.White,
-                Margin = new Padding(24, 0, 24, 0),
-                Padding = new Padding(0)
+                Dock = DockStyle.Fill, BackColor = Color.White, Padding = new Padding(0)
             };
             pnlItemsCard.Controls.Add(_dgvItems);
             pnlItemsCard.Controls.Add(pnlTotalRow);
             pnlItemsCard.Controls.Add(pnlItemsToolbar);
             pnlItemsCard.Controls.Add(pnlItemsLabel);
 
-            // ── Outer card wrapper with margin
-            var pnlOuter = new Panel { Dock = DockStyle.Fill, Padding = new Padding(20, 10, 20, 4), BackColor = Color.FromArgb(245, 247, 250) };
+            var pnlOuter = new Panel
+            {
+                Dock = DockStyle.Fill, Padding = new Padding(20, 10, 20, 4),
+                BackColor = Color.FromArgb(245, 247, 250)
+            };
             pnlOuter.Controls.Add(pnlItemsCard);
 
-            // ── Assemble (reverse DockStyle.Top order)
-            Controls.Add(pnlOuter);       // Fill — items
-            Controls.Add(pnlInfoCard);    // Top — info
-            Controls.Add(pnlHeader);      // Top — header bar
-            Controls.Add(pnlFooter);      // Bottom — footer
+            // Assemble (reverse DockStyle.Top order)
+            Controls.Add(pnlOuter);
+            Controls.Add(pnlInfoCard);
+            Controls.Add(pnlHeader);
+            Controls.Add(pnlFooter);
         }
 
-        // ── Item management ────────────────────────────────────────────────────
+        // ── Item grid events
         private void BtnAddItem_Click(object sender, EventArgs e)
-        {
-            _dgvItems.Rows.Add(null, 1, "pc", 0.00m, 0.0m, "HK$ 0.00");
-        }
+            => _dgvItems.Rows.Add(null, 1, "pc", 0.00m, 0.0m, "HK$ 0.00");
 
         private void BtnRemoveItem_Click(object sender, EventArgs e)
         {
@@ -342,14 +338,11 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         private void DgvItems_CellValueChanged(object sender, DataGridViewCellEventArgs e)
         {
             if (e.RowIndex < 0) return;
-            var row = _dgvItems.Rows[e.RowIndex];
-
-            decimal qty      = TryDecimal(row.Cells["colQty"].Value);
-            decimal price    = TryDecimal(row.Cells["colPrice"].Value);
-            decimal discPct  = TryDecimal(row.Cells["colDiscount"].Value);
-            decimal subtotal = qty * price * (1 - discPct / 100m);
-            row.Cells["colSubtotal"].Value = $"HK$ {subtotal:N2}";
-
+            var row      = _dgvItems.Rows[e.RowIndex];
+            decimal qty  = TryDecimal(row.Cells["colQty"].Value);
+            decimal price= TryDecimal(row.Cells["colPrice"].Value);
+            decimal disc = TryDecimal(row.Cells["colDiscount"].Value);
+            row.Cells["colSubtotal"].Value = $"HK$ {qty * price * (1 - disc / 100m):N2}";
             RecalcTotal();
         }
 
@@ -359,10 +352,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             foreach (DataGridViewRow row in _dgvItems.Rows)
             {
                 if (row.IsNewRow) continue;
-                decimal qty     = TryDecimal(row.Cells["colQty"].Value);
-                decimal price   = TryDecimal(row.Cells["colPrice"].Value);
-                decimal disc    = TryDecimal(row.Cells["colDiscount"].Value);
-                total          += qty * price * (1 - disc / 100m);
+                decimal qty  = TryDecimal(row.Cells["colQty"].Value);
+                decimal price= TryDecimal(row.Cells["colPrice"].Value);
+                decimal disc = TryDecimal(row.Cells["colDiscount"].Value);
+                total       += qty * price * (1 - disc / 100m);
             }
             _lblGrandTotal.Text = $"Total Amount:   HK$ {total:N2}";
         }
@@ -370,11 +363,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         private static decimal TryDecimal(object v)
         {
             if (v == null) return 0;
-            if (decimal.TryParse(v.ToString(), out decimal d)) return d;
-            return 0;
+            return decimal.TryParse(v.ToString(), out decimal d) ? d : 0;
         }
 
-        // ── Save ───────────────────────────────────────────────────────────────
+        // ── Save
         private void BtnSave_Click(object sender, EventArgs e)
         {
             if (_cboCustomer.SelectedItem == null)
@@ -384,15 +376,15 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 return;
             }
 
-            var   customer = (CustomerLookup)_cboCustomer.SelectedItem;
-            double total   = 0;
+            var    customer = (CustomerEntity)_cboCustomer.SelectedItem;
+            double total    = 0;
             foreach (DataGridViewRow row in _dgvItems.Rows)
             {
                 if (row.IsNewRow) continue;
-                double qty   = (double)TryDecimal(row.Cells["colQty"].Value);
-                double price = (double)TryDecimal(row.Cells["colPrice"].Value);
-                double disc  = (double)TryDecimal(row.Cells["colDiscount"].Value);
-                total       += qty * price * (1 - disc / 100.0);
+                double qty  = (double)TryDecimal(row.Cells["colQty"].Value);
+                double price= (double)TryDecimal(row.Cells["colPrice"].Value);
+                double disc = (double)TryDecimal(row.Cells["colDiscount"].Value);
+                total      += qty * price * (1 - disc / 100.0);
             }
 
             var quotation = new QuotationEntity
@@ -425,40 +417,27 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             }
         }
 
-        // ── Helpers ────────────────────────────────────────────────────────────
-        private static Panel BuildCard(int height)
+        // ── Helpers
+        private static Panel BuildCard(int height) => new Panel
         {
-            return new Panel
-            {
-                Dock      = DockStyle.Top, Height = height,
-                BackColor = Color.White,
-                Margin    = new Padding(20, 8, 20, 0)
-            };
-        }
+            Dock = DockStyle.Top, Height = height, BackColor = Color.White,
+            Margin = new Padding(20, 8, 20, 0)
+        };
 
         private static Label FieldLabel(string text) => new Label
         {
-            Text      = text, Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+            Text = text, Font = new Font("Segoe UI", 10f, FontStyle.Bold),
             ForeColor = Color.FromArgb(98, 112, 135),
-            Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft,
-            Padding   = new Padding(0, 0, 8, 0), AutoEllipsis = false
+            Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft,
+            Padding = new Padding(0, 0, 8, 0), AutoEllipsis = false
         };
 
-        private static Control ReadOnlyField(string text)
+        private static Control ReadOnlyField(string text) => new Label
         {
-            return new Label
-            {
-                Text      = text, Font = new Font("Segoe UI", 12f),
-                ForeColor = Color.FromArgb(15, 31, 53),
-                Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft,
-                BackColor = Color.FromArgb(245, 247, 250)
-            };
-        }
-    }
-
-    /// <summary>Helper column type: read-only TextBox column for Subtotal.</summary>
-    internal class DataGridViewReadOnlyTextBoxColumn : DataGridViewTextBoxColumn
-    {
-        public DataGridViewReadOnlyTextBoxColumn() { ReadOnly = true; }
+            Text = text, Font = new Font("Segoe UI", 12f),
+            ForeColor = Color.FromArgb(15, 31, 53),
+            Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft,
+            BackColor = Color.FromArgb(245, 247, 250)
+        };
     }
 }
