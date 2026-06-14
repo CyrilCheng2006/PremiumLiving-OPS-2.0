@@ -2,7 +2,7 @@ using System.Collections.Generic;
 
 namespace PremiumLivingOPS.Models.Entities
 {
-    // ── Order domain entities (map directly to DB tables) ──────────────────────
+    // ── Order domain entities (map directly to DB tables) ─────────────────────────────
 
     public class OrderEntity
     {
@@ -39,13 +39,12 @@ namespace PremiumLivingOPS.Models.Entities
     /// <summary>
     /// Maps directly to the Quotation table in schema.sql.
     /// Columns: QuotationID, CustomerID, ExpiryDate, TotalAmount,
-    ///          DepositRequired, LeadTimeEstimated, TermsandCondition, QuotationStatus.
+    ///          DepositRequired (DOUBLE DEFAULT NULL), LeadTimeEstimated,
+    ///          TermsandCondition, QuotationStatus.
     ///
-    /// SalesStaffName is NOT a Quotation column; it is populated by the controller
-    /// via a JOIN to the Order / Staff tables when available (nullable display helper).
-    ///
-    /// NOTE: There is no Notes column in the Quotation table and no QuotationItem
-    ///       table in the schema — those properties have been removed.
+    /// DepositRequired is double? (nullable) because the DB column is DEFAULT NULL.
+    /// SalesStaffName is NOT a Quotation column; populated by controller JOIN.
+    /// There is no QuotationItem table in the schema.
     /// </summary>
     public class QuotationEntity
     {
@@ -55,42 +54,38 @@ namespace PremiumLivingOPS.Models.Entities
         public System.DateTime IssuedDate        { get; set; }
         public System.DateTime ExpiryDate        { get; set; }
         public double          TotalAmount       { get; set; }
-        public double          DepositRequired   { get; set; }
+
+        /// <summary>
+        /// Schema: DepositRequired DOUBLE(10,2) DEFAULT NULL.
+        /// Nullable because a quotation may not require any deposit.
+        /// </summary>
+        public double?         DepositRequired   { get; set; }
+
         public string          LeadTimeEstimated { get; set; }
         public string          TermsandCondition { get; set; }
         public string          QuotationStatus   { get; set; }
-        public string          Status            => QuotationStatus;  // picker-friendly alias
+        public string          Status            => QuotationStatus;
 
-        /// <summary>
-        /// Display helper — populated by controller JOIN to Staff table.
-        /// Not a column in the Quotation table.
-        /// </summary>
+        /// <summary>Display helper — populated by controller JOIN. Not a DB column.</summary>
         public string          SalesStaffName    { get; set; }
 
-        /// <summary>Line items — populated only by GetQuotationDetail, null in list queries.</summary>
+        /// <summary>Line items — populated only by GetQuotationDetail via in-memory cache.</summary>
         public List<QuotationItemEntity> Items   { get; set; }
     }
 
     /// <summary>
-    /// Represents one line item carried from a Quotation into an Order.
-    /// There is no separate QuotationItem table in the schema; these records
-    /// are synthesised by the controller from OrderLine data linked to the
-    /// Quotation via Order.QuotationID.
-    ///
-    /// ItemID references Item(ItemID) / Product(ItemID) in the DB.
-    /// ProductName is the display name carried from Item.ItemName.
+    /// One line item held in the in-memory quotation cache.
+    /// There is no QuotationItem table in the schema; items are stored
+    /// by the controller in _quotationItemCache after Create / Modify.
     /// </summary>
     public class QuotationItemEntity
     {
-        public string QuotationID      { get; set; }
-        /// <summary>FK → Item.ItemID (also Product.ItemID). Used when converting to OrderLine.</summary>
-        public string ItemID           { get; set; }
-        public string ProductName      { get; set; }
-        public int    Quantity         { get; set; }
-        public string Unit             { get; set; }
-        public double UnitPrice        { get; set; }
-        public double DiscountPercent  { get; set; }
-        public double Subtotal         => Quantity * UnitPrice * (1 - DiscountPercent / 100.0);
+        public string QuotationID  { get; set; }
+        public string ItemID       { get; set; }
+        public string ProductName  { get; set; }
+        public int    Quantity     { get; set; }
+        public double UnitPrice    { get; set; }
+        public double Subtotal     => Quantity * UnitPrice;
     }
 
     public class ProductLookup
@@ -99,44 +94,25 @@ namespace PremiumLivingOPS.Models.Entities
         public string ItemName   { get; set; }
         public double SalesPrice { get; set; }
         public string Category   { get; set; }
-
-        /// <summary>Convenience display string for ComboBox items.</summary>
         public string DisplayText => $"{ItemID}  \u2013  {ItemName}  (HK$ {SalesPrice:N2})";
     }
 
     /// <summary>
-    /// Represents one saved address record from the Address table.
     /// Schema: Address (AddressID, CustomerID, AddressName, AddressType, isDefault)
     /// </summary>
     public class AddressLookup
     {
-        /// <summary>PK from Address table (e.g. ADDR-0001).</summary>
         public string AddressId   { get; set; }
-
-        /// <summary>FK — which customer owns this address.</summary>
         public string CustomerId  { get; set; }
-
-        /// <summary>Address text as stored in Address.AddressName.</summary>
         public string FullAddress { get; set; }
-
-        /// <summary>Address type from Address.AddressType (Residential / Office / Mailing).</summary>
         public string Label       { get; set; }
-
-        /// <summary>Whether this is the customer's default address (Address.isDefault).</summary>
         public bool   IsDefault   { get; set; }
-
-        /// <summary>
-        /// ComboBox display text.
-        /// Format: "ADDR-0001  –  Residential  –  123 Main St  [★ Default]"
-        /// </summary>
         public string DisplayText =>
             $"{AddressId}  \u2013  {Label}  \u2013  {FullAddress}"
             + (IsDefault ? "  [\u2605 Default]" : "");
     }
 
-    // ── ViewModels (passed from Controller → View) ─────────────────────────────
-    // NOTE: UserBarViewModel is defined in AfterServiceViewModels.cs (shared).
-    // NOTE: CustomerEntity is defined in CustomerEntity.cs (canonical).
+    // ── ViewModels ────────────────────────────────────────────────────────────────────────────────────
 
     public class ViewOrderViewModel
     {
@@ -145,7 +121,6 @@ namespace PremiumLivingOPS.Models.Entities
         public List<OrderEntity> Orders       { get; set; }
     }
 
-    /// <summary>Full detail of one order including its line items.</summary>
     public class OrderDetailViewModel
     {
         public OrderEntity           Order { get; set; }
@@ -159,25 +134,15 @@ namespace PremiumLivingOPS.Models.Entities
         public List<QuotationEntity> Quotations   { get; set; }
     }
 
-    /// <summary>
-    /// ViewModel for the Create New Quotation dialog.
-    /// Provides all lookup data needed to build the form.
-    /// </summary>
     public class CreateQuotationViewModel
     {
-        public UserBarViewModel     UserBar      { get; set; }
-        public string[]             AllowedMenus { get; set; }
-        public List<CustomerEntity> Customers    { get; set; }
-        public List<ProductLookup>  Products     { get; set; }
-
-        /// <summary>Pre-generated QuotationID in QUO-YYYYMMDD-NNNN format.</summary>
-        public string NextQuotationId            { get; set; }
-
-        /// <summary>Default sales staff name from current session.</summary>
-        public string SalesStaffName             { get; set; }
-
-        /// <summary>Default sales staff ID from current session.</summary>
-        public string SalesStaffId               { get; set; }
+        public UserBarViewModel     UserBar        { get; set; }
+        public string[]             AllowedMenus   { get; set; }
+        public List<CustomerEntity> Customers      { get; set; }
+        public List<ProductLookup>  Products       { get; set; }
+        public string               NextQuotationId { get; set; }
+        public string               SalesStaffName  { get; set; }
+        public string               SalesStaffId    { get; set; }
     }
 
     public class CreateOrderViewModel
@@ -189,11 +154,7 @@ namespace PremiumLivingOPS.Models.Entities
         public List<ProductLookup>   Products          { get; set; }
         public List<QuotationEntity> Quotations        { get; set; }
         public List<QuotationEntity> PendingQuotations { get; set; }
-
-        /// <summary>
-        /// Pre-generated OrderID in ORD-YYYYMMDD-NNNN format.
-        /// </summary>
-        public string NextOrderId { get; set; }
+        public string                NextOrderId       { get; set; }
     }
 
     public class ModifyOrderViewModel
@@ -205,8 +166,6 @@ namespace PremiumLivingOPS.Models.Entities
         public List<ProductLookup>   Products      { get; set; }
         public List<CustomerEntity>  Customers     { get; set; }
         public List<AddressLookup>   Addresses     { get; set; }
-
-        /// <summary>All quotations available for linking (used by Modify Order picker).</summary>
         public List<QuotationEntity> Quotations    { get; set; }
     }
 }
