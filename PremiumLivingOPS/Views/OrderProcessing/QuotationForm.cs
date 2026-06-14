@@ -40,10 +40,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         }
 
         /// <summary>
-        /// Injects [New 210×60] to the left of btnViewDetail inside pnlActionArea.
+        /// Injects [+ New 210×60] to the left of btnViewDetail inside pnlActionArea.
         ///
         /// Layout (left → right, all ItemH=60):
-        ///   [New 210] [View Detail 210] [Modify 210] [Status CB 210] [Update Status 210]
+        ///   [+ New 210] [View Detail 210] [Modify 210] [Status CB 210] [Update Status 210]
         ///   gaps = 8px between each
         /// </summary>
         private void InjectCreateButton()
@@ -61,7 +61,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             _btnCreate = new Button
             {
-                Text      = "New",
+                Text      = "+ New",
                 Name      = "btnCreateQuotation",
                 Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
                 ForeColor = Color.White,
@@ -119,7 +119,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
-            _shell.SetBreadcrumb("Order Processing  \u203a  Quotation");
+            _shell.SetBreadcrumb("Order Processing  ›  Quotation");
 
             _currentQuotations = vm.Quotations;
 
@@ -362,7 +362,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             using var dlg = new Form
             {
-                Text            = $"Quotation Detail \u2014 {q.QuotationID}",
+                Text            = $"Quotation Detail — {q.QuotationID}",
                 Size            = new Size(2500, 1100),
                 StartPosition   = FormStartPosition.CenterParent,
                 BackColor       = Color.White,
@@ -384,7 +384,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             tblHeader.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
             tblHeader.Controls.Add(new Label
             {
-                Text      = $"Quotation Details  \u2014  {q.QuotationID}",
+                Text      = $"Quotation Details  —  {q.QuotationID}",
                 Font      = new Font("Segoe UI", 18f, FontStyle.Bold),
                 ForeColor = Color.White, Dock = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
@@ -426,8 +426,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             var leftFields = new[] {
                 ("Quotation ID",  q.QuotationID),
                 ("Customer",      q.CustomerName),
-                ("Lead Time",     q.LeadTimeEstimated ?? "\u2014"),
-                ("Sales Staff",   q.SalesStaffName    ?? "\u2014"),
+                ("Lead Time",     q.LeadTimeEstimated ?? "—"),
+                ("Sales Staff",   q.SalesStaffName    ?? "—"),
             };
             for (int i = 0; i < leftFields.Length; i++)
             {
@@ -438,7 +438,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 ("Expiry Date",      q.ExpiryDate.ToString("yyyy-MM-dd")),
                 ("Total Amount",     $"HK$ {q.TotalAmount:N2}"),
                 ("Deposit Required", $"HK$ {q.DepositRequired:N2}"),
-                ("Status",           q.QuotationStatus ?? "\u2014"),
+                ("Status",           q.QuotationStatus ?? "—"),
             };
             for (int i = 0; i < rightFields.Length; i++)
             {
@@ -583,7 +583,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         };
         private static Label MakeLabelVal(string text) => new Label
         {
-            Text = text ?? "\u2014", Font = new Font("Segoe UI", 12f),
+            Text = text ?? "—", Font = new Font("Segoe UI", 12f),
             ForeColor = Color.FromArgb(15, 31, 53), Dock = DockStyle.Fill,
             TextAlign = ContentAlignment.MiddleLeft, AutoEllipsis = true
         };
