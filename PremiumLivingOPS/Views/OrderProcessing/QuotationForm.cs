@@ -241,13 +241,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
         // ──────────────────────────────────────────────────────────────────
         //  MODIFY QUOTATION  (btnAddFrom in Designer — text: "✎ Modify")
-        //
-        //  Rules:
-        //    1. Quotation linked to an Order (status == "Converted" or
-        //       IsQuotationLinkedToOrder returns true) → blocked, show warning.
-        //    2. Inside ModifyQuotationDialog only Items may be added / deleted;
-        //       all header fields are read-only.
-        //    3. Footer action buttons are 210 × 60.
         // ──────────────────────────────────────────────────────────────────
         private void btnAddFrom_Click(object sender, EventArgs e)
         {
@@ -262,7 +255,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 return;
             }
 
-            // Guard: already linked to an Order → cannot modify
             bool linkedToOrder = q.QuotationStatus == "Converted"
                                  || _ctrl.IsQuotationLinkedToOrder(qid);
             if (linkedToOrder)
@@ -350,7 +342,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             tblHeader.Controls.Add(new Label
             {
                 Text         = q.QuotationStatus ?? "Unknown",
-                Font         = new Font("Segoe UI", 10f, FontStyle.Bold),
+                Font         = new Font("Segoe UI", 14f, FontStyle.Bold),
                 ForeColor    = sc.fg != default ? sc.fg : Color.White,
                 BackColor    = sc.bg != default ? sc.bg : Color.FromArgb(80, 80, 80),
                 Dock         = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter,
