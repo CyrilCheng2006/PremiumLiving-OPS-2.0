@@ -280,7 +280,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             => FormNavigator.NavigateTo(this, "Production Processing", "Create Raw Material Request");
 
         // ════════════════════════════════════════════════════════════════
-        //  Detail Dialog  —  aligned with ViewOrderForm pattern
+        //  Detail Dialog  —  aligned with ViewShipmentForm pattern
         // ════════════════════════════════════════════════════════════════
 
         private void OpenDetailDialog()
@@ -306,7 +306,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             using var dlg = new Form
             {
                 Text            = $"Material Request Detail \u2014 {d.RequestID}",
-                Size            = new Size(1600, 900),
+                Size            = new Size(1700, 1000),
                 StartPosition   = FormStartPosition.CenterParent,
                 BackColor       = Color.White,
                 Font            = new Font("Segoe UI", 13f),
@@ -573,7 +573,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             _          => urgency ?? "\u2014"
         };
 
-        // ── Label factories (aligned with ViewOrderForm) ────────────────────────────────
+        // ── Label factories (aligned with ViewShipmentForm) ────────────────────────────────
         private static Label DlgMakeLabelKey(string text) => new Label
         {
             Text         = text,
