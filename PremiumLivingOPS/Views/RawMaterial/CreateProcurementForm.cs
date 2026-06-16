@@ -42,12 +42,9 @@ namespace PremiumLivingOPS.Views.RawMaterial
 
         private void CreateProcurementForm_Load(object sender, EventArgs e)
         {
-            nudOrderQty.ValueChanged   += RecalcTotal;
-            nudUnitPrice.ValueChanged  += RecalcTotal;
+            nudOrderQty.ValueChanged  += RecalcTotal;
+            nudUnitPrice.ValueChanged += RecalcTotal;
             cboMaterialRequest.SelectedIndexChanged += CboMaterialRequest_Changed;
-            btnSubmit.Click += BtnSubmit_Click;
-            btnReset.Click  += BtnReset_Click;
-
             LoadForm();
         }
 
@@ -64,8 +61,8 @@ namespace PremiumLivingOPS.Views.RawMaterial
             _shell.SetVisibleMenus(vm.AllowedMenus);
             _shell.SetBreadcrumb("Raw Material  \u203a  Create Procurement");
 
-            // Auto-generated ID
-            txtPurchaseID.Text = vm.NextPurchaseID;
+            // Auto-generated ID — displayed as blue chip (lblPurchaseIDValue)
+            lblPurchaseIDValue.Text = vm.NextPurchaseID;
 
             // Material Request dropdown
             _requests = vm.MaterialRequests;
@@ -91,26 +88,29 @@ namespace PremiumLivingOPS.Views.RawMaterial
                 cboWarehouse.Items.Add($"{w.WarehouseID}  —  {w.WarehouseLocation}");
             cboWarehouse.SelectedIndex = 0;
 
-            // ── Reset line fields ────────────────────────────────────────
-            // IMPORTANT: always set Minimum BEFORE Value to avoid
-            // ArgumentOutOfRangeException when the designer has Minimum > 0.
+            // Reset auto-filled chip labels
+            lblRawMaterialID.Text      = "—";
+            lblRawMaterialID.ForeColor = Color.FromArgb(98, 112, 135);
+            lblRequestedQty.Text       = "—";
+            lblRequestedQty.ForeColor  = Color.FromArgb(98, 112, 135);
+            lblLineTotal.Text          = "HK$ 0.00";
 
-            // Order Qty — valid range 1..9999
-            nudOrderQty.Minimum = 1;
-            nudOrderQty.Maximum = 9999;
-            nudOrderQty.Value   = 1;
+            // Reset line inputs
+            nudOrderQty.Minimum  = 1;
+            nudOrderQty.Maximum  = 9999;
+            nudOrderQty.Value    = 1;
+            nudUnitPrice.Minimum = 0m;
+            nudUnitPrice.Maximum = 9_999_999m;
+            nudUnitPrice.Value   = 0m;
 
-            // Unit Price — valid range 0..9,999,999  (0 = blank / not yet entered)
-            nudUnitPrice.Minimum       = 0m;
-            nudUnitPrice.Maximum       = 9_999_999m;
-            nudUnitPrice.DecimalPlaces = 2;
-            nudUnitPrice.Value         = 0m;
-
-            txtRawMaterialID.Text  = string.Empty;
-            txtRequestedQty.Text   = string.Empty;
-            txtLineTotal.Text      = "HK$ 0.00";
-            dtpOrderDate.Value     = DateTime.Today;
+            dtpOrderDate.Value      = DateTime.Today;
             cboStatus.SelectedIndex = 0;
+
+            // Attach submit / reset after controls exist
+            btnSubmit.Click -= BtnSubmit_Click;
+            btnReset.Click  -= BtnReset_Click;
+            btnSubmit.Click += BtnSubmit_Click;
+            btnReset.Click  += BtnReset_Click;
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -121,30 +121,43 @@ namespace PremiumLivingOPS.Views.RawMaterial
         {
             if (cboMaterialRequest.SelectedItem is MaterialRequestLookup req)
             {
-                txtRawMaterialID.Text = req.RawMaterialID;
-                txtRequestedQty.Text  = req.RequestedQty.ToString();
+                // Show auto-filled values as blue chips
+                lblRawMaterialID.Text      = req.RawMaterialID;
+                lblRawMaterialID.ForeColor = Palette.Primary;
+                lblRawMaterialID.BackColor = Color.FromArgb(219, 234, 254);
+
+                lblRequestedQty.Text       = req.RequestedQty.ToString();
+                lblRequestedQty.ForeColor  = Palette.Primary;
+                lblRequestedQty.BackColor  = Color.FromArgb(219, 234, 254);
             }
             else
             {
-                txtRawMaterialID.Text = string.Empty;
-                txtRequestedQty.Text  = string.Empty;
+                lblRawMaterialID.Text      = "—";
+                lblRawMaterialID.ForeColor = Color.FromArgb(98, 112, 135);
+                lblRawMaterialID.BackColor = Color.FromArgb(235, 240, 250);
+
+                lblRequestedQty.Text       = "—";
+                lblRequestedQty.ForeColor  = Color.FromArgb(98, 112, 135);
+                lblRequestedQty.BackColor  = Color.FromArgb(235, 240, 250);
             }
         }
 
         private void RecalcTotal(object sender, EventArgs e)
         {
             double total = (double)nudOrderQty.Value * (double)nudUnitPrice.Value;
-            txtLineTotal.Text = $"HK$ {total:N2}";
+            lblLineTotal.Text = $"HK$ {total:N2}";
         }
 
         private void BtnSubmit_Click(object sender, EventArgs e)
         {
-            string purchaseId    = txtPurchaseID.Text.Trim();
+            string purchaseId    = lblPurchaseIDValue.Text.Trim();
             string requestId     = (cboMaterialRequest.SelectedItem as MaterialRequestLookup)?.RequestID;
             string supplierId    = (cboSupplier.SelectedItem as SupplierLookup)?.SupplierID;
-            string rawMaterialId = txtRawMaterialID.Text.Trim();
-            string status        = cboStatus.SelectedItem?.ToString() ?? "Sent";
-            DateTime orderDate   = dtpOrderDate.Value.Date;
+            string rawMaterialId = lblRawMaterialID.Text.Trim();
+            // Treat the placeholder dash as empty
+            if (rawMaterialId == "—") rawMaterialId = string.Empty;
+            string status      = cboStatus.SelectedItem?.ToString() ?? "Sent";
+            DateTime orderDate = dtpOrderDate.Value.Date;
 
             string warehouseId = null;
             if (cboWarehouse.SelectedIndex > 0 && cboWarehouse.SelectedIndex <= _warehouses.Count)
