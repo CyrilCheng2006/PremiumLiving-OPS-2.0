@@ -351,7 +351,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             var pnlInfo = new Panel
             {
                 Dock      = DockStyle.Top,
-                Height    = 300,
+                Height    = 320,   // slightly taller to accommodate the 2-line Warehouse row
                 Padding   = new Padding(28, 18, 28, 8),
                 BackColor = Color.White
             };
@@ -369,10 +369,13 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
-            for (int i = 0; i < 5; i++)
-                tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 20f));
 
-            // Left column — fields from MaterialRequest + joined tables
+            // Rows 0–3: fixed equal height (~22% each); Row 4: AutoSize to wrap 2 lines
+            for (int i = 0; i < 4; i++)
+                tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 22f));
+            tblInfo.RowStyles.Add(new RowStyle(SizeType.AutoSize));   // row 4 — Warehouse
+
+            // Left column
             var leftFields = new (string key, string val)[]
             {
                 ("Request ID",    d.RequestID),
@@ -387,8 +390,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 tblInfo.Controls.Add(DlgMakeLabelVal(leftFields[i].val ?? "\u2014"), 1, i);
             }
 
-            // Right column
-            // Row 0–3: normal single-line value labels
+            // Right column: rows 0–3 — single-line labels
             var rightFields = new (string key, string val)[]
             {
                 ("Trigger Type",      d.TriggerType),
@@ -402,21 +404,22 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 tblInfo.Controls.Add(DlgMakeLabelVal(rightFields[i].val ?? "\u2014"), 3, i);
             }
 
-            // Row 4 — Warehouse: key label + multi-line value label (wraps to 2 lines)
+            // Right column: row 4 — Warehouse with wrapping (AutoSize row drives height)
             tblInfo.Controls.Add(DlgMakeLabelKey("Warehouse"), 2, 4);
             tblInfo.Controls.Add(new Label
             {
-                Text         = $"{d.WarehouseID}  \u2014  {d.WarehouseLocation}",
-                Font         = new Font("Segoe UI", 12f),
-                ForeColor    = Color.FromArgb(15, 31, 53),
-                Dock         = DockStyle.Fill,
-                // Top-left alignment allows the second line to flow naturally
-                TextAlign    = ContentAlignment.TopLeft,
+                Text        = $"{d.WarehouseID}  \u2014  {d.WarehouseLocation}",
+                Font        = new Font("Segoe UI", 12f),
+                ForeColor   = Color.FromArgb(15, 31, 53),
+                Dock        = DockStyle.Fill,
+                TextAlign   = ContentAlignment.TopLeft,
+                // AutoSize=false + no AutoEllipsis: text wraps within the cell width
+                AutoSize    = false,
                 AutoEllipsis = false,
-                AutoSize     = false,
-                UseMnemonic  = false,
-                Padding      = new Padding(0, 10, 0, 0)   // slight top offset to sit alongside the key
+                UseMnemonic = false,
+                Padding     = new Padding(0, 8, 0, 8)   // vertical breathing room
             }, 3, 4);
+
             pnlInfo.Controls.Add(tblInfo);
 
             // ── Stock status bar ─────────────────────────────────────────────────────────────
@@ -440,9 +443,6 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 BackColor       = Color.Transparent,
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
-            // Columns: [Current Stock key] [val] [Reorder Level key] [val] [Stock Status key] [val]
-            // Narrowed key+val for Current Stock & Reorder Level (13%+10% each)
-            // to free space for the longer Stock Status value (17%+37%)
             tblStock.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 13f));  // Current Stock label
             tblStock.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 10f));  // Current Stock value
             tblStock.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 13f));  // Reorder Level label
@@ -561,7 +561,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             btnClose.Click += (s, ev) => dlg.Close();
             pnlFooter.Controls.Add(btnClose);
 
-            // ── Assemble (DockStyle.Top stacks top-down; Fill occupies remainder) ──
+            // ── Assemble ───────────────────────────────────────────────────────────────
             dlg.Controls.Add(pnlPoDetail);   // Fill  — PO detail / empty state
             dlg.Controls.Add(pnlPoLabel);    // Top   — "LINKED PURCHASE ORDER"
             dlg.Controls.Add(pnlStock);      // Top   — stock bar
@@ -571,7 +571,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             dlg.ShowDialog(this);
         }
 
-        // ── Label factories (aligned with ViewShipmentForm) ────────────────────────────────
+        // ── Label factories ─────────────────────────────────────────────────────────────
         private static Label DlgMakeLabelKey(string text) => new Label
         {
             Text         = text,
