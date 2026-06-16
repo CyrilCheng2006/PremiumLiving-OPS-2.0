@@ -83,9 +83,9 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 1,
                 BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
-            tblFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  45f));
-            tblFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  27.5f));
-            tblFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  27.5f));
+            tblFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 45f));
+            tblFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 27.5f));
+            tblFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 27.5f));
             tblFields.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
             tblFields.Controls.Add(MakeCell("Keyword",      txtKeyword, true),  0, 0);
             tblFields.Controls.Add(MakeCell("Urgency",      cboUrgency, true),  1, 0);
@@ -97,6 +97,10 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             pnlSearchBtns.Controls.Add(btnSearch);
             pnlSearchBtns.Controls.Add(btnReset);
 
+            // tblSearch rows:
+            //   Row 0 — card title          : 44px  (fixed)
+            //   Row 1 — label + input cells : 80px  (label row=36px + input ~36px = fits without overlap)
+            //   Row 2 — search/reset buttons: 64px  (fixed)
             var tblSearch = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill, RowCount = 3, ColumnCount = 1,
@@ -104,16 +108,19 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 Padding = new Padding(18, 14, 18, 14)
             };
             tblSearch.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-            tblSearch.RowStyles.Add(new RowStyle(SizeType.Absolute,  50f));
-            tblSearch.RowStyles.Add(new RowStyle(SizeType.Absolute, 114f));
-            tblSearch.RowStyles.Add(new RowStyle(SizeType.Absolute,  68f));
-            tblSearch.Controls.Add(BuildTitlePanel("Search Raw Material Request", isSectionTitle: false), 0, 0);
+            tblSearch.RowStyles.Add(new RowStyle(SizeType.Absolute,  44f));   // title
+            tblSearch.RowStyles.Add(new RowStyle(SizeType.Absolute,  80f));   // fields (was 114 — reduced; label row inside MakeCell now 36px so no overlap)
+            tblSearch.RowStyles.Add(new RowStyle(SizeType.Absolute,  64f));   // buttons
+
+            // Title renamed to "Search" — short and clear
+            tblSearch.Controls.Add(BuildTitlePanel("Search", isSectionTitle: false), 0, 0);
             tblSearch.Controls.Add(tblFields,     0, 1);
             tblSearch.Controls.Add(pnlSearchBtns, 0, 2);
 
+            // Card outer height = padding(14+14) + title(44) + fields(80) + buttons(64) = 216px
             var pnlSearchOuter = new Panel
             {
-                Dock = DockStyle.Top, Height = 280,
+                Dock = DockStyle.Top, Height = 230,
                 BackColor = Color.FromArgb(240, 244, 249), Padding = new Padding(20, 14, 20, 0)
             };
             var pnlSearchCard = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
@@ -131,10 +138,10 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 Padding   = new Padding(12, 10, 12, 10)
             };
 
-            const int BtnW   = 290;   // each button width — aligned with ViewOrderForm
-            const int BtnH   = 60;    // each button height
-            const int BtnGap = 8;     // horizontal gap between the two buttons
-            const int BtnPad = 12;    // left/right outer padding inside pnlActionBtns
+            const int BtnW   = 290;
+            const int BtnH   = 60;
+            const int BtnGap = 8;
+            const int BtnPad = 12;
 
             btnViewDetail = MakePrimaryBtn("\uD83D\uDD0D  View Details", Point.Empty, BtnW, BtnH);
             btnCreateNew  = MakeGreenBtn  ("\uFF0B  Create New",         Point.Empty, BtnW, BtnH);
@@ -143,7 +150,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             var pnlActionBtns = new Panel
             {
                 Dock      = DockStyle.Right,
-                Width     = BtnPad + BtnW + BtnGap + BtnW + BtnPad,  // 12+290+8+290+12 = 612
+                Width     = BtnPad + BtnW + BtnGap + BtnW + BtnPad,
                 BackColor = Color.Transparent
             };
             void CentreActionBtns()
@@ -173,22 +180,6 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
 
             // ════════════════════════════════════════════════════════════
             // CARD 3 — Results Grid (Fill)
-            //
-            // Columns strictly follow schema.sql MaterialRequest +
-            // JOIN fields from RawMaterial, Item, WarehouseItem, Warehouse
-            // and a derived IsLinkedToPO flag from PurchaseOrder.
-            //
-            // Removed (did NOT exist in schema):
-            //   colItemID     — redundant; ID already merged into colMaterial
-            //   colStatus     — MaterialRequest has NO Status column
-            //   colCreatedDate — MaterialRequest has NO Date column
-            //
-            // Added (exist in schema / DAL query):
-            //   colMaterialType — RawMaterial.MaterialType
-            //   colOrderID      — MaterialRequest.OrderID (nullable)
-            //   colWarehouse    — Warehouse.WarehouseLocation
-            //   colStock        — WarehouseItem.WarehouseItemQuantity
-            //   colLinkedPO     — derived: PurchaseOrder exists for RequestID
             // ════════════════════════════════════════════════════════════
             dgvRequests = new DataGridView
             {
@@ -223,7 +214,6 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             };
             dgvRequests.RowTemplate.Height = 48;
 
-            // ── 10 columns — all grounded in schema / DAL ──────────────────────────
             dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colRequestID",    HeaderText = "REQUEST ID",     FillWeight = 15 });
             dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colMaterial",     HeaderText = "RAW MATERIAL",   FillWeight = 20 });
             dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colMaterialType", HeaderText = "TYPE",           FillWeight =  9 });
@@ -249,7 +239,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             pnlGridCard.Controls.Add(pnlGridInner);
 
             // ════════════════════════════════════════════════════════════
-            // Assemble pnlMain (RULE 5 — Fill first, Top second)
+            // Assemble pnlMain (Fill first, Top second)
             // ════════════════════════════════════════════════════════════
             pnlMain.Controls.Add(pnlGridCard);    // Fill  — grid
             pnlMain.Controls.Add(pnlActionOuter); // Top   — KPI + buttons
@@ -279,6 +269,10 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             return pnl;
         }
 
+        /// <summary>
+        /// Two-row TLP cell: Row 0 = caption label (36px fixed), Row 1 = input control (fills rest).
+        /// Label row height increased from 28px to 36px so it is fully visible above the input.
+        /// </summary>
         private static TableLayoutPanel MakeCell(string caption, Control ctrl, bool rightPad)
         {
             var tlp = new TableLayoutPanel
@@ -288,7 +282,9 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
                 Padding         = rightPad ? new Padding(0, 0, 14, 0) : new Padding(0)
             };
-            tlp.RowStyles.Add(new RowStyle(SizeType.Absolute, 28f));
+            // Row 0: label — 36px (was 28px; extra 8px prevents the input from overlapping the label)
+            tlp.RowStyles.Add(new RowStyle(SizeType.Absolute, 36f));
+            // Row 1: input — fills remaining height
             tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
             tlp.Controls.Add(new Label
             {
@@ -301,7 +297,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             return tlp;
         }
 
-        // ── Button factories — aligned with ViewOrderForm standard
+        // ── Button factories
         private Button MakePrimaryBtn(string text, Point loc, int w, int h)
         {
             var b = new Button
