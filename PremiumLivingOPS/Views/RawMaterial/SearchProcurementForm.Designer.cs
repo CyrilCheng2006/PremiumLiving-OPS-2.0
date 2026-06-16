@@ -48,18 +48,18 @@ namespace PremiumLivingOPS.Views.RawMaterial
             this.WindowState   = FormWindowState.Maximized;
             this.Font          = new Font("Segoe UI", 13f);
 
-            // ── Root panel — ViewOrderForm: pnlMain pattern
+            // ── Root panel
             var pnlMain = new Panel
             {
                 Dock      = DockStyle.Fill,
                 BackColor = Color.FromArgb(240, 244, 249)
             };
 
-            // ── AppShell — SetPopupContainer BEFORE adding to Controls
+            // ── AppShell
             _shell = new AppShell();
             _shell.SetPopupContainer(pnlMain);
-            _shell.MenuItemClicked += OnTopNavMenuItemClicked;  // ✔ nav fix
-            _shell.LogoutClicked   += BtnLogout_Click;          // ✔ logout fix
+            _shell.MenuItemClicked += OnTopNavMenuItemClicked;
+            _shell.LogoutClicked   += BtnLogout_Click;
 
             // ════════════════════════════════════════════════════════════
             // CARD 1 — Search Filters
@@ -104,19 +104,44 @@ namespace PremiumLivingOPS.Views.RawMaterial
             tblFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  25f));
             tblFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  25f));
             tblFields.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-            tblFields.Controls.Add(MakeCell("Keyword",   txtKeyword,     true),  0, 0);
-            tblFields.Controls.Add(MakeCell("Status",    cboStatus,      true),  1, 0);
+            tblFields.Controls.Add(MakeCell("Keyword",   txtKeyword,      true),  0, 0);
+            tblFields.Controls.Add(MakeCell("Status",    cboStatus,       true),  1, 0);
             tblFields.Controls.Add(MakeCellWithExtra("", chkUseDateRange, false), 2, 0);
-            tblFields.Controls.Add(MakeCell("Date From", dtpDateFrom,    true),  3, 0);
-            tblFields.Controls.Add(MakeCell("Date To",   dtpDateTo,      false), 4, 0);
+            tblFields.Controls.Add(MakeCell("Date From", dtpDateFrom,     true),  3, 0);
+            tblFields.Controls.Add(MakeCell("Date To",   dtpDateTo,       false), 4, 0);
 
-            btnSearch = MakePrimaryBtn("🔍  Search", Point.Empty,       210, 52);
-            btnReset  = MakeOutlineBtn("↺  Reset",        new Point(218, 0), 210, 52);
+            // Button sizes — aligned with SearchMaterialRequestForm
+            const int SBtnW  = 200;
+            const int RBtnW  = 160;
+            const int BtnH   =  52;
+            const int BtnGap =   8;
+
+            btnSearch = MakePrimaryBtn("\uD83D\uDD0D  Search", Point.Empty,          SBtnW, BtnH);
+            btnReset  = MakeOutlineBtn("\u21BA  Reset",  new Point(SBtnW + BtnGap, 0), RBtnW, BtnH);
             btnSearch.Click += (s, e) => RefreshGrid();
             btnReset.Click  += (s, e) => ResetFilters();
-            var pnlSearchBtns = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            pnlSearchBtns.Controls.Add(btnSearch);
-            pnlSearchBtns.Controls.Add(btnReset);
+
+            var pnlBtnHost = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
+            void CentreBtns()
+            {
+                int top = Math.Max(0, (pnlBtnHost.Height - BtnH) / 2);
+                btnSearch.Location = new Point(0,              top);
+                btnReset.Location  = new Point(SBtnW + BtnGap, top);
+            }
+            pnlBtnHost.Controls.Add(btnSearch);
+            pnlBtnHost.Controls.Add(btnReset);
+            pnlBtnHost.Resize += (s, e) => CentreBtns();
+
+            var tblBtnRow = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 1,
+                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+            };
+            tblBtnRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 45f));
+            tblBtnRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 27.5f));
+            tblBtnRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 27.5f));
+            tblBtnRow.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+            tblBtnRow.Controls.Add(pnlBtnHost, 0, 0);
 
             var tblSearch = new TableLayoutPanel
             {
@@ -125,13 +150,13 @@ namespace PremiumLivingOPS.Views.RawMaterial
                 Padding = new Padding(18, 14, 18, 14)
             };
             tblSearch.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-            tblSearch.RowStyles.Add(new RowStyle(SizeType.Absolute,  50f));
-            tblSearch.RowStyles.Add(new RowStyle(SizeType.Absolute, 114f));
-            tblSearch.RowStyles.Add(new RowStyle(SizeType.Absolute,  68f));
+            tblSearch.RowStyles.Add(new RowStyle(SizeType.Absolute,  44f));   // title
+            tblSearch.RowStyles.Add(new RowStyle(SizeType.Absolute, 110f));   // fields
+            tblSearch.RowStyles.Add(new RowStyle(SizeType.Absolute,  72f));   // buttons
 
             tblSearch.Controls.Add(BuildTitlePanel("Search Procurement", isSectionTitle: false), 0, 0);
-            tblSearch.Controls.Add(tblFields,     0, 1);
-            tblSearch.Controls.Add(pnlSearchBtns, 0, 2);
+            tblSearch.Controls.Add(tblFields,  0, 1);
+            tblSearch.Controls.Add(tblBtnRow,  0, 2);
 
             var pnlSearchOuter = new Panel
             {
@@ -155,28 +180,27 @@ namespace PremiumLivingOPS.Views.RawMaterial
                 Padding   = new Padding(12, 10, 12, 10)
             };
 
-            const int BtnW   = 250;
-            const int BtnH   = 60;
-            const int BtnGap = 8;
-            const int BtnPad = 12;
+            const int ABtnW   = 290;
+            const int ABtnH   =  60;
+            const int ABtnGap =   8;
+            const int ABtnPad =  12;
 
-            // NOTE: Click + dgvOrders events are wired in SearchProcurementForm_Load via lambda
-            btnViewDetail = MakePrimaryBtn("🔍 View Detail", Point.Empty, BtnW, BtnH);
-            btnCreateNew  = MakeGreenBtn  ("＋ Create New",  Point.Empty, BtnW, BtnH);
+            btnViewDetail = MakePrimaryBtn("\uD83D\uDD0D  View Details", Point.Empty, ABtnW, ABtnH);
+            btnCreateNew  = MakeGreenBtn  ("\uFF0B  Create New",         Point.Empty, ABtnW, ABtnH);
             btnViewDetail.Enabled = false;
 
             var pnlActionBtns = new Panel
             {
                 Dock      = DockStyle.Right,
-                Width     = BtnPad + BtnW + BtnGap + BtnW + BtnPad,
+                Width     = ABtnPad + ABtnW + ABtnGap + ABtnW + ABtnPad,
                 BackColor = Color.Transparent
             };
             void CentreActionBtns()
             {
-                int top = (pnlActionBtns.Height - BtnH) / 2;
+                int top = (pnlActionBtns.Height - ABtnH) / 2;
                 if (top < 0) top = 0;
-                btnViewDetail.Location = new Point(BtnPad, top);
-                btnCreateNew.Location  = new Point(BtnPad + BtnW + BtnGap, top);
+                btnViewDetail.Location = new Point(ABtnPad, top);
+                btnCreateNew.Location  = new Point(ABtnPad + ABtnW + ABtnGap, top);
             }
             pnlActionBtns.Controls.Add(btnViewDetail);
             pnlActionBtns.Controls.Add(btnCreateNew);
@@ -255,7 +279,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
             pnlGridCard.Controls.Add(pnlGridInner);
 
             // ════════════════════════════════════════════════════════════
-            // Assemble pnlMain — ViewOrderForm pattern
+            // Assemble pnlMain
             // ════════════════════════════════════════════════════════════
             pnlMain.Controls.Add(pnlGridCard);    // Fill  — grid
             pnlMain.Controls.Add(pnlActionOuter); // Top   — KPI + buttons
@@ -266,7 +290,16 @@ namespace PremiumLivingOPS.Views.RawMaterial
             this.ResumeLayout(false);
         }
 
-        // ── Title panel helper
+        // ════════════════════════════════════════════════════════════════
+        // Helpers — aligned 1-to-1 with SearchMaterialRequestForm
+        // ════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Title panel helper.
+        /// isSectionTitle=true  → 15f Bold (section heading level)
+        /// isSectionTitle=false → 13f Bold (card-level title)
+        /// Matches SearchMaterialRequestForm.BuildTitlePanel exactly.
+        /// </summary>
         private static Panel BuildTitlePanel(string title, bool isSectionTitle)
         {
             var pnl = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
@@ -274,11 +307,9 @@ namespace PremiumLivingOPS.Views.RawMaterial
             {
                 Text      = title,
                 Font      = isSectionTitle
-                                ? new Font("Segoe UI", 13f, FontStyle.Bold)
-                                : new Font("Segoe UI", 14f, FontStyle.Bold),
-                ForeColor = isSectionTitle
-                                ? Color.FromArgb(47, 111, 237)
-                                : Color.FromArgb(15, 31, 53),
+                                ? new Font("Segoe UI", 15f, FontStyle.Bold)
+                                : new Font("Segoe UI", 13f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(15, 31, 53),
                 Dock      = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft
             });
@@ -291,7 +322,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
             return pnl;
         }
 
-        // ── Labelled-cell helper
+        /// <summary>Labelled-cell helper — matches SearchMaterialRequestForm.MakeCell.</summary>
         private static TableLayoutPanel MakeCell(string caption, Control ctrl, bool rightPad)
         {
             var tlp = new TableLayoutPanel
@@ -299,26 +330,24 @@ namespace PremiumLivingOPS.Views.RawMaterial
                 Dock            = DockStyle.Fill, RowCount = 2, ColumnCount = 1,
                 BackColor       = Color.Transparent,
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                Padding         = rightPad ? new Padding(0, 0, 12, 0) : Padding.Empty
+                Padding         = rightPad ? new Padding(0, 0, 14, 0) : new Padding(0)
             };
-            tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-            tlp.RowStyles.Add(new RowStyle(SizeType.Absolute,  34f));
+            tlp.RowStyles.Add(new RowStyle(SizeType.Absolute, 36f));
             tlp.RowStyles.Add(new RowStyle(SizeType.Percent,  100f));
             tlp.Controls.Add(new Label
             {
                 Text      = caption,
-                Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(98, 112, 135),
                 Dock      = DockStyle.Fill,
-                TextAlign = ContentAlignment.BottomLeft,
-                Padding   = new Padding(0, 0, 0, 2)
+                Font      = new Font("Segoe UI", 11f),
+                TextAlign = ContentAlignment.BottomLeft
             }, 0, 0);
             ctrl.Dock = DockStyle.Fill;
             tlp.Controls.Add(ctrl, 0, 1);
             return tlp;
         }
 
-        // ── Cell with checkbox
+        /// <summary>Cell with checkbox extra control.</summary>
         private static TableLayoutPanel MakeCellWithExtra(string caption, Control extra, bool rightPad)
         {
             var tlp = new TableLayoutPanel
@@ -326,7 +355,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
                 Dock            = DockStyle.Fill, RowCount = 2, ColumnCount = 1,
                 BackColor       = Color.Transparent,
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                Padding         = rightPad ? new Padding(0, 0, 12, 0) : Padding.Empty
+                Padding         = rightPad ? new Padding(0, 0, 14, 0) : new Padding(0)
             };
             tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
             tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 50f));
@@ -337,40 +366,70 @@ namespace PremiumLivingOPS.Views.RawMaterial
             return tlp;
         }
 
-        // ── Button factories
+        // ── Button factories — font & colour aligned with SearchMaterialRequestForm ──
+
+        /// <summary>
+        /// Primary (blue) button.
+        /// Font: Segoe UI 12f Bold — matches SearchMaterialRequestForm.MakePrimaryBtn.
+        /// </summary>
         private static Button MakePrimaryBtn(string text, Point loc, int w, int h)
         {
             var b = new Button
             {
-                Text = text, Font = new Font("Segoe UI", 11f),
-                ForeColor = Color.White, BackColor = Color.FromArgb(47, 111, 237),
-                FlatStyle = FlatStyle.Flat, Location = loc, Size = new Size(w, h), Cursor = Cursors.Hand
+                Text      = text,
+                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.White,
+                BackColor = Color.FromArgb(47, 111, 237),
+                FlatStyle = FlatStyle.Flat,
+                Location  = loc,
+                Size      = new Size(w, h),
+                Cursor    = Cursors.Hand
             };
             b.FlatAppearance.BorderSize         = 0;
             b.FlatAppearance.MouseOverBackColor = Color.FromArgb(26, 77, 192);
             b.FlatAppearance.MouseDownBackColor = Color.FromArgb(21, 60, 155);
             return b;
         }
+
+        /// <summary>
+        /// Green (create) button.
+        /// Font: Segoe UI 12f Bold — matches SearchMaterialRequestForm.MakeGreenBtn.
+        /// </summary>
         private static Button MakeGreenBtn(string text, Point loc, int w, int h)
         {
             var b = new Button
             {
-                Text = text, Font = new Font("Segoe UI", 11f),
-                ForeColor = Color.White, BackColor = Color.FromArgb(22, 163, 74),
-                FlatStyle = FlatStyle.Flat, Location = loc, Size = new Size(w, h), Cursor = Cursors.Hand
+                Text      = text,
+                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.White,
+                BackColor = Color.FromArgb(22, 163, 74),
+                FlatStyle = FlatStyle.Flat,
+                Location  = loc,
+                Size      = new Size(w, h),
+                Cursor    = Cursors.Hand
             };
             b.FlatAppearance.BorderSize         = 0;
             b.FlatAppearance.MouseOverBackColor = Color.FromArgb(16, 131, 58);
             b.FlatAppearance.MouseDownBackColor = Color.FromArgb(10, 100, 40);
             return b;
         }
+
+        /// <summary>
+        /// Outline (secondary) button.
+        /// Font: Segoe UI 12f, ForeColor: RGB(15,31,53) — matches SearchMaterialRequestForm.MakeOutlineBtn.
+        /// </summary>
         private static Button MakeOutlineBtn(string text, Point loc, int w, int h)
         {
             var b = new Button
             {
-                Text = text, Font = new Font("Segoe UI", 11f),
-                ForeColor = Color.FromArgb(98, 112, 135), BackColor = Color.White,
-                FlatStyle = FlatStyle.Flat, Location = loc, Size = new Size(w, h), Cursor = Cursors.Hand
+                Text      = text,
+                Font      = new Font("Segoe UI", 12f),
+                ForeColor = Color.FromArgb(15, 31, 53),
+                BackColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Location  = loc,
+                Size      = new Size(w, h),
+                Cursor    = Cursors.Hand
             };
             b.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
             b.FlatAppearance.BorderSize         = 1;
@@ -378,7 +437,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
             return b;
         }
 
-        // ── Border painter
+        // ── Border painter ──────────────────────────────────────────────
         private static void PaintCardBorder(object s, PaintEventArgs e)
         {
             var p = (Panel)s;
