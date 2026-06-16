@@ -30,7 +30,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
         private readonly ProductionProcessingController      _ctrl     = new ProductionProcessingController();
         private List<MaterialRequestEntity>                  _current  = new List<MaterialRequestEntity>();
 
-        // ── Urgency colour map ─────────────────────────────────────────────────────────────────
+        // ── Urgency colour map ────────────────────────────────────────────────────────────────
         private static readonly Dictionary<string, (Color bg, Color fg)> UrgencyColors =
             new Dictionary<string, (Color, Color)>
             {
@@ -96,17 +96,6 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             dgvRequests.Rows.Clear();
             foreach (var r in _current)
             {
-                // 10 values — one per column in Designer.cs (all grounded in schema):
-                // col 0  colRequestID    — MaterialRequest.RequestID
-                // col 1  colMaterial     — RawMaterialItemID + ItemName (merged for readability)
-                // col 2  colMaterialType — RawMaterial.MaterialType  (ENUM: Wood/Metal/Fabric/Foam/Glass/Paint)
-                // col 3  colQty          — MaterialRequest.RequestedQty
-                // col 4  colUrgency      — MaterialRequest.UrgencyLevel (ENUM: Critical/High/Medium)
-                // col 5  colTrigger      — MaterialRequest.TriggerType  (ENUM: Reorder/OrderDemand)
-                // col 6  colOrderID      — MaterialRequest.OrderID (nullable FK → Order)
-                // col 7  colWarehouse    — Warehouse.WarehouseLocation
-                // col 8  colStock        — WarehouseItem.WarehouseItemQuantity
-                // col 9  colLinkedPO     — derived: PurchaseOrder row exists for this RequestID
                 dgvRequests.Rows.Add(
                     r.RequestID,
                     $"{r.RawMaterialItemID}  \u2014  {r.RawMaterialName}",
@@ -266,7 +255,6 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             }
             else if (colName == "colStock")
             {
-                // Highlight low stock in amber
                 if (int.TryParse(val, out int stockVal) && stockVal == 0)
                 {
                     e.CellStyle.ForeColor = Color.FromArgb(153, 27, 27);
@@ -400,19 +388,35 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             }
 
             // Right column
+            // Row 0–3: normal single-line value labels
             var rightFields = new (string key, string val)[]
             {
                 ("Trigger Type",      d.TriggerType),
                 ("Urgency Level",     d.UrgencyLevel),
                 ("Linked Order",      string.IsNullOrEmpty(d.OrderID) ? "\u2014 (Reorder)" : d.OrderID),
-                ("Warehouse Item ID", d.WarehouseItemID),
-                ("Warehouse",         $"{d.WarehouseID}  \u2014  {d.WarehouseLocation}")
+                ("Warehouse Item ID", d.WarehouseItemID)
             };
             for (int i = 0; i < rightFields.Length; i++)
             {
                 tblInfo.Controls.Add(DlgMakeLabelKey(rightFields[i].key), 2, i);
                 tblInfo.Controls.Add(DlgMakeLabelVal(rightFields[i].val ?? "\u2014"), 3, i);
             }
+
+            // Row 4 — Warehouse: key label + multi-line value label (wraps to 2 lines)
+            tblInfo.Controls.Add(DlgMakeLabelKey("Warehouse"), 2, 4);
+            tblInfo.Controls.Add(new Label
+            {
+                Text         = $"{d.WarehouseID}  \u2014  {d.WarehouseLocation}",
+                Font         = new Font("Segoe UI", 12f),
+                ForeColor    = Color.FromArgb(15, 31, 53),
+                Dock         = DockStyle.Fill,
+                // Top-left alignment allows the second line to flow naturally
+                TextAlign    = ContentAlignment.TopLeft,
+                AutoEllipsis = false,
+                AutoSize     = false,
+                UseMnemonic  = false,
+                Padding      = new Padding(0, 10, 0, 0)   // slight top offset to sit alongside the key
+            }, 3, 4);
             pnlInfo.Controls.Add(tblInfo);
 
             // ── Stock status bar ─────────────────────────────────────────────────────────────
@@ -436,12 +440,15 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 BackColor       = Color.Transparent,
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
-            tblStock.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 13f));
-            tblStock.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20f));
-            tblStock.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 13f));
-            tblStock.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20f));
-            tblStock.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 13f));
-            tblStock.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 21f));
+            // Columns: [Current Stock key] [val] [Reorder Level key] [val] [Stock Status key] [val]
+            // Narrowed key+val for Current Stock & Reorder Level (13%+10% each)
+            // to free space for the longer Stock Status value (17%+37%)
+            tblStock.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 13f));  // Current Stock label
+            tblStock.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 10f));  // Current Stock value
+            tblStock.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 13f));  // Reorder Level label
+            tblStock.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 10f));  // Reorder Level value
+            tblStock.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 17f));  // Stock Status label
+            tblStock.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 37f));  // Stock Status value
             tblStock.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
             tblStock.Controls.Add(DlgMakeLabelKey("Current Stock"),  0, 0);
