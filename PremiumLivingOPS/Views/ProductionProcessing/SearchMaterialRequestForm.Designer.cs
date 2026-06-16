@@ -54,16 +54,6 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
 
             // ════════════════════════════════════════════════════════════
             // CARD 1 — Search Filters
-            //
-            // Height budget (pnlSearchCard padding = 18px top+bottom each):
-            //   Row 0  title   :  44 px
-            //   Row 1  fields  : 110 px
-            //   Row 2  buttons :  72 px
-            //   inner total    : 226 px
-            //   card padding   :  36 px  (18 top + 18 bottom)
-            //   outer top pad  :  14 px
-            //   outer bottom   :  10 px
-            //   TOTAL          : 286 → set to 300 px
             // ════════════════════════════════════════════════════════════
             txtKeyword = new TextBox
             {
@@ -81,7 +71,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             cboTrigger.Items.AddRange(new object[] { "All", "Reorder", "OrderDemand" });
             cboTrigger.SelectedIndex = 0;
 
-            // tblFields: 3 columns matching the field widths (45% / 27.5% / 27.5%)
+            // Fields row: 3 columns (45% / 27.5% / 27.5%)
             var tblFields = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 1,
@@ -95,11 +85,34 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             tblFields.Controls.Add(MakeCell("Urgency",      cboUrgency, true),  1, 0);
             tblFields.Controls.Add(MakeCell("Trigger Type", cboTrigger, false), 2, 0);
 
-            // Button row: same 3-column layout as tblFields so buttons align to field edges.
-            // Col 0 (45%): Search button anchored Left
-            // Col 2 (27.5%): Reset button anchored Left  — aligns to right-group left edge
-            btnSearch = MakePrimaryBtn("\uD83D\uDD0D  Search", Point.Empty, 200, 52);
-            btnReset  = MakeOutlineBtn("\u21BA  Reset",  Point.Empty, 160, 52);
+            // Button sizes
+            const int SBtnW = 200;
+            const int RBtnW = 160;
+            const int BtnH  =  52;
+            const int BtnGap =  8;
+
+            btnSearch = MakePrimaryBtn("\uD83D\uDD0D  Search", Point.Empty, SBtnW, BtnH);
+            btnReset  = MakeOutlineBtn("\u21BA  Reset",  new Point(SBtnW + BtnGap, 0), RBtnW, BtnH);
+
+            // Button row: same 3-column proportions as tblFields.
+            // Both buttons sit in Col 0 — Reset is placed SBtnW+BtnGap px to the right of Search,
+            // so it appears immediately beside it, aligned to the left edge of the Keyword field.
+            // Cols 1 & 2 are intentionally empty (spacers).
+            var pnlBtnHost = new Panel
+            {
+                Dock      = DockStyle.Fill,
+                BackColor = Color.Transparent
+            };
+            // Vertically centre both buttons within their host panel
+            void CentreBtns()
+            {
+                int top = Math.Max(0, (pnlBtnHost.Height - BtnH) / 2);
+                btnSearch.Location = new Point(0,                top);
+                btnReset.Location  = new Point(SBtnW + BtnGap,  top);
+            }
+            pnlBtnHost.Controls.Add(btnSearch);
+            pnlBtnHost.Controls.Add(btnReset);
+            pnlBtnHost.Resize += (s, e) => CentreBtns();
 
             var tblBtnRow = new TableLayoutPanel
             {
@@ -110,31 +123,8 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             tblBtnRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 27.5f));
             tblBtnRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 27.5f));
             tblBtnRow.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-
-            // Wrap each button in a panel so we can anchor it to the left edge of its column
-            var pnlBtnSearch = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            btnSearch.Location = new Point(0, 0);
-            pnlBtnSearch.Controls.Add(btnSearch);
-
-            var pnlBtnReset = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            btnReset.Location = new Point(0, 0);
-            pnlBtnReset.Controls.Add(btnReset);
-
-            tblBtnRow.Controls.Add(pnlBtnSearch, 0, 0);  // aligns under Keyword field
-            tblBtnRow.Controls.Add(new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent }, 1, 0); // spacer
-            tblBtnRow.Controls.Add(pnlBtnReset,  2, 0);  // aligns under Trigger Type field
-
-            // Vertically centre buttons within their row panel
-            void CentreBtnInPanel(Panel host, Button btn)
-            {
-                host.Resize += (s, e) =>
-                {
-                    int top = Math.Max(0, (host.Height - btn.Height) / 2);
-                    btn.Location = new Point(btn.Location.X, top);
-                };
-            }
-            CentreBtnInPanel(pnlBtnSearch, btnSearch);
-            CentreBtnInPanel(pnlBtnReset,  btnReset);
+            tblBtnRow.Controls.Add(pnlBtnHost, 0, 0); // both buttons in Col 0
+            // Cols 1 & 2 left empty — no controls needed
 
             var tblSearch = new TableLayoutPanel
             {
@@ -166,27 +156,27 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             // ════════════════════════════════════════════════════════════
             pnlKpi = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(12, 10, 12, 10) };
 
-            const int BtnW   = 290;
-            const int BtnH   = 60;
-            const int BtnGap = 8;
-            const int BtnPad = 12;
+            const int ABtnW   = 290;
+            const int ABtnH   = 60;
+            const int ABtnGap = 8;
+            const int ABtnPad = 12;
 
-            btnViewDetail = MakePrimaryBtn("\uD83D\uDD0D  View Details", Point.Empty, BtnW, BtnH);
-            btnCreateNew  = MakeGreenBtn  ("\uFF0B  Create New",         Point.Empty, BtnW, BtnH);
+            btnViewDetail = MakePrimaryBtn("\uD83D\uDD0D  View Details", Point.Empty, ABtnW, ABtnH);
+            btnCreateNew  = MakeGreenBtn  ("\uFF0B  Create New",         Point.Empty, ABtnW, ABtnH);
             btnViewDetail.Enabled = false;
 
             var pnlActionBtns = new Panel
             {
                 Dock      = DockStyle.Right,
-                Width     = BtnPad + BtnW + BtnGap + BtnW + BtnPad,
+                Width     = ABtnPad + ABtnW + ABtnGap + ABtnW + ABtnPad,
                 BackColor = Color.Transparent
             };
             void CentreActionBtns()
             {
-                int top = (pnlActionBtns.Height - BtnH) / 2;
+                int top = (pnlActionBtns.Height - ABtnH) / 2;
                 if (top < 0) top = 0;
-                btnViewDetail.Location = new Point(BtnPad, top);
-                btnCreateNew.Location  = new Point(BtnPad + BtnW + BtnGap, top);
+                btnViewDetail.Location = new Point(ABtnPad, top);
+                btnCreateNew.Location  = new Point(ABtnPad + ABtnW + ABtnGap, top);
             }
             pnlActionBtns.Controls.Add(btnViewDetail);
             pnlActionBtns.Controls.Add(btnCreateNew);
@@ -242,16 +232,16 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             };
             dgvRequests.RowTemplate.Height = 48;
 
-            dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colRequestID",    HeaderText = "REQUEST ID",     FillWeight = 15 });
-            dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colMaterial",     HeaderText = "RAW MATERIAL",   FillWeight = 20 });
-            dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colMaterialType", HeaderText = "TYPE",           FillWeight =  9 });
-            dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colQty",          HeaderText = "QTY REQUESTED",  FillWeight = 10 });
-            dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colUrgency",      HeaderText = "URGENCY",        FillWeight = 10 });
-            dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTrigger",      HeaderText = "TRIGGER",        FillWeight = 11 });
-            dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colOrderID",      HeaderText = "LINKED ORDER",   FillWeight = 14 });
-            dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colWarehouse",    HeaderText = "WAREHOUSE",      FillWeight = 14 });
-            dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStock",        HeaderText = "CURRENT STOCK",  FillWeight =  9 });
-            dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLinkedPO",     HeaderText = "PO LINKED",      FillWeight =  8 });
+            dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colRequestID",    HeaderText = "REQUEST ID",    FillWeight = 15 });
+            dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colMaterial",     HeaderText = "RAW MATERIAL",  FillWeight = 20 });
+            dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colMaterialType", HeaderText = "TYPE",          FillWeight =  9 });
+            dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colQty",          HeaderText = "QTY REQUESTED", FillWeight = 10 });
+            dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colUrgency",      HeaderText = "URGENCY",       FillWeight = 10 });
+            dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTrigger",      HeaderText = "TRIGGER",       FillWeight = 11 });
+            dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colOrderID",      HeaderText = "LINKED ORDER",  FillWeight = 14 });
+            dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colWarehouse",    HeaderText = "WAREHOUSE",     FillWeight = 14 });
+            dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStock",        HeaderText = "CURRENT STOCK", FillWeight =  9 });
+            dgvRequests.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLinkedPO",     HeaderText = "PO LINKED",     FillWeight =  8 });
 
             dgvRequests.SelectionChanged += (s, _) => UpdateActionButtons();
             dgvRequests.CellDoubleClick  += (s, ce) => { if (ce.RowIndex >= 0) OpenDetailDialog(); };
@@ -290,16 +280,10 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 Dock      = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft
             });
-            pnl.Controls.Add(new Panel
-            {
-                Dock = DockStyle.Bottom, Height = 1, BackColor = Color.FromArgb(221, 227, 236)
-            });
+            pnl.Controls.Add(new Panel { Dock = DockStyle.Bottom, Height = 1, BackColor = Color.FromArgb(221, 227, 236) });
             return pnl;
         }
 
-        /// <summary>
-        /// Two-row TLP: Row 0 = caption label (36px), Row 1 = input control (fills rest).
-        /// </summary>
         private static TableLayoutPanel MakeCell(string caption, Control ctrl, bool rightPad)
         {
             var tlp = new TableLayoutPanel
@@ -322,7 +306,6 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             return tlp;
         }
 
-        // ── Button factories
         private Button MakePrimaryBtn(string text, Point loc, int w, int h)
         {
             var b = new Button
