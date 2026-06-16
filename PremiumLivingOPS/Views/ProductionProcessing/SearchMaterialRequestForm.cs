@@ -294,7 +294,8 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             using var dlg = new Form
             {
                 Text            = $"Material Request Detail \u2014 {d.RequestID}",
-                Size            = new Size(1700, 1000),
+                // Height increased to 1060 to absorb the extra 100px added to pnlInfo
+                Size            = new Size(1700, 1060),
                 StartPosition   = FormStartPosition.CenterParent,
                 BackColor       = Color.White,
                 Font            = new Font("Segoe UI", 13f),
@@ -347,22 +348,20 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
 
             // ── Info panel ─────────────────────────────────────────────────────────
             //
-            // 6-row layout in a 4-column TLP:
-            //   col0 (15%) = left key     col1 (35%) = left value
-            //   col2 (15%) = right key    col3 (35%) = right value
+            // 6-row layout (4-column TLP):
+            //   Rows 0-4: standard two-column key/value pairs (left + right)
+            //   Row 5   : Warehouse Location — key + value both span all 4 columns
+            //             Row 5 height = 28% of 560px = ~157px (ample room for 2-line address)
             //
-            //   Rows 0-4: standard key/value pairs
-            //   Row 5   : "Warehouse Location" key + address value
-            //             Both lblWHKey and lblWHVal are placed at (col0, row5)
-            //             with SetColumnSpan = 4  → spans entire row width (left + right)
-            //             lblWHKey : TopLeft, small muted font (section label)
-            //             lblWHVal : TopLeft, Padding.Top = 28 to sit below the key,
-            //                        AutoEllipsis=false so long addresses wrap to 2 lines
+            // Height budget (pnlInfo = 560px, inner padding 28+18+28+8 = 82px
+            //   → TLP usable = 478px)
+            //   Rows 0-4 each = 72% / 5 ≈ 14.4% of 478 ≈ 68px   (comfortable single-line)
+            //   Row  5       = 28%       of 478 ≈ 134px  (key label ~20px + value 2 lines ~80px)
             //
             var pnlInfo = new Panel
             {
                 Dock      = DockStyle.Top,
-                Height    = 460,
+                Height    = 560,          // increased from 460 → 560
                 Padding   = new Padding(28, 18, 28, 8),
                 BackColor = Color.White
             };
@@ -380,11 +379,11 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
-            // Rows 0-4: equal height (each ~13.3% of 460px = ~61px)
-            // Row 5   : taller to accommodate key label + 2-line address (20%)
+            // Rows 0-4: each takes an equal share of the remaining 72%
+            // Row 5   : 28% — provides ~134px for Warehouse Location key + 2-line address
             for (int i = 0; i < 5; i++)
-                tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 100f / 7.5f));
-            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 20f));
+                tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 72f / 5f));
+            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 28f));
 
             // ── Left column: 5 fields, rows 0-4 ──
             var leftFields = new (string key, string val)[]
@@ -418,8 +417,8 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
 
             // ── Row 5: Warehouse Location — full-width (spans all 4 columns) ──
             //
-            // lblWHKey: placed at col0, spans 4 columns → full row width
-            //           TopLeft aligned so it sits at the top of the taller row
+            // lblWHKey at (col0, row5), SetColumnSpan=4  → full panel width
+            // TopLeft so it sits at the very top of the taller row
             var lblWHKey = new Label
             {
                 Text      = "Warehouse Location",
@@ -430,11 +429,10 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 Padding   = new Padding(0, 6, 0, 0)
             };
             tblInfo.Controls.Add(lblWHKey, 0, 5);
-            tblInfo.SetColumnSpan(lblWHKey, 4);   // full row width
+            tblInfo.SetColumnSpan(lblWHKey, 4);
 
-            // lblWHVal: also at col0, spans 4 columns
-            //           Padding.Top=28 pushes the address text below the key label
-            //           AutoEllipsis=false + TopLeft allows natural 2-line wrap
+            // lblWHVal at (col0, row5), SetColumnSpan=4
+            // Padding.Top=28 clears the key label; AutoEllipsis=false allows 2-line wrap
             var lblWHVal = new Label
             {
                 Text         = d.WarehouseLocation ?? "\u2014",
@@ -447,7 +445,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 Padding      = new Padding(0, 28, 0, 4)
             };
             tblInfo.Controls.Add(lblWHVal, 0, 5);
-            tblInfo.SetColumnSpan(lblWHVal, 4);   // full row width
+            tblInfo.SetColumnSpan(lblWHVal, 4);
 
             pnlInfo.Controls.Add(tblInfo);
 
@@ -502,7 +500,9 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             });
             pnlPoLabel.Paint += DlgPaintBottomBorder;
 
-            // ── PO detail / empty state (DockStyle.Fill) ──────────────────────────────
+            // ── PO detail / empty state (DockStyle.Fill — absorbs remaining height) ────
+            // Note: remaining height = 1060 - 80(hdr) - 560(info) - 64(stock) - 40(PO label)
+            //       - 86(footer) = 230px  — sufficient for one row of PO fields
             Panel pnlPoDetail;
             if (!string.IsNullOrEmpty(d.PurchaseID))
             {
@@ -579,12 +579,12 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             pnlFooter.Controls.Add(btnClose);
 
             // ── Assemble: Bottom first, then Fill, then Top ────────────────────
-            dlg.Controls.Add(pnlPoDetail);   // Fill
-            dlg.Controls.Add(pnlPoLabel);    // Top
-            dlg.Controls.Add(pnlStock);      // Top
-            dlg.Controls.Add(pnlInfo);       // Top  Height=460
-            dlg.Controls.Add(pnlHeader);     // Top
-            dlg.Controls.Add(pnlFooter);     // Bottom
+            dlg.Controls.Add(pnlPoDetail);   // Fill  (~230px remaining)
+            dlg.Controls.Add(pnlPoLabel);    // Top   40px
+            dlg.Controls.Add(pnlStock);      // Top   64px
+            dlg.Controls.Add(pnlInfo);       // Top   560px
+            dlg.Controls.Add(pnlHeader);     // Top   80px
+            dlg.Controls.Add(pnlFooter);     // Bottom 86px
 
             dlg.ShowDialog(this);
         }
