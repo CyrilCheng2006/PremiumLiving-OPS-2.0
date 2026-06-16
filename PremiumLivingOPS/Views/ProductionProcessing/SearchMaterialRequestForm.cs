@@ -348,10 +348,17 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             pnlHeader.Controls.Add(tblHeader);
 
             // ── Info panel — 4-col grid, 5 rows ─────────────────────────────────────
+            //
+            // pnlInfo uses DockStyle.Top with an initial Height.  After the form
+            // loads and layout completes, dlg.Load auto-adjusts pnlInfo.Height to
+            // tblInfo.PreferredSize.Height + padding so the Warehouse row (row 4,
+            // SizeType.AutoSize) is never clipped or overlapped by pnlStock.
+            //
+            const int infoPadV = 26;   // pnlInfo.Padding.Top + Bottom
             var pnlInfo = new Panel
             {
                 Dock      = DockStyle.Top,
-                Height    = 320,   // slightly taller to accommodate the 2-line Warehouse row
+                Height    = 300,          // initial estimate — corrected in dlg.Load
                 Padding   = new Padding(28, 18, 28, 8),
                 BackColor = Color.White
             };
@@ -370,7 +377,8 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
 
-            // Rows 0–3: fixed equal height (~22% each); Row 4: AutoSize to wrap 2 lines
+            // Rows 0–3: equal percent; Row 4: AutoSize — WinForms will calculate
+            // its natural height once controls are laid out.
             for (int i = 0; i < 4; i++)
                 tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 22f));
             tblInfo.RowStyles.Add(new RowStyle(SizeType.AutoSize));   // row 4 — Warehouse
@@ -390,7 +398,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 tblInfo.Controls.Add(DlgMakeLabelVal(leftFields[i].val ?? "\u2014"), 1, i);
             }
 
-            // Right column: rows 0–3 — single-line labels
+            // Right column: rows 0–3 — single-line values
             var rightFields = new (string key, string val)[]
             {
                 ("Trigger Type",      d.TriggerType),
@@ -404,20 +412,19 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 tblInfo.Controls.Add(DlgMakeLabelVal(rightFields[i].val ?? "\u2014"), 3, i);
             }
 
-            // Right column: row 4 — Warehouse with wrapping (AutoSize row drives height)
+            // Right column: row 4 — Warehouse (2-line wrapping label)
             tblInfo.Controls.Add(DlgMakeLabelKey("Warehouse"), 2, 4);
             tblInfo.Controls.Add(new Label
             {
-                Text        = $"{d.WarehouseID}  \u2014  {d.WarehouseLocation}",
-                Font        = new Font("Segoe UI", 12f),
-                ForeColor   = Color.FromArgb(15, 31, 53),
-                Dock        = DockStyle.Fill,
-                TextAlign   = ContentAlignment.TopLeft,
-                // AutoSize=false + no AutoEllipsis: text wraps within the cell width
-                AutoSize    = false,
+                Text         = $"{d.WarehouseID}  \u2014  {d.WarehouseLocation}",
+                Font         = new Font("Segoe UI", 12f),
+                ForeColor    = Color.FromArgb(15, 31, 53),
+                Dock         = DockStyle.Fill,
+                TextAlign    = ContentAlignment.TopLeft,
+                AutoSize     = false,
                 AutoEllipsis = false,
-                UseMnemonic = false,
-                Padding     = new Padding(0, 8, 0, 8)   // vertical breathing room
+                UseMnemonic  = false,
+                Padding      = new Padding(0, 8, 0, 8)
             }, 3, 4);
 
             pnlInfo.Controls.Add(tblInfo);
@@ -443,12 +450,12 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 BackColor       = Color.Transparent,
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
-            tblStock.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 13f));  // Current Stock label
-            tblStock.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 10f));  // Current Stock value
-            tblStock.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 13f));  // Reorder Level label
-            tblStock.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 10f));  // Reorder Level value
-            tblStock.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 17f));  // Stock Status label
-            tblStock.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 37f));  // Stock Status value
+            tblStock.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 13f));
+            tblStock.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 10f));
+            tblStock.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 13f));
+            tblStock.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 10f));
+            tblStock.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 17f));
+            tblStock.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 37f));
             tblStock.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
             tblStock.Controls.Add(DlgMakeLabelKey("Current Stock"),  0, 0);
@@ -561,13 +568,27 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             btnClose.Click += (s, ev) => dlg.Close();
             pnlFooter.Controls.Add(btnClose);
 
-            // ── Assemble ───────────────────────────────────────────────────────────────
-            dlg.Controls.Add(pnlPoDetail);   // Fill  — PO detail / empty state
-            dlg.Controls.Add(pnlPoLabel);    // Top   — "LINKED PURCHASE ORDER"
-            dlg.Controls.Add(pnlStock);      // Top   — stock bar
-            dlg.Controls.Add(pnlInfo);       // Top   — field grid
-            dlg.Controls.Add(pnlHeader);     // Top   — dark header
-            dlg.Controls.Add(pnlFooter);     // Bottom — close button
+            // ── Assemble (Bottom first, then Fill, then Top) ─────────────────────────
+            dlg.Controls.Add(pnlPoDetail);
+            dlg.Controls.Add(pnlPoLabel);
+            dlg.Controls.Add(pnlStock);
+            dlg.Controls.Add(pnlInfo);
+            dlg.Controls.Add(pnlHeader);
+            dlg.Controls.Add(pnlFooter);
+
+            // ── Auto-resize pnlInfo after layout so row 4 is never clipped ─────────────
+            // WinForms DockStyle.Top panels do NOT auto-grow when their child
+            // TableLayoutPanel contains an AutoSize row.  We must read the TLP’s
+            // preferred height once layout is complete and push it back to the panel.
+            dlg.Load += (s, _) =>
+            {
+                // Force a full layout pass so PreferredSize reflects wrapped text.
+                tblInfo.PerformLayout();
+                int needed = tblInfo.PreferredSize.Height + infoPadV;
+                if (needed > pnlInfo.Height)
+                    pnlInfo.Height = needed;
+            };
+
             dlg.ShowDialog(this);
         }
 
