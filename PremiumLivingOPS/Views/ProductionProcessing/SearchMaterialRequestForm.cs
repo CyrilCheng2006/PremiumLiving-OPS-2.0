@@ -347,19 +347,17 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
 
             // ── Info panel ─────────────────────────────────────────────────────────
             //
-            // 6-row layout:
-            //   Rows 0-4 : key(col0) + val(col1) on left  |  key(col2) + val(col3) on right
-            //   Row 5    : left side empty
-            //              right side: col2 = "Warehouse Location" label (key style)
-            //                          col3 = location value, full-width left-aligned 2-line
-            //                          → SetColumnSpan(valLabel, 2) so it spans col2+col3
-            //                            and the key label is placed at col2 as a narrow top
-            //                            header above the value (col2 key uses TopLeft align,
-            //                            val label starts at col2 with ColSpan=2)
+            // 6-row layout in a 4-column TLP:
+            //   col0 (15%) = left key     col1 (35%) = left value
+            //   col2 (15%) = right key    col3 (35%) = right value
             //
-            // Actually: Row 5 right half uses only col2 for the label (header-style, TopLeft)
-            // and col3 for the value (TopLeft, AutoEllipsis=false, WordWrap via AutoSize).
-            // To achieve true full-width value we place the label in col2 with ColSpan=2.
+            //   Rows 0-4: standard key/value pairs
+            //   Row 5   : "Warehouse Location" key + address value
+            //             Both lblWHKey and lblWHVal are placed at (col0, row5)
+            //             with SetColumnSpan = 4  → spans entire row width (left + right)
+            //             lblWHKey : TopLeft, small muted font (section label)
+            //             lblWHVal : TopLeft, Padding.Top = 28 to sit below the key,
+            //                        AutoEllipsis=false so long addresses wrap to 2 lines
             //
             var pnlInfo = new Panel
             {
@@ -382,13 +380,13 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
-            // Rows 0-4: equal single-line height  (each ~13.3% of 460px = ~61px)
-            // Row 5   : larger to show key + 2-line address value (20%)
+            // Rows 0-4: equal height (each ~13.3% of 460px = ~61px)
+            // Row 5   : taller to accommodate key label + 2-line address (20%)
             for (int i = 0; i < 5; i++)
                 tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 100f / 7.5f));
             tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 20f));
 
-            // ── Left column: 5 fields in rows 0-4 ──
+            // ── Left column: 5 fields, rows 0-4 ──
             var leftFields = new (string key, string val)[]
             {
                 ("Request ID",    d.RequestID),
@@ -402,14 +400,15 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 tblInfo.Controls.Add(DlgMakeLabelKey(leftFields[i].key), 0, i);
                 tblInfo.Controls.Add(DlgMakeLabelVal(leftFields[i].val ?? "\u2014"), 1, i);
             }
-            // Row 5 left side: intentionally empty
 
-            // ── Right column rows 0-2: standard fields ──
+            // ── Right column: rows 0-4 ──
             var rightFields = new (string key, string val)[]
             {
-                ("Trigger Type",  d.TriggerType),
-                ("Urgency Level", d.UrgencyLevel),
-                ("Linked Order",  string.IsNullOrEmpty(d.OrderID) ? "\u2014 (Reorder)" : d.OrderID)
+                ("Trigger Type",      d.TriggerType),
+                ("Urgency Level",     d.UrgencyLevel),
+                ("Linked Order",      string.IsNullOrEmpty(d.OrderID) ? "\u2014 (Reorder)" : d.OrderID),
+                ("Warehouse Item ID", d.WarehouseItemID),
+                ("Warehouse ID",      d.WarehouseID)
             };
             for (int i = 0; i < rightFields.Length; i++)
             {
@@ -417,16 +416,10 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 tblInfo.Controls.Add(DlgMakeLabelVal(rightFields[i].val ?? "\u2014"), 3, i);
             }
 
-            // Row 3: Warehouse Item ID
-            tblInfo.Controls.Add(DlgMakeLabelKey("Warehouse Item ID"), 2, 3);
-            tblInfo.Controls.Add(DlgMakeLabelVal(d.WarehouseItemID ?? "\u2014"), 3, 3);
-
-            // Row 4: Warehouse ID
-            tblInfo.Controls.Add(DlgMakeLabelKey("Warehouse ID"), 2, 4);
-            tblInfo.Controls.Add(DlgMakeLabelVal(d.WarehouseID ?? "\u2014"), 3, 4);
-
-            // Row 5: Warehouse Location — key label (col2, TopLeft), then value spanning col2+col3
-            // Key: small muted header anchored TopLeft above the address
+            // ── Row 5: Warehouse Location — full-width (spans all 4 columns) ──
+            //
+            // lblWHKey: placed at col0, spans 4 columns → full row width
+            //           TopLeft aligned so it sits at the top of the taller row
             var lblWHKey = new Label
             {
                 Text      = "Warehouse Location",
@@ -436,11 +429,12 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 TextAlign = ContentAlignment.TopLeft,
                 Padding   = new Padding(0, 6, 0, 0)
             };
-            tblInfo.Controls.Add(lblWHKey, 2, 5);
+            tblInfo.Controls.Add(lblWHKey, 0, 5);
+            tblInfo.SetColumnSpan(lblWHKey, 4);   // full row width
 
-            // Value: spans col2+col3 so it uses the full right half of the grid
-            // TopLeft aligned, AutoEllipsis=false, no word-wrap clamp needed —
-            // the row height (20% of 460 = 92px) is enough for 2 lines at 12pt.
+            // lblWHVal: also at col0, spans 4 columns
+            //           Padding.Top=28 pushes the address text below the key label
+            //           AutoEllipsis=false + TopLeft allows natural 2-line wrap
             var lblWHVal = new Label
             {
                 Text         = d.WarehouseLocation ?? "\u2014",
@@ -450,10 +444,10 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 TextAlign    = ContentAlignment.TopLeft,
                 AutoEllipsis = false,
                 UseMnemonic  = false,
-                Padding      = new Padding(0, 28, 0, 4)   // top padding clears the key label text
+                Padding      = new Padding(0, 28, 0, 4)
             };
-            tblInfo.Controls.Add(lblWHVal, 2, 5);
-            tblInfo.SetColumnSpan(lblWHVal, 2);            // spans col2 + col3
+            tblInfo.Controls.Add(lblWHVal, 0, 5);
+            tblInfo.SetColumnSpan(lblWHVal, 4);   // full row width
 
             pnlInfo.Controls.Add(tblInfo);
 
@@ -508,7 +502,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             });
             pnlPoLabel.Paint += DlgPaintBottomBorder;
 
-            // ── PO detail / empty state (DockStyle.Fill — takes remaining height) ────
+            // ── PO detail / empty state (DockStyle.Fill) ──────────────────────────────
             Panel pnlPoDetail;
             if (!string.IsNullOrEmpty(d.PurchaseID))
             {
