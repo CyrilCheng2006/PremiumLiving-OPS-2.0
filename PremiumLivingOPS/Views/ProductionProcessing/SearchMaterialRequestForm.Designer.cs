@@ -53,7 +53,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 BackColor = Color.FromArgb(240, 244, 249)
             };
 
-            // ── AppShell (RULE 2)
+            // ── AppShell
             _shell = new AppShell();
             _shell.SetPopupContainer(pnlMain);
             _shell.MenuItemClicked += OnTopNavMenuItemClicked;
@@ -61,6 +61,13 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
 
             // ════════════════════════════════════════════════════════════
             // CARD 1 — Search Filters
+            //
+            // Height budget inside pnlSearchCard (padding top+bottom = 14+14 = 28px):
+            //   Row 0  title    : 44 px
+            //   Row 1  fields   : 110 px  (label 36px + input ~42px + 32px breathing room)
+            //   Row 2  buttons  : 72 px
+            //   Total inner     : 226 px
+            //   pnlSearchOuter  : 226 + 28(card padding) + 14(outer top pad) = 268 → use 280
             // ════════════════════════════════════════════════════════════
             txtKeyword = new TextBox
             {
@@ -97,10 +104,6 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             pnlSearchBtns.Controls.Add(btnSearch);
             pnlSearchBtns.Controls.Add(btnReset);
 
-            // tblSearch rows:
-            //   Row 0 — card title          : 44px  (fixed)
-            //   Row 1 — label + input cells : 80px  (label row=36px + input ~36px = fits without overlap)
-            //   Row 2 — search/reset buttons: 64px  (fixed)
             var tblSearch = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill, RowCount = 3, ColumnCount = 1,
@@ -109,18 +112,17 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             };
             tblSearch.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
             tblSearch.RowStyles.Add(new RowStyle(SizeType.Absolute,  44f));   // title
-            tblSearch.RowStyles.Add(new RowStyle(SizeType.Absolute,  80f));   // fields (was 114 — reduced; label row inside MakeCell now 36px so no overlap)
-            tblSearch.RowStyles.Add(new RowStyle(SizeType.Absolute,  64f));   // buttons
+            tblSearch.RowStyles.Add(new RowStyle(SizeType.Absolute, 110f));   // fields — 36px label + 42px input + 32px gap
+            tblSearch.RowStyles.Add(new RowStyle(SizeType.Absolute,  72f));   // buttons
 
-            // Title renamed to "Search" — short and clear
             tblSearch.Controls.Add(BuildTitlePanel("Search", isSectionTitle: false), 0, 0);
             tblSearch.Controls.Add(tblFields,     0, 1);
             tblSearch.Controls.Add(pnlSearchBtns, 0, 2);
 
-            // Card outer height = padding(14+14) + title(44) + fields(80) + buttons(64) = 216px
+            // pnlSearchOuter height = outer top padding(14) + card(28 inner pad + 226 content) + 12 bottom gap = 280
             var pnlSearchOuter = new Panel
             {
-                Dock = DockStyle.Top, Height = 230,
+                Dock = DockStyle.Top, Height = 280,
                 BackColor = Color.FromArgb(240, 244, 249), Padding = new Padding(20, 14, 20, 0)
             };
             var pnlSearchCard = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
@@ -270,8 +272,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
         }
 
         /// <summary>
-        /// Two-row TLP cell: Row 0 = caption label (36px fixed), Row 1 = input control (fills rest).
-        /// Label row height increased from 28px to 36px so it is fully visible above the input.
+        /// Two-row TLP: Row 0 = caption label (36px), Row 1 = input control (fills rest).
         /// </summary>
         private static TableLayoutPanel MakeCell(string caption, Control ctrl, bool rightPad)
         {
@@ -282,10 +283,8 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
                 Padding         = rightPad ? new Padding(0, 0, 14, 0) : new Padding(0)
             };
-            // Row 0: label — 36px (was 28px; extra 8px prevents the input from overlapping the label)
-            tlp.RowStyles.Add(new RowStyle(SizeType.Absolute, 36f));
-            // Row 1: input — fills remaining height
-            tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+            tlp.RowStyles.Add(new RowStyle(SizeType.Absolute, 36f));   // label — fully visible above input
+            tlp.RowStyles.Add(new RowStyle(SizeType.Percent,  100f));  // input — fills rest
             tlp.Controls.Add(new Label
             {
                 Text      = caption,
