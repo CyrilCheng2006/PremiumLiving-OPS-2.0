@@ -303,7 +303,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 MinimizeBox     = false
             };
 
-            // ── Header bar ─────────────────────────────────────────────────────────────
+            // ── Header ──────────────────────────────────────────────────────────────
             var pnlHeader = new Panel
             {
                 Dock      = DockStyle.Top,
@@ -322,7 +322,6 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
             tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 240f));
             tblHeader.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-
             tblHeader.Controls.Add(new Label
             {
                 Text      = $"Material Request Details  \u2014  {d.RequestID}",
@@ -332,7 +331,6 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 TextAlign = ContentAlignment.MiddleLeft,
                 AutoSize  = false
             }, 0, 0);
-
             UrgencyColors.TryGetValue(d.UrgencyLevel ?? "", out var uc);
             tblHeader.Controls.Add(new Label
             {
@@ -347,18 +345,17 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             }, 1, 0);
             pnlHeader.Controls.Add(tblHeader);
 
-            // ── Info panel — 4-col grid, 5 rows ─────────────────────────────────────
+            // ── Info panel ──────────────────────────────────────────────────────────────
             //
-            // pnlInfo uses DockStyle.Top with an initial Height.  After the form
-            // loads and layout completes, dlg.Load auto-adjusts pnlInfo.Height to
-            // tblInfo.PreferredSize.Height + padding so the Warehouse row (row 4,
-            // SizeType.AutoSize) is never clipped or overlapped by pnlStock.
+            // Height = 400: rows 0-3 each get ~17.5% of 400 = ~70px (single-line);
+            // row 4 gets 30% = 120px — enough for 2-line Warehouse text at 12pt.
+            // pnlStock (DockStyle.Top) follows immediately below, and pnlPoDetail
+            // (DockStyle.Fill) shrinks to use whatever remains.
             //
-            const int infoPadV = 26;   // pnlInfo.Padding.Top + Bottom
             var pnlInfo = new Panel
             {
                 Dock      = DockStyle.Top,
-                Height    = 300,          // initial estimate — corrected in dlg.Load
+                Height    = 400,
                 Padding   = new Padding(28, 18, 28, 8),
                 BackColor = Color.White
             };
@@ -376,14 +373,12 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
-
-            // Rows 0–3: equal percent; Row 4: AutoSize — WinForms will calculate
-            // its natural height once controls are laid out.
+            // Rows 0-3: equal single-line height (~17.5% each = 70px @ 400px panel)
+            // Row 4: larger to accommodate 2-line Warehouse value (30% = 120px)
             for (int i = 0; i < 4; i++)
-                tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 22f));
-            tblInfo.RowStyles.Add(new RowStyle(SizeType.AutoSize));   // row 4 — Warehouse
+                tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 17.5f));
+            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 30f));
 
-            // Left column
             var leftFields = new (string key, string val)[]
             {
                 ("Request ID",    d.RequestID),
@@ -398,7 +393,6 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 tblInfo.Controls.Add(DlgMakeLabelVal(leftFields[i].val ?? "\u2014"), 1, i);
             }
 
-            // Right column: rows 0–3 — single-line values
             var rightFields = new (string key, string val)[]
             {
                 ("Trigger Type",      d.TriggerType),
@@ -412,7 +406,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 tblInfo.Controls.Add(DlgMakeLabelVal(rightFields[i].val ?? "\u2014"), 3, i);
             }
 
-            // Right column: row 4 — Warehouse (2-line wrapping label)
+            // Row 4: Warehouse — key vertically centred top, value wraps to 2 lines
             tblInfo.Controls.Add(DlgMakeLabelKey("Warehouse"), 2, 4);
             tblInfo.Controls.Add(new Label
             {
@@ -424,12 +418,12 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 AutoSize     = false,
                 AutoEllipsis = false,
                 UseMnemonic  = false,
-                Padding      = new Padding(0, 8, 0, 8)
+                Padding      = new Padding(0, 10, 0, 4)
             }, 3, 4);
 
             pnlInfo.Controls.Add(tblInfo);
 
-            // ── Stock status bar ─────────────────────────────────────────────────────────────
+            // ── Stock bar ──────────────────────────────────────────────────────────────
             bool isBelowReorder = d.CurrentStock <= d.ReorderLevel;
             var pnlStock = new Panel
             {
@@ -441,14 +435,10 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                     : Color.FromArgb(240, 253, 244)
             };
             pnlStock.Paint += DlgPaintBottomBorder;
-
             var tblStock = new TableLayoutPanel
             {
-                Dock            = DockStyle.Fill,
-                ColumnCount     = 6,
-                RowCount        = 1,
-                BackColor       = Color.Transparent,
-                CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+                Dock = DockStyle.Fill, ColumnCount = 6, RowCount = 1,
+                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
             tblStock.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 13f));
             tblStock.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 10f));
@@ -457,7 +447,6 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             tblStock.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 17f));
             tblStock.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 37f));
             tblStock.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-
             tblStock.Controls.Add(DlgMakeLabelKey("Current Stock"),  0, 0);
             tblStock.Controls.Add(DlgMakeLabelVal(d.CurrentStock.ToString()), 1, 0);
             tblStock.Controls.Add(DlgMakeLabelKey("Reorder Level"),  2, 0);
@@ -467,7 +456,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 isBelowReorder ? "\u26A0  Below Reorder Level" : "\u2714  Sufficient Stock"), 5, 0);
             pnlStock.Controls.Add(tblStock);
 
-            // ── Purchase Order section label ────────────────────────────────────────────
+            // ── PO section label ────────────────────────────────────────────────────────
             var pnlPoLabel = new Panel
             {
                 Dock      = DockStyle.Top,
@@ -485,7 +474,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             });
             pnlPoLabel.Paint += DlgPaintBottomBorder;
 
-            // ── Purchase Order detail or empty state ────────────────────────────────
+            // ── PO detail / empty state (DockStyle.Fill — takes remaining height) ─────
             Panel pnlPoDetail;
             if (!string.IsNullOrEmpty(d.PurchaseID))
             {
@@ -497,11 +486,8 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 };
                 var tblPo = new TableLayoutPanel
                 {
-                    Dock            = DockStyle.Fill,
-                    ColumnCount     = 6,
-                    RowCount        = 1,
-                    BackColor       = Color.Transparent,
-                    CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+                    Dock = DockStyle.Fill, ColumnCount = 6, RowCount = 1,
+                    BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
                 };
                 tblPo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 13f));
                 tblPo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20f));
@@ -510,16 +496,13 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 tblPo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 13f));
                 tblPo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 21f));
                 tblPo.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-
                 tblPo.Controls.Add(DlgMakeLabelKey("Purchase Order ID"), 0, 0);
                 tblPo.Controls.Add(DlgMakeLabelVal(d.PurchaseID),         1, 0);
                 tblPo.Controls.Add(DlgMakeLabelKey("PO Status"),          2, 0);
                 tblPo.Controls.Add(DlgMakeLabelVal(d.PurchaseStatus ?? "\u2014"), 3, 0);
                 tblPo.Controls.Add(DlgMakeLabelKey("PO Total Amount"),    4, 0);
                 tblPo.Controls.Add(DlgMakeLabelVal(
-                    d.POTotalAmount.HasValue
-                        ? $"HK$ {d.POTotalAmount.Value:N2}"
-                        : "\u2014"), 5, 0);
+                    d.POTotalAmount.HasValue ? $"HK$ {d.POTotalAmount.Value:N2}" : "\u2014"), 5, 0);
                 pnlPoDetail.Controls.Add(tblPo);
             }
             else
@@ -540,7 +523,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 });
             }
 
-            // ── Footer ───────────────────────────────────────────────────────────────
+            // ── Footer ──────────────────────────────────────────────────────────────
             var pnlFooter = new Panel
             {
                 Dock      = DockStyle.Bottom,
@@ -549,7 +532,6 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 Padding   = new Padding(28, 14, 28, 14)
             };
             pnlFooter.Paint += DlgPaintTopBorder;
-
             var btnClose = new Button
             {
                 Text      = "Close",
@@ -562,32 +544,19 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 Dock      = DockStyle.Right,
                 Cursor    = Cursors.Hand
             };
-            btnClose.FlatAppearance.BorderColor = Color.FromArgb(221, 227, 236);
-            btnClose.FlatAppearance.BorderSize  = 1;
+            btnClose.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
+            btnClose.FlatAppearance.BorderSize         = 1;
             btnClose.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
             btnClose.Click += (s, ev) => dlg.Close();
             pnlFooter.Controls.Add(btnClose);
 
-            // ── Assemble (Bottom first, then Fill, then Top) ─────────────────────────
-            dlg.Controls.Add(pnlPoDetail);
-            dlg.Controls.Add(pnlPoLabel);
-            dlg.Controls.Add(pnlStock);
-            dlg.Controls.Add(pnlInfo);
-            dlg.Controls.Add(pnlHeader);
-            dlg.Controls.Add(pnlFooter);
-
-            // ── Auto-resize pnlInfo after layout so row 4 is never clipped ─────────────
-            // WinForms DockStyle.Top panels do NOT auto-grow when their child
-            // TableLayoutPanel contains an AutoSize row.  We must read the TLP’s
-            // preferred height once layout is complete and push it back to the panel.
-            dlg.Load += (s, _) =>
-            {
-                // Force a full layout pass so PreferredSize reflects wrapped text.
-                tblInfo.PerformLayout();
-                int needed = tblInfo.PreferredSize.Height + infoPadV;
-                if (needed > pnlInfo.Height)
-                    pnlInfo.Height = needed;
-            };
+            // ── Assemble: Bottom first, then Fill, then Top ─────────────────────────
+            dlg.Controls.Add(pnlPoDetail);   // Fill
+            dlg.Controls.Add(pnlPoLabel);    // Top
+            dlg.Controls.Add(pnlStock);      // Top
+            dlg.Controls.Add(pnlInfo);       // Top  Height=400
+            dlg.Controls.Add(pnlHeader);     // Top
+            dlg.Controls.Add(pnlFooter);     // Bottom
 
             dlg.ShowDialog(this);
         }
