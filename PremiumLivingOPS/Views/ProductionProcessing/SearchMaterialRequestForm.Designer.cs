@@ -9,7 +9,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
     {
         private System.ComponentModel.IContainer components = null;
 
-        // ── AppShell (contains TopNavBar + UserBar)
+        // ── AppShell
         private AppShell _shell;
 
         // ── CARD 1: Search Filters
@@ -37,7 +37,6 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
         {
             this.SuspendLayout();
 
-            // ── Form
             this.Text          = "Premium Living OPS — Production Processing";
             this.Size          = new Size(1440, 900);
             this.MinimumSize   = new Size(1280, 800);
@@ -46,14 +45,8 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             this.WindowState   = FormWindowState.Maximized;
             this.Font          = new Font("Segoe UI", 13f);
 
-            // ── Root panel
-            var pnlMain = new Panel
-            {
-                Dock      = DockStyle.Fill,
-                BackColor = Color.FromArgb(240, 244, 249)
-            };
+            var pnlMain = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(240, 244, 249) };
 
-            // ── AppShell
             _shell = new AppShell();
             _shell.SetPopupContainer(pnlMain);
             _shell.MenuItemClicked += OnTopNavMenuItemClicked;
@@ -62,12 +55,15 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             // ════════════════════════════════════════════════════════════
             // CARD 1 — Search Filters
             //
-            // Height budget inside pnlSearchCard (padding top+bottom = 14+14 = 28px):
-            //   Row 0  title    : 44 px
-            //   Row 1  fields   : 110 px  (label 36px + input ~42px + 32px breathing room)
-            //   Row 2  buttons  : 72 px
-            //   Total inner     : 226 px
-            //   pnlSearchOuter  : 226 + 28(card padding) + 14(outer top pad) = 268 → use 280
+            // Height budget (pnlSearchCard padding = 18px top+bottom each):
+            //   Row 0  title   :  44 px
+            //   Row 1  fields  : 110 px
+            //   Row 2  buttons :  72 px
+            //   inner total    : 226 px
+            //   card padding   :  36 px  (18 top + 18 bottom)
+            //   outer top pad  :  14 px
+            //   outer bottom   :  10 px
+            //   TOTAL          : 286 → set to 300 px
             // ════════════════════════════════════════════════════════════
             txtKeyword = new TextBox
             {
@@ -85,6 +81,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             cboTrigger.Items.AddRange(new object[] { "All", "Reorder", "OrderDemand" });
             cboTrigger.SelectedIndex = 0;
 
+            // tblFields: 3 columns matching the field widths (45% / 27.5% / 27.5%)
             var tblFields = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 1,
@@ -98,32 +95,66 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             tblFields.Controls.Add(MakeCell("Urgency",      cboUrgency, true),  1, 0);
             tblFields.Controls.Add(MakeCell("Trigger Type", cboTrigger, false), 2, 0);
 
-            btnSearch = MakePrimaryBtn("\uD83D\uDD0D  Search", Point.Empty,       210, 52);
-            btnReset  = MakeOutlineBtn("\u21BA  Reset",  new Point(218, 0), 210, 52);
-            var pnlSearchBtns = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            pnlSearchBtns.Controls.Add(btnSearch);
-            pnlSearchBtns.Controls.Add(btnReset);
+            // Button row: same 3-column layout as tblFields so buttons align to field edges.
+            // Col 0 (45%): Search button anchored Left
+            // Col 2 (27.5%): Reset button anchored Left  — aligns to right-group left edge
+            btnSearch = MakePrimaryBtn("\uD83D\uDD0D  Search", Point.Empty, 200, 52);
+            btnReset  = MakeOutlineBtn("\u21BA  Reset",  Point.Empty, 160, 52);
+
+            var tblBtnRow = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 1,
+                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+            };
+            tblBtnRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 45f));
+            tblBtnRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 27.5f));
+            tblBtnRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 27.5f));
+            tblBtnRow.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+
+            // Wrap each button in a panel so we can anchor it to the left edge of its column
+            var pnlBtnSearch = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
+            btnSearch.Location = new Point(0, 0);
+            pnlBtnSearch.Controls.Add(btnSearch);
+
+            var pnlBtnReset = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
+            btnReset.Location = new Point(0, 0);
+            pnlBtnReset.Controls.Add(btnReset);
+
+            tblBtnRow.Controls.Add(pnlBtnSearch, 0, 0);  // aligns under Keyword field
+            tblBtnRow.Controls.Add(new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent }, 1, 0); // spacer
+            tblBtnRow.Controls.Add(pnlBtnReset,  2, 0);  // aligns under Trigger Type field
+
+            // Vertically centre buttons within their row panel
+            void CentreBtnInPanel(Panel host, Button btn)
+            {
+                host.Resize += (s, e) =>
+                {
+                    int top = Math.Max(0, (host.Height - btn.Height) / 2);
+                    btn.Location = new Point(btn.Location.X, top);
+                };
+            }
+            CentreBtnInPanel(pnlBtnSearch, btnSearch);
+            CentreBtnInPanel(pnlBtnReset,  btnReset);
 
             var tblSearch = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill, RowCount = 3, ColumnCount = 1,
                 BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                Padding = new Padding(18, 14, 18, 14)
+                Padding = new Padding(18, 18, 18, 18)
             };
             tblSearch.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
             tblSearch.RowStyles.Add(new RowStyle(SizeType.Absolute,  44f));   // title
-            tblSearch.RowStyles.Add(new RowStyle(SizeType.Absolute, 110f));   // fields — 36px label + 42px input + 32px gap
+            tblSearch.RowStyles.Add(new RowStyle(SizeType.Absolute, 110f));   // fields
             tblSearch.RowStyles.Add(new RowStyle(SizeType.Absolute,  72f));   // buttons
 
             tblSearch.Controls.Add(BuildTitlePanel("Search", isSectionTitle: false), 0, 0);
-            tblSearch.Controls.Add(tblFields,     0, 1);
-            tblSearch.Controls.Add(pnlSearchBtns, 0, 2);
+            tblSearch.Controls.Add(tblFields,  0, 1);
+            tblSearch.Controls.Add(tblBtnRow,  0, 2);
 
-            // pnlSearchOuter height = outer top padding(14) + card(28 inner pad + 226 content) + 12 bottom gap = 280
             var pnlSearchOuter = new Panel
             {
-                Dock = DockStyle.Top, Height = 280,
-                BackColor = Color.FromArgb(240, 244, 249), Padding = new Padding(20, 14, 20, 0)
+                Dock = DockStyle.Top, Height = 300,
+                BackColor = Color.FromArgb(240, 244, 249), Padding = new Padding(20, 14, 20, 10)
             };
             var pnlSearchCard = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
             pnlSearchCard.Paint += PaintCardBorder;
@@ -133,12 +164,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             // ════════════════════════════════════════════════════════════
             // CARD 2 — KPI pills + Action Buttons
             // ════════════════════════════════════════════════════════════
-            pnlKpi = new Panel
-            {
-                Dock      = DockStyle.Fill,
-                BackColor = Color.Transparent,
-                Padding   = new Padding(12, 10, 12, 10)
-            };
+            pnlKpi = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(12, 10, 12, 10) };
 
             const int BtnW   = 290;
             const int BtnH   = 60;
@@ -241,12 +267,12 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             pnlGridCard.Controls.Add(pnlGridInner);
 
             // ════════════════════════════════════════════════════════════
-            // Assemble pnlMain (Fill first, Top second)
+            // Assemble
             // ════════════════════════════════════════════════════════════
-            pnlMain.Controls.Add(pnlGridCard);    // Fill  — grid
-            pnlMain.Controls.Add(pnlActionOuter); // Top   — KPI + buttons
-            pnlMain.Controls.Add(pnlSearchOuter); // Top   — search filters
-            pnlMain.Controls.Add(_shell);         // Top   — AppShell (last = topmost)
+            pnlMain.Controls.Add(pnlGridCard);    // Fill
+            pnlMain.Controls.Add(pnlActionOuter); // Top
+            pnlMain.Controls.Add(pnlSearchOuter); // Top
+            pnlMain.Controls.Add(_shell);         // Top (topmost)
 
             this.Controls.Add(pnlMain);
             this.ResumeLayout(false);
@@ -283,8 +309,8 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
                 Padding         = rightPad ? new Padding(0, 0, 14, 0) : new Padding(0)
             };
-            tlp.RowStyles.Add(new RowStyle(SizeType.Absolute, 36f));   // label — fully visible above input
-            tlp.RowStyles.Add(new RowStyle(SizeType.Percent,  100f));  // input — fills rest
+            tlp.RowStyles.Add(new RowStyle(SizeType.Absolute, 36f));
+            tlp.RowStyles.Add(new RowStyle(SizeType.Percent,  100f));
             tlp.Controls.Add(new Label
             {
                 Text      = caption,
@@ -337,7 +363,6 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             return b;
         }
 
-        // ── Border painter
         private static void PaintCardBorder(object s, PaintEventArgs e)
         {
             var p = (Panel)s;
