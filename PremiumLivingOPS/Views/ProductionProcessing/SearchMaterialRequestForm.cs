@@ -348,7 +348,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             UrgencyColors.TryGetValue(d.UrgencyLevel ?? "", out var uc);
             tblHeader.Controls.Add(new Label
             {
-                Text      = UrgencyBadgeText(d.UrgencyLevel),
+                Text      = d.UrgencyLevel ?? "\u2014",
                 Font      = new Font("Segoe UI", 13f, FontStyle.Bold),
                 ForeColor = uc.fg != default ? uc.fg : Color.White,
                 BackColor = uc.bg != default ? uc.bg : Color.FromArgb(80, 80, 80),
@@ -563,15 +563,6 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             dlg.Controls.Add(pnlFooter);     // Bottom — close button
             dlg.ShowDialog(this);
         }
-
-        // ── Urgency badge text ──────────────────────────────────────────────────────────────
-        private static string UrgencyBadgeText(string urgency) => urgency switch
-        {
-            "Critical" => "\uD83D\uDD34  CRITICAL",
-            "High"     => "\uD83D\uDFE0  HIGH",
-            "Medium"   => "\uD83D\uDFE1  MEDIUM",
-            _          => urgency ?? "\u2014"
-        };
 
         // ── Label factories (aligned with ViewShipmentForm) ────────────────────────────────
         private static Label DlgMakeLabelKey(string text) => new Label
