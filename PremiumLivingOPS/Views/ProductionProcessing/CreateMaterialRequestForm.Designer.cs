@@ -69,7 +69,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             };
 
             // ==================================================================
-            // CARD 1 — Request Header
+            // CARD 1 — Request Overview
             // Schema: MaterialRequest.RequestID (auto), UrgencyLevel, TriggerType
             // TLP: 3 cols × [label 40px | control 72px] = 1 field row → total 200px card
             // ==================================================================
@@ -101,22 +101,15 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             tblHdr.Controls.Add(Pad(cboUrgency),   1, 1);
             tblHdr.Controls.Add(Pad(cboTrigger),   2, 1);
 
-            var pnlHdrTitle   = CardTitlePanel("Create Raw Material Request");
+            var pnlHdrTitle   = CardTitlePanel("Request Overview");   // ← renamed
             var pnlHdrContent = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             pnlHdrContent.Controls.Add(tblHdr);
             pnlHdrContent.Controls.Add(pnlHdrTitle);
-            // CardPanel.Create height = titleH(54) + labelRow(40) + ctrlRow(72) + padding(24) = 190
             var (pnlCard1Outer, pnlCard1Inner) = CardPanel.Create(outerHeight: 200);
             pnlCard1Inner.Controls.Add(pnlHdrContent);
 
             // ==================================================================
             // CARD 2 — Material & Warehouse Selection
-            // Schema: RawMaterial (ItemID, MaterialType), WarehouseItem
-            //         (WarehouseItemID, WarehouseItemQuantity, ReorderLevel),
-            //         Warehouse (WarehouseID, WarehouseLocation)
-            // TLP: 2 cols, 4 rows [label|ctrl|label|ctrl] = 2 field rows → ~320px card
-            // Row 1: Raw Material (60%) | Material Type (40%)
-            // Row 2: Warehouse (50%) | Current Stock (25%) | Reorder Level (25%)
             // ==================================================================
             cboRawMaterial  = MakeCombo();
             txtMaterialType = MakeReadOnlyBox();
@@ -127,22 +120,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
 
             cboWarehouse.SelectedIndexChanged += CboWarehouse_Changed;
 
-            // 5-column TLP for two field rows
-            // Row 0 (labels) + Row 1 (controls) + Row 2 (labels) + Row 3 (controls)
             var tblMat = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 4,
-                BackColor = Color.Transparent,
-                CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                Padding = new Padding(18, 4, 18, 8)
-            };
-            // Row 1: Raw Material 60%, Material Type 40%  → split across 2 of 4 cols
-            // Row 2: Warehouse 50%, Current 25%, Reorder 25% → 3 of 4 cols
-            // Use 4 cols so percentages work out: 60/40 vs 50/25/25
-            // Col widths (percent): 50, 10, 25, 25 won't work cleanly.
-            // Better: use two separate inner TLPs for each row, wrapped in a 1-col outer TLP.
-            // Outer TLP: 1 col, 4 rows.
-            tblMat = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4,
                 BackColor = Color.Transparent,
@@ -150,28 +128,24 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 Padding = new Padding(18, 4, 18, 8)
             };
             tblMat.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-            tblMat.RowStyles.Add(new RowStyle(SizeType.Absolute, 40f));   // Row 1 labels
-            tblMat.RowStyles.Add(new RowStyle(SizeType.Absolute, 72f));   // Row 1 controls
-            tblMat.RowStyles.Add(new RowStyle(SizeType.Absolute, 40f));   // Row 2 labels
-            tblMat.RowStyles.Add(new RowStyle(SizeType.Absolute, 72f));   // Row 2 controls
+            tblMat.RowStyles.Add(new RowStyle(SizeType.Absolute, 40f));
+            tblMat.RowStyles.Add(new RowStyle(SizeType.Absolute, 72f));
+            tblMat.RowStyles.Add(new RowStyle(SizeType.Absolute, 40f));
+            tblMat.RowStyles.Add(new RowStyle(SizeType.Absolute, 72f));
 
-            // Row 1 labels: two labels in a 2-col TLP
             var tblMatLbl1 = MakeColTlp(2, new float[] { 60f, 40f });
             tblMatLbl1.Controls.Add(FieldLabel("Raw Material *",  false), 0, 0);
             tblMatLbl1.Controls.Add(FieldLabel("Material Type",   false), 1, 0);
 
-            // Row 1 controls
             var tblMatCtrl1 = MakeColTlp(2, new float[] { 60f, 40f });
             tblMatCtrl1.Controls.Add(Pad(cboRawMaterial),  0, 0);
             tblMatCtrl1.Controls.Add(Pad(txtMaterialType), 1, 0);
 
-            // Row 2 labels: three labels in a 3-col TLP
             var tblMatLbl2 = MakeColTlp(3, new float[] { 50f, 25f, 25f });
             tblMatLbl2.Controls.Add(FieldLabel("Warehouse / Stock Location *", false), 0, 0);
             tblMatLbl2.Controls.Add(FieldLabel("Current Stock (Ref)",          false), 1, 0);
             tblMatLbl2.Controls.Add(FieldLabel("Reorder Level (Ref)",          false), 2, 0);
 
-            // Row 2 controls
             var tblMatCtrl2 = MakeColTlp(3, new float[] { 50f, 25f, 25f });
             tblMatCtrl2.Controls.Add(Pad(cboWarehouse),    0, 0);
             tblMatCtrl2.Controls.Add(Pad(txtCurrentStock), 1, 0);
@@ -186,13 +160,11 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             var pnlMatContent = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             pnlMatContent.Controls.Add(tblMat);
             pnlMatContent.Controls.Add(pnlMatTitle);
-            // titleH(54) + 2×(label40+ctrl72) + padding(24) = 54+224+24 = 302 → 320
             var (pnlCard2Outer, pnlCard2Inner) = CardPanel.Create(outerHeight: 320);
             pnlCard2Inner.Controls.Add(pnlMatContent);
 
             // ==================================================================
             // CARD 3 — Linked Order  (visible only when TriggerType = OrderDemand)
-            // Schema: Order.OrderID  (nullable FK in MaterialRequest)
             // ==================================================================
             cboOrder = MakeCombo();
 
@@ -214,7 +186,6 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             var pnlOrdContent = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             pnlOrdContent.Controls.Add(tblOrd);
             pnlOrdContent.Controls.Add(pnlOrdTitle);
-            // titleH(54) + label(40) + ctrl(72) + padding(24) = 190
             var (pnlOrderOuter, pnlOrderInner) = CardPanel.Create(outerHeight: 200);
             pnlOrderInner.Controls.Add(pnlOrdContent);
             pnlOrderRow         = pnlOrderOuter;
@@ -222,7 +193,6 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
 
             // ==================================================================
             // CARD 4 — Request Details
-            // Schema: MaterialRequest.RequestedQty
             // ==================================================================
             nudRequestedQty = new NumericUpDown
             {
@@ -257,7 +227,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             pnlCard4Inner.Controls.Add(pnlQtyContent);
 
             // ==================================================================
-            // FOOTER — Submit + Reset  (mirrors CreateOrderForm footer pattern)
+            // FOOTER — Submit + Reset
             // ==================================================================
             const int BtnW   = 210;
             const int BtnH   = 60;
@@ -310,21 +280,14 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             };
             footerOuter.Controls.Add(footerInner);
 
-            // ==================================================================
-            // Assemble scroll content
-            // DockStyle.Top stacks last-added-first; add bottom → top.
-            // ==================================================================
-            pnlScroll.Controls.Add(pnlCard4Outer);    // added 1st → bottom
-            pnlScroll.Controls.Add(pnlOrderRow);      // added 2nd (conditional)
-            pnlScroll.Controls.Add(pnlCard2Outer);    // added 3rd
-            pnlScroll.Controls.Add(pnlCard1Outer);    // added last → top
+            pnlScroll.Controls.Add(pnlCard4Outer);
+            pnlScroll.Controls.Add(pnlOrderRow);
+            pnlScroll.Controls.Add(pnlCard2Outer);
+            pnlScroll.Controls.Add(pnlCard1Outer);
 
-            // ==================================================================
-            // Assemble pnlMain  (AppShell added last → renders on top)
-            // ==================================================================
-            pnlMain.Controls.Add(pnlScroll);    // Fill
-            pnlMain.Controls.Add(footerOuter);  // Bottom
-            pnlMain.Controls.Add(_shell);       // Top — last added, sits above all
+            pnlMain.Controls.Add(pnlScroll);
+            pnlMain.Controls.Add(footerOuter);
+            pnlMain.Controls.Add(_shell);
 
             this.Controls.Add(pnlMain);
             this.ResumeLayout(false);
@@ -335,13 +298,9 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
         }
 
         // ────────────────────────────────────────────────────────────────
-        //  Shared builder helpers  —  exact same signatures as CreateOrderForm
+        //  Shared builder helpers
         // ────────────────────────────────────────────────────────────────
 
-        /// <summary>
-        /// Wraps a control in a padding panel (Padding 0,8,12,8).
-        /// Identical to CreateOrderForm.Pad().
-        /// </summary>
         private static Panel Pad(Control ctrl)
         {
             ctrl.Dock = DockStyle.Fill;
@@ -355,10 +314,6 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             return p;
         }
 
-        /// <summary>
-        /// Field label: grey, bold, 10.5pt, bottom-left, optional required star.
-        /// Identical to CreateOrderForm.FieldLabel().
-        /// </summary>
         private static Label FieldLabel(string text, bool required) =>
             new Label
             {
@@ -370,10 +325,6 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 Padding   = new Padding(18, 0, 0, 2)
             };
 
-        /// <summary>
-        /// Card title panel (height 54, bottom divider).
-        /// Identical to CreateOrderForm.CardTitlePanel().
-        /// </summary>
         private static Panel CardTitlePanel(string title)
         {
             var pnl = new Panel { Dock = DockStyle.Top, Height = 54, BackColor = Color.Transparent };
@@ -392,7 +343,6 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             return pnl;
         }
 
-        /// <summary>Read-write ComboBox factory.</summary>
         private static ComboBox MakeCombo() =>
             new ComboBox
             {
@@ -401,22 +351,17 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 Dock          = DockStyle.Fill
             };
 
-        /// <summary>Read-only TextBox (auto-filled / reference field).</summary>
         private static TextBox MakeReadOnlyBox() =>
             new TextBox
             {
                 Font        = new Font("Segoe UI", 12f),
                 ReadOnly    = true,
-                BackColor   = Color.FromArgb(235, 240, 250),   // matches CreateOrderForm billing addr tint
+                BackColor   = Color.FromArgb(235, 240, 250),
                 ForeColor   = Color.FromArgb(98, 112, 135),
                 BorderStyle = BorderStyle.FixedSingle,
                 Dock        = DockStyle.Fill
             };
 
-        /// <summary>
-        /// Single-row TLP with N percent-width columns.
-        /// Used to keep label rows and control rows in perfect column alignment.
-        /// </summary>
         private static TableLayoutPanel MakeColTlp(int cols, float[] percents)
         {
             var tlp = new TableLayoutPanel
@@ -433,7 +378,6 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             return tlp;
         }
 
-        // ── Button factories  (same signature as CreateOrderForm) ───────────────────
         private static Button MakePrimaryBtn(string text, Point loc, int w, int h)
         {
             var b = new Button
