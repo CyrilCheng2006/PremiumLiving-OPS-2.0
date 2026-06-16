@@ -142,10 +142,10 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 ("Linked to PO",   linked.ToString(),   Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229)),
             };
 
-            const int PillW   = 280;
-            const int PillH   = 60;
-            const int Gap     = 10;
-            const int LeftPad = 12;
+            const int PillW   = 290;   // updated: 290x60
+            const int PillH   =  60;
+            const int Gap     =  10;
+            const int LeftPad =  12;
 
             var flow = new FlowLayoutPanel
             {
@@ -301,7 +301,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 MinimizeBox     = false
             };
 
-            // ── Header ───────────────────────────────────────────────────────────
+            // ── Header ──────────────────────────────────────────────────────────────────
             var pnlHeader = new Panel
             {
                 Dock      = DockStyle.Top,
@@ -343,16 +343,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             }, 1, 0);
             pnlHeader.Controls.Add(tblHeader);
 
-            // ── Info panel ─────────────────────────────────────────────────────────
-            //
-            // 7-row TLP (RowCount=7), 4 columns:
-            //   Rows 0-4  : 5 pairs of left+right key/value fields  (each ≈14.4% of 63%)
-            //   Row  5    : "Warehouse Location" key label (full-width, col span 4) — 8%
-            //   Row  6    : Warehouse Location value label (full-width, col span 4) — 29%
-            //
-            // TLP only ever holds ONE control per cell — key and value are in separate rows.
-            // pnlInfo.Height=560, padding=28+18+28+8=82 → TLP usable ≈78px
-            //
+            // ── Info panel ───────────────────────────────────────────────────────────────────
             var pnlInfo = new Panel
             {
                 Dock      = DockStyle.Top,
@@ -374,16 +365,11 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
-
-            // Rows 0-4: equal share of 63% (=12.6% each) — single-line key/value pairs
             for (int i = 0; i < 5; i++)
                 tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 63f / 5f));
-            // Row 5: Warehouse Location KEY label — small fixed portion
             tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 8f));
-            // Row 6: Warehouse Location VALUE — remaining height for long addresses
             tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 29f));
 
-            // ── Left column (col0+col1): Request/Material fields, rows 0-4 ──
             var leftFields = new (string key, string val)[]
             {
                 ("Request ID",    d.RequestID),
@@ -398,7 +384,6 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 tblInfo.Controls.Add(DlgMakeLabelVal(leftFields[i].val ?? "\u2014"), 1, i);
             }
 
-            // ── Right column (col2+col3): trigger/warehouse fields, rows 0-4 ──
             var rightFields = new (string key, string val)[]
             {
                 ("Trigger Type",      d.TriggerType),
@@ -413,22 +398,18 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 tblInfo.Controls.Add(DlgMakeLabelVal(rightFields[i].val ?? "\u2014"), 3, i);
             }
 
-            // ── Row 5: Warehouse Location KEY (one cell only, span 4 columns) ──
             var lblWHKey = new Label
             {
                 Text      = "Warehouse Location",
                 Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(98, 112, 135),
                 Dock      = DockStyle.Fill,
-                TextAlign = ContentAlignment.BottomLeft,   // align to bottom so it sits close to the value
+                TextAlign = ContentAlignment.BottomLeft,
                 AutoSize  = false
             };
             tblInfo.Controls.Add(lblWHKey, 0, 5);
             tblInfo.SetColumnSpan(lblWHKey, 4);
 
-            // ── Row 6: Warehouse Location VALUE (one cell only, span 4 columns) ──
-            // AutoEllipsis=false + AutoSize=false + Dock=Fill lets the label wrap naturally
-            // inside the ~130px tall row without truncation.
             var lblWHVal = new Label
             {
                 Text         = d.WarehouseLocation ?? "\u2014",
@@ -445,7 +426,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
 
             pnlInfo.Controls.Add(tblInfo);
 
-            // ── Stock bar ─────────────────────────────────────────────────────────
+            // ── Stock bar ─────────────────────────────────────────────────────────────────
             bool isBelowReorder = d.CurrentStock <= d.ReorderLevel;
             var pnlStock = new Panel
             {
@@ -478,7 +459,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 isBelowReorder ? "\u26A0  Below Reorder Level" : "\u2714  Sufficient Stock"), 5, 0);
             pnlStock.Controls.Add(tblStock);
 
-            // ── PO section label ────────────────────────────────────────────────────
+            // ── PO section label ────────────────────────────────────────────────────────────
             var pnlPoLabel = new Panel
             {
                 Dock      = DockStyle.Top,
@@ -496,7 +477,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             });
             pnlPoLabel.Paint += DlgPaintBottomBorder;
 
-            // ── PO detail / empty state (Fill) ─────────────────────────────────
+            // ── PO detail / empty state (Fill) ───────────────────────────────────────
             Panel pnlPoDetail;
             if (!string.IsNullOrEmpty(d.PurchaseID))
             {
@@ -545,7 +526,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 });
             }
 
-            // ── Footer ─────────────────────────────────────────────────────────
+            // ── Footer ────────────────────────────────────────────────────────────────
             var pnlFooter = new Panel
             {
                 Dock      = DockStyle.Bottom,
@@ -572,7 +553,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             btnClose.Click += (s, ev) => dlg.Close();
             pnlFooter.Controls.Add(btnClose);
 
-            // ── Assemble: Bottom first, then Fill, then Top ────────────────────
+            // ── Assemble: Bottom first, then Fill, then Top ──────────────────────
             dlg.Controls.Add(pnlPoDetail);   // Fill
             dlg.Controls.Add(pnlPoLabel);    // Top  40px
             dlg.Controls.Add(pnlStock);      // Top  64px
@@ -583,7 +564,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             dlg.ShowDialog(this);
         }
 
-        // ── Label factories ─────────────────────────────────────────────────────────
+        // ── Label factories ────────────────────────────────────────────────────────────────────
         private static Label DlgMakeLabelKey(string text) => new Label
         {
             Text         = text,
@@ -605,7 +586,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             AutoEllipsis = true
         };
 
-        // ── Border painters ─────────────────────────────────────────────────────────
+        // ── Border painters ───────────────────────────────────────────────────────────────────
         private static void DlgPaintBottomBorder(object s, PaintEventArgs e)
         {
             var p = (Panel)s;
