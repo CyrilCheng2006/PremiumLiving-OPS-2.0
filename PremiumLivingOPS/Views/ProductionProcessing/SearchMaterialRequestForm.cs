@@ -30,7 +30,6 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
         private readonly ProductionProcessingController      _ctrl    = new ProductionProcessingController();
         private List<MaterialRequestEntity>                  _current = new List<MaterialRequestEntity>();
 
-        // ── Urgency colour map ───────────────────────────────────────────────────────────
         private static readonly Dictionary<string, (Color bg, Color fg)> UrgencyColors =
             new Dictionary<string, (Color, Color)>
             {
@@ -39,7 +38,6 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 { "Medium",   (Color.FromArgb(209, 250, 229), Color.FromArgb(  6,  95,  70)) }
             };
 
-        // ── Trigger colour map ───────────────────────────────────────────────────────────
         private static readonly Dictionary<string, (Color bg, Color fg)> TriggerColors =
             new Dictionary<string, (Color, Color)>
             {
@@ -294,7 +292,6 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             using var dlg = new Form
             {
                 Text            = $"Material Request Detail \u2014 {d.RequestID}",
-                // Height increased to 1060 to absorb the extra 100px added to pnlInfo
                 Size            = new Size(1700, 1060),
                 StartPosition   = FormStartPosition.CenterParent,
                 BackColor       = Color.White,
@@ -348,20 +345,18 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
 
             // ── Info panel ─────────────────────────────────────────────────────────
             //
-            // 6-row layout (4-column TLP):
-            //   Rows 0-4: standard two-column key/value pairs (left + right)
-            //   Row 5   : Warehouse Location — key + value both span all 4 columns
-            //             Row 5 height = 28% of 560px = ~157px (ample room for 2-line address)
+            // 7-row TLP (RowCount=7), 4 columns:
+            //   Rows 0-4  : 5 pairs of left+right key/value fields  (each ≈14.4% of 63%)
+            //   Row  5    : "Warehouse Location" key label (full-width, col span 4) — 8%
+            //   Row  6    : Warehouse Location value label (full-width, col span 4) — 29%
             //
-            // Height budget (pnlInfo = 560px, inner padding 28+18+28+8 = 82px
-            //   → TLP usable = 478px)
-            //   Rows 0-4 each = 72% / 5 ≈ 14.4% of 478 ≈ 68px   (comfortable single-line)
-            //   Row  5       = 28%       of 478 ≈ 134px  (key label ~20px + value 2 lines ~80px)
+            // TLP only ever holds ONE control per cell — key and value are in separate rows.
+            // pnlInfo.Height=560, padding=28+18+28+8=82 → TLP usable ≈78px
             //
             var pnlInfo = new Panel
             {
                 Dock      = DockStyle.Top,
-                Height    = 560,          // increased from 460 → 560
+                Height    = 560,
                 Padding   = new Padding(28, 18, 28, 8),
                 BackColor = Color.White
             };
@@ -371,7 +366,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             {
                 Dock            = DockStyle.Fill,
                 ColumnCount     = 4,
-                RowCount        = 6,
+                RowCount        = 7,
                 BackColor       = Color.Transparent,
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
@@ -379,13 +374,16 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
-            // Rows 0-4: each takes an equal share of the remaining 72%
-            // Row 5   : 28% — provides ~134px for Warehouse Location key + 2-line address
-            for (int i = 0; i < 5; i++)
-                tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 72f / 5f));
-            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 28f));
 
-            // ── Left column: 5 fields, rows 0-4 ──
+            // Rows 0-4: equal share of 63% (=12.6% each) — single-line key/value pairs
+            for (int i = 0; i < 5; i++)
+                tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 63f / 5f));
+            // Row 5: Warehouse Location KEY label — small fixed portion
+            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 8f));
+            // Row 6: Warehouse Location VALUE — remaining height for long addresses
+            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 29f));
+
+            // ── Left column (col0+col1): Request/Material fields, rows 0-4 ──
             var leftFields = new (string key, string val)[]
             {
                 ("Request ID",    d.RequestID),
@@ -400,7 +398,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 tblInfo.Controls.Add(DlgMakeLabelVal(leftFields[i].val ?? "\u2014"), 1, i);
             }
 
-            // ── Right column: rows 0-4 ──
+            // ── Right column (col2+col3): trigger/warehouse fields, rows 0-4 ──
             var rightFields = new (string key, string val)[]
             {
                 ("Trigger Type",      d.TriggerType),
@@ -415,24 +413,22 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 tblInfo.Controls.Add(DlgMakeLabelVal(rightFields[i].val ?? "\u2014"), 3, i);
             }
 
-            // ── Row 5: Warehouse Location — full-width (spans all 4 columns) ──
-            //
-            // lblWHKey at (col0, row5), SetColumnSpan=4  → full panel width
-            // TopLeft so it sits at the very top of the taller row
+            // ── Row 5: Warehouse Location KEY (one cell only, span 4 columns) ──
             var lblWHKey = new Label
             {
                 Text      = "Warehouse Location",
                 Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(98, 112, 135),
                 Dock      = DockStyle.Fill,
-                TextAlign = ContentAlignment.TopLeft,
-                Padding   = new Padding(0, 6, 0, 0)
+                TextAlign = ContentAlignment.BottomLeft,   // align to bottom so it sits close to the value
+                AutoSize  = false
             };
             tblInfo.Controls.Add(lblWHKey, 0, 5);
             tblInfo.SetColumnSpan(lblWHKey, 4);
 
-            // lblWHVal at (col0, row5), SetColumnSpan=4
-            // Padding.Top=28 clears the key label; AutoEllipsis=false allows 2-line wrap
+            // ── Row 6: Warehouse Location VALUE (one cell only, span 4 columns) ──
+            // AutoEllipsis=false + AutoSize=false + Dock=Fill lets the label wrap naturally
+            // inside the ~130px tall row without truncation.
             var lblWHVal = new Label
             {
                 Text         = d.WarehouseLocation ?? "\u2014",
@@ -441,10 +437,10 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 Dock         = DockStyle.Fill,
                 TextAlign    = ContentAlignment.TopLeft,
                 AutoEllipsis = false,
-                UseMnemonic  = false,
-                Padding      = new Padding(0, 28, 0, 4)
+                AutoSize     = false,
+                UseMnemonic  = false
             };
-            tblInfo.Controls.Add(lblWHVal, 0, 5);
+            tblInfo.Controls.Add(lblWHVal, 0, 6);
             tblInfo.SetColumnSpan(lblWHVal, 4);
 
             pnlInfo.Controls.Add(tblInfo);
@@ -500,9 +496,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             });
             pnlPoLabel.Paint += DlgPaintBottomBorder;
 
-            // ── PO detail / empty state (DockStyle.Fill — absorbs remaining height) ────
-            // Note: remaining height = 1060 - 80(hdr) - 560(info) - 64(stock) - 40(PO label)
-            //       - 86(footer) = 230px  — sufficient for one row of PO fields
+            // ── PO detail / empty state (Fill) ─────────────────────────────────
             Panel pnlPoDetail;
             if (!string.IsNullOrEmpty(d.PurchaseID))
             {
@@ -579,11 +573,11 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             pnlFooter.Controls.Add(btnClose);
 
             // ── Assemble: Bottom first, then Fill, then Top ────────────────────
-            dlg.Controls.Add(pnlPoDetail);   // Fill  (~230px remaining)
-            dlg.Controls.Add(pnlPoLabel);    // Top   40px
-            dlg.Controls.Add(pnlStock);      // Top   64px
-            dlg.Controls.Add(pnlInfo);       // Top   560px
-            dlg.Controls.Add(pnlHeader);     // Top   80px
+            dlg.Controls.Add(pnlPoDetail);   // Fill
+            dlg.Controls.Add(pnlPoLabel);    // Top  40px
+            dlg.Controls.Add(pnlStock);      // Top  64px
+            dlg.Controls.Add(pnlInfo);       // Top  560px
+            dlg.Controls.Add(pnlHeader);     // Top  80px
             dlg.Controls.Add(pnlFooter);     // Bottom 86px
 
             dlg.ShowDialog(this);
