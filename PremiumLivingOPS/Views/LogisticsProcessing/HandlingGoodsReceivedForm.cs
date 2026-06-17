@@ -49,6 +49,10 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         public HandlingGoodsReceivedForm()
         {
             InitializeComponent();
+            // NOTE: Do NOT subscribe MenuItemClicked / LogoutClicked here.
+            //       Both events are subscribed exactly ONCE in Designer.cs
+            //       (RULE 4). Subscribing again here would cause every click
+            //       to fire the handler twice.
             this.Load += HandlingGoodsReceivedForm_Load;
         }
 
@@ -63,13 +67,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
         private void HandlingGoodsReceivedForm_Load(object sender, EventArgs e)
         {
-            if (_shell != null)
-            {
-                _shell.MenuItemClicked -= OnTopNavMenuItemClicked;
-                _shell.LogoutClicked   -= btnLogout_Click;
-                _shell.MenuItemClicked += OnTopNavMenuItemClicked;
-                _shell.LogoutClicked   += btnLogout_Click;
-            }
+            // ── No event re-subscription here (RULE 4) ───────────────────────
+            // MenuItemClicked and LogoutClicked are wired once in Designer.cs.
+            // Re-subscribing here would fire every click/logout twice.
 
             RefreshGrids();
             SwitchToGrid(0);
@@ -182,7 +182,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             _shell.SetUser(_vm.UserBar.DisplayName, _vm.UserBar.Department);
             _shell.SetVisibleMenus(_vm.AllowedMenus);
-            _shell.SetBreadcrumb("Logistics Processing  ›  Handling Goods Received");
+            _shell.SetBreadcrumb("Logistics Processing  \u203a  Handling Goods Received");
 
             BindReceipts(_vm.Receipts);
             BindPO(_vm.PurchaseOrders);
@@ -543,14 +543,14 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 }
 
                 var sb = new StringBuilder();
-                sb.AppendLine($"✅  {result.SuccessCount} receipt(s) imported successfully.");
+                sb.AppendLine($"\u2705  {result.SuccessCount} receipt(s) imported successfully.");
 
                 if (result.HasErrors)
                 {
                     sb.AppendLine();
-                    sb.AppendLine($"⚠️  {result.Errors.Count} row(s) skipped due to errors:");
+                    sb.AppendLine($"\u26a0\ufe0f  {result.Errors.Count} row(s) skipped due to errors:");
                     foreach (var err in result.Errors)
-                        sb.AppendLine($"  • {err}");
+                        sb.AppendLine($"  \u2022 {err}");
                 }
 
                 MessageBox.Show(

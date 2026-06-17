@@ -51,7 +51,12 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
         private void InitializeComponent()
         {
-            // RULE 1: SuspendLayout FIRST.
+            // ════════════════════════════════════════════════════════════════
+            // RULE 1: SuspendLayout MUST be the very first statement.
+            //         Every control is created while layout is suspended.
+            //         Violating this causes AutoScaleMode = Font to
+            //         re-calculate control sizes on each Controls.Add() call.
+            // ════════════════════════════════════════════════════════════════
             this.SuspendLayout();
 
             // ── Form settings ────────────────────────────────────────────────
@@ -65,23 +70,28 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             this.AutoScaleMode    = AutoScaleMode.Font;
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
 
-            // ────────────────────────────────────────────────────────────────
-            // RULE 2: Build AppShell inside SuspendLayout scope.
+            // ════════════════════════════════════════════════════════════════
+            // RULE 2: AppShell MUST be constructed INSIDE the SuspendLayout
+            //         scope (i.e. before ResumeLayout / PerformLayout).
+            //         This prevents AutoScaleMode = Font from resizing _shell
+            //         during PerformLayout.
             //
             //  AppShell internally composes:
             //    ┌─ AppShell (DockStyle.Top, Height = AppShell.TotalHeight) ──┐
             //    │  TopNavBar  (44 px) — menu items, breadcrumb               │
             //    │  UserBar    (72 px) — UserInfoLabel, logout button          │
-            //    └──────────────────────────────────────────────────────────  ┘
-            // ────────────────────────────────────────────────────────────────
+            //    └───────────────────────────────────────────────────────────  ┘
+            // ════════════════════════════════════════════════════════════════
             _shell             = new AppShell();
             _shell.Dock        = DockStyle.Top;
             _shell.Height      = AppShell.TotalHeight;
             _shell.MinimumSize = new System.Drawing.Size(0, AppShell.TotalHeight);
 
-            // RULE 4: Subscribe AppShell events ONCE here in Designer.cs.
-            // OnTopNavMenuItemClicked  → fired by TopNavBar when a menu item is clicked.
-            // btnLogout_Click          → fired by UserBar logout button.
+            // ════════════════════════════════════════════════════════════════
+            // RULE 4: Subscribe AppShell events ONCE, HERE in Designer.cs.
+            //         The .cs Load / constructor must NOT re-subscribe these.
+            //         Duplicate subscriptions cause every click to fire twice.
+            // ════════════════════════════════════════════════════════════════
             _shell.MenuItemClicked += OnTopNavMenuItemClicked;
             _shell.LogoutClicked   += btnLogout_Click;
 
@@ -467,8 +477,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlGridHost.Controls.Add(pnlPOCard);
             pnlGridHost.Controls.Add(pnlInvoicesCard);
 
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            //  Final assembly — RULE 5
+            // ════════════════════════════════════════════════════════════════
+            // RULE 5 — Final assembly: Fill first, then Top (reverse display
+            //          order), AppShell added LAST so it sits at the very top.
             //
             //  Windows Forms DockStyle stacking rule:
             //    Fill controls must be added FIRST (they claim remaining space).
@@ -476,21 +487,26 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             //    visually at the top of the window.
             //
             //  Resulting visual stack (top → bottom):
-            //    _shell        (TopNavBar 44 px + UserBar 72 px)
-            //    pnlSearchOuter (Search card, 300 px)
-            //    pnlKpiOuter    (KPI pills + action buttons, 90 px)
-            //    pnlTabOuter    (Grid tab switcher, 69 px)
-            //    pnlGridHost    (Fill — the three data grids)
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            //    _shell          (TopNavBar 44 px + UserBar 72 px = 116 px)
+            //    pnlSearchOuter  (Search card, 300 px)
+            //    pnlKpiOuter     (KPI pills + action buttons, 90 px)
+            //    pnlTabOuter     (Grid tab switcher, 69 px)
+            //    pnlGridHost     (Fill — the three data grids)
+            // ════════════════════════════════════════════════════════════════
             pnlMain.Controls.Add(pnlGridHost);    // DockStyle.Fill  — added first
             pnlMain.Controls.Add(pnlTabOuter);    // DockStyle.Top
             pnlMain.Controls.Add(pnlKpiOuter);    // DockStyle.Top
             pnlMain.Controls.Add(pnlSearchOuter); // DockStyle.Top
-            pnlMain.Controls.Add(_shell);         // DockStyle.Top   — added last = topmost
+            pnlMain.Controls.Add(_shell);         // DockStyle.Top   — added LAST = topmost
 
             this.Controls.Add(pnlMain);
 
-            // RULE 3: ResumeLayout(false) + PerformLayout, then re-enforce _shell height.
+            // ════════════════════════════════════════════════════════════════
+            // RULE 3: After ResumeLayout(false) + PerformLayout(), re-enforce
+            //         _shell.Height and MinimumSize as a mandatory safety net
+            //         against high-DPI / AutoScaleMode = Font side-effects.
+            //         This mirrors the exact pattern used in ViewShipmentForm.
+            // ════════════════════════════════════════════════════════════════
             this.ResumeLayout(false);
             this.PerformLayout();
             _shell.Height      = AppShell.TotalHeight;
