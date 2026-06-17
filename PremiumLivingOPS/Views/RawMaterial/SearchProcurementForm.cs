@@ -145,11 +145,11 @@ namespace PremiumLivingOPS.Views.RawMaterial
 
             var pills = new[]
             {
-                ("Total Orders",       total.ToString(),     Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254)),
-                ("Sent",               sent.ToString(),      Color.FromArgb( 30,  64, 175), Color.FromArgb(219, 234, 254)),
-                ("Partially Received", partial.ToString(),   Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199)),
-                ("Received",           received.ToString(),  Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229)),
-                ("Completed",          completed.ToString(), Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229)),
+                ("Total Orders", total.ToString(),     Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254)),
+                ("Sent",         sent.ToString(),      Color.FromArgb( 30,  64, 175), Color.FromArgb(219, 234, 254)),
+                ("Partially",    partial.ToString(),   Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199)),
+                ("Received",     received.ToString(),  Color.FromArgb( 88,  28, 135), Color.FromArgb(243, 232, 255)),
+                ("Completed",    completed.ToString(), Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229)),
             };
 
             const int PillW   = 260;   // slightly narrower to fit 5 pills comfortably
