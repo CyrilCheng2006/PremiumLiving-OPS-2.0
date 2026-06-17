@@ -199,7 +199,7 @@ namespace PremiumLivingOPS.Controllers
 
         public string GenerateQuotationId()
         {
-            string prefix   = "QUO-" + DateTime.Today.ToString("yyyyMMdd") + "-";
+            string prefix   = "QT-" + DateTime.Today.ToString("yyyyMMdd") + "-";
             var    existing = _repo.GetQuotationIdsByPrefix(prefix);
             int    next     = 1;
             foreach (var id in existing)
