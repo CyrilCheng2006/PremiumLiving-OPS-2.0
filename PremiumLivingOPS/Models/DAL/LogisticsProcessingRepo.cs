@@ -121,9 +121,6 @@ namespace PremiumLivingOPS.Models.DAL
             }
         }
 
-        /// <summary>
-        /// Returns the ReplySlip for a given DeliveryID, or null if not yet received.
-        /// </summary>
         public ReplySlipEntity GetReplySlipByDelivery(string deliveryId)
         {
             if (string.IsNullOrEmpty(deliveryId)) return null;
@@ -145,10 +142,6 @@ namespace PremiumLivingOPS.Models.DAL
         }
 
         // ── Edit Shipment ───────────────────────────────────────────
-
-        /// <summary>
-        /// Updates ShipmentStatus on the Shipment row.
-        /// </summary>
         public void UpdateShipment(string shipmentId, string newStatus)
         {
             using (var conn = OpenConnection())
@@ -166,14 +159,7 @@ namespace PremiumLivingOPS.Models.DAL
             }
         }
 
-        /// <summary>
-        /// INSERT or UPDATE a ReplySlip row linked to deliveryId.
-        /// If a row already exists it is updated; otherwise a new one is inserted.
-        /// Used by UpdateShipment (Edit flow).
-        /// </summary>
-        public void UpsertReplySlip(string deliveryId,
-                                    string actualRecipient,
-                                    string remark)
+        public void UpsertReplySlip(string deliveryId, string actualRecipient, string remark)
         {
             using (var conn = OpenConnection())
             {
@@ -225,18 +211,9 @@ namespace PremiumLivingOPS.Models.DAL
         }
 
         // ── Generate Delivery Note ──────────────────────────────────
-
-        /// <summary>
-        /// Inserts a new DeliveryNote row.
-        /// DeliveryID is auto-generated as DN-yyyyMMdd-XXXX.
-        /// Returns the generated DeliveryID.
-        /// </summary>
         public string InsertDeliveryNote(
-            string shipmentId,
-            DateTime deliveryDate,
-            int outstandingQty,
-            string shippingAddress,
-            string shipToName)
+            string shipmentId, DateTime deliveryDate, int outstandingQty,
+            string shippingAddress, string shipToName)
         {
             string newId = $"DN-{DateTime.Today:yyyyMMdd}-{Guid.NewGuid().ToString("N").Substring(0, 4).ToUpper()}";
             using (var conn = OpenConnection())
@@ -262,18 +239,8 @@ namespace PremiumLivingOPS.Models.DAL
         }
 
         // ── Generate Reply Slip ──────────────────────────────────────
-
-        /// <summary>
-        /// Inserts a brand-new ReplySlip row (not an upsert).
-        /// SlipID is auto-generated as RS-yyyyMMdd-XXXX.
-        /// Returns the generated SlipID.
-        /// Used only by GenerateReplySlip (first-time creation flow).
-        /// </summary>
         public string InsertReplySlip(
-            string deliveryId,
-            string actualRecipient,
-            string remark,
-            DateTime receivedDate)
+            string deliveryId, string actualRecipient, string remark, DateTime receivedDate)
         {
             string newId = $"RS-{DateTime.Today:yyyyMMdd}-{Guid.NewGuid().ToString("N").Substring(0, 4).ToUpper()}";
             using (var conn = OpenConnection())
@@ -297,11 +264,6 @@ namespace PremiumLivingOPS.Models.DAL
         }
 
         // ── Delete Shipment ───────────────────────────────────────────
-
-        /// <summary>
-        /// Hard-deletes a Shipment and its child rows in dependency order:
-        ///   ReplySlip → DeliveryNote → ShipmentLine → Shipment
-        /// </summary>
         public void DeleteShipment(string shipmentId)
         {
             using (var conn = OpenConnection())
@@ -313,23 +275,15 @@ namespace PremiumLivingOPS.Models.DAL
                         DELETE rs FROM ReplySlip rs
                         JOIN DeliveryNote dn ON rs.DeliveryID = dn.DeliveryID
                         WHERE dn.ShipmentID = @id", shipmentId);
-
                     ExecuteNonQuery(conn, tx, @"
                         DELETE FROM DeliveryNote WHERE ShipmentID = @id", shipmentId);
-
                     ExecuteNonQuery(conn, tx, @"
                         DELETE FROM ShipmentLine WHERE ShipmentID = @id", shipmentId);
-
                     ExecuteNonQuery(conn, tx, @"
                         DELETE FROM Shipment WHERE ShipmentID = @id", shipmentId);
-
                     tx.Commit();
                 }
-                catch
-                {
-                    tx.Rollback();
-                    throw;
-                }
+                catch { tx.Rollback(); throw; }
             }
         }
 
@@ -407,8 +361,6 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
-        // ── Purchase Invoices ────────────────────────────────────────────
-
         public List<PurchaseInvoiceEntity> GetAllPurchaseInvoices()
         {
             var list = new List<PurchaseInvoiceEntity>();
@@ -473,6 +425,91 @@ namespace PremiumLivingOPS.Models.DAL
                 }
             }
             return newId;
+        }
+
+        // ── CSV Import: Receipt ──────────────────────────────────────
+        /// <summary>
+        /// Checks whether a PurchaseID exists in PurchaseOrder.
+        /// Used by the CSV import validator.
+        /// </summary>
+        public bool PurchaseOrderExists(string purchaseId)
+        {
+            using (var conn = OpenConnection())
+            using (var cmd = new MySqlCommand(
+                "SELECT COUNT(1) FROM PurchaseOrder WHERE PurchaseID = @id", conn))
+            {
+                cmd.Parameters.AddWithValue("@id", purchaseId);
+                return Convert.ToInt32(cmd.ExecuteScalar()) > 0;
+            }
+        }
+
+        /// <summary>
+        /// Checks whether a POLineID exists AND belongs to the given PurchaseID.
+        /// </summary>
+        public bool POLineExists(string poLineId, string purchaseId)
+        {
+            using (var conn = OpenConnection())
+            using (var cmd = new MySqlCommand(
+                "SELECT COUNT(1) FROM PurchaseOrderLine WHERE POLineID = @lid AND PurchaseID = @pid", conn))
+            {
+                cmd.Parameters.AddWithValue("@lid", poLineId);
+                cmd.Parameters.AddWithValue("@pid", purchaseId);
+                return Convert.ToInt32(cmd.ExecuteScalar()) > 0;
+            }
+        }
+
+        /// <summary>
+        /// Inserts one Receipt row inside an existing transaction.
+        /// ReceiptID is auto-generated as RCPT-yyyyMMdd-XXXX.
+        /// </summary>
+        public void InsertReceipt(
+            MySqlConnection conn,
+            MySqlTransaction tx,
+            ReceiptImportRow row)
+        {
+            string newId = $"RCPT-{DateTime.Today:yyyyMMdd}-{Guid.NewGuid().ToString("N").Substring(0, 4).ToUpper()}";
+            const string sql = @"
+                INSERT INTO Receipt
+                    (ReceiptID, PurchaseID, POLineID,
+                     QtyReceived, ReceiptDate, Outstanding_QTY)
+                VALUES
+                    (@rid, @pid, @lid, @qty, @rdate, @oqty)";
+            using (var cmd = new MySqlCommand(sql, conn, tx))
+            {
+                cmd.Parameters.AddWithValue("@rid",   newId);
+                cmd.Parameters.AddWithValue("@pid",   row.PurchaseID);
+                cmd.Parameters.AddWithValue("@lid",   row.POLineID);
+                cmd.Parameters.AddWithValue("@qty",   row.QtyReceived);
+                cmd.Parameters.AddWithValue("@rdate", row.ReceiptDate.Date);
+                cmd.Parameters.AddWithValue("@oqty",  row.OutstandingQty.HasValue
+                                                        ? (object)row.OutstandingQty.Value
+                                                        : DBNull.Value);
+                cmd.ExecuteNonQuery();
+            }
+        }
+
+        /// <summary>
+        /// Opens a single transaction and inserts all validated rows.
+        /// Returns the number of rows actually inserted.
+        /// </summary>
+        public int BulkInsertReceipts(List<ReceiptImportRow> rows)
+        {
+            int count = 0;
+            using (var conn = OpenConnection())
+            using (var tx = conn.BeginTransaction())
+            {
+                try
+                {
+                    foreach (var row in rows)
+                    {
+                        InsertReceipt(conn, tx, row);
+                        count++;
+                    }
+                    tx.Commit();
+                }
+                catch { tx.Rollback(); throw; }
+            }
+            return count;
         }
 
         // ── Private helpers ────────────────────────────────────────────

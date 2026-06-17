@@ -4,6 +4,7 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Windows.Forms;
 using PremiumLivingOPS.Controllers;
 using PremiumLivingOPS.Models.Entities;
@@ -80,43 +81,26 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         //  GRID TAB SWITCHER
-        //
-        //  index 0 → Goods Received Receipts  (btnTabReceipts)
-        //  index 1 → Purchase Orders           (btnTabPO)
-        //  index 2 → Purchase Invoices         (btnTabInvoices)
-        //
-        //  Visual feedback:
-        //    Active tab   → ForeColor blue, Bold font, blue bottom border (4px)
-        //    Inactive tab → ForeColor grey, Regular font, no border
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         internal void SwitchToGrid(int index)
         {
             _activeGridIndex = index;
-
-            // Gather tab buttons and their associated grid card panels
             var tabs = new[] { btnTabReceipts, btnTabPO, btnTabInvoices };
 
             for (int i = 0; i < tabs.Length; i++)
             {
                 bool active = (i == index);
-
-                // Style the tab button
                 tabs[i].ForeColor = active
                     ? Color.FromArgb(47, 111, 237)
                     : Color.FromArgb(98, 112, 135);
                 tabs[i].Font = active
                     ? new Font("Segoe UI", 12f, FontStyle.Bold)
                     : new Font("Segoe UI", 12f);
-
-                // Repaint to trigger the custom bottom-underline via Paint event
                 tabs[i].Invalidate();
-
-                // Show / hide the grid card panel stored in the button's Tag
                 if (tabs[i].Tag is Panel card)
                     card.Visible = active;
             }
 
-            // Wire the custom underline painter only once per button
             if (!_tabPaintWired)
             {
                 btnTabReceipts.Paint += PaintTabUnderline;
@@ -125,28 +109,21 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 _tabPaintWired = true;
             }
 
-            // Update action button availability based on active tab
             UpdateActionButtons();
         }
 
         private bool _tabPaintWired = false;
 
-        /// <summary>Draws a 3px blue underline at the bottom of the active tab button.</summary>
         private void PaintTabUnderline(object sender, PaintEventArgs e)
         {
             var btn = (Button)sender;
             bool isActive = btn.ForeColor == Color.FromArgb(47, 111, 237);
             if (!isActive) return;
-
             using var pen = new Pen(Color.FromArgb(47, 111, 237), 3f);
             int y = btn.Height - 2;
             e.Graphics.DrawLine(pen, 0, y, btn.Width, y);
         }
 
-        /// <summary>
-        /// Refreshes which action buttons are enabled based on
-        /// the currently active tab and any grid selection.
-        /// </summary>
         private void UpdateActionButtons()
         {
             switch (_activeGridIndex)
@@ -154,7 +131,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 case 0: // Receipts tab
                     bool hasRcpt = dgvReceipts.SelectedRows.Count > 0;
                     btnViewReceiptLines.Enabled = hasRcpt;
-                    btnUploadReceipt.Enabled    = hasRcpt;
+                    btnUploadReceipt.Enabled    = true;   // always enabled: CSV import is not row-dependent
                     if (hasRcpt)
                     {
                         var r = dgvReceipts.SelectedRows[0].Tag as GoodsReceivedEntity;
@@ -265,39 +242,12 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         }
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  KPI Bar — rewritten to match ViewOrderForm baseline
-        //
-        //  Design spec (identical to ViewOrderForm.RefreshKpi):
-        //  ┌─────────────────────────────────────────────────────────────┐
-        //  │  FlowLayoutPanel (Dock=Fill, LeftToRight, WrapContents=false)│
-        //  │  ┌──────────────┐ ┌──────────────┐ ... × 6 pills           │
-        //  │  │ [80px] count │ │ label        │                          │
-        //  │  │ 14pt Bold    │ │ 12pt Regular │                          │
-        //  │  └──────────────┘ └──────────────┘                          │
-        //  └─────────────────────────────────────────────────────────────┘
-        //
-        //  Constants — must stay in sync with ViewOrderForm:
-        //    PillW=290  PillH=60  Gap=8  NumColW=80  radius=8
-        //
-        //  Data source: always full unfiltered VM so counts are independent
-        //  of any active filter (same pattern as ViewOrderForm.RefreshKpi).
-        //
-        //  Pill labels for PurchaseOrder.PurchaseStatus ENUM values
-        //  (schema.sql: 'Sent','Cancelled','Partially Received','Received','Completed'):
-        //    "Total POs"     → filter "All"
-        //    "Sent"          → filter "Sent"
-        //    "Partially Rcvd"→ filter "Partially Received"  (shortened to fit 290px pill)
-        //    "Received"      → filter "Received"
-        //    "Completed"     → filter "Completed"
-        //    "Cancelled"     → filter "Cancelled"
+        //  KPI Bar
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void RenderKpi()
         {
             pnlKpi.Controls.Clear();
 
-            // Always fetch unfiltered full dataset so KPI counts are accurate
-            // regardless of any active search / status filter — same pattern as
-            // ViewOrderForm.RefreshKpi() which calls _ctrl.GetViewOrderVM().Orders.
             var all = _ctrl.GetHandlingGoodsReceivedVM().PurchaseOrders
                       ?? new List<PurchaseOrderEntity>();
 
@@ -308,8 +258,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             int completed = all.FindAll(p => p.PurchaseStatus == "Completed").Count;
             int cancelled = all.FindAll(p => p.PurchaseStatus == "Cancelled").Count;
 
-            // Pill definition: (displayLabel, count, fg, bg, cboStatus filterValue)
-            // Colours mirror the StatusTheme dictionary and ViewOrderForm palette.
             var pills = new[]
             {
                 ("Total POs",      total.ToString(),     Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254), "All"),
@@ -330,7 +278,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 AutoScroll    = false
             };
 
-            // ── Shared pill constants — kept identical to ViewOrderForm ──────
             const int PillW   = 290;
             const int PillH   = 60;
             const int Gap     = 8;
@@ -346,7 +293,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                     Cursor    = Cursors.Hand
                 };
 
-                // Custom Paint: anti-aliased rounded rectangle (radius=8)
                 pill.Paint += (s, e) =>
                 {
                     e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
@@ -355,7 +301,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                     e.Graphics.FillPath(brush, path);
                 };
 
-                // Inner layout: Col-0 (80px absolute) = count | Col-1 (fill) = label
                 var tlp = new TableLayoutPanel
                 {
                     Dock            = DockStyle.Fill,
@@ -391,9 +336,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                     AutoSize  = false
                 }, 1, 0);
 
-                // Click handler: set cboStatus and re-run RefreshGrids
-                // Bound to pill panel, inner tlp, AND each child Label so the
-                // entire pill surface is clickable — identical to ViewOrderForm.
                 string localFilterItem = filterItem;
                 EventHandler clickHandler = (s, e) =>
                 {
@@ -473,7 +415,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }
         }
 
-        // ── Cross-highlight: mark matching PO row ─────────────────────────────
+        // ── Cross-highlight ───────────────────────────────────────────────────
         private void HighlightPORow(string purchaseId)
         {
             foreach (DataGridViewRow row in dgvPO.Rows)
@@ -526,7 +468,12 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 if (receipt?.PurchaseID != null)
                     po = _vm?.PurchaseOrders?.Find(p => p.PurchaseID == receipt.PurchaseID);
             }
-            if (po == null) { MessageBox.Show("Please select a Purchase Order or a Receipt row.", "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
+            if (po == null)
+            {
+                MessageBox.Show("Please select a Purchase Order or a Receipt row.",
+                    "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
             ShowPODetail(po);
         }
 
@@ -536,27 +483,57 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             ShowReceiptDetail(dgvReceipts.SelectedRows[0].Tag as GoodsReceivedEntity);
         }
 
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        //  📤 Upload Receipt — CSV Bulk Import
+        //
+        //  Flow:
+        //    1. OpenFileDialog (*.csv only)
+        //    2. Controller.ImportReceiptsFromCsv() → parses, validates, inserts
+        //    3. Show result summary (success count + error list)
+        //    4. RefreshGrids() so new rows appear immediately
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void btnUploadReceipt_Click(object sender, EventArgs e)
         {
-            if (dgvReceipts.SelectedRows.Count == 0) return;
-            var receipt = dgvReceipts.SelectedRows[0].Tag as GoodsReceivedEntity;
-            if (receipt == null) return;
             using var dlg = new OpenFileDialog
             {
-                Title  = "Select Receipt Document",
-                Filter = "PDF / Image Files|*.pdf;*.png;*.jpg;*.jpeg|All Files|*.*"
+                Title  = "Select Receipt CSV File",
+                Filter = "CSV Files (*.csv)|*.csv"
             };
             if (dlg.ShowDialog() != DialogResult.OK) return;
+
+            ReceiptImportResult result;
             try
             {
-                MessageBox.Show(
-                    $"Receipt document '{Path.GetFileName(dlg.FileName)}' uploaded for Receipt {receipt.ReceiptID}.",
-                    "Upload Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                result = _ctrl.ImportReceiptsFromCsv(dlg.FileName);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Upload failed: {ex.Message}", "Upload Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"Unexpected error during import:\n{ex.Message}",
+                    "Import Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
             }
+
+            // ── Build result summary message ──────────────────────────
+            var sb = new StringBuilder();
+            sb.AppendLine($"✅  {result.SuccessCount} receipt(s) imported successfully.");
+
+            if (result.HasErrors)
+            {
+                sb.AppendLine();
+                sb.AppendLine($"⚠️  {result.Errors.Count} row(s) skipped due to errors:");
+                foreach (var err in result.Errors)
+                    sb.AppendLine($"  • {err}");
+            }
+
+            MessageBox.Show(
+                sb.ToString(),
+                result.HasErrors ? "Import Completed with Warnings" : "Import Successful",
+                MessageBoxButtons.OK,
+                result.HasErrors ? MessageBoxIcon.Warning : MessageBoxIcon.Information);
+
+            // ── Refresh grid so imported rows are visible immediately ──
+            if (result.SuccessCount > 0)
+                RefreshGrids();
         }
 
         private void btnRecordInvoice_Click(object sender, EventArgs e)
@@ -570,101 +547,13 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 if (receipt?.PurchaseID != null)
                     po = _vm?.PurchaseOrders?.Find(p => p.PurchaseID == receipt.PurchaseID);
             }
-            if (po == null) { MessageBox.Show("Please select a Purchase Order or a Receipt row.", "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
-            ShowRecordInvoiceDialog(po);
-        }
-
-        // ── Record Invoice dialog ─────────────────────────────────────────────
-        private void ShowRecordInvoiceDialog(PurchaseOrderEntity po)
-        {
-            using var dlg = new Form
+            if (po == null)
             {
-                Text = $"Record Purchase Invoice — {po.PurchaseID}",
-                Size = new Size(680, 460), StartPosition = FormStartPosition.CenterParent,
-                BackColor = Color.White, Font = new Font("Segoe UI", 12f),
-                FormBorderStyle = FormBorderStyle.FixedDialog, MaximizeBox = false, MinimizeBox = false
-            };
-            var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 72, BackColor = Color.FromArgb(19, 35, 61) };
-            pnlHeader.Controls.Add(new Label
-            {
-                Text = $"Record Invoice  —  PO {po.PurchaseID}",
-                Font = new Font("Segoe UI", 16f, FontStyle.Bold), ForeColor = Color.White,
-                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(24, 0, 0, 0)
-            });
-            var pnlBody = new Panel { Dock = DockStyle.Fill, Padding = new Padding(28, 16, 28, 8), BackColor = Color.White };
-            var tbl = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 5, BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None };
-            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 160f));
-            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
-            for (int r = 0; r < 5; r++) tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 48f));
-            Label MK(string text) => new Label { Text = text, Font = new Font("Segoe UI", 10f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft };
-            Label MV(string text) => new Label { Text = text, Font = new Font("Segoe UI", 12f), ForeColor = Color.FromArgb(15, 31, 53), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft };
-            tbl.Controls.Add(MK("PO ID:"),        0, 0); tbl.Controls.Add(MV(po.PurchaseID),  1, 0);
-            tbl.Controls.Add(MK("Supplier:"),     0, 1); tbl.Controls.Add(MV(po.SupplierName), 1, 1);
-            tbl.Controls.Add(MK("PO Amount:"),    0, 2); tbl.Controls.Add(MV($"HK$ {po.POTotalAmount:N2}"), 1, 2);
-            tbl.Controls.Add(MK("Invoice Amt:"),  0, 3);
-            var txtAmt = new TextBox { Dock = DockStyle.Fill, Font = new Font("Segoe UI", 12f), Text = po.POTotalAmount.ToString("F2"), BorderStyle = BorderStyle.FixedSingle };
-            tbl.Controls.Add(txtAmt, 1, 3);
-            tbl.Controls.Add(MK("Expected Date:"), 0, 4);
-            var dtp = new DateTimePicker { Dock = DockStyle.Fill, Font = new Font("Segoe UI", 12f), Format = DateTimePickerFormat.Short, Value = DateTime.Today.AddDays(30) };
-            tbl.Controls.Add(dtp, 1, 4);
-            pnlBody.Controls.Add(tbl);
-            var pnlFooter = new Panel { Dock = DockStyle.Bottom, Height = 72, BackColor = Color.White, Padding = new Padding(0, 12, 28, 12) };
-            pnlFooter.Paint += (o, ev) => { using var pen = new Pen(Color.FromArgb(221, 227, 236), 1); ev.Graphics.DrawLine(pen, 0, 0, ((Panel)o).Width, 0); };
-            var btnSave = new Button { Text = "Save Invoice", Font = new Font("Segoe UI", 12f), ForeColor = Color.White, BackColor = Color.FromArgb(19, 35, 61), FlatStyle = FlatStyle.Flat, Dock = DockStyle.Right, Width = 160, Cursor = Cursors.Hand };
-            btnSave.FlatAppearance.BorderSize = 0;
-            btnSave.Click += (o, ev) =>
-            {
-                if (!decimal.TryParse(txtAmt.Text, out decimal amt) || amt <= 0) { MessageBox.Show("Please enter a valid invoice amount.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
-                MessageBox.Show($"Invoice recorded for PO {po.PurchaseID}.\nAmount: HK$ {amt:N2}\nExpected Payment: {dtp.Value:yyyy-MM-dd}", "Invoice Saved", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                dlg.DialogResult = DialogResult.OK; dlg.Close();
-            };
-            var btnCancel = new Button { Text = "Cancel", Font = new Font("Segoe UI", 12f), ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White, FlatStyle = FlatStyle.Flat, Dock = DockStyle.Right, Width = 120, Cursor = Cursors.Hand };
-            btnCancel.FlatAppearance.BorderColor = Color.FromArgb(221, 227, 236);
-            btnCancel.Click += (o, ev) => dlg.Close();
-            pnlFooter.Controls.Add(btnSave); pnlFooter.Controls.Add(btnCancel);
-            dlg.Controls.Add(pnlBody); dlg.Controls.Add(pnlHeader); dlg.Controls.Add(pnlFooter);
-            if (dlg.ShowDialog(this) == DialogResult.OK) RefreshGrids();
-        }
-
-        // ── Detail pop-ups ────────────────────────────────────────────────────
-        private void ShowReceiptDetail(GoodsReceivedEntity r)
-        {
-            if (r == null) return;
-            var sb = new System.Text.StringBuilder();
-            sb.AppendLine($"Receipt ID      : {r.ReceiptID}");
-            sb.AppendLine($"PO ID           : {r.PurchaseID}");
-            sb.AppendLine($"Supplier        : {r.SupplierName}");
-            sb.AppendLine($"Material ID     : {r.RawMaterialItemID}");
-            sb.AppendLine($"Item Name       : {r.ItemName}");
-            sb.AppendLine($"Qty Received    : {r.QtyReceived}");
-            sb.AppendLine($"Outstanding Qty : {r.OutstandingQty}");
-            sb.AppendLine($"Receipt Date    : {r.ReceiptDate:yyyy-MM-dd}");
-            sb.AppendLine($"Warehouse       : {r.WarehouseLocation}");
-            sb.AppendLine($"Unit Price      : ${r.UnitPrice:F2}");
-            sb.AppendLine($"PO Status       : {r.PurchaseStatus}");
-            MessageBox.Show(sb.ToString(), $"Receipt Detail — {r.ReceiptID}", MessageBoxButtons.OK, MessageBoxIcon.Information);
-        }
-
-        private void ShowPODetail(PurchaseOrderEntity po)
-        {
-            if (po == null) return;
-            var sb = new System.Text.StringBuilder();
-            sb.AppendLine($"PO ID           : {po.PurchaseID}");
-            sb.AppendLine($"Supplier        : {po.SupplierName}");
-            sb.AppendLine($"Order Date      : {po.OrderDate:yyyy-MM-dd}");
-            sb.AppendLine($"Total Amount    : ${po.POTotalAmount:F2}");
-            sb.AppendLine($"Status          : {po.PurchaseStatus}");
-            MessageBox.Show(sb.ToString(), $"Purchase Order Detail — {po.PurchaseID}", MessageBoxButtons.OK, MessageBoxIcon.Information);
-        }
-
-        // ── AppShell navigation & logout ──────────────────────────────────────
-        private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
-            => FormNavigator.NavigateTo(this, menuLabel, subItem);
-
-        private void btnLogout_Click(object sender, EventArgs e)
-        {
-            SessionManager.Clear();
-            Application.Restart();
+                MessageBox.Show("Please select a Purchase Order or a Receipt with a linked PO.",
+                    "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            ShowRecordInvoice(po);
         }
     }
 }
