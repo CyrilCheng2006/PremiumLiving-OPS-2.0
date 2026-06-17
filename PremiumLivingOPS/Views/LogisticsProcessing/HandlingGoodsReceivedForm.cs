@@ -80,6 +80,19 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         }
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        //  AppShell Navigation Handlers
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        private void btnLogout_Click(object sender, EventArgs e)
+        {
+            FormNavigator.Logout(this);
+        }
+
+        private void OnTopNavMenuItemClicked(object sender, string menuItem)
+        {
+            FormNavigator.NavigateTo(this, menuItem);
+        }
+
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         //  GRID TAB SWITCHER
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         internal void SwitchToGrid(int index)
@@ -554,6 +567,64 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 return;
             }
             ShowRecordInvoice(po);
+        }
+
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        //  Detail / Dialog helpers
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+        /// <summary>
+        /// Opens the PO Detail dialog for the given PurchaseOrderEntity.
+        /// </summary>
+        private void ShowPODetail(PurchaseOrderEntity po)
+        {
+            if (po == null) return;
+            var detail = _ctrl.GetPODetailVM(po.PurchaseID);
+            if (detail == null)
+            {
+                MessageBox.Show("Could not load Purchase Order details.",
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            using var dlg = new PODetailDialog(detail);
+            dlg.ShowDialog(this);
+        }
+
+        /// <summary>
+        /// Opens the Receipt Detail dialog for the given GoodsReceivedEntity.
+        /// </summary>
+        private void ShowReceiptDetail(GoodsReceivedEntity receipt)
+        {
+            if (receipt == null) return;
+            var lines = _ctrl.GetReceiptLines(receipt.ReceiptID);
+            using var dlg = new ReceiptDetailDialog(receipt, lines);
+            dlg.ShowDialog(this);
+            RefreshGrids();
+        }
+
+        /// <summary>
+        /// Opens the Record Invoice dialog for the given PurchaseOrderEntity.
+        /// On confirmation the controller persists the new PurchaseInvoice record.
+        /// </summary>
+        private void ShowRecordInvoice(PurchaseOrderEntity po)
+        {
+            if (po == null) return;
+            using var dlg = new RecordInvoiceDialog(po);
+            if (dlg.ShowDialog(this) != DialogResult.OK) return;
+
+            bool ok = _ctrl.SavePurchaseInvoice(dlg.Result);
+            if (ok)
+            {
+                MessageBox.Show("Invoice recorded successfully.",
+                    "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                RefreshGrids();
+                SwitchToGrid(2);   // jump to Invoices tab so user can see new record
+            }
+            else
+            {
+                MessageBox.Show("Failed to save invoice. Please try again.",
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
     }
 }
