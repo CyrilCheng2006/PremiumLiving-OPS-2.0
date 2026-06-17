@@ -137,23 +137,26 @@ namespace PremiumLivingOPS.Views.RawMaterial
 
             var allOrders = _ctrl.GetSearchProcurementVM().Orders;
 
-            int total      = allOrders.Count;
-            int sent       = allOrders.FindAll(o => o.PurchaseStatus == "Sent").Count;
-            int inProgress = allOrders.FindAll(o => o.PurchaseStatus == "Partially Received").Count;
-            int completed  = allOrders.FindAll(o => o.PurchaseStatus == "Completed" || o.PurchaseStatus == "Received").Count;
+            int total    = allOrders.Count;
+            int sent     = allOrders.FindAll(o => o.PurchaseStatus == "Sent").Count;
+            int partial  = allOrders.FindAll(o => o.PurchaseStatus == "Partially Received").Count;
+            int received = allOrders.FindAll(o => o.PurchaseStatus == "Received").Count;
+            int completed= allOrders.FindAll(o => o.PurchaseStatus == "Completed").Count;
 
             var pills = new[]
             {
-                ("Total",              total.ToString(),      Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254)),
-                ("Sent",               sent.ToString(),       Color.FromArgb( 30,  64, 175), Color.FromArgb(219, 234, 254)),
-                ("Partial / Received", inProgress.ToString(), Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199)),
-                ("Completed",          completed.ToString(),  Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229)),
+                ("Total Orders",       total.ToString(),     Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254)),
+                ("Sent",               sent.ToString(),      Color.FromArgb( 30,  64, 175), Color.FromArgb(219, 234, 254)),
+                ("Partially Received", partial.ToString(),   Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199)),
+                ("Received",           received.ToString(),  Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229)),
+                ("Completed",          completed.ToString(), Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229)),
             };
 
-            const int PillW   = 280;
-            const int PillH   = 60;
-            const int Gap     = 10;
-            const int LeftPad = 12;
+            const int PillW   = 260;   // slightly narrower to fit 5 pills comfortably
+            const int PillH   =  60;
+            const int Gap     =  10;
+            const int LeftPad =  12;
+            const int NumColW =  70;   // fixed width for count column
 
             var flow = new FlowLayoutPanel
             {
@@ -182,6 +185,10 @@ namespace PremiumLivingOPS.Views.RawMaterial
                     e.Graphics.FillPath(brush, path);
                 };
 
+                // Inner TLP: 2 columns (count | label), 1 row, fills entire pill.
+                // Both cells use Dock=Fill so they stretch to the TLP height.
+                // TextAlign = MiddleCenter / MiddleLeft ensures vertical centring
+                // within each cell without needing an extra wrapper.
                 var tlp = new TableLayoutPanel
                 {
                     Dock            = DockStyle.Fill,
@@ -191,34 +198,47 @@ namespace PremiumLivingOPS.Views.RawMaterial
                     CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
                     Padding         = new Padding(10, 0, 8, 0)
                 };
-                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 70));
-                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+                // Col 0: fixed width for the number; Col 1: remaining space for text
+                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, NumColW));
+                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
+                // Single row that fills the full pill height
                 tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
-                tlp.Controls.Add(new Label
+                var lblCount = new Label
                 {
-                    Text = count, Font = new Font("Segoe UI", 14f, FontStyle.Bold),
-                    ForeColor = fg, BackColor = Color.Transparent,
-                    Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, AutoSize = false
-                }, 0, 0);
-                tlp.Controls.Add(new Label
+                    Text      = count,
+                    Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
+                    ForeColor = fg,
+                    BackColor = Color.Transparent,
+                    Dock      = DockStyle.Fill,          // stretches to full cell height
+                    TextAlign = ContentAlignment.MiddleCenter,  // vertically centred
+                    AutoSize  = false
+                };
+                var lblText = new Label
                 {
-                    Text = label, Font = new Font("Segoe UI", 11f),
-                    ForeColor = fg, BackColor = Color.Transparent,
-                    Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
-                }, 1, 0);
+                    Text      = label,
+                    Font      = new Font("Segoe UI", 11f),
+                    ForeColor = fg,
+                    BackColor = Color.Transparent,
+                    Dock      = DockStyle.Fill,          // stretches to full cell height
+                    TextAlign = ContentAlignment.MiddleLeft,    // vertically centred
+                    AutoSize  = false
+                };
 
+                tlp.Controls.Add(lblCount, 0, 0);
+                tlp.Controls.Add(lblText,  1, 0);
                 pill.Controls.Add(tlp);
                 flow.Controls.Add(pill);
             }
 
+            // Wrapper centres the flow row vertically inside pnlKpi
             var wrapper = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             wrapper.Controls.Add(flow);
             wrapper.Layout += (s, e) =>
             {
                 var w = (Panel)s;
                 flow.Left = LeftPad;
-                flow.Top  = (w.Height - PillH) / 2;
+                flow.Top  = Math.Max(0, (w.Height - PillH) / 2);
             };
             pnlKpi.Controls.Add(wrapper);
         }
