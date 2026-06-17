@@ -399,38 +399,40 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 dgv.Rows.Add(l.ItemID, l.ItemName, l.Quantity, $"HK$ {l.Price:N2}", $"HK$ {l.LineTotal:N2}");
 
             // ── Subtotal / Grand Total bar ─────────────────────────────────────
-            // Root cause of the original bug:
-            // Using DockStyle.Left + DockStyle.Right labels inside a DockStyle.Bottom
-            // panel causes one label to be clipped or hidden entirely because WinForms
-            // processes Left/Right dock AFTER Fill, leaving no guaranteed space.
+            // Root cause v2:
+            // pnlTotalRow had Padding(28,0,28,0). tblTotals with Dock=Fill
+            // inherits that padding, but TLP Absolute column widths are computed
+            // against the FULL panel width (ignoring padding), so the left
+            // Absolute cell can be pushed off-screen when panel padding eats
+            // into the available layout width.
             //
-            // Fix: Replace with a TableLayoutPanel (3 columns) so Subtotal and
-            // Grand Total are placed in absolute-width cells — no dock competition.
+            // Fix: pnlTotalRow Padding = 0. Move horizontal inset into the
+            // label Padding properties. Use two Percent(50%) columns so the
+            // TLP always splits available width evenly regardless of dialog size.
             var pnlTotalRow = new Panel
             {
                 Dock      = DockStyle.Bottom,
                 Height    = 64,
                 BackColor = Color.White,
-                Padding   = new Padding(28, 0, 28, 0)
+                Padding   = new Padding(0)          // no panel-level padding
             };
             pnlTotalRow.Paint += PaintTopBorderStatic;
 
             var tblTotals = new TableLayoutPanel
             {
                 Dock            = DockStyle.Fill,
-                ColumnCount     = 3,
+                ColumnCount     = 2,
                 RowCount        = 1,
                 BackColor       = Color.Transparent,
-                CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+                CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                Padding         = new Padding(0)
             };
-            // Left cell  — Subtotal (fixed width)
-            // Middle cell — spacer (fills remaining space)
-            // Right cell  — Grand Total (fixed width)
-            tblTotals.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 400f));
-            tblTotals.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
-            tblTotals.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 480f));
+            // 50 / 50 split — each half is guaranteed half the dialog width
+            tblTotals.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
+            tblTotals.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
             tblTotals.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
+            // Subtotal — left-aligned, left inset via Padding
             tblTotals.Controls.Add(new Label
             {
                 Text      = $"Subtotal:   HK$ {o.SubTotal:N2}",
@@ -438,12 +440,11 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 AutoSize  = false,
                 Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(15, 31, 53),
-                TextAlign = ContentAlignment.MiddleLeft
+                TextAlign = ContentAlignment.MiddleLeft,
+                Padding   = new Padding(28, 0, 0, 0)   // left inset replaces panel padding
             }, 0, 0);
 
-            // Spacer cell — intentionally empty
-            tblTotals.Controls.Add(new Label { Dock = DockStyle.Fill, AutoSize = false }, 1, 0);
-
+            // Grand Total — right-aligned, right inset via Padding
             tblTotals.Controls.Add(new Label
             {
                 Text      = $"Grand Total:   HK$ {o.GrandTotal:N2}",
@@ -451,8 +452,9 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 AutoSize  = false,
                 Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(47, 111, 237),
-                TextAlign = ContentAlignment.MiddleRight
-            }, 2, 0);
+                TextAlign = ContentAlignment.MiddleRight,
+                Padding   = new Padding(0, 0, 28, 0)   // right inset replaces panel padding
+            }, 1, 0);
 
             pnlTotalRow.Controls.Add(tblTotals);
 
@@ -478,15 +480,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlFooter.Controls.Add(btnClose);
 
             // ── Assemble ──────────────────────────────────────────────────────
-            // DockStyle.Bottom rule: controls added LATER claim the bottom edge
-            // first (innermost). Correct visual order from bottom to top:
-            //   pnlFooter    (very bottom)     → add first  among Bottom panels
-            //   pnlTotalRow  (above footer)    → add second among Bottom panels
-            //   dgv          (Fill — expands)  → add before any Top panels
-            //   pnlLineLabel (Top)
-            //   pnlDiscount  (Top, optional)
-            //   pnlInfo      (Top)
-            //   pnlHeader    (Top, topmost)    → add last   among Top panels
             dlg.Controls.Add(dgv);
             dlg.Controls.Add(pnlFooter);
             dlg.Controls.Add(pnlTotalRow);
