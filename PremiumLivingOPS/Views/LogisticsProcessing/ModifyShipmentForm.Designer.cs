@@ -89,12 +89,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlSearchInner.Controls.Add(pnlSearchRow);
 
             // ==================================================================
-            // DETAILS CARD  (fill remaining space, DockStyle.Fill)
+            // DETAILS CARD
             //
             // TLP layout — 2 columns (Left 50% | Right 50%), 12 rows:
-            //
-            //   Col 0 = Left field   Col 1 = Right field
-            //
             //   Row  0  hdr  Shipment ID        | Order ID          32px
             //   Row  1  inp  Shipment ID        | Order ID          84px
             //   Row  2  hdr  Customer           | Tracking No.      32px
@@ -103,14 +100,14 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             //   Row  5  inp  Ship Date          | Type              84px
             //   Row  6  hdr  Delivery Method    | Status *          32px
             //   Row  7  inp  Delivery Method    | Status *          84px
-            //   Row  8  ─── SPACER ──────────────────────────────── 50px
+            //   Row  8  ─── SPACER ─────────────────────────────── 50px
             //   Row  9  hdr  Actual Recipient * | Remark            32px
-            //   Row 10  ─── SPACER (label / input) ──────────────── 50px
+            //   Row 10  ─── SPACER (label/input gap) ─────────── 50px
             //   Row 11  inp  Actual Recipient * | Remark            84px
             //
-            // Each cell is colSpan=1 so left and right fields never overlap.
-            // Left-column inputs use PadCtrlRight(rightPad:24) for a clear
-            // horizontal gap from the right-column field.
+            // txtActualRecipient is placed inside an overflow panel whose
+            // Resize handler shifts the textbox 100px to the left so it
+            // starts further left within the column.
             // ==================================================================
             lblShipmentIdValue     = MakeValueLabel();
             lblOrderIdValue        = MakeValueLabel();
@@ -133,7 +130,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             {
                 Font        = new Font("Segoe UI", 12f),
                 BorderStyle = BorderStyle.FixedSingle,
-                Dock        = DockStyle.Fill
+                Anchor      = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom
             };
 
             txtRemark = new TextBox
@@ -143,10 +140,11 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 Dock        = DockStyle.Fill
             };
 
-            const int HeaderRowH        = 32;
-            const int InputRowH         = 84;
-            const int StatusRemarkSpacer = 50;  // Row 8: gap between Status block and bottom fields
-            const int LabelInputSpacer  = 50;   // Row 10: gap between Actual Recipient label and its input
+            const int HeaderRowH         = 32;
+            const int InputRowH          = 84;
+            const int StatusRemarkSpacer = 50;
+            const int LabelInputSpacer   = 50;
+            const int LeftShift          = 100;   // px txtActualRecipient is shifted left
 
             var tblInfo = new TableLayoutPanel
             {
@@ -157,30 +155,21 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
                 Padding         = new Padding(18, 0, 18, 8)
             };
-            // 2 equal columns — each field gets its own column, no colSpan confusion
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
 
-            // Rows 0–7: 4 field pairs (header + input each)
             for (int i = 0; i < 4; i++)
             {
                 tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, HeaderRowH));
                 tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, InputRowH));
             }
-            // Row 8: spacer between Status block and Actual Recipient / Remark
             tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, StatusRemarkSpacer));
-            // Row 9: Actual Recipient * | Remark — header labels
             tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, HeaderRowH));
-            // Row 10: spacer between labels and their inputs
             tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, LabelInputSpacer));
-            // Row 11: Actual Recipient * | Remark — inputs
             tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, InputRowH));
 
-            // Helper: place a control at (col, row); colSpan=1 by default (no span needed in 2-col layout)
             void AddCell(Control ctrl, int col, int row)
-            {
-                tblInfo.Controls.Add(ctrl, col, row);
-            }
+                => tblInfo.Controls.Add(ctrl, col, row);
 
             // Rows 0–1: Shipment ID | Order ID
             AddCell(FieldLabel("Shipment ID",  false), 0, 0);
@@ -206,17 +195,38 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             AddCell(PadCtrlRight(PadLabel(lblDeliveryMethodValue), 24), 0, 7);
             AddCell(PadCtrl(cboStatus),                                 1, 7);
 
-            // Row 8: intentionally empty spacer
+            // Row 8: spacer
 
-            // Row 9: Actual Recipient * | Remark — header labels
+            // Row 9: labels
             AddCell(FieldLabel("Actual Recipient *", true),  0, 9);
             AddCell(FieldLabel("Remark",             false), 1, 9);
 
-            // Row 10: intentionally empty spacer (50px between labels and inputs)
+            // Row 10: spacer
 
-            // Row 11: inputs — each in its own column, no overlap possible
-            AddCell(PadCtrlRight(txtActualRecipient, 24), 0, 11);
-            AddCell(PadCtrl(txtRemark),                   1, 11);
+            // Row 11: inputs
+            // txtActualRecipient: overflow panel shifts it LeftShift px to the left
+            var pnlRecipient = new Panel
+            {
+                Dock      = DockStyle.Fill,
+                BackColor = Color.Transparent,
+                Padding   = new Padding(0, 8, 24, 8)
+            };
+            // Position txtActualRecipient so it starts LeftShift px to the left of the panel
+            void LayoutRecipient()
+            {
+                int top    = pnlRecipient.Padding.Top;
+                int bottom = pnlRecipient.Padding.Bottom;
+                int right  = pnlRecipient.Padding.Right;
+                txtActualRecipient.Left   = -LeftShift;
+                txtActualRecipient.Top    = top;
+                txtActualRecipient.Width  = pnlRecipient.ClientSize.Width + LeftShift - right;
+                txtActualRecipient.Height = pnlRecipient.ClientSize.Height - top - bottom;
+            }
+            pnlRecipient.Controls.Add(txtActualRecipient);
+            pnlRecipient.Resize += (s, e) => LayoutRecipient();
+
+            AddCell(pnlRecipient,           0, 11);
+            AddCell(PadCtrl(txtRemark),     1, 11);
 
             // Card title bar
             var pnlDetailsTitle = CardTitlePanel("Edit Shipment");
@@ -284,7 +294,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             };
             footerOuter.Controls.Add(footerInner);
 
-            // Assemble — Bottom → Fill → Top order (WinForms dock priority)
             pnlMain.Controls.Add(pnlDetailsOuter);
             pnlMain.Controls.Add(footerOuter);
             pnlMain.Controls.Add(pnlSearchOuter);
@@ -323,8 +332,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         }
 
         /// <summary>
-        /// Wraps a control (or panel) with extra right padding to create a
-        /// clear horizontal gap between left and right column fields.
+        /// Wraps a control with extra right padding for horizontal column gap.
         /// </summary>
         private static Panel PadCtrlRight(Control ctrl, int rightPad)
         {
