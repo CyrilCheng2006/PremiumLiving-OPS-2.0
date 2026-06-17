@@ -37,7 +37,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
                 { "Sent",               (Color.FromArgb(219, 234, 254), Color.FromArgb( 30,  64, 175)) },
                 { "Cancelled",          (Color.FromArgb(254, 226, 226), Color.FromArgb(153,  27,  27)) },
                 { "Partially Received", (Color.FromArgb(254, 243, 199), Color.FromArgb(146,  64,  14)) },
-                { "Received",           (Color.FromArgb(209, 250, 229), Color.FromArgb(  6,  95,  70)) },
+                { "Received",           (Color.FromArgb(243, 232, 255), Color.FromArgb( 88,  28, 135)) },
                 { "Completed",          (Color.FromArgb(209, 250, 229), Color.FromArgb(  6,  95,  70)) }
             };
 
