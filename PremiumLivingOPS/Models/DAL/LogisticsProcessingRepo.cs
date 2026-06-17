@@ -191,7 +191,7 @@ namespace PremiumLivingOPS.Models.DAL
                 }
                 else
                 {
-                    string newSlipId = $"RS-{DateTime.Today:yyyyMMdd}-{Guid.NewGuid().ToString(\"N\").Substring(0, 4).ToUpper()}";
+                    string newSlipId = $"RS-{DateTime.Today:yyyyMMdd}-{Guid.NewGuid().ToString("N").Substring(0, 4).ToUpper()}";
                     const string insSql = @"
                         INSERT INTO ReplySlip
                             (SlipID, DeliveryID, actualRecipient, ReceivedDate, RecipientRemark)
@@ -215,7 +215,7 @@ namespace PremiumLivingOPS.Models.DAL
             string shipmentId, DateTime deliveryDate, int outstandingQty,
             string shippingAddress, string shipToName)
         {
-            string newId = $"DN-{DateTime.Today:yyyyMMdd}-{Guid.NewGuid().ToString(\"N\").Substring(0, 4).ToUpper()}";
+            string newId = $"DN-{DateTime.Today:yyyyMMdd}-{Guid.NewGuid().ToString("N").Substring(0, 4).ToUpper()}";
             using (var conn = OpenConnection())
             {
                 const string sql = @"
@@ -242,7 +242,7 @@ namespace PremiumLivingOPS.Models.DAL
         public string InsertReplySlip(
             string deliveryId, string actualRecipient, string remark, DateTime receivedDate)
         {
-            string newId = $"RS-{DateTime.Today:yyyyMMdd}-{Guid.NewGuid().ToString(\"N\").Substring(0, 4).ToUpper()}";
+            string newId = $"RS-{DateTime.Today:yyyyMMdd}-{Guid.NewGuid().ToString("N").Substring(0, 4).ToUpper()}";
             using (var conn = OpenConnection())
             {
                 const string sql = @"
@@ -406,7 +406,7 @@ namespace PremiumLivingOPS.Models.DAL
 
         public string InsertPurchaseInvoice(RecordPurchaseInvoiceVM vm)
         {
-            string newId = $"PURINV-{DateTime.Today:yyyyMMdd}-{Guid.NewGuid().ToString(\"N\").Substring(0, 4).ToUpper()}";
+            string newId = $"PURINV-{DateTime.Today:yyyyMMdd}-{Guid.NewGuid().ToString("N").Substring(0, 4).ToUpper()}";
             using (var conn = OpenConnection())
             {
                 const string sql = @"
@@ -456,7 +456,7 @@ namespace PremiumLivingOPS.Models.DAL
             MySqlTransaction tx,
             ReceiptImportRow row)
         {
-            string newId = $"RCPT-{DateTime.Today:yyyyMMdd}-{Guid.NewGuid().ToString(\"N\").Substring(0, 4).ToUpper()}";
+            string newId = $"RCPT-{DateTime.Today:yyyyMMdd}-{Guid.NewGuid().ToString("N").Substring(0, 4).ToUpper()}";
             const string sql = @"
                 INSERT INTO Receipt
                     (ReceiptID, PurchaseID, POLineID,
@@ -501,9 +501,11 @@ namespace PremiumLivingOPS.Models.DAL
         private static void ExecuteNonQuery(
             MySqlConnection conn, MySqlTransaction tx, string sql, string shipmentId)
         {
-            using var cmd = new MySqlCommand(sql, conn, tx);
-            cmd.Parameters.AddWithValue("@id", shipmentId);
-            cmd.ExecuteNonQuery();
+            using (var cmd = new MySqlCommand(sql, conn, tx))
+            {
+                cmd.Parameters.AddWithValue("@id", shipmentId);
+                cmd.ExecuteNonQuery();
+            }
         }
 
         // ── Private mappers ───────────────────────────────────────────
