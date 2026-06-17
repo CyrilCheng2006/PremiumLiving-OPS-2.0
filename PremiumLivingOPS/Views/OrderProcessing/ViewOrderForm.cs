@@ -60,7 +60,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
-            _shell.SetBreadcrumb("Order Processing  ›  View Order");
+            _shell.SetBreadcrumb("Order Processing  \u203a  View Order");
 
             _currentOrders = vm.Orders;
 
@@ -231,7 +231,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             using var dlg = new Form
             {
-                Text            = $"Order Detail — {o.OrderID}",
+                Text            = $"Order Detail \u2014 {o.OrderID}",
                 Size            = new Size(2500, 1100),
                 StartPosition   = FormStartPosition.CenterParent,
                 BackColor       = Color.White,
@@ -241,6 +241,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 MinimizeBox     = false
             };
 
+            // ── Header ────────────────────────────────────────────────────────
             var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 80, BackColor = Color.FromArgb(19, 35, 61) };
             var tblHeader = new TableLayoutPanel
             {
@@ -254,7 +255,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             tblHeader.Controls.Add(new Label
             {
-                Text = $"Order Details  —  {o.OrderID}",
+                Text = $"Order Details  \u2014  {o.OrderID}",
                 Font = new Font("Segoe UI", 18f, FontStyle.Bold),
                 ForeColor = Color.White, Dock = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
@@ -272,6 +273,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             }, 1, 0);
             pnlHeader.Controls.Add(tblHeader);
 
+            // ── Info panel ────────────────────────────────────────────────────
             var pnlInfo = new Panel
             {
                 Dock = DockStyle.Top, Height = 400,
@@ -307,20 +309,20 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 ("Issued Date",     o.IssuedTime.ToString("yyyy-MM-dd")),
                 ("Delivery Date",   o.DeliveryDate.ToString("yyyy-MM-dd")),
                 ("Billing Address", o.BillingAddress),
-                ("Address ID",      string.IsNullOrWhiteSpace(o.AddressID) ? "—" : o.AddressID),
+                ("Address ID",      string.IsNullOrWhiteSpace(o.AddressID) ? "\u2014" : o.AddressID),
             };
             for (int i = 0; i < leftFields.Length; i++)
             {
                 tblInfo.Controls.Add(MakeLabelKey(leftFields[i].Item1), 0, i);
                 tblInfo.Controls.Add(
-                    i == 4 ? MakeLabelValMultiLine(leftFields[i].Item2 ?? "—")
-                           : MakeLabelVal(leftFields[i].Item2 ?? "—"),
+                    i == 4 ? MakeLabelValMultiLine(leftFields[i].Item2 ?? "\u2014")
+                           : MakeLabelVal(leftFields[i].Item2 ?? "\u2014"),
                     1, i);
             }
 
             var rightFields = new[]
             {
-                ("Quotation ID",     string.IsNullOrWhiteSpace(o.QuotationID) ? "—" : o.QuotationID, false),
+                ("Quotation ID",     string.IsNullOrWhiteSpace(o.QuotationID) ? "\u2014" : o.QuotationID, false),
                 ("Customer Name",    o.CustomerName,                                            false),
                 ("Contact Name",     o.OrderContactName,                                        false),
                 ("Order Status",     o.OrderStatus,                                             false),
@@ -331,12 +333,13 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             {
                 tblInfo.Controls.Add(MakeLabelKey(rightFields[i].Item1), 2, i);
                 tblInfo.Controls.Add(
-                    rightFields[i].Item3 ? MakeLabelValMultiLine(rightFields[i].Item2 ?? "—")
-                                        : MakeLabelVal(rightFields[i].Item2 ?? "—"),
+                    rightFields[i].Item3 ? MakeLabelValMultiLine(rightFields[i].Item2 ?? "\u2014")
+                                        : MakeLabelVal(rightFields[i].Item2 ?? "\u2014"),
                     3, i);
             }
             pnlInfo.Controls.Add(tblInfo);
 
+            // ── Discount bar (optional) ───────────────────────────────────────
             Panel pnlDiscount = null;
             if (hasDiscount)
             {
@@ -369,10 +372,12 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 pnlDiscount.Controls.Add(tblDisc);
             }
 
+            // ── "ORDER ITEMS" section label ───────────────────────────────────
             var pnlLineLabel = new Panel { Dock = DockStyle.Top, Height = 40, BackColor = Color.FromArgb(246, 249, 255), Padding = new Padding(28, 0, 0, 0) };
             pnlLineLabel.Controls.Add(new Label { Text = "ORDER ITEMS", Font = new Font("Segoe UI", 10f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft });
             pnlLineLabel.Paint += PaintBottomBorderStatic;
 
+            // ── Order items DGV (Fill) ────────────────────────────────────────
             var dgv = new DataGridView
             {
                 ReadOnly = true, AllowUserToAddRows = false, RowHeadersVisible = false,
@@ -394,6 +399,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             foreach (var l in detail.Lines)
                 dgv.Rows.Add(l.ItemID, l.ItemName, l.Quantity, $"HK$ {l.Price:N2}", $"HK$ {l.LineTotal:N2}");
 
+            // ── Subtotal / Grand Total bar ────────────────────────────────────
             var pnlTotalRow = new Panel { Dock = DockStyle.Bottom, Height = 64, BackColor = Color.White, Padding = new Padding(28, 0, 28, 0) };
             pnlTotalRow.Paint += PaintTopBorderStatic;
             pnlTotalRow.Controls.Add(new Label
@@ -417,6 +423,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 TextAlign = ContentAlignment.MiddleRight
             });
 
+            // ── Footer ────────────────────────────────────────────────────────
             var pnlFooter = new Panel { Dock = DockStyle.Bottom, Height = 86, BackColor = Color.White, Padding = new Padding(28, 14, 28, 14) };
             pnlFooter.Paint += PaintTopBorderStatic;
             var btnClose = new Button
@@ -437,14 +444,20 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             btnClose.Click += (s, ev) => dlg.Close();
             pnlFooter.Controls.Add(btnClose);
 
-            dlg.Controls.Add(dgv);
-            dlg.Controls.Add(pnlTotalRow);
-            dlg.Controls.Add(pnlLineLabel);
+            // ── Assemble ──────────────────────────────────────────────────────
+            // WinForms DockStyle.Bottom rule: controls added LATER claim the
+            // bottom edge first. To get the correct visual stack —
+            //   [footer at very bottom] → [total row above footer] → [dgv fills rest]
+            // — pnlFooter must be added BEFORE pnlTotalRow so the dock
+            // engine places pnlTotalRow immediately above pnlFooter.
+            dlg.Controls.Add(dgv);          // Fill  — must be added before any Top panels
+            dlg.Controls.Add(pnlFooter);    // Bottom (outermost) — added first = lowest
+            dlg.Controls.Add(pnlTotalRow);  // Bottom — added second = sits above pnlFooter
+            dlg.Controls.Add(pnlLineLabel); // Top
             if (hasDiscount)
-                dlg.Controls.Add(pnlDiscount);
-            dlg.Controls.Add(pnlInfo);
-            dlg.Controls.Add(pnlHeader);
-            dlg.Controls.Add(pnlFooter);
+                dlg.Controls.Add(pnlDiscount); // Top
+            dlg.Controls.Add(pnlInfo);      // Top
+            dlg.Controls.Add(pnlHeader);    // Top
             dlg.ShowDialog(this);
         }
 
