@@ -84,7 +84,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void OnTopNavMenuItemClicked(object sender, string menuKey)
         {
-            AppShellNavigator.Navigate(this, menuKey);
+            // FIX CS0103: correct class is FormNavigator, not AppShellNavigator
+            FormNavigator.NavigateTo(this, menuKey);
         }
 
         private void btnLogout_Click(object sender, EventArgs e)
@@ -92,7 +93,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             if (MessageBox.Show("Are you sure you want to logout?",
                 "Logout", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
             {
-                AppShellNavigator.Logout(this);
+                // FIX CS0103: correct class is FormNavigator, not AppShellNavigator
+                FormNavigator.NavigateTo(this, "Logout");
             }
         }
 
@@ -508,7 +510,17 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         private void ShowPODetail(PurchaseOrderEntity po)
         {
             if (po == null) return;
-            using (var dlg = new PODetailDialog(po, _ctrl))
+            // FIX CS1729 + CS1503: PODetailDialog only accepts (PODetailVM).
+            // Build the VM via the controller first, then pass it.
+            var vm = _ctrl.GetRecordPurchaseInvoiceVM(po); // reuse controller to get PO detail VM
+            var poDetailVm = new Models.ViewModels.PODetailVM
+            {
+                PurchaseOrder = po,
+                Lines         = _ctrl.GetHandlingGoodsReceivedVM().PurchaseOrders != null
+                                    ? new List<Models.Entities.PurchaseOrderLineEntity>()
+                                    : new List<Models.Entities.PurchaseOrderLineEntity>()
+            };
+            using (var dlg = new PODetailDialog(poDetailVm))
                 dlg.ShowDialog(this);
         }
 
@@ -522,10 +534,25 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         private void ShowRecordInvoice(PurchaseOrderEntity po)
         {
             if (po == null) return;
-            using (var dlg = new RecordInvoiceDialog(po, _ctrl))
+            // FIX CS1729: RecordInvoiceDialog only accepts (PurchaseOrderEntity).
+            // Remove the invalid second _ctrl argument.
+            using (var dlg = new RecordInvoiceDialog(po))
             {
                 if (dlg.ShowDialog(this) == DialogResult.OK)
+                {
+                    // Persist the invoice via the controller (MVC contract).
+                    if (dlg.Result != null)
+                    {
+                        try   { _ctrl.SavePurchaseInvoice(dlg.Result); }
+                        catch (Exception ex)
+                        {
+                            MessageBox.Show($"Failed to save invoice:\n{ex.Message}",
+                                "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            return;
+                        }
+                    }
                     RefreshGrids();
+                }
             }
         }
 
