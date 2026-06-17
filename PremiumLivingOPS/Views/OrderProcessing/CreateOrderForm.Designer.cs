@@ -28,13 +28,16 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         private TextBox        txtDiscountValue;
         private Label          lblDiscountUnit;
 
-        // ── Order Items toolbar — single "+ Add Item" button ────────────────────
-        private Button btnAddItem;        // opens AddOrderItemDialog
-        private Button btnRemoveLine;
+        // ── Order Items toolbar ──────────────────────────────────────────────────
+        private Button       btnAddItem;
+        private Button       btnRemoveLine;
         private DataGridView dgvLines;
 
+        // ── Footer summary labels ───────────────────────────────────────────────
         private Label  lblSubtotalTitle;
         private Label  lblSubtotalValue;
+        private Label  lblDiscountAmountTitle;
+        private Label  lblDiscountAmountValue;
         private Label  lblGrandTotalTitle;
         private Label  lblGrandTotalValue;
         private Panel  pnlFooterContent;
@@ -80,13 +83,11 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             var pnlOrderIdChip = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(0, 8, 12, 8) };
             pnlOrderIdChip.Controls.Add(lblOrderIdValue);
 
-            // Customer picker
             btnPickCustomer   = MakePickerBtn("🔍  Customer");
             lblCustomerPicked = MakePickerLabel("(None selected)");
             btnPickCustomer.Click += btnPickCustomer_Click;
             var pnlCustomerPicker = MakePickerCell(btnPickCustomer, lblCustomerPicked);
 
-            // Quotation picker
             btnPickQuotation   = MakePickerBtn("🔍  Link Quotation");
             lblQuotationPicked = MakePickerLabel("(None)");
             btnPickQuotation.Click += btnPickQuotation_Click;
@@ -122,7 +123,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             cboDiscountType.SelectedIndexChanged += cboDiscountType_SelectedIndexChanged;
 
             txtDiscountValue = MakeTextBox();
-            txtDiscountValue.Text = "0";
+            txtDiscountValue.Text    = "0";
             txtDiscountValue.Enabled = false;
             txtDiscountValue.TextChanged += txtDiscountValue_TextChanged;
 
@@ -183,17 +184,106 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlInfoInner.Controls.Add(pnlInfoContent);
 
             // ==================================================================
-            // FOOTER
+            // FOOTER  —  aligned with ModifyOrderForm
+            // Title (DockStyle.Left, fixed Width) + Value (DockStyle.Fill)
+            // inside a 3-column TLP, same widths as ModifyOrderForm.
             // ==================================================================
             const int BtnW   = 210;
             const int BtnH   = 60;
             const int BtnGap = 8;
             const int BtnPad = 12;
 
-            lblSubtotalTitle   = new Label { Text = "Subtotal:",    Font = new Font("Segoe UI", 12f), ForeColor = Color.FromArgb(98, 112, 135), AutoSize = true, Anchor = AnchorStyles.Left | AnchorStyles.Top };
-            lblSubtotalValue   = new Label { Text = "HK$ 0.00",    Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), AutoSize = true, Anchor = AnchorStyles.Left | AnchorStyles.Top };
-            lblGrandTotalTitle = new Label { Text = "Grand Total:", Font = new Font("Segoe UI", 14f, FontStyle.Bold), ForeColor = Palette.TextMain,  AutoSize = true, Anchor = AnchorStyles.Left | AnchorStyles.Top };
-            lblGrandTotalValue = new Label { Text = "HK$ 0.00",    Font = new Font("Segoe UI", 14f, FontStyle.Bold), ForeColor = Palette.Primary,   AutoSize = true, Anchor = AnchorStyles.Left | AnchorStyles.Top };
+            lblSubtotalTitle = new Label
+            {
+                Text      = "Subtotal:",
+                Font      = new Font("Segoe UI", 12f),
+                ForeColor = Color.FromArgb(98, 112, 135),
+                AutoSize  = false,
+                Dock      = DockStyle.Left,
+                Width     = 165,
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+            lblSubtotalValue = new Label
+            {
+                Text      = "HK$ 0.00",
+                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(98, 112, 135),
+                AutoSize  = false,
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+            lblDiscountAmountTitle = new Label
+            {
+                Text      = "Discount Amount:",
+                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(98, 112, 135),
+                AutoSize  = false,
+                Dock      = DockStyle.Left,
+                Width     = 310,
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+            lblDiscountAmountValue = new Label
+            {
+                Text      = "HK$ 0.00",
+                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(98, 112, 135),
+                AutoSize  = false,
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+            lblGrandTotalTitle = new Label
+            {
+                Text      = "Grand Total:",
+                Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
+                ForeColor = Palette.TextMain,
+                AutoSize  = false,
+                Dock      = DockStyle.Left,
+                Width     = 240,
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+            lblGrandTotalValue = new Label
+            {
+                Text      = "HK$ 0.00",
+                Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
+                ForeColor = Palette.Primary,
+                AutoSize  = false,
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+
+            // Each summary cell: Title (Left, fixed width) + Value (Fill).
+            // Controls added Fill-first, then Left — WinForms DockStyle order.
+            Panel MakeSummaryCell(Label title, Label value)
+            {
+                var cell = new Panel
+                {
+                    Dock      = DockStyle.Fill,
+                    BackColor = Color.Transparent,
+                    Padding   = new Padding(8, 0, 8, 0)
+                };
+                cell.Controls.Add(value);   // Fill — added first
+                cell.Controls.Add(title);   // Left — added second
+                return cell;
+            }
+
+            // 3-column TLP: [Subtotal | Discount Amount | Grand Total]
+            var tblSummary = new TableLayoutPanel
+            {
+                Dock            = DockStyle.Fill,
+                ColumnCount     = 3,
+                RowCount        = 1,
+                BackColor       = Color.Transparent,
+                CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                Padding         = new Padding(8, 0, 0, 0)
+            };
+            tblSummary.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.33f));
+            tblSummary.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.33f));
+            tblSummary.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.34f));
+            tblSummary.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+
+            tblSummary.Controls.Add(MakeSummaryCell(lblSubtotalTitle,       lblSubtotalValue),       0, 0);
+            tblSummary.Controls.Add(MakeSummaryCell(lblDiscountAmountTitle, lblDiscountAmountValue), 1, 0);
+            tblSummary.Controls.Add(MakeSummaryCell(lblGrandTotalTitle,     lblGrandTotalValue),     2, 0);
 
             btnSubmit = MakePrimaryBtn("✔  Submit Order", Point.Empty, BtnW, BtnH);
             btnClear  = MakeOutlineBtn("↺  Clear",        Point.Empty, BtnW, BtnH);
@@ -212,26 +302,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlActionBtns.Resize += (s, e) => CentreFooterBtns();
 
             pnlFooterContent = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(4, 0, 0, 0) };
-            pnlFooterContent.Controls.Add(lblSubtotalTitle);
-            pnlFooterContent.Controls.Add(lblSubtotalValue);
-            pnlFooterContent.Controls.Add(lblGrandTotalTitle);
-            pnlFooterContent.Controls.Add(lblGrandTotalValue);
-            pnlFooterContent.Controls.Add(pnlActionBtns);
-            pnlFooterContent.Resize += (s, e) =>
-            {
-                var pnl = (Panel)s; int h = pnl.Height;
-                int subRowH = Math.Max(lblSubtotalTitle.Height, lblSubtotalValue.Height);
-                int subTop  = (h - subRowH) / 2; if (subTop < 0) subTop = 0;
-                lblSubtotalTitle.Location = new Point(8, subTop + (subRowH - lblSubtotalTitle.Height) / 2);
-                int subValX = 8 + lblSubtotalTitle.Width + 4;
-                lblSubtotalValue.Location = new Point(subValX, subTop + (subRowH - lblSubtotalValue.Height) / 2);
-                int grandRowH   = Math.Max(lblGrandTotalTitle.Height, lblGrandTotalValue.Height);
-                int grandTop    = (h - grandRowH) / 2; if (grandTop < 0) grandTop = 0;
-                int grandTitleX = subValX + lblSubtotalValue.Width + 120;
-                lblGrandTotalTitle.Location = new Point(grandTitleX, grandTop + (grandRowH - lblGrandTotalTitle.Height) / 2);
-                lblGrandTotalValue.Location = new Point(grandTitleX + lblGrandTotalTitle.Width + 4, grandTop + (grandRowH - lblGrandTotalValue.Height) / 2);
-                CentreFooterBtns();
-            };
+            pnlFooterContent.Controls.Add(tblSummary);    // Fill — summary TLP
+            pnlFooterContent.Controls.Add(pnlActionBtns); // Right — action buttons
 
             var footerInner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
             footerInner.Paint += (s, e) => { var p = (Panel)s; using var pen = new Pen(Color.FromArgb(221, 227, 236), 1); e.Graphics.DrawRectangle(pen, 0, 0, p.Width - 1, p.Height - 1); };
@@ -242,7 +314,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             // ==================================================================
             // CARD 2 — ORDER ITEMS
             // ==================================================================
-            // Toolbar: single "+ Add Item" button  +  "− Remove" button
             const int ItemBtnW = 210;
             const int ItemBtnH = 60;
 
@@ -259,7 +330,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 BackColor = Color.Transparent,
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
-            tblToolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+            tblToolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
             tblToolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 218f));
             tblToolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 218f));
             tblToolbar.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
@@ -277,7 +348,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlAddBtn.Resize += (s, e) => CentreItemBtn(pnlAddBtn, btnAddItem);
             pnlRemBtn.Resize += (s, e) => CentreItemBtn(pnlRemBtn, btnRemoveLine);
 
-            // empty filler so buttons sit on the right
             tblToolbar.Controls.Add(new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent }, 0, 0);
             tblToolbar.Controls.Add(pnlAddBtn, 1, 0);
             tblToolbar.Controls.Add(pnlRemBtn, 2, 0);
@@ -327,7 +397,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             this.ResumeLayout(false);
         }
 
-        // ── Shared builder helpers ───────────────────────────────────────────────
+        // ── Shared builder helpers ──────────────────────────────────────────────────
         private static Panel MakePickerCell(Button btn, Label lbl)
         {
             btn.Dock = DockStyle.Left; btn.Width = 160; lbl.Dock = DockStyle.Fill;
