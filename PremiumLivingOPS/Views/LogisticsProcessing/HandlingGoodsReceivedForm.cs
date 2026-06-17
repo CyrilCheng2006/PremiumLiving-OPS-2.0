@@ -84,7 +84,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void OnTopNavMenuItemClicked(object sender, string menuKey)
         {
-            // FIX CS0103: correct class is FormNavigator, not AppShellNavigator
             FormNavigator.NavigateTo(this, menuKey);
         }
 
@@ -93,7 +92,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             if (MessageBox.Show("Are you sure you want to logout?",
                 "Logout", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
             {
-                // FIX CS0103: correct class is FormNavigator, not AppShellNavigator
                 FormNavigator.NavigateTo(this, "Logout");
             }
         }
@@ -510,15 +508,12 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         private void ShowPODetail(PurchaseOrderEntity po)
         {
             if (po == null) return;
-            // FIX CS1729 + CS1503: PODetailDialog only accepts (PODetailVM).
-            // Build the VM via the controller first, then pass it.
-            var vm = _ctrl.GetRecordPurchaseInvoiceVM(po); // reuse controller to get PO detail VM
+            // PODetailDialog only accepts (PODetailVM).
+            // Build the VM then pass it.
             var poDetailVm = new Models.ViewModels.PODetailVM
             {
                 PurchaseOrder = po,
-                Lines         = _ctrl.GetHandlingGoodsReceivedVM().PurchaseOrders != null
-                                    ? new List<Models.Entities.PurchaseOrderLineEntity>()
-                                    : new List<Models.Entities.PurchaseOrderLineEntity>()
+                Lines         = new List<Models.Entities.PurchaseOrderLineEntity>()
             };
             using (var dlg = new PODetailDialog(poDetailVm))
                 dlg.ShowDialog(this);
@@ -527,15 +522,21 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         private void ShowReceiptDetail(GoodsReceivedEntity receipt)
         {
             if (receipt == null) return;
-            using (var dlg = new ReceiptDetailDialog(receipt, _ctrl))
+            // FIX CS1503 (Line 530): ReceiptDetailDialog(GoodsReceivedEntity, List<GoodsReceivedEntity>)
+            // The 2nd argument must be List<GoodsReceivedEntity> (detail lines), NOT the controller.
+            // Filter all receipts sharing the same ReceiptID as the detail lines for this receipt.
+            var lines = _vm?.Receipts?
+                            .Where(r => r.ReceiptID == receipt.ReceiptID)
+                            .ToList()
+                        ?? new List<GoodsReceivedEntity>();
+            using (var dlg = new ReceiptDetailDialog(receipt, lines))
                 dlg.ShowDialog(this);
         }
 
         private void ShowRecordInvoice(PurchaseOrderEntity po)
         {
             if (po == null) return;
-            // FIX CS1729: RecordInvoiceDialog only accepts (PurchaseOrderEntity).
-            // Remove the invalid second _ctrl argument.
+            // RecordInvoiceDialog only accepts (PurchaseOrderEntity).
             using (var dlg = new RecordInvoiceDialog(po))
             {
                 if (dlg.ShowDialog(this) == DialogResult.OK)
