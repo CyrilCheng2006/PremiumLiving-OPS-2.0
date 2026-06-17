@@ -53,7 +53,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             _shell.SetPopupContainer(pnlMain);
 
             // ==================================================================
-            // SEARCH BAR CARD
+            // SEARCH BAR CARD  (fixed height, DockStyle.Top)
             // ==================================================================
             var (pnlSearchOuter, pnlSearchInner) = CardPanel.Create(outerHeight: 90);
 
@@ -89,25 +89,20 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlSearchInner.Controls.Add(pnlSearchRow);
 
             // ==================================================================
-            // DETAILS CARD
-            // Row layout (11 rows total):
-            //   rows 0-9  : 5 pairs of (header 32px + input 84px)  for the first 4 field pairs
-            //   row  10   : 50px spacer between Status block and Actual Recipient block
-            //   rows 11-12: header 32px + input 84px  for Actual Recipient
-            //   rows 13-14: header 32px + input 84px  for Remark
+            // DETAILS CARD  (fill remaining space, DockStyle.Fill)
             //
-            // Concretely:
-            //   0  header: Shipment ID | Order ID
-            //   1  input:  Shipment ID | Order ID
-            //   2  header: Customer    | Tracking No.
-            //   3  input:  Customer    | Tracking No.
-            //   4  header: Ship Date   | Type
-            //   5  input:  Ship Date   | Type
-            //   6  header: Delivery Method | Status *
-            //   7  input:  Delivery Method | Status *
-            //   8  SPACER  50px
-            //   9  header: Actual Recipient * | Remark
-            //  10  input:  Actual Recipient * | Remark
+            // TLP row map  (11 rows):
+            //   0  hdr  Shipment ID | Order ID          32px
+            //   1  inp  Shipment ID | Order ID          84px
+            //   2  hdr  Customer    | Tracking No.      32px
+            //   3  inp  Customer    | Tracking No.      84px
+            //   4  hdr  Ship Date   | Type              32px
+            //   5  inp  Ship Date   | Type              84px
+            //   6  hdr  Delivery Method | Status *      32px
+            //   7  inp  Delivery Method | Status *      84px
+            //   8  ─── SPACER ──────────────────────   50px
+            //   9  hdr  Actual Recipient * | Remark     32px
+            //  10  inp  Actual Recipient * | Remark     84px
             // ==================================================================
             lblShipmentIdValue     = MakeValueLabel();
             lblOrderIdValue        = MakeValueLabel();
@@ -148,7 +143,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             {
                 Dock            = DockStyle.Fill,
                 ColumnCount     = 4,
-                RowCount        = 11,
+                RowCount        = 11,          // must match RowStyles count
                 BackColor       = Color.Transparent,
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
                 Padding         = new Padding(18, 0, 18, 8)
@@ -158,64 +153,66 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 22f));
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 28f));
 
-            // Rows 0-7: 4 field pairs
+            // Rows 0–7: 4 field pairs (header + input each)
             for (int i = 0; i < 4; i++)
             {
                 tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, HeaderRowH));
                 tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, InputRowH));
             }
-            // Row 8: spacer
+            // Row 8: visual spacer between Status block and Actual Recipient block
             tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, SpacerH));
-            // Rows 9-10: Actual Recipient + Remark
+            // Rows 9–10: Actual Recipient + Remark
             tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, HeaderRowH));
             tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, InputRowH));
 
-            // Helper: add a cell with ColSpan=2 in one call
+            // Helper: add control and immediately set ColSpan to avoid post-hoc lookup
             void AddCell(Control ctrl, int col, int row, int colSpan = 2)
             {
                 tblInfo.Controls.Add(ctrl, col, row);
                 if (colSpan > 1) tblInfo.SetColumnSpan(ctrl, colSpan);
             }
 
-            // Row 0-1: Shipment ID | Order ID
+            // Rows 0–1: Shipment ID | Order ID
             AddCell(FieldLabel("Shipment ID",  false), 0, 0);
             AddCell(FieldLabel("Order ID",     false), 2, 0);
             AddCell(PadLabel(lblShipmentIdValue),      0, 1);
             AddCell(PadLabel(lblOrderIdValue),         2, 1);
 
-            // Row 2-3: Customer | Tracking No.
+            // Rows 2–3: Customer | Tracking No.
             AddCell(FieldLabel("Customer",     false), 0, 2);
             AddCell(FieldLabel("Tracking No.", false), 2, 2);
             AddCell(PadLabel(lblCustomerValue),        0, 3);
             AddCell(PadLabel(lblTrackingValue),        2, 3);
 
-            // Row 4-5: Ship Date | Type
+            // Rows 4–5: Ship Date | Type
             AddCell(FieldLabel("Ship Date",    false), 0, 4);
             AddCell(FieldLabel("Type",         false), 2, 4);
             AddCell(PadLabel(lblShipDateValue),        0, 5);
             AddCell(PadLabel(lblShipTypeValue),        2, 5);
 
-            // Row 6-7: Delivery Method | Status *
+            // Rows 6–7: Delivery Method | Status *
             AddCell(FieldLabel("Delivery Method", false), 0, 6);
             AddCell(FieldLabel("Status *",        true),  2, 6);
             AddCell(PadLabel(lblDeliveryMethodValue),     0, 7);
             AddCell(PadCtrl(cboStatus),                   2, 7);
 
-            // Row 8: spacer (empty — no controls added, just row height)
+            // Row 8: spacer — intentionally empty, height provided by RowStyle
 
-            // Row 9-10: Actual Recipient * | Remark
+            // Rows 9–10: Actual Recipient * | Remark
             AddCell(FieldLabel("Actual Recipient *", true),  0, 9);
             AddCell(FieldLabel("Remark",             false), 2, 9);
             AddCell(PadCtrl(txtActualRecipient),             0, 10);
             AddCell(PadCtrl(txtRemark),                      2, 10);
 
-            // Card title + tblInfo: Fill MUST be added before Top
+            // Card title bar
             var pnlDetailsTitle = CardTitlePanel("Edit Shipment");
-            var (pnlDetailsOuter, pnlDetailsInner) = CardPanel.Create(outerHeight: 0);
-            pnlDetailsOuter.Dock = DockStyle.Fill;
 
-            pnlDetailsInner.Controls.Add(tblInfo);         // Fill — first
-            pnlDetailsInner.Controls.Add(pnlDetailsTitle); // Top  — second
+            // Use CreateFill so the card stretches to fill remaining height
+            var (pnlDetailsOuter, pnlDetailsInner) = CardPanel.CreateFill();
+
+            // Add Fill content first, then Top title (WinForms DockStyle processing order)
+            pnlDetailsInner.Controls.Add(tblInfo);
+            pnlDetailsInner.Controls.Add(pnlDetailsTitle);
 
             // ==================================================================
             // FOOTER
@@ -276,7 +273,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             };
             footerOuter.Controls.Add(footerInner);
 
-            // Assemble (Bottom → Fill → Top order)
+            // Assemble — Bottom → Fill → Top order (WinForms dock priority)
             pnlMain.Controls.Add(pnlDetailsOuter);
             pnlMain.Controls.Add(footerOuter);
             pnlMain.Controls.Add(pnlSearchOuter);
@@ -286,7 +283,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             this.ResumeLayout(false);
         }
 
-        // ── Builder helpers ──────────────────────────────────────────────────────
+        // ── Builder helpers ──────────────────────────────────────────────────
 
         private static Label MakeValueLabel() => new Label
         {
