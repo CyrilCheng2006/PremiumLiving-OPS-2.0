@@ -270,7 +270,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 ForeColor = Color.FromArgb(98, 112, 135),
                 AutoSize  = false,
                 Dock      = DockStyle.Left,
-                Width     = 180,
+                Width     = 165,
                 TextAlign = ContentAlignment.MiddleLeft
             };
             lblSubtotalValue = new Label
@@ -289,7 +289,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 ForeColor = Color.FromArgb(98, 112, 135),
                 AutoSize  = false,
                 Dock      = DockStyle.Left,
-                Width     = 280,
+                Width     = 310,
                 TextAlign = ContentAlignment.MiddleLeft
             };
             lblDiscountAmountValue = new Label
