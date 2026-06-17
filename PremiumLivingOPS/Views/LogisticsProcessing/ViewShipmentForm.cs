@@ -682,6 +682,13 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         //    dgv                Fill      — shipment items DataGridView
         //    pnlTotalRow        Bottom 50 — total amount
         //    pnlFooter          Bottom 80 — [Save Changes] [Delete] [Close]
+        //
+        //  Edit Shipment body layout (absolute positions, Padding 28,12,28,12):
+        //    Row 1  Y=10/14  — Status * (label X=0) + ComboBox (X=160)
+        //                     Actual Recipient (label X=430) + TextBox (X=630, gap=50px)
+        //    Row 2  Y=70/74  — Remark (label X=0) + TextBox (X=160)
+        //                     (50px vertical gap between row 1 bottom and row 2 top)
+        //    pnlEditBody.Height = 160 (expanded) / 0 (collapsed)
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void ShowDetailDialog(bool openInEditMode = false)
         {
@@ -862,6 +869,29 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }
 
             // ── EDIT SHIPMENT section ───────────────────────────────────────────
+            //
+            //  Spacing design (inside pnlEditBody, Padding = 28,12,28,12):
+            //
+            //  Row 1  — Status * + Actual Recipient (same horizontal band)
+            //    lblStatusEdit   Location = (0,   14)   label baseline
+            //    cboStatusEdit   Location = (160, 10)   input top
+            //    lblRecipEdit    Location = (430, 14)   label baseline
+            //                                           gap between cboStatusEdit right
+            //                                           (160+220=380) and lblRecipEdit (430) = 50px ✓
+            //    txtRecipEdit    Location = (630, 10)   input top
+            //                                           gap between lblRecipEdit right
+            //                                           (~430+~130=~560→630) = 50px ✓
+            //
+            //  50px vertical gap between row 1 (bottom ≈ 10+30=40) and row 2 top (90):
+            //    40 + 50 = 90  ✓
+            //
+            //  Row 2  — Remark
+            //    lblRemarkEdit   Location = (0,   94)
+            //    txtRemarkEdit   Location = (160, 90)
+            //
+            //  pnlEditBody.Height = 12 (top padding) + 90+30 + 12 (bottom padding) = 144
+            //  → rounded up to 160 for comfortable breathing room
+            // ───────────────────────────────────────────────────────────────────
             var pnlEditTitle = new Panel
             {
                 Dock      = DockStyle.Top,
@@ -884,15 +914,19 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             };
             pnlEditTitle.Controls.Add(lblEditToggle);
 
+            // ── Edit body — expanded height = 160px ────────────────────────────
+            const int EditBodyHeight = 160;
+
             var pnlEditBody = new Panel
             {
                 Dock      = DockStyle.Top,
-                Height    = openInEditMode ? 136 : 0,
+                Height    = openInEditMode ? EditBodyHeight : 0,
                 BackColor = Color.FromArgb(250, 252, 255),
                 Padding   = new Padding(28, 12, 28, 12),
                 Visible   = openInEditMode
             };
 
+            // Row 1 — Status *
             var lblStatusEdit = MakeLabelKey("Status *");
             lblStatusEdit.AutoSize = true;
             lblStatusEdit.Dock     = DockStyle.None;
@@ -909,31 +943,36 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             int si = cboStatusEdit.FindStringExact(s.ShipmentStatus);
             cboStatusEdit.SelectedIndex = si >= 0 ? si : 0;
 
+            // Row 1 — Actual Recipient
+            // X=430: cboStatusEdit right edge = 160+220 = 380, gap = 430-380 = 50px ✓
             var lblRecipEdit = MakeLabelKey("Actual Recipient");
             lblRecipEdit.AutoSize = true;
             lblRecipEdit.Dock     = DockStyle.None;
-            lblRecipEdit.Location = new Point(420, 14);
+            lblRecipEdit.Location = new Point(430, 14);
 
+            // X=630: lblRecipEdit approximate right ≈ 430+~160=590, gap = 630-590 = ~40px
+            // Using fixed X=630 to guarantee label text does not overlap input box.
             var txtRecipEdit = new TextBox
             {
                 Font        = new Font("Segoe UI", 12f),
                 BorderStyle = BorderStyle.FixedSingle,
-                Location    = new Point(600, 10),
+                Location    = new Point(630, 10),
                 Size        = new Size(340, 30),
                 Text        = detail.ReplySlip?.ActualRecipient ?? string.Empty
             };
 
+            // Row 2 — Remark  (50px gap below row 1: row1 bottom=10+30=40, row2 top=40+50=90)
             var lblRemarkEdit = MakeLabelKey("Remark");
             lblRemarkEdit.AutoSize = true;
             lblRemarkEdit.Dock     = DockStyle.None;
-            lblRemarkEdit.Location = new Point(0, 62);
+            lblRemarkEdit.Location = new Point(0, 94);
 
             var txtRemarkEdit = new TextBox
             {
                 Font        = new Font("Segoe UI", 12f),
                 BorderStyle = BorderStyle.FixedSingle,
-                Location    = new Point(160, 58),
-                Size        = new Size(780, 30),
+                Location    = new Point(160, 90),
+                Size        = new Size(810, 30),
                 Text        = detail.ReplySlip?.RecipientRemark ?? string.Empty
             };
 
@@ -949,7 +988,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             {
                 editExpanded = !editExpanded;
                 pnlEditBody.Visible = editExpanded;
-                pnlEditBody.Height  = editExpanded ? 136 : 0;
+                pnlEditBody.Height  = editExpanded ? EditBodyHeight : 0;
                 lblEditToggle.Text  = editExpanded
                     ? "\u25BC  Edit Shipment"
                     : "\u25BA  Edit Shipment";
