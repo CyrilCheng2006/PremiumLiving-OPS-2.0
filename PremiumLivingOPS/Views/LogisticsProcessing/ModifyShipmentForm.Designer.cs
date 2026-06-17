@@ -9,14 +9,11 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
     {
         private System.ComponentModel.IContainer components = null;
 
-        // ── AppShell (mandatory shared component) ──────────────────────────────
         private AppShell _shell;
 
-        // ── Search row ─────────────────────────────────────────────────────────
         private ComboBox cboSearchShipment;
         private Button   btnLoadShipment;
 
-        // ── Read-only info labels ───────────────────────────────────────────────
         private Label lblShipmentIdValue;
         private Label lblOrderIdValue;
         private Label lblCustomerValue;
@@ -25,12 +22,10 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         private Label lblShipTypeValue;
         private Label lblDeliveryMethodValue;
 
-        // ── Editable fields ────────────────────────────────────────────────────
         private ComboBox cboStatus;
         private TextBox  txtActualRecipient;
         private TextBox  txtRemark;
 
-        // ── Action buttons ─────────────────────────────────────────────────────
         private Button btnSaveChanges;
         private Button btnDeleteShipment;
         private Button btnDiscardChanges;
@@ -78,7 +73,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 Font          = new Font("Segoe UI", 12f),
                 Dock          = DockStyle.Fill
             };
-            btnLoadShipment      = MakePrimaryBtn("Load Shipment", Point.Empty, 210, 60);
+            btnLoadShipment       = MakePrimaryBtn("Load Shipment", Point.Empty, 210, 60);
             btnLoadShipment.Dock  = DockStyle.Right;
             btnLoadShipment.Click += btnLoadShipment_Click;
 
@@ -94,10 +89,25 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlSearchInner.Controls.Add(pnlSearchRow);
 
             // ==================================================================
-            // DETAILS CARD  (read-only info + editable fields)
-            // Row heights: label-header = 32px, input-row = 84px (x1.5 of 56px)
-            // 5 pairs × (32 + 84) = 5 × 116 = 580px  +  title 54px = 634px
-            // outerHeight = 634 + card outer padding (~28px) ≈ 662 → use Fill
+            // DETAILS CARD
+            // Row layout (11 rows total):
+            //   rows 0-9  : 5 pairs of (header 32px + input 84px)  for the first 4 field pairs
+            //   row  10   : 50px spacer between Status block and Actual Recipient block
+            //   rows 11-12: header 32px + input 84px  for Actual Recipient
+            //   rows 13-14: header 32px + input 84px  for Remark
+            //
+            // Concretely:
+            //   0  header: Shipment ID | Order ID
+            //   1  input:  Shipment ID | Order ID
+            //   2  header: Customer    | Tracking No.
+            //   3  input:  Customer    | Tracking No.
+            //   4  header: Ship Date   | Type
+            //   5  input:  Ship Date   | Type
+            //   6  header: Delivery Method | Status *
+            //   7  input:  Delivery Method | Status *
+            //   8  SPACER  50px
+            //   9  header: Actual Recipient * | Remark
+            //  10  input:  Actual Recipient * | Remark
             // ==================================================================
             lblShipmentIdValue     = MakeValueLabel();
             lblOrderIdValue        = MakeValueLabel();
@@ -130,122 +140,85 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 Dock        = DockStyle.Fill
             };
 
-            // ── 4-column TLP: col0=label-L | col1=value-L | col2=label-R | col3=value-R
-            // Each value cell spans col+1 (ColSpan=2 covering label+value halves).
-            // Using explicit column placement avoids all overlap issues.
             const int HeaderRowH = 32;
-            const int InputRowH  = 84;   // 56 * 1.5 = 84px
+            const int InputRowH  = 84;
+            const int SpacerH    = 50;
 
             var tblInfo = new TableLayoutPanel
             {
                 Dock            = DockStyle.Fill,
                 ColumnCount     = 4,
-                RowCount        = 10,
+                RowCount        = 11,
                 BackColor       = Color.Transparent,
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
                 Padding         = new Padding(18, 0, 18, 8)
             };
-            // col0: field-label left  (22%)
-            // col1: value left        (28%)
-            // col2: field-label right (22%)
-            // col3: value right       (28%)
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 22f));
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 28f));
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 22f));
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 28f));
 
-            for (int i = 0; i < 5; i++)
+            // Rows 0-7: 4 field pairs
+            for (int i = 0; i < 4; i++)
             {
                 tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, HeaderRowH));
                 tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, InputRowH));
             }
+            // Row 8: spacer
+            tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, SpacerH));
+            // Rows 9-10: Actual Recipient + Remark
+            tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, HeaderRowH));
+            tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, InputRowH));
 
-            // -- Row 0-1: Shipment ID (col 0-1) | Order ID (col 2-3)
-            var lbl_ShipmentId = FieldLabel("Shipment ID", false);
-            var lbl_OrderId    = FieldLabel("Order ID",    false);
-            var pad_ShipmentId = PadLabel(lblShipmentIdValue);
-            var pad_OrderId    = PadLabel(lblOrderIdValue);
+            // Helper: add a cell with ColSpan=2 in one call
+            void AddCell(Control ctrl, int col, int row, int colSpan = 2)
+            {
+                tblInfo.Controls.Add(ctrl, col, row);
+                if (colSpan > 1) tblInfo.SetColumnSpan(ctrl, colSpan);
+            }
 
-            tblInfo.Controls.Add(lbl_ShipmentId, 0, 0);
-            tblInfo.Controls.Add(lbl_OrderId,    2, 0);
-            tblInfo.Controls.Add(pad_ShipmentId, 0, 1);
-            tblInfo.Controls.Add(pad_OrderId,    2, 1);
-            tblInfo.SetColumnSpan(lbl_ShipmentId, 2);
-            tblInfo.SetColumnSpan(lbl_OrderId,    2);
-            tblInfo.SetColumnSpan(pad_ShipmentId, 2);
-            tblInfo.SetColumnSpan(pad_OrderId,    2);
+            // Row 0-1: Shipment ID | Order ID
+            AddCell(FieldLabel("Shipment ID",  false), 0, 0);
+            AddCell(FieldLabel("Order ID",     false), 2, 0);
+            AddCell(PadLabel(lblShipmentIdValue),      0, 1);
+            AddCell(PadLabel(lblOrderIdValue),         2, 1);
 
-            // -- Row 2-3: Customer (col 0-1) | Tracking No. (col 2-3)
-            var lbl_Customer    = FieldLabel("Customer",     false);
-            var lbl_Tracking    = FieldLabel("Tracking No.", false);
-            var pad_Customer    = PadLabel(lblCustomerValue);
-            var pad_Tracking    = PadLabel(lblTrackingValue);
+            // Row 2-3: Customer | Tracking No.
+            AddCell(FieldLabel("Customer",     false), 0, 2);
+            AddCell(FieldLabel("Tracking No.", false), 2, 2);
+            AddCell(PadLabel(lblCustomerValue),        0, 3);
+            AddCell(PadLabel(lblTrackingValue),        2, 3);
 
-            tblInfo.Controls.Add(lbl_Customer, 0, 2);
-            tblInfo.Controls.Add(lbl_Tracking, 2, 2);
-            tblInfo.Controls.Add(pad_Customer, 0, 3);
-            tblInfo.Controls.Add(pad_Tracking, 2, 3);
-            tblInfo.SetColumnSpan(lbl_Customer, 2);
-            tblInfo.SetColumnSpan(lbl_Tracking, 2);
-            tblInfo.SetColumnSpan(pad_Customer, 2);
-            tblInfo.SetColumnSpan(pad_Tracking, 2);
+            // Row 4-5: Ship Date | Type
+            AddCell(FieldLabel("Ship Date",    false), 0, 4);
+            AddCell(FieldLabel("Type",         false), 2, 4);
+            AddCell(PadLabel(lblShipDateValue),        0, 5);
+            AddCell(PadLabel(lblShipTypeValue),        2, 5);
 
-            // -- Row 4-5: Ship Date (col 0-1) | Type (col 2-3)
-            var lbl_ShipDate = FieldLabel("Ship Date", false);
-            var lbl_Type     = FieldLabel("Type",      false);
-            var pad_ShipDate = PadLabel(lblShipDateValue);
-            var pad_Type     = PadLabel(lblShipTypeValue);
+            // Row 6-7: Delivery Method | Status *
+            AddCell(FieldLabel("Delivery Method", false), 0, 6);
+            AddCell(FieldLabel("Status *",        true),  2, 6);
+            AddCell(PadLabel(lblDeliveryMethodValue),     0, 7);
+            AddCell(PadCtrl(cboStatus),                   2, 7);
 
-            tblInfo.Controls.Add(lbl_ShipDate, 0, 4);
-            tblInfo.Controls.Add(lbl_Type,     2, 4);
-            tblInfo.Controls.Add(pad_ShipDate, 0, 5);
-            tblInfo.Controls.Add(pad_Type,     2, 5);
-            tblInfo.SetColumnSpan(lbl_ShipDate, 2);
-            tblInfo.SetColumnSpan(lbl_Type,     2);
-            tblInfo.SetColumnSpan(pad_ShipDate, 2);
-            tblInfo.SetColumnSpan(pad_Type,     2);
+            // Row 8: spacer (empty — no controls added, just row height)
 
-            // -- Row 6-7: Delivery Method (col 0-1) | Status * (col 2-3)
-            var lbl_DelivMethod = FieldLabel("Delivery Method", false);
-            var lbl_Status      = FieldLabel("Status *",        true);
-            var pad_DelivMethod = PadLabel(lblDeliveryMethodValue);
-            var pad_Status      = PadCtrl(cboStatus);
+            // Row 9-10: Actual Recipient * | Remark
+            AddCell(FieldLabel("Actual Recipient *", true),  0, 9);
+            AddCell(FieldLabel("Remark",             false), 2, 9);
+            AddCell(PadCtrl(txtActualRecipient),             0, 10);
+            AddCell(PadCtrl(txtRemark),                      2, 10);
 
-            tblInfo.Controls.Add(lbl_DelivMethod, 0, 6);
-            tblInfo.Controls.Add(lbl_Status,      2, 6);
-            tblInfo.Controls.Add(pad_DelivMethod, 0, 7);
-            tblInfo.Controls.Add(pad_Status,      2, 7);
-            tblInfo.SetColumnSpan(lbl_DelivMethod, 2);
-            tblInfo.SetColumnSpan(lbl_Status,      2);
-            tblInfo.SetColumnSpan(pad_DelivMethod, 2);
-            tblInfo.SetColumnSpan(pad_Status,      2);
-
-            // -- Row 8-9: Actual Recipient * (col 0-1) | Remark (col 2-3)
-            var lbl_ActualRecipient = FieldLabel("Actual Recipient *", true);
-            var lbl_Remark          = FieldLabel("Remark",             false);
-            var pad_ActualRecipient = PadCtrl(txtActualRecipient);
-            var pad_Remark          = PadCtrl(txtRemark);
-
-            tblInfo.Controls.Add(lbl_ActualRecipient, 0, 8);
-            tblInfo.Controls.Add(lbl_Remark,          2, 8);
-            tblInfo.Controls.Add(pad_ActualRecipient, 0, 9);
-            tblInfo.Controls.Add(pad_Remark,          2, 9);
-            tblInfo.SetColumnSpan(lbl_ActualRecipient, 2);
-            tblInfo.SetColumnSpan(lbl_Remark,          2);
-            tblInfo.SetColumnSpan(pad_ActualRecipient, 2);
-            tblInfo.SetColumnSpan(pad_Remark,          2);
-
-            // ── Card title + tblInfo assembled correctly:
-            //    Fill control MUST be added before Top control in WinForms.
+            // Card title + tblInfo: Fill MUST be added before Top
             var pnlDetailsTitle = CardTitlePanel("Edit Shipment");
             var (pnlDetailsOuter, pnlDetailsInner) = CardPanel.Create(outerHeight: 0);
             pnlDetailsOuter.Dock = DockStyle.Fill;
 
-            pnlDetailsInner.Controls.Add(tblInfo);         // Fill — added first
-            pnlDetailsInner.Controls.Add(pnlDetailsTitle); // Top  — added second
+            pnlDetailsInner.Controls.Add(tblInfo);         // Fill — first
+            pnlDetailsInner.Controls.Add(pnlDetailsTitle); // Top  — second
 
             // ==================================================================
-            // FOOTER  —  [Save Changes]  [Delete Shipment]  [Discard]
+            // FOOTER
             // ==================================================================
             const int BtnW   = 200;
             const int BtnH   = 54;
@@ -303,13 +276,11 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             };
             footerOuter.Controls.Add(footerInner);
 
-            // ==================================================================
-            // Assemble into pnlMain (Bottom → Fill → Top order for Dock)
-            // ==================================================================
-            pnlMain.Controls.Add(pnlDetailsOuter);  // Fill
-            pnlMain.Controls.Add(footerOuter);       // Bottom
-            pnlMain.Controls.Add(pnlSearchOuter);    // Top (search bar)
-            pnlMain.Controls.Add(_shell);            // Top (AppShell — last so it wins)
+            // Assemble (Bottom → Fill → Top order)
+            pnlMain.Controls.Add(pnlDetailsOuter);
+            pnlMain.Controls.Add(footerOuter);
+            pnlMain.Controls.Add(pnlSearchOuter);
+            pnlMain.Controls.Add(_shell);
 
             this.Controls.Add(pnlMain);
             this.ResumeLayout(false);
@@ -345,7 +316,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
         private static Label FieldLabel(string text, bool required) => new Label
         {
-            Text      = required ? text : text,
+            Text      = text,
             Font      = new Font("Segoe UI", 10.5f, FontStyle.Bold),
             ForeColor = Color.FromArgb(98, 112, 135),
             Dock      = DockStyle.Fill,
@@ -373,73 +344,29 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
         private static Button MakePrimaryBtn(string text, Point loc, int w, int h)
         {
-            var b = new Button
-            {
-                Text      = text,
-                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
-                ForeColor = Color.White,
-                BackColor = Color.FromArgb(47, 111, 237),
-                FlatStyle = FlatStyle.Flat,
-                Location  = loc, Width = w, Height = h,
-                Cursor    = Cursors.Hand
-            };
-            b.FlatAppearance.BorderSize         = 0;
-            b.FlatAppearance.MouseOverBackColor = Color.FromArgb(26, 77, 192);
-            b.FlatAppearance.MouseDownBackColor = Color.FromArgb(21, 60, 155);
+            var b = new Button { Text = text, Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.White, BackColor = Color.FromArgb(47, 111, 237), FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand };
+            b.FlatAppearance.BorderSize = 0; b.FlatAppearance.MouseOverBackColor = Color.FromArgb(26, 77, 192); b.FlatAppearance.MouseDownBackColor = Color.FromArgb(21, 60, 155);
             return b;
         }
 
         private static Button MakeGreenBtn(string text, Point loc, int w, int h)
         {
-            var b = new Button
-            {
-                Text      = text,
-                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
-                ForeColor = Color.White,
-                BackColor = Color.FromArgb(34, 139, 34),
-                FlatStyle = FlatStyle.Flat,
-                Location  = loc, Width = w, Height = h,
-                Cursor    = Cursors.Hand
-            };
-            b.FlatAppearance.BorderSize         = 0;
-            b.FlatAppearance.MouseOverBackColor = Color.FromArgb(22, 111, 22);
-            b.FlatAppearance.MouseDownBackColor = Color.FromArgb(14, 85, 14);
+            var b = new Button { Text = text, Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.White, BackColor = Color.FromArgb(34, 139, 34), FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand };
+            b.FlatAppearance.BorderSize = 0; b.FlatAppearance.MouseOverBackColor = Color.FromArgb(22, 111, 22); b.FlatAppearance.MouseDownBackColor = Color.FromArgb(14, 85, 14);
             return b;
         }
 
         private static Button MakeDangerBtn(string text, Point loc, int w, int h)
         {
-            var b = new Button
-            {
-                Text      = text,
-                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
-                ForeColor = Color.White,
-                BackColor = Color.FromArgb(185, 28, 28),
-                FlatStyle = FlatStyle.Flat,
-                Location  = loc, Width = w, Height = h,
-                Cursor    = Cursors.Hand
-            };
-            b.FlatAppearance.BorderSize         = 0;
-            b.FlatAppearance.MouseOverBackColor = Color.FromArgb(153, 20, 20);
-            b.FlatAppearance.MouseDownBackColor = Color.FromArgb(120, 14, 14);
+            var b = new Button { Text = text, Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.White, BackColor = Color.FromArgb(185, 28, 28), FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand };
+            b.FlatAppearance.BorderSize = 0; b.FlatAppearance.MouseOverBackColor = Color.FromArgb(153, 20, 20); b.FlatAppearance.MouseDownBackColor = Color.FromArgb(120, 14, 14);
             return b;
         }
 
         private static Button MakeOutlineBtn(string text, Point loc, int w, int h)
         {
-            var b = new Button
-            {
-                Text      = text,
-                Font      = new Font("Segoe UI", 12f),
-                ForeColor = Color.FromArgb(15, 31, 53),
-                BackColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Location  = loc, Width = w, Height = h,
-                Cursor    = Cursors.Hand
-            };
-            b.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
-            b.FlatAppearance.BorderSize         = 1;
-            b.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
+            var b = new Button { Text = text, Font = new Font("Segoe UI", 12f), ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White, FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand };
+            b.FlatAppearance.BorderColor = Color.FromArgb(221, 227, 236); b.FlatAppearance.BorderSize = 1; b.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
             return b;
         }
     }
