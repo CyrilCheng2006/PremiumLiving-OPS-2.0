@@ -287,7 +287,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             using var dlg = new Form
             {
                 Text            = $"Material Request Detail \u2014 {d.RequestID}",
-                Size            = new Size(1700, 1060),
+                Size            = new Size(2000, 1200),
                 StartPosition   = FormStartPosition.CenterParent,
                 BackColor       = Color.White,
                 Font            = new Font("Segoe UI", 13f),
