@@ -68,7 +68,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             _shell.SetPopupContainer(pnlMain);
 
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            //  Search / Filter card  (DockStyle.Top, Height 270)
+            //  Search / Filter card  (DockStyle.Top, Height 300)
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             txtKeyword = new TextBox
             {
@@ -89,100 +89,134 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             };
             chkDateFrom.CheckedChanged += (s, e) => { dtpDateFrom.Enabled = chkDateFrom.Checked; };
 
+            // ── MakeCell helper (identical to ViewOrderForm)
             TableLayoutPanel MakeCell(string caption, Control ctrl, bool rightPad = true)
             {
                 var tlp = new TableLayoutPanel
                 {
-                    Dock = DockStyle.Fill, RowCount = 2, ColumnCount = 1,
-                    BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                    Padding = rightPad ? new Padding(0, 0, 12, 0) : Padding.Empty
+                    Dock        = DockStyle.Fill,
+                    RowCount    = 2,
+                    ColumnCount = 1,
+                    BackColor   = Color.Transparent,
+                    CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                    Padding     = rightPad ? new Padding(0, 0, 12, 0) : Padding.Empty
                 };
                 tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
                 tlp.RowStyles.Add(new RowStyle(SizeType.Absolute, 40f));
-                tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 70f));
+                tlp.RowStyles.Add(new RowStyle(SizeType.Percent,  70f));
                 var lbl = new Label
                 {
-                    Text = caption, Font = new Font("Segoe UI", 10f, FontStyle.Bold),
-                    ForeColor = Color.FromArgb(98, 112, 135), Dock = DockStyle.Fill,
-                    TextAlign = ContentAlignment.BottomLeft, Padding = new Padding(0, 0, 0, 2)
+                    Text      = caption,
+                    Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
+                    ForeColor = Color.FromArgb(98, 112, 135),
+                    Dock      = DockStyle.Fill,
+                    TextAlign = ContentAlignment.BottomLeft,
+                    Padding   = new Padding(0, 0, 0, 2)
                 };
                 ctrl.Dock = DockStyle.Fill;
-                tlp.Controls.Add(lbl, 0, 0); tlp.Controls.Add(ctrl, 0, 1);
+                tlp.Controls.Add(lbl,  0, 0);
+                tlp.Controls.Add(ctrl, 0, 1);
                 return tlp;
             }
 
+            // ── Date-From cell (identical to ViewOrderForm)
             var cellDate = new TableLayoutPanel
             {
-                Dock = DockStyle.Fill, RowCount = 2, ColumnCount = 2,
-                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+                Dock        = DockStyle.Fill,
+                RowCount    = 2,
+                ColumnCount = 2,
+                BackColor   = Color.Transparent,
+                CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
             cellDate.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 33f));
             cellDate.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
             cellDate.RowStyles.Add(new RowStyle(SizeType.Absolute, 40f));
-            cellDate.RowStyles.Add(new RowStyle(SizeType.Percent, 70f));
+            cellDate.RowStyles.Add(new RowStyle(SizeType.Percent,  70f));
             var lblDate = new Label
             {
-                Text = "Date From", Font = new Font("Segoe UI", 10f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(98, 112, 135), Dock = DockStyle.Fill,
-                TextAlign = ContentAlignment.BottomLeft, Padding = new Padding(0, 0, 0, 2)
+                Text      = "Date From",
+                Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(98, 112, 135),
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.BottomLeft,
+                Padding   = new Padding(0, 0, 0, 2)
             };
-            chkDateFrom.Dock = DockStyle.Fill; dtpDateFrom.Dock = DockStyle.Fill;
+            chkDateFrom.Dock = DockStyle.Fill;
+            dtpDateFrom.Dock = DockStyle.Fill;
             cellDate.SetColumnSpan(lblDate, 2);
-            cellDate.Controls.Add(lblDate, 0, 0);
+            cellDate.Controls.Add(lblDate,     0, 0);
             cellDate.Controls.Add(chkDateFrom, 0, 1);
             cellDate.Controls.Add(dtpDateFrom, 1, 1);
 
+            // ── 3-column fields TLP (Keyword 34% | Status 33% | DateFrom 33%)
+            //    Mirrors ViewOrderForm's 4-column 25/25/25/25 layout pattern;
+            //    this form has 3 fields so columns are evenly thirds.
             var tblFields = new TableLayoutPanel
             {
-                Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 1,
-                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+                Dock            = DockStyle.Fill,
+                ColumnCount     = 3,
+                RowCount        = 1,
+                BackColor       = Color.Transparent,
+                CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
-            tblFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40f));
-            tblFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30f));
-            tblFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30f));
+            tblFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 34f));
+            tblFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33f));
+            tblFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33f));
             tblFields.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
             tblFields.Controls.Add(MakeCell("Keyword (PO / Supplier / Material)", txtKeyword), 0, 0);
-            tblFields.Controls.Add(MakeCell("PO Status", cboStatus), 1, 0);
-            tblFields.Controls.Add(cellDate, 2, 0);
+            tblFields.Controls.Add(MakeCell("PO Status",                          cboStatus),  1, 0);
+            tblFields.Controls.Add(cellDate,                                                    2, 0);
 
+            // ── Search / Reset buttons panel
             var pnlBtns = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             btnSearch  = MakePrimaryBtn("\U0001F50D  Search", new Point(0,   0), 210, 60);
             btnRefresh = MakeOutlineBtn("↺  Reset",          new Point(218, 0), 210, 60);
             btnSearch.Click  += (s, e) => RefreshGrids();
             btnRefresh.Click += (s, e) => ResetFilters();
-            pnlBtns.Controls.Add(btnSearch); pnlBtns.Controls.Add(btnRefresh);
+            pnlBtns.Controls.Add(btnSearch);
+            pnlBtns.Controls.Add(btnRefresh);
 
+            // ── Search card TLP (identical structure to ViewOrderForm)
             var tblCard = new TableLayoutPanel
             {
-                Dock = DockStyle.Fill, RowCount = 3, ColumnCount = 1,
-                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                Padding = new Padding(18, 14, 18, 14)
+                Dock            = DockStyle.Fill,
+                RowCount        = 3,
+                ColumnCount     = 1,
+                BackColor       = Color.Transparent,
+                CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                Padding         = new Padding(18, 14, 18, 14)
             };
             tblCard.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
             tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  60f));
-            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute, 120f));
+            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute, 125f));
             tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  65f));
 
             var pnlTitleBar = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             var lblTitle = new Label
             {
-                Text = "Search — Goods Received / Purchase Orders",
-                Font = new Font("Segoe UI", 13f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(15, 31, 53), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft
+                Text      = "Search",
+                Font      = new Font("Segoe UI", 13f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(15, 31, 53),
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft
             };
             var divider = new Panel { Dock = DockStyle.Bottom, Height = 1, BackColor = Color.FromArgb(221, 227, 236) };
-            pnlTitleBar.Controls.Add(lblTitle); pnlTitleBar.Controls.Add(divider);
+            pnlTitleBar.Controls.Add(lblTitle);
+            pnlTitleBar.Controls.Add(divider);
             tblCard.Controls.Add(pnlTitleBar, 0, 0);
             tblCard.Controls.Add(tblFields,   0, 1);
             tblCard.Controls.Add(pnlBtns,     0, 2);
 
             var pnlCard = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
-            pnlCard.Paint += PaintCardBorder; pnlCard.Controls.Add(tblCard);
+            pnlCard.Paint += PaintCardBorder;
+            pnlCard.Controls.Add(tblCard);
 
             var pnlSearchOuter = new Panel
             {
-                Dock = DockStyle.Top, Height = 270,
-                BackColor = Color.FromArgb(240, 244, 249), Padding = new Padding(20, 14, 20, 8)
+                Dock      = DockStyle.Top,
+                Height    = 300,
+                BackColor = Color.FromArgb(240, 244, 249),
+                Padding   = new Padding(20, 14, 20, 8)
             };
             pnlSearchOuter.Controls.Add(pnlCard);
 
