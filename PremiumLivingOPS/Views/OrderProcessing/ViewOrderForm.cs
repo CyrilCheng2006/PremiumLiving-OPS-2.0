@@ -201,7 +201,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
         private void btnViewDetail_Click(object sender, EventArgs e) => OpenDetailDialog();
 
-        // ── Modify Order handler — uses PendingOrderId to pre-select the order in ModifyOrderForm
         private void btnModifyOrder_Click(object sender, EventArgs e)
         {
             string id = SelectedOrderId();
@@ -399,29 +398,63 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             foreach (var l in detail.Lines)
                 dgv.Rows.Add(l.ItemID, l.ItemName, l.Quantity, $"HK$ {l.Price:N2}", $"HK$ {l.LineTotal:N2}");
 
-            // ── Subtotal / Grand Total bar ────────────────────────────────────
-            var pnlTotalRow = new Panel { Dock = DockStyle.Bottom, Height = 64, BackColor = Color.White, Padding = new Padding(28, 0, 28, 0) };
+            // ── Subtotal / Grand Total bar ─────────────────────────────────────
+            // Root cause of the original bug:
+            // Using DockStyle.Left + DockStyle.Right labels inside a DockStyle.Bottom
+            // panel causes one label to be clipped or hidden entirely because WinForms
+            // processes Left/Right dock AFTER Fill, leaving no guaranteed space.
+            //
+            // Fix: Replace with a TableLayoutPanel (3 columns) so Subtotal and
+            // Grand Total are placed in absolute-width cells — no dock competition.
+            var pnlTotalRow = new Panel
+            {
+                Dock      = DockStyle.Bottom,
+                Height    = 64,
+                BackColor = Color.White,
+                Padding   = new Padding(28, 0, 28, 0)
+            };
             pnlTotalRow.Paint += PaintTopBorderStatic;
-            pnlTotalRow.Controls.Add(new Label
+
+            var tblTotals = new TableLayoutPanel
+            {
+                Dock            = DockStyle.Fill,
+                ColumnCount     = 3,
+                RowCount        = 1,
+                BackColor       = Color.Transparent,
+                CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+            };
+            // Left cell  — Subtotal (fixed width)
+            // Middle cell — spacer (fills remaining space)
+            // Right cell  — Grand Total (fixed width)
+            tblTotals.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 400f));
+            tblTotals.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
+            tblTotals.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 480f));
+            tblTotals.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+
+            tblTotals.Controls.Add(new Label
             {
                 Text      = $"Subtotal:   HK$ {o.SubTotal:N2}",
-                Dock      = DockStyle.Left,
+                Dock      = DockStyle.Fill,
                 AutoSize  = false,
-                Width     = 360,
                 Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(15, 31, 53),
                 TextAlign = ContentAlignment.MiddleLeft
-            });
-            pnlTotalRow.Controls.Add(new Label
+            }, 0, 0);
+
+            // Spacer cell — intentionally empty
+            tblTotals.Controls.Add(new Label { Dock = DockStyle.Fill, AutoSize = false }, 1, 0);
+
+            tblTotals.Controls.Add(new Label
             {
                 Text      = $"Grand Total:   HK$ {o.GrandTotal:N2}",
-                Dock      = DockStyle.Right,
+                Dock      = DockStyle.Fill,
                 AutoSize  = false,
-                Width     = 420,
                 Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(47, 111, 237),
                 TextAlign = ContentAlignment.MiddleRight
-            });
+            }, 2, 0);
+
+            pnlTotalRow.Controls.Add(tblTotals);
 
             // ── Footer ────────────────────────────────────────────────────────
             var pnlFooter = new Panel { Dock = DockStyle.Bottom, Height = 86, BackColor = Color.White, Padding = new Padding(28, 14, 28, 14) };
@@ -445,19 +478,23 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlFooter.Controls.Add(btnClose);
 
             // ── Assemble ──────────────────────────────────────────────────────
-            // WinForms DockStyle.Bottom rule: controls added LATER claim the
-            // bottom edge first. To get the correct visual stack —
-            //   [footer at very bottom] → [total row above footer] → [dgv fills rest]
-            // — pnlFooter must be added BEFORE pnlTotalRow so the dock
-            // engine places pnlTotalRow immediately above pnlFooter.
-            dlg.Controls.Add(dgv);          // Fill  — must be added before any Top panels
-            dlg.Controls.Add(pnlFooter);    // Bottom (outermost) — added first = lowest
-            dlg.Controls.Add(pnlTotalRow);  // Bottom — added second = sits above pnlFooter
-            dlg.Controls.Add(pnlLineLabel); // Top
+            // DockStyle.Bottom rule: controls added LATER claim the bottom edge
+            // first (innermost). Correct visual order from bottom to top:
+            //   pnlFooter    (very bottom)     → add first  among Bottom panels
+            //   pnlTotalRow  (above footer)    → add second among Bottom panels
+            //   dgv          (Fill — expands)  → add before any Top panels
+            //   pnlLineLabel (Top)
+            //   pnlDiscount  (Top, optional)
+            //   pnlInfo      (Top)
+            //   pnlHeader    (Top, topmost)    → add last   among Top panels
+            dlg.Controls.Add(dgv);
+            dlg.Controls.Add(pnlFooter);
+            dlg.Controls.Add(pnlTotalRow);
+            dlg.Controls.Add(pnlLineLabel);
             if (hasDiscount)
-                dlg.Controls.Add(pnlDiscount); // Top
-            dlg.Controls.Add(pnlInfo);      // Top
-            dlg.Controls.Add(pnlHeader);    // Top
+                dlg.Controls.Add(pnlDiscount);
+            dlg.Controls.Add(pnlInfo);
+            dlg.Controls.Add(pnlHeader);
             dlg.ShowDialog(this);
         }
 
