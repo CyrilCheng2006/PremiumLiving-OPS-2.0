@@ -43,7 +43,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
         private void InitializeComponent()
         {
-            this.SuspendLayout(); // RULE 1
+            this.SuspendLayout();
 
             this.Text          = "Premium Living OPS — Modify Shipment";
             this.Size          = new Size(1280, 800);
@@ -96,7 +96,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             // ==================================================================
             // DETAILS CARD  (read-only info + editable fields)
             // ==================================================================
-            // ── Read-only value labels ─────────────────────────────────────────
             lblShipmentIdValue     = MakeValueLabel();
             lblOrderIdValue        = MakeValueLabel();
             lblCustomerValue       = MakeValueLabel();
@@ -105,7 +104,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             lblShipTypeValue       = MakeValueLabel();
             lblDeliveryMethodValue = MakeValueLabel();
 
-            // ── Editable controls ──────────────────────────────────────────────
             cboStatus = new ComboBox
             {
                 DropDownStyle = ComboBoxStyle.DropDownList,
@@ -129,61 +127,88 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 Dock        = DockStyle.Fill
             };
 
-            // ── TableLayoutPanel (2 columns × 10 rows) ─────────────────────────
+            // ── TableLayoutPanel: 4 columns (label | value | label | value) × 5 rows
+            // Each row: header row (AutoSize) + input row (Absolute 58px)
+            // Using 4-col layout avoids the 2-col overflow / overlap issue.
             var tblInfo = new TableLayoutPanel
             {
                 Dock            = DockStyle.Fill,
-                ColumnCount     = 2,
+                ColumnCount     = 4,
                 RowCount        = 10,
                 BackColor       = Color.Transparent,
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                Padding         = new Padding(18, 8, 18, 8)
+                Padding         = new Padding(18, 0, 18, 8)
             };
-            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
-            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
+            // Col widths: label 18% | value 32% | label 18% | value 32%
+            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 18f));
+            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 32f));
+            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 18f));
+            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 32f));
+            // 5 pairs of (label row 32px + input row 56px)
             for (int i = 0; i < 5; i++)
             {
-                tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, 40f));
-                tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, 60f));
+                tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, 32f));
+                tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, 56f));
             }
 
             // Row 0-1: Shipment ID | Order ID
-            tblInfo.Controls.Add(FieldLabel("Shipment ID", false), 0, 0);
-            tblInfo.Controls.Add(FieldLabel("Order ID",    false), 1, 0);
-            tblInfo.Controls.Add(PadLabel(lblShipmentIdValue),     0, 1);
-            tblInfo.Controls.Add(PadLabel(lblOrderIdValue),        1, 1);
+            tblInfo.Controls.Add(FieldLabel("Shipment ID",  false), 0, 0);
+            tblInfo.Controls.Add(FieldLabel("Order ID",     false), 2, 0);
+            tblInfo.Controls.Add(PadLabel(lblShipmentIdValue),      0, 1);
+            tblInfo.Controls.Add(PadLabel(lblOrderIdValue),         2, 1);
 
             // Row 2-3: Customer | Tracking No.
-            tblInfo.Controls.Add(FieldLabel("Customer",    false), 0, 2);
-            tblInfo.Controls.Add(FieldLabel("Tracking No.", false), 1, 2);
-            tblInfo.Controls.Add(PadLabel(lblCustomerValue),       0, 3);
-            tblInfo.Controls.Add(PadLabel(lblTrackingValue),       1, 3);
+            tblInfo.Controls.Add(FieldLabel("Customer",     false), 0, 2);
+            tblInfo.Controls.Add(FieldLabel("Tracking No.", false), 2, 2);
+            tblInfo.Controls.Add(PadLabel(lblCustomerValue),        0, 3);
+            tblInfo.Controls.Add(PadLabel(lblTrackingValue),        2, 3);
 
             // Row 4-5: Ship Date | Type
-            tblInfo.Controls.Add(FieldLabel("Ship Date", false), 0, 4);
-            tblInfo.Controls.Add(FieldLabel("Type",      false), 1, 4);
-            tblInfo.Controls.Add(PadLabel(lblShipDateValue),     0, 5);
-            tblInfo.Controls.Add(PadLabel(lblShipTypeValue),     1, 5);
+            tblInfo.Controls.Add(FieldLabel("Ship Date",    false), 0, 4);
+            tblInfo.Controls.Add(FieldLabel("Type",         false), 2, 4);
+            tblInfo.Controls.Add(PadLabel(lblShipDateValue),        0, 5);
+            tblInfo.Controls.Add(PadLabel(lblShipTypeValue),        2, 5);
 
-            // Row 6-7: Delivery Method (full width) | Status (editable)
+            // Row 6-7: Delivery Method | Status (editable)
             tblInfo.Controls.Add(FieldLabel("Delivery Method", false), 0, 6);
-            tblInfo.Controls.Add(FieldLabel("Status *",        true),  1, 6);
+            tblInfo.Controls.Add(FieldLabel("Status *",        true),  2, 6);
             tblInfo.Controls.Add(PadLabel(lblDeliveryMethodValue),     0, 7);
-            tblInfo.Controls.Add(PadCtrl(cboStatus),                   1, 7);
+            tblInfo.Controls.Add(PadCtrl(cboStatus),                   2, 7);
 
             // Row 8-9: Actual Recipient | Remark
-            tblInfo.Controls.Add(FieldLabel("Actual Recipient", true), 0, 8);
-            tblInfo.Controls.Add(FieldLabel("Remark",           false), 1, 8);
-            tblInfo.Controls.Add(PadCtrl(txtActualRecipient),          0, 9);
-            tblInfo.Controls.Add(PadCtrl(txtRemark),                   1, 9);
+            tblInfo.Controls.Add(FieldLabel("Actual Recipient", true),  0, 8);
+            tblInfo.Controls.Add(FieldLabel("Remark",           false), 2, 8);
+            tblInfo.Controls.Add(PadCtrl(txtActualRecipient),           0, 9);
+            tblInfo.Controls.Add(PadCtrl(txtRemark),                    2, 9);
 
-            var pnlDetailsTitle   = CardTitlePanel("Shipment Details");
-            var pnlDetailsContent = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            pnlDetailsContent.Controls.Add(tblInfo);
-            pnlDetailsContent.Controls.Add(pnlDetailsTitle);
+            // ColSpan 2 for value cells so they each fill their half
+            tblInfo.SetColumnSpan(PadLabelRef(tblInfo, 0, 1), 1);   // already 1 col by default
+            // Explicitly set ColSpan=2 for all value/input cells
+            SetColSpan2(tblInfo, lblShipmentIdValue);
+            SetColSpan2(tblInfo, lblOrderIdValue);
+            SetColSpan2(tblInfo, lblCustomerValue);
+            SetColSpan2(tblInfo, lblTrackingValue);
+            SetColSpan2(tblInfo, lblShipDateValue);
+            SetColSpan2(tblInfo, lblShipTypeValue);
+            SetColSpan2(tblInfo, lblDeliveryMethodValue);
+            SetColSpan2Ctrl(tblInfo, cboStatus);
+            SetColSpan2Ctrl(tblInfo, txtActualRecipient);
+            SetColSpan2Ctrl(tblInfo, txtRemark);
+            // FieldLabel ColSpan=2 as well
+            foreach (Control c in tblInfo.Controls)
+                if (c is Label lbl && lbl.Font.Bold && tblInfo.GetColumn(c) % 2 == 0)
+                    tblInfo.SetColumnSpan(c, 2);
 
-            var (pnlDetailsOuter, pnlDetailsInner) = CardPanel.Create(outerHeight: 560);
-            pnlDetailsInner.Controls.Add(pnlDetailsContent);
+            // ── Card title + tblInfo assembled correctly:
+            //    Top dock = title, Fill dock = tblInfo
+            //    IMPORTANT: Fill control must be added BEFORE Top control.
+            var pnlDetailsTitle   = CardTitlePanel("Edit Shipment");
+            var (pnlDetailsOuter, pnlDetailsInner) = CardPanel.Create(outerHeight: 0);  // 0 = Fill
+            pnlDetailsOuter.Dock  = DockStyle.Fill;
+
+            // Add Fill first, then Top — this is the correct WinForms Dock order
+            pnlDetailsInner.Controls.Add(tblInfo);          // Fill — added first
+            pnlDetailsInner.Controls.Add(pnlDetailsTitle);  // Top  — added second
 
             // ==================================================================
             // FOOTER  —  [Save Changes]  [Delete Shipment]  [Discard]
@@ -256,6 +281,29 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             this.ResumeLayout(false);
         }
 
+        // ── ColSpan helpers ──────────────────────────────────────────────────────
+        private static Control PadLabelRef(TableLayoutPanel tbl, int col, int row)
+        {
+            foreach (Control c in tbl.Controls)
+                if (tbl.GetColumn(c) == col && tbl.GetRow(c) == row) return c;
+            return null;
+        }
+
+        private static void SetColSpan2(TableLayoutPanel tbl, Label lbl)
+        {
+            // find the wrapper Panel that contains this label
+            foreach (Control c in tbl.Controls)
+                if (c is Panel p && p.Controls.Contains(lbl))
+                { tbl.SetColumnSpan(p, 2); return; }
+        }
+
+        private static void SetColSpan2Ctrl(TableLayoutPanel tbl, Control ctrl)
+        {
+            foreach (Control c in tbl.Controls)
+                if (c is Panel p && p.Controls.Contains(ctrl))
+                { tbl.SetColumnSpan(p, 2); return; }
+        }
+
         // ── Builder helpers ──────────────────────────────────────────────────────
 
         private static Label MakeValueLabel() => new Label
@@ -271,7 +319,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         private static Panel PadLabel(Label lbl)
         {
             lbl.Dock = DockStyle.Fill;
-            var p = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(246, 249, 255), Padding = new Padding(0, 8, 12, 8) };
+            var p = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(246, 249, 255), Padding = new Padding(0, 6, 12, 6) };
             p.Controls.Add(lbl);
             return p;
         }
@@ -279,7 +327,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         private static Panel PadCtrl(Control ctrl)
         {
             ctrl.Dock = DockStyle.Fill;
-            var p = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(0, 8, 12, 8) };
+            var p = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(0, 6, 12, 6) };
             p.Controls.Add(ctrl);
             return p;
         }
@@ -291,7 +339,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             ForeColor = Color.FromArgb(98, 112, 135),
             Dock      = DockStyle.Fill,
             TextAlign = ContentAlignment.BottomLeft,
-            Padding   = new Padding(18, 0, 0, 2)
+            Padding   = new Padding(6, 0, 0, 2)
         };
 
         private static Panel CardTitlePanel(string title)
