@@ -42,7 +42,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             this.Load += CreateOrderForm_Load;
         }
 
-        // ── Load ────────────────────────────────────────────────────────────────
+        // ── Load ───────────────────────────────────────────────────────────────────
         private void CreateOrderForm_Load(object sender, EventArgs e)
         {
             _shell.MenuItemClicked += OnTopNavMenuItemClicked;
@@ -72,7 +72,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             ResetPickerLabels();
         }
 
-        // ── Picker: Customer ────────────────────────────────────────────────────
+        // ── Picker: Customer ──────────────────────────────────────────────────────
         private void btnPickCustomer_Click(object sender, EventArgs e)
         {
             var items = _customers
@@ -92,7 +92,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             PopulateAddresses(_selectedCustomerId);
         }
 
-        // ── Picker: Linked Quotation ────────────────────────────────────────────
+        // ── Picker: Linked Quotation ──────────────────────────────────────────────
         private void btnPickQuotation_Click(object sender, EventArgs e)
         {
             var items = new List<SearchPickerDialog.PickerItem>
@@ -141,7 +141,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             RefreshLineGrid();
         }
 
-        // ── Remove line ─────────────────────────────────────────────────────────
+        // ── Remove line ─────────────────────────────────────────────────────────────────
         private void btnRemoveLine_Click(object sender, EventArgs e)
         {
             if (dgvLines.SelectedRows.Count == 0)
@@ -152,7 +152,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             RefreshLineGrid();
         }
 
-        // ── Customer → populate Address ComboBox ────────────────────────────────
+        // ── Customer → populate Address ComboBox ─────────────────────────────────────
         private void PopulateAddresses(string customerId)
         {
             cboAddressId.Items.Clear();
@@ -194,7 +194,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         private void txtShippingAddr_TextChanged(object sender, EventArgs e)
         { if (chkSameAddress.Checked) txtBillingAddr.Text = txtShippingAddr.Text; }
 
-        // ── Line grid & summary ─────────────────────────────────────────────────
+        // ── Line grid & summary ──────────────────────────────────────────────────────
         private void RefreshLineGrid()
         {
             dgvLines.Rows.Clear();
@@ -212,13 +212,15 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             string dtype = cboDiscountType.SelectedItem?.ToString() ?? "None";
             double discount = 0;
-            if (dtype == "Amount") double.TryParse(txtDiscountValue.Text, out discount);
+            if (dtype == "Amount")
+                double.TryParse(txtDiscountValue.Text, out discount);
             else if (dtype == "Rate (%)" && double.TryParse(txtDiscountValue.Text, out double rate))
                 discount = subtotal * rate / 100.0;
             if (discount < 0)        discount = 0;
             if (discount > subtotal) discount = subtotal;
 
-            lblGrandTotalValue.Text = $"HK$ {subtotal - discount:N2}";
+            lblDiscountAmountValue.Text = $"HK$ {discount:N2}";
+            lblGrandTotalValue.Text     = $"HK$ {subtotal - discount:N2}";
             pnlFooterContent.PerformLayout();
         }
 
@@ -234,7 +236,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
         private void txtDiscountValue_TextChanged(object sender, EventArgs e) => UpdateSummary();
 
-        // ── Submit ──────────────────────────────────────────────────────────────
+        // ── Submit ────────────────────────────────────────────────────────────────────
         private void btnSubmit_Click(object sender, EventArgs e)
         {
             if (string.IsNullOrEmpty(_selectedCustomerId))
@@ -293,7 +295,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     "Save Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
 
-        // ── Clear ───────────────────────────────────────────────────────────────
+        // ── Clear ───────────────────────────────────────────────────────────────────
         private void btnClear_Click(object sender, EventArgs e)
         {
             if (MessageBox.Show("Clear all entered data?", "Confirm Clear",
