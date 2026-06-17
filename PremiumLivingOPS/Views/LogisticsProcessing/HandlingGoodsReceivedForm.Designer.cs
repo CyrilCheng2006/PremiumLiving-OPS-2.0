@@ -49,22 +49,31 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
         private void InitializeComponent()
         {
+            // RULE 1: SuspendLayout FIRST.
             this.SuspendLayout();
 
             // ── Form settings ────────────────────────────────────────────────
-            this.Text          = "Premium Living OPS — Handling Goods Received";
-            this.Size          = new Size(1440, 900);
-            this.MinimumSize   = new Size(1280, 720);
-            this.StartPosition = FormStartPosition.CenterScreen;
-            this.BackColor     = Color.FromArgb(240, 244, 249);
-            this.WindowState   = FormWindowState.Maximized;
-            this.Font          = new Font("Segoe UI", 13f);
+            this.Text             = "Premium Living OPS — Handling Goods Received";
+            this.Size             = new Size(1440, 900);
+            this.MinimumSize      = new Size(1280, 720);
+            this.StartPosition    = FormStartPosition.CenterScreen;
+            this.BackColor        = Color.FromArgb(240, 244, 249);
+            this.WindowState      = FormWindowState.Maximized;
+            this.Font             = new Font("Segoe UI", 13f);
+            this.AutoScaleMode    = AutoScaleMode.Font;
+            this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
+
+            // RULE 2: Build AppShell inside SuspendLayout scope.
+            _shell             = new AppShell();
+            _shell.Dock        = DockStyle.Top;
+            _shell.Height      = AppShell.TotalHeight;
+            _shell.MinimumSize = new System.Drawing.Size(0, AppShell.TotalHeight);
+            // RULE 4: Subscribe events ONCE here in Designer.cs.
+            _shell.MenuItemClicked += OnTopNavMenuItemClicked;
+            _shell.LogoutClicked   += btnLogout_Click;
 
             // ── Root panel ───────────────────────────────────────────────────
             var pnlMain = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(240, 244, 249) };
-
-            // AppShell — SetPopupContainer BEFORE adding to Controls
-            _shell = new AppShell();
             _shell.SetPopupContainer(pnlMain);
 
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -89,7 +98,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             };
             chkDateFrom.CheckedChanged += (s, e) => { dtpDateFrom.Enabled = chkDateFrom.Checked; };
 
-            // ── MakeCell helper (identical to ViewOrderForm)
             TableLayoutPanel MakeCell(string caption, Control ctrl, bool rightPad = true)
             {
                 var tlp = new TableLayoutPanel
@@ -119,7 +127,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 return tlp;
             }
 
-            // ── Date-From cell (identical to ViewOrderForm)
             var cellDate = new TableLayoutPanel
             {
                 Dock        = DockStyle.Fill,
@@ -148,9 +155,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             cellDate.Controls.Add(chkDateFrom, 0, 1);
             cellDate.Controls.Add(dtpDateFrom, 1, 1);
 
-            // ── 3-column fields TLP (Keyword 34% | Status 33% | DateFrom 33%)
-            //    Mirrors ViewOrderForm's 4-column 25/25/25/25 layout pattern;
-            //    this form has 3 fields so columns are evenly thirds.
             var tblFields = new TableLayoutPanel
             {
                 Dock            = DockStyle.Fill,
@@ -167,7 +171,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             tblFields.Controls.Add(MakeCell("PO Status",                          cboStatus),  1, 0);
             tblFields.Controls.Add(cellDate,                                                    2, 0);
 
-            // ── Search / Reset buttons panel
             var pnlBtns = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             btnSearch  = MakePrimaryBtn("\U0001F50D  Search", new Point(0,   0), 210, 60);
             btnRefresh = MakeOutlineBtn("↺  Reset",          new Point(218, 0), 210, 60);
@@ -176,7 +179,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlBtns.Controls.Add(btnSearch);
             pnlBtns.Controls.Add(btnRefresh);
 
-            // ── Search card TLP (identical structure to ViewOrderForm)
             var tblCard = new TableLayoutPanel
             {
                 Dock            = DockStyle.Fill,
@@ -266,10 +268,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlKpiOuter.Controls.Add(pnlKpiInner);
 
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            //  GRID TAB SWITCHER BAR  (DockStyle.Top, Height 69 = 65px + 4px top padding)
-            //  TableLayoutPanel 3 equal columns — buttons Dock=Fill per cell.
+            //  GRID TAB SWITCHER BAR  (DockStyle.Top, Height 69)
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            Color tabActiveFg   = Color.FromArgb(47, 111, 237);
             Color tabInactiveFg = Color.FromArgb(98, 112, 135);
 
             Button MakeTabBtn(string text)
@@ -326,7 +326,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             };
             pnlTabCard.Controls.Add(tblTabs);
 
-            // Height = 69: 65px visible content + 4px top gap from KPI bar
             var pnlTabOuter = new Panel
             {
                 Dock      = DockStyle.Top,
@@ -455,17 +454,23 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlGridHost.Controls.Add(pnlInvoicesCard);
 
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            //  Final assembly — Fill first, then Top in reverse visual order.
+            //  Final assembly
+            //  RULE 5: Add Fill controls first, then Top controls in reverse
+            //          visual order (last added = topmost).
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            pnlMain.Controls.Add(pnlGridHost);    // DockStyle.Fill
-            pnlMain.Controls.Add(pnlTabOuter);    // DockStyle.Top — tab switcher
-            pnlMain.Controls.Add(pnlKpiOuter);    // DockStyle.Top — KPI bar
-            pnlMain.Controls.Add(pnlSearchOuter); // DockStyle.Top — search card
-            pnlMain.Controls.Add(_shell);         // DockStyle.Top — AppShell
+            pnlMain.Controls.Add(pnlGridHost);    // DockStyle.Fill  — content
+            pnlMain.Controls.Add(pnlTabOuter);    // DockStyle.Top   — tab switcher
+            pnlMain.Controls.Add(pnlKpiOuter);    // DockStyle.Top   — KPI bar
+            pnlMain.Controls.Add(pnlSearchOuter); // DockStyle.Top   — search card
+            pnlMain.Controls.Add(_shell);         // DockStyle.Top   — AppShell (topmost)
 
             this.Controls.Add(pnlMain);
+
+            // RULE 3: ResumeLayout(false) + PerformLayout, then re-enforce height.
             this.ResumeLayout(false);
-            _shell.Height = AppShell.NavBarHeight + AppShell.UserBarHeight;
+            this.PerformLayout();
+            _shell.Height      = AppShell.TotalHeight;
+            _shell.MinimumSize = new System.Drawing.Size(0, AppShell.TotalHeight);
         }
 
         // ── Button factories ─────────────────────────────────────────────────

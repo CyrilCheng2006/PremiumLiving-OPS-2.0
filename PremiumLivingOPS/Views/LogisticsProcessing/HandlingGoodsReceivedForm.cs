@@ -19,9 +19,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
     /// MVC contract
     /// ─────────────────────────────────────────────────────────────────
     /// • All DB access delegated to LogisticsProcessingController (zero SQL here).
-    /// • AppShell wired in Load — identical to ViewShipmentForm.
+    /// • AppShell wired in Designer.cs per Rules 1-5 (identical to ViewOrderForm).
     /// • CardPanel three-layer nesting: grey outer → white card → content.
-    /// • KPI pills + four action buttons mirror ViewShipmentForm layout exactly.
+    /// • KPI pills + four action buttons mirror ViewOrderForm layout exactly.
     /// • Grid Tab Switcher: three tab buttons below KPI bar switch between
     ///   the three grids (Goods Received Receipts / Purchase Orders / Invoices).
     ///   Only one grid is visible at a time; SwitchToGrid(index) controls this.
@@ -55,6 +55,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         public HandlingGoodsReceivedForm()
         {
             InitializeComponent();
+            // NOTE: Do NOT subscribe _shell events here.
+            // Designer.cs already subscribes them once (RULE 4).
             this.Load += HandlingGoodsReceivedForm_Load;
         }
 
@@ -73,18 +75,17 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void HandlingGoodsReceivedForm_Load(object sender, EventArgs e)
         {
-            _shell.MenuItemClicked += OnTopNavMenuItemClicked;
-            _shell.LogoutClicked   += btnLogout_Click;
             RefreshGrids();
             SwitchToGrid(0);   // default: Goods Received Receipts
         }
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         //  AppShell Navigation Handlers
+        //  MenuItemClicked signature: Action<string menu, string subItem>
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        private void OnTopNavMenuItemClicked(object sender, string menuKey)
+        private void OnTopNavMenuItemClicked(string menu, string subItem)
         {
-            FormNavigator.NavigateTo(this, menuKey);
+            FormNavigator.NavigateTo(this, menu, subItem);
         }
 
         private void btnLogout_Click(object sender, EventArgs e)
@@ -509,7 +510,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         {
             if (po == null) return;
             // PODetailDialog only accepts (PODetailVM).
-            // Build the VM then pass it.
             var poDetailVm = new Models.ViewModels.PODetailVM
             {
                 PurchaseOrder = po,
@@ -522,9 +522,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         private void ShowReceiptDetail(GoodsReceivedEntity receipt)
         {
             if (receipt == null) return;
-            // FIX CS1503 (Line 530): ReceiptDetailDialog(GoodsReceivedEntity, List<GoodsReceivedEntity>)
-            // The 2nd argument must be List<GoodsReceivedEntity> (detail lines), NOT the controller.
-            // Filter all receipts sharing the same ReceiptID as the detail lines for this receipt.
+            // ReceiptDetailDialog(GoodsReceivedEntity, List<GoodsReceivedEntity>)
+            // 2nd arg = detail lines sharing the same ReceiptID.
             var lines = _vm?.Receipts?
                             .Where(r => r.ReceiptID == receipt.ReceiptID)
                             .ToList()
@@ -536,12 +535,11 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         private void ShowRecordInvoice(PurchaseOrderEntity po)
         {
             if (po == null) return;
-            // RecordInvoiceDialog only accepts (PurchaseOrderEntity).
+            // RecordInvoiceDialog only accepts (PurchaseOrderEntity) — no controller arg.
             using (var dlg = new RecordInvoiceDialog(po))
             {
                 if (dlg.ShowDialog(this) == DialogResult.OK)
                 {
-                    // Persist the invoice via the controller (MVC contract).
                     if (dlg.Result != null)
                     {
                         try   { _ctrl.SavePurchaseInvoice(dlg.Result); }
