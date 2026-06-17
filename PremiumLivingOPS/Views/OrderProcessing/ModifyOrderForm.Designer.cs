@@ -260,27 +260,83 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             const int BtnGap = 8;
             const int BtnPad = 12;
 
-            // ── Footer summary labels ──────────────────────────────────────────────
-            // Use Dock=Fill so each cell owns its own space — no AutoSize width race
-            // that caused Discount Amount to be covered by Subtotal.
-            lblSubtotalTitle       = new Label { Text = "Subtotal:",        Font = new Font("Segoe UI", 12f),                ForeColor = Color.FromArgb(98, 112, 135), Dock = DockStyle.Top,  AutoSize = false, Height = 20, TextAlign = ContentAlignment.BottomLeft  };
-            lblSubtotalValue       = new Label { Text = "HK$ 0.00",        Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), Dock = DockStyle.Fill, AutoSize = false,             TextAlign = ContentAlignment.TopLeft     };
-            lblDiscountAmountTitle = new Label { Text = "Discount Amount:", Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), Dock = DockStyle.Top,  AutoSize = false, Height = 20, TextAlign = ContentAlignment.BottomLeft  };
-            lblDiscountAmountValue = new Label { Text = "HK$ 0.00",        Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), Dock = DockStyle.Fill, AutoSize = false,             TextAlign = ContentAlignment.TopLeft     };
-            lblGrandTotalTitle     = new Label { Text = "Grand Total:",     Font = new Font("Segoe UI", 14f, FontStyle.Bold), ForeColor = Palette.TextMain,              Dock = DockStyle.Top,  AutoSize = false, Height = 22, TextAlign = ContentAlignment.BottomLeft  };
-            lblGrandTotalValue     = new Label { Text = "HK$ 0.00",        Font = new Font("Segoe UI", 14f, FontStyle.Bold), ForeColor = Palette.Primary,               Dock = DockStyle.Fill, AutoSize = false,             TextAlign = ContentAlignment.TopLeft     };
+            // ── Footer summary labels ───────────────────────────────────────────────────
+            // Title (Left, AutoSize) + Value (Fill) sit side-by-side inside each TLP cell.
+            // Both labels are vertically centered via TextAlign = MiddleLeft/MiddleRight.
+            lblSubtotalTitle = new Label
+            {
+                Text      = "Subtotal:",
+                Font      = new Font("Segoe UI", 12f),
+                ForeColor = Color.FromArgb(98, 112, 135),
+                AutoSize  = false,
+                Dock      = DockStyle.Left,
+                Width     = 100,
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+            lblSubtotalValue = new Label
+            {
+                Text      = "HK$ 0.00",
+                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(98, 112, 135),
+                AutoSize  = false,
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+            lblDiscountAmountTitle = new Label
+            {
+                Text      = "Discount Amount:",
+                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(98, 112, 135),
+                AutoSize  = false,
+                Dock      = DockStyle.Left,
+                Width     = 176,
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+            lblDiscountAmountValue = new Label
+            {
+                Text      = "HK$ 0.00",
+                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(98, 112, 135),
+                AutoSize  = false,
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+            lblGrandTotalTitle = new Label
+            {
+                Text      = "Grand Total:",
+                Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
+                ForeColor = Palette.TextMain,
+                AutoSize  = false,
+                Dock      = DockStyle.Left,
+                Width     = 132,
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+            lblGrandTotalValue = new Label
+            {
+                Text      = "HK$ 0.00",
+                Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
+                ForeColor = Palette.Primary,
+                AutoSize  = false,
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft
+            };
 
-            // Stack title + value inside a small panel so we can put them in a TLP cell
+            // Each summary cell: title (Left, fixed width) + value (Fill) — left-right layout.
+            // Controls are added Fill-first then Left (DockStyle.Left renders after Fill in WinForms).
             Panel MakeSummaryCell(Label title, Label value)
             {
-                var cell = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(8, 6, 8, 6) };
-                cell.Controls.Add(value);   // Fill — added first
-                cell.Controls.Add(title);   // Top  — added second (DockStyle.Top rendered first)
+                var cell = new Panel
+                {
+                    Dock      = DockStyle.Fill,
+                    BackColor = Color.Transparent,
+                    Padding   = new Padding(8, 0, 8, 0)
+                };
+                cell.Controls.Add(value);  // Fill — added first
+                cell.Controls.Add(title);  // Left — added second; DockStyle.Left renders to the left of Fill
                 return cell;
             }
 
             // 3-column TLP: [Subtotal | Discount Amount | Grand Total]
-            // Each column is Percent 33%, so all three get equal width — no overlap possible.
             var tblSummary = new TableLayoutPanel
             {
                 Dock            = DockStyle.Fill,
