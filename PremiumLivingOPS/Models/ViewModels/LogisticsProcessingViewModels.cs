@@ -60,4 +60,15 @@ namespace PremiumLivingOPS.Models.ViewModels
         // Existing invoice (null if none yet)
         public PurchaseInvoiceEntity ExistingInvoice { get; set; }
     }
+
+    /// <summary>
+    /// View model for PODetailDialog.
+    /// Carries the PurchaseOrder header and its line items.
+    /// Populated by LogisticsProcessingController.GetPODetailVM().
+    /// </summary>
+    public class PODetailVM
+    {
+        public PurchaseOrderEntity           PurchaseOrder { get; set; }
+        public List<PurchaseOrderLineEntity> Lines         { get; set; }
+    }
 }
