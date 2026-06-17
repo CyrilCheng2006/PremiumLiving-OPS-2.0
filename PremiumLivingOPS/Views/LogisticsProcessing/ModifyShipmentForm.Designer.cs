@@ -102,9 +102,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             //   7  inp  Delivery Method | Status *      84px
             //   8  ─── SPACER (Status / Remark gap) ──  50px
             //   9  hdr  Actual Recipient * | Remark     32px
-            //  10  ─── SPACER (label / input gap) ─────  50px
+            //  10  ─── SPACER (label / input gap) ───── 130px
             //  11  inp  Actual Recipient *              84px
-            //  12  inp  Remark                         84px (anchored to row 9 via rowspan)
+            //  12  inp  Remark                         84px
             // ==================================================================
             lblShipmentIdValue     = MakeValueLabel();
             lblOrderIdValue        = MakeValueLabel();
@@ -139,8 +139,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             const int HeaderRowH        = 32;
             const int InputRowH         = 84;
-            const int SpacerH           = 50;   // gap between Status block and Actual Recipient block
-            const int RecipientSpacerH  = 50;   // gap between Actual Recipient label and its input
+            const int SpacerH           = 50;    // gap between Status block and Actual Recipient block
+            const int RecipientSpacerH  = 130;   // gap between Actual Recipient label and its input
 
             var tblInfo = new TableLayoutPanel
             {
@@ -166,7 +166,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, SpacerH));
             // Row 9: Actual Recipient * | Remark  — header labels
             tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, HeaderRowH));
-            // Row 10: 50px spacer between Actual Recipient label and its input textbox
+            // Row 10: 130px spacer between Actual Recipient label and its input textbox
             tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, RecipientSpacerH));
             // Row 11: Actual Recipient input
             tblInfo.RowStyles.Add(new RowStyle(SizeType.Absolute, InputRowH));
@@ -211,13 +211,13 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             AddCell(FieldLabel("Actual Recipient *", true),  0, 9);
             AddCell(FieldLabel("Remark",             false), 2, 9);
 
-            // Row 10: 50px spacer between Actual Recipient label and its input
+            // Row 10: 130px spacer between Actual Recipient label and its input
             // Row 10 is intentionally empty; height provided by RowStyle
 
             // Row 11: Actual Recipient input
             AddCell(PadCtrl(txtActualRecipient), 0, 11);
 
-            // Row 12: Remark input (aligned with Actual Recipient input row)
+            // Row 12: Remark input
             AddCell(PadCtrl(txtRemark), 2, 12);
 
             // Card title bar
