@@ -119,12 +119,13 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             foreach (var line in _vm.Lines)
             {
+                // fix CS1061: use MaterialName and OrderQty (matching PurchaseOrderLineEntity)
                 dgv.Rows.Add(
                     line.POLineID,
-                    line.ItemName ?? line.RawMaterialItemID,
-                    line.QtyOrdered,
+                    line.MaterialName ?? line.RawMaterialItemID,
+                    line.OrderQty,
                     $"${line.UnitPrice:F2}",
-                    $"${line.QtyOrdered * line.UnitPrice:F2}");
+                    $"${line.OrderQty * line.UnitPrice:F2}");
             }
 
             layout.Controls.Add(dgv, 0, 1);
