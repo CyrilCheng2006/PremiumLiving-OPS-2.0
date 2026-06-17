@@ -261,8 +261,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             const int BtnPad = 12;
 
             // ── Footer summary labels ───────────────────────────────────────────────────
-            // Title (Left, AutoSize) + Value (Fill) sit side-by-side inside each TLP cell.
-            // Both labels are vertically centered via TextAlign = MiddleLeft/MiddleRight.
+            // Title (Left, fixed width) + Value (Fill) sit side-by-side inside each TLP cell.
+            // Both labels are vertically centered via TextAlign = MiddleLeft.
             lblSubtotalTitle = new Label
             {
                 Text      = "Subtotal:",
@@ -270,7 +270,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 ForeColor = Color.FromArgb(98, 112, 135),
                 AutoSize  = false,
                 Dock      = DockStyle.Left,
-                Width     = 100,
+                Width     = 180,
                 TextAlign = ContentAlignment.MiddleLeft
             };
             lblSubtotalValue = new Label
@@ -289,7 +289,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 ForeColor = Color.FromArgb(98, 112, 135),
                 AutoSize  = false,
                 Dock      = DockStyle.Left,
-                Width     = 176,
+                Width     = 280,
                 TextAlign = ContentAlignment.MiddleLeft
             };
             lblDiscountAmountValue = new Label
@@ -308,7 +308,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 ForeColor = Palette.TextMain,
                 AutoSize  = false,
                 Dock      = DockStyle.Left,
-                Width     = 132,
+                Width     = 240,
                 TextAlign = ContentAlignment.MiddleLeft
             };
             lblGrandTotalValue = new Label
