@@ -9,6 +9,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
     {
         private System.ComponentModel.IContainer components = null;
 
+        // ── AppShell (contains TopNavBar + UserBar) ───────────────────────────
+        // Declared here so RefreshGrids() in .cs can call _shell.SetUser() etc.
         private AppShell _shell;
 
         // ── Filter bar controls ───────────────────────────────────────────────
@@ -63,16 +65,28 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             this.AutoScaleMode    = AutoScaleMode.Font;
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
 
+            // ────────────────────────────────────────────────────────────────
             // RULE 2: Build AppShell inside SuspendLayout scope.
+            //
+            //  AppShell internally composes:
+            //    ┌─ AppShell (DockStyle.Top, Height = AppShell.TotalHeight) ──┐
+            //    │  TopNavBar  (44 px) — menu items, breadcrumb               │
+            //    │  UserBar    (72 px) — UserInfoLabel, logout button          │
+            //    └──────────────────────────────────────────────────────────  ┘
+            // ────────────────────────────────────────────────────────────────
             _shell             = new AppShell();
             _shell.Dock        = DockStyle.Top;
             _shell.Height      = AppShell.TotalHeight;
             _shell.MinimumSize = new System.Drawing.Size(0, AppShell.TotalHeight);
-            // RULE 4: Subscribe events ONCE here in Designer.cs.
+
+            // RULE 4: Subscribe AppShell events ONCE here in Designer.cs.
+            // OnTopNavMenuItemClicked  → fired by TopNavBar when a menu item is clicked.
+            // btnLogout_Click          → fired by UserBar logout button.
             _shell.MenuItemClicked += OnTopNavMenuItemClicked;
             _shell.LogoutClicked   += btnLogout_Click;
 
             // ── Root panel ───────────────────────────────────────────────────
+            // pnlMain is the popup container for AppShell dropdowns.
             var pnlMain = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(240, 244, 249) };
             _shell.SetPopupContainer(pnlMain);
 
@@ -173,7 +187,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             var pnlBtns = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             btnSearch  = MakePrimaryBtn("\U0001F50D  Search", new Point(0,   0), 210, 60);
-            btnRefresh = MakeOutlineBtn("↺  Reset",          new Point(218, 0), 210, 60);
+            btnRefresh = MakeOutlineBtn("\u21ba  Reset",     new Point(218, 0), 210, 60);
             btnSearch.Click  += (s, e) => RefreshGrids();
             btnRefresh.Click += (s, e) => ResetFilters();
             pnlBtns.Controls.Add(btnSearch);
@@ -454,19 +468,29 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlGridHost.Controls.Add(pnlInvoicesCard);
 
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            //  Final assembly
-            //  RULE 5: Add Fill controls first, then Top controls in reverse
-            //          visual order (last added = topmost).
+            //  Final assembly — RULE 5
+            //
+            //  Windows Forms DockStyle stacking rule:
+            //    Fill controls must be added FIRST (they claim remaining space).
+            //    Top controls are added AFTER Fill; the LAST Top added sits
+            //    visually at the top of the window.
+            //
+            //  Resulting visual stack (top → bottom):
+            //    _shell        (TopNavBar 44 px + UserBar 72 px)
+            //    pnlSearchOuter (Search card, 300 px)
+            //    pnlKpiOuter    (KPI pills + action buttons, 90 px)
+            //    pnlTabOuter    (Grid tab switcher, 69 px)
+            //    pnlGridHost    (Fill — the three data grids)
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            pnlMain.Controls.Add(pnlGridHost);    // DockStyle.Fill  — content
-            pnlMain.Controls.Add(pnlTabOuter);    // DockStyle.Top   — tab switcher
-            pnlMain.Controls.Add(pnlKpiOuter);    // DockStyle.Top   — KPI bar
-            pnlMain.Controls.Add(pnlSearchOuter); // DockStyle.Top   — search card
-            pnlMain.Controls.Add(_shell);         // DockStyle.Top   — AppShell (topmost)
+            pnlMain.Controls.Add(pnlGridHost);    // DockStyle.Fill  — added first
+            pnlMain.Controls.Add(pnlTabOuter);    // DockStyle.Top
+            pnlMain.Controls.Add(pnlKpiOuter);    // DockStyle.Top
+            pnlMain.Controls.Add(pnlSearchOuter); // DockStyle.Top
+            pnlMain.Controls.Add(_shell);         // DockStyle.Top   — added last = topmost
 
             this.Controls.Add(pnlMain);
 
-            // RULE 3: ResumeLayout(false) + PerformLayout, then re-enforce height.
+            // RULE 3: ResumeLayout(false) + PerformLayout, then re-enforce _shell height.
             this.ResumeLayout(false);
             this.PerformLayout();
             _shell.Height      = AppShell.TotalHeight;

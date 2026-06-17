@@ -19,7 +19,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
     /// MVC contract
     /// ─────────────────────────────────────────────────────────────────
     /// • All DB access delegated to LogisticsProcessingController (zero SQL here).
-    /// • AppShell wired in Designer.cs per Rules 1-5 (identical to ViewOrderForm).
+    /// • AppShell wired in Designer.cs per Rules 1-5 (identical to ViewShipmentForm).
     /// • CardPanel three-layer nesting: grey outer → white card → content.
     /// • KPI pills + four action buttons mirror ViewOrderForm layout exactly.
     /// • Grid Tab Switcher: three tab buttons below KPI bar switch between
@@ -55,8 +55,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         public HandlingGoodsReceivedForm()
         {
             InitializeComponent();
-            // NOTE: Do NOT subscribe _shell events here.
-            // Designer.cs already subscribes them once (RULE 4).
+            // NOTE: _shell events are subscribed ONCE in Designer.cs (RULE 4).
+            // Do NOT subscribe them here to avoid double-firing.
             this.Load += HandlingGoodsReceivedForm_Load;
         }
 
@@ -72,6 +72,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         //  Load
+        //  • RefreshGrids() pushes UserBar / TopNavBar data into _shell.
+        //  • SwitchToGrid(0) shows the default Receipts tab.
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void HandlingGoodsReceivedForm_Load(object sender, EventArgs e)
         {
@@ -81,13 +83,15 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         //  AppShell Navigation Handlers
-        //  MenuItemClicked signature: Action<string menu, string subItem>
+        //  Wired in Designer.cs; called by TopNavBar item clicks.
+        //  Signature: Action<string menu, string subItem>
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void OnTopNavMenuItemClicked(string menu, string subItem)
         {
             FormNavigator.NavigateTo(this, menu, subItem);
         }
 
+        // Called by UserBar Logout button — wired in Designer.cs.
         private void btnLogout_Click(object sender, EventArgs e)
         {
             if (MessageBox.Show("Are you sure you want to logout?",
@@ -184,6 +188,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         //  Grid refresh
+        //  After loading VM from controller, push user info + menus + breadcrumb
+        //  into _shell so TopNavBar and UserBar render correctly.
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void RefreshGrids()
         {
@@ -194,9 +200,13 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             _vm = _ctrl.GetHandlingGoodsReceivedVM(status, keyword, from);
             if (_vm == null) return;
 
+            // ── AppShell data binding (TopNavBar + UserBar) ──────────────────
+            // SetUser   → drives UserInfoLabel (DisplayName, Department)
+            // SetVisibleMenus → drives TopNavBar tab visibility
+            // SetBreadcrumb   → drives the breadcrumb label in TopNavBar
             _shell.SetUser(_vm.UserBar.DisplayName, _vm.UserBar.Department);
             _shell.SetVisibleMenus(_vm.AllowedMenus);
-            _shell.SetBreadcrumb("Logistics Processing  ›  Handling Goods Received");
+            _shell.SetBreadcrumb("Logistics Processing  \u203a  Handling Goods Received");
 
             BindReceipts(_vm.Receipts);
             BindPO(_vm.PurchaseOrders);
@@ -509,7 +519,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         private void ShowPODetail(PurchaseOrderEntity po)
         {
             if (po == null) return;
-            // PODetailDialog only accepts (PODetailVM).
+            // PODetailDialog only accepts (PODetailVM) — build the VM here.
             var poDetailVm = new Models.ViewModels.PODetailVM
             {
                 PurchaseOrder = po,
@@ -556,7 +566,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         }
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  📤 Upload Receipt — CSV Bulk Import
+        //  Upload Receipt — CSV Bulk Import
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void btnUploadReceipt_Click(object sender, EventArgs e)
         {
