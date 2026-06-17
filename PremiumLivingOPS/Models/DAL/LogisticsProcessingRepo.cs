@@ -141,7 +141,7 @@ namespace PremiumLivingOPS.Models.DAL
             }
         }
 
-        // ── Edit Shipment ───────────────────────────────────────────
+        // ── Edit Shipment ────────────────────────────────────────────
         public void UpdateShipment(string shipmentId, string newStatus)
         {
             using (var conn = OpenConnection())
@@ -238,7 +238,7 @@ namespace PremiumLivingOPS.Models.DAL
             return newId;
         }
 
-        // ── Generate Reply Slip ──────────────────────────────────────
+        // ── Generate Reply Slip ────────────────────────────────────
         public string InsertReplySlip(
             string deliveryId, string actualRecipient, string remark, DateTime receivedDate)
         {
@@ -263,7 +263,7 @@ namespace PremiumLivingOPS.Models.DAL
             return newId;
         }
 
-        // ── Delete Shipment ───────────────────────────────────────────
+        // ── Delete Shipment ────────────────────────────────────────────
         public void DeleteShipment(string shipmentId)
         {
             using (var conn = OpenConnection())
@@ -333,6 +333,40 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
+        /// <summary>
+        /// Returns all Receipt rows for a given ReceiptID.
+        /// Used by ReceiptDetailDialog via LogisticsProcessingController.GetReceiptLines().
+        /// </summary>
+        public List<GoodsReceivedEntity> GetReceiptLines(string receiptId)
+        {
+            var list = new List<GoodsReceivedEntity>();
+            if (string.IsNullOrEmpty(receiptId)) return list;
+            using (var conn = OpenConnection())
+            {
+                const string sql = @"
+                    SELECT r.ReceiptID, r.PurchaseID, r.POLineID, r.QtyReceived,
+                           r.ReceiptDate, r.Outstanding_QTY,
+                           sup.SupplierName,
+                           pol.RawMaterialItemID, i.ItemName,
+                           pol.WarehouseID, w.WarehouseLocation,
+                           po.PurchaseStatus, pol.UnitPrice
+                    FROM Receipt r
+                    JOIN PurchaseOrderLine pol ON r.POLineID = pol.POLineID
+                    JOIN PurchaseOrder po      ON r.PurchaseID = po.PurchaseID
+                    JOIN Supplier sup          ON po.SupplierID = sup.SupplierID
+                    JOIN Item i                ON pol.RawMaterialItemID = i.ItemID
+                    JOIN Warehouse w           ON pol.WarehouseID = w.WarehouseID
+                    WHERE r.ReceiptID = @rid";
+                using (var cmd = new MySqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@rid", receiptId);
+                    using (var r = cmd.ExecuteReader())
+                        while (r.Read()) list.Add(MapReceipt(r));
+                }
+            }
+            return list;
+        }
+
         public List<PurchaseOrderEntity> GetAllPurchaseOrders()
         {
             var list = new List<PurchaseOrderEntity>();
@@ -357,6 +391,82 @@ namespace PremiumLivingOPS.Models.DAL
                             OrderDate      = Convert.ToDateTime(r["OrderDate"]),
                             PurchaseStatus = r["PurchaseStatus"].ToString()
                         });
+            }
+            return list;
+        }
+
+        /// <summary>
+        /// Returns the PurchaseOrder header for a given PurchaseID.
+        /// Used by LogisticsProcessingController.GetPODetailVM().
+        /// </summary>
+        public PurchaseOrderEntity GetPurchaseOrderById(string purchaseId)
+        {
+            if (string.IsNullOrEmpty(purchaseId)) return null;
+            using (var conn = OpenConnection())
+            {
+                const string sql = @"
+                    SELECT po.PurchaseID, po.RequestID, po.SupplierID,
+                           sup.SupplierName, po.POTotalAmount, po.OrderDate, po.PurchaseStatus
+                    FROM PurchaseOrder po
+                    JOIN Supplier sup ON po.SupplierID = sup.SupplierID
+                    WHERE po.PurchaseID = @pid
+                    LIMIT 1";
+                using (var cmd = new MySqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@pid", purchaseId);
+                    using (var r = cmd.ExecuteReader())
+                        return r.Read() ? new PurchaseOrderEntity
+                        {
+                            PurchaseID     = r["PurchaseID"].ToString(),
+                            RequestID      = r["RequestID"].ToString(),
+                            SupplierID     = r["SupplierID"].ToString(),
+                            SupplierName   = r["SupplierName"].ToString(),
+                            POTotalAmount  = Convert.ToDouble(r["POTotalAmount"]),
+                            OrderDate      = Convert.ToDateTime(r["OrderDate"]),
+                            PurchaseStatus = r["PurchaseStatus"].ToString()
+                        } : null;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Returns all PurchaseOrderLine rows for a given PurchaseID.
+        /// Used by LogisticsProcessingController.GetPODetailVM().
+        /// </summary>
+        public List<PurchaseOrderLineEntity> GetPurchaseOrderLines(string purchaseId)
+        {
+            var list = new List<PurchaseOrderLineEntity>();
+            if (string.IsNullOrEmpty(purchaseId)) return list;
+            using (var conn = OpenConnection())
+            {
+                const string sql = @"
+                    SELECT pol.POLineID, pol.PurchaseID, pol.RawMaterialItemID,
+                           i.ItemName AS MaterialName, rm.MaterialType,
+                           pol.WarehouseID, w.WarehouseLocation,
+                           pol.OrderQty, pol.UnitPrice
+                    FROM PurchaseOrderLine pol
+                    JOIN Item i        ON pol.RawMaterialItemID = i.ItemID
+                    JOIN RawMaterial rm ON pol.RawMaterialItemID = rm.RawMaterialItemID
+                    JOIN Warehouse w   ON pol.WarehouseID = w.WarehouseID
+                    WHERE pol.PurchaseID = @pid";
+                using (var cmd = new MySqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@pid", purchaseId);
+                    using (var r = cmd.ExecuteReader())
+                        while (r.Read())
+                            list.Add(new PurchaseOrderLineEntity
+                            {
+                                POLineID          = r["POLineID"].ToString(),
+                                PurchaseID        = r["PurchaseID"].ToString(),
+                                RawMaterialItemID = r["RawMaterialItemID"].ToString(),
+                                MaterialName      = r["MaterialName"].ToString(),
+                                MaterialType      = r["MaterialType"].ToString(),
+                                WarehouseID       = r["WarehouseID"].ToString(),
+                                WarehouseLocation = r["WarehouseLocation"].ToString(),
+                                OrderQty          = Convert.ToInt32(r["OrderQty"]),
+                                UnitPrice         = Convert.ToDouble(r["UnitPrice"])
+                            });
+                }
             }
             return list;
         }
@@ -427,11 +537,7 @@ namespace PremiumLivingOPS.Models.DAL
             return newId;
         }
 
-        // ── CSV Import: Receipt ──────────────────────────────────────
-        /// <summary>
-        /// Checks whether a PurchaseID exists in PurchaseOrder.
-        /// Used by the CSV import validator.
-        /// </summary>
+        // ── CSV Import: Receipt ────────────────────────────────────
         public bool PurchaseOrderExists(string purchaseId)
         {
             using (var conn = OpenConnection())
@@ -443,9 +549,6 @@ namespace PremiumLivingOPS.Models.DAL
             }
         }
 
-        /// <summary>
-        /// Checks whether a POLineID exists AND belongs to the given PurchaseID.
-        /// </summary>
         public bool POLineExists(string poLineId, string purchaseId)
         {
             using (var conn = OpenConnection())
@@ -458,10 +561,6 @@ namespace PremiumLivingOPS.Models.DAL
             }
         }
 
-        /// <summary>
-        /// Inserts one Receipt row inside an existing transaction.
-        /// ReceiptID is auto-generated as RCPT-yyyyMMdd-XXXX.
-        /// </summary>
         public void InsertReceipt(
             MySqlConnection conn,
             MySqlTransaction tx,
@@ -488,10 +587,6 @@ namespace PremiumLivingOPS.Models.DAL
             }
         }
 
-        /// <summary>
-        /// Opens a single transaction and inserts all validated rows.
-        /// Returns the number of rows actually inserted.
-        /// </summary>
         public int BulkInsertReceipts(List<ReceiptImportRow> rows)
         {
             int count = 0;
