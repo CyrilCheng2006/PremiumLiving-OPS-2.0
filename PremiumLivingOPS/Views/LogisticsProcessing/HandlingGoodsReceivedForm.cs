@@ -19,7 +19,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
     /// MVC contract
     /// ─────────────────────────────────────────────────────────────────
     /// • All DB access delegated to LogisticsProcessingController (zero SQL here).
-    /// • AppShell wired in Designer.cs per Rules 1-5 (identical to ViewShipmentForm).
+    /// • AppShell follows the same runtime wiring pattern as ViewShipmentForm.
     /// • CardPanel three-layer nesting: grey outer → white card → content.
     /// • KPI pills + four action buttons mirror ViewOrderForm layout exactly.
     /// • Grid Tab Switcher: three tab buttons below KPI bar switch between
@@ -28,17 +28,12 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
     /// </summary>
     public partial class HandlingGoodsReceivedForm : Form
     {
-        // ── Controller ──────────────────────────────────────────────────
         private readonly LogisticsProcessingController _ctrl =
             new LogisticsProcessingController();
 
-        // ── ViewModel cache ──────────────────────────────────────────────
         private HandlingGoodsReceivedVM _vm;
-
-        // ── Active grid index (0=Receipts, 1=PO, 2=Invoices) ─────────────────
         private int _activeGridIndex = 0;
 
-        // ── Status colour map ──────────────────────────────────────────────
         private static readonly Dictionary<string, (Color bg, Color fg)> StatusTheme
             = new Dictionary<string, (Color, Color)>(StringComparer.OrdinalIgnoreCase)
         {
@@ -51,16 +46,12 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             ["Full"]               = (FromHex("#D1FAE5"), FromHex("#065F46"))
         };
 
-        // ── Constructor ──────────────────────────────────────────────────
         public HandlingGoodsReceivedForm()
         {
             InitializeComponent();
-            // NOTE: _shell events are subscribed ONCE in Designer.cs (RULE 4).
-            // Do NOT subscribe them here to avoid double-firing.
             this.Load += HandlingGoodsReceivedForm_Load;
         }
 
-        // ── Colour helper ──────────────────────────────────────────────
         private static Color FromHex(string hex)
         {
             hex = hex.TrimStart('#');
@@ -70,28 +61,25 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 Convert.ToInt32(hex.Substring(4, 2), 16));
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  Load
-        //  • RefreshGrids() pushes UserBar / TopNavBar data into _shell.
-        //  • SwitchToGrid(0) shows the default Receipts tab.
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void HandlingGoodsReceivedForm_Load(object sender, EventArgs e)
         {
+            if (_shell != null)
+            {
+                _shell.MenuItemClicked -= OnTopNavMenuItemClicked;
+                _shell.LogoutClicked   -= btnLogout_Click;
+                _shell.MenuItemClicked += OnTopNavMenuItemClicked;
+                _shell.LogoutClicked   += btnLogout_Click;
+            }
+
             RefreshGrids();
-            SwitchToGrid(0);   // default: Goods Received Receipts
+            SwitchToGrid(0);
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  AppShell Navigation Handlers
-        //  Wired in Designer.cs; called by TopNavBar item clicks.
-        //  Signature: Action<string menu, string subItem>
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void OnTopNavMenuItemClicked(string menu, string subItem)
         {
             FormNavigator.NavigateTo(this, menu, subItem);
         }
 
-        // Called by UserBar Logout button — wired in Designer.cs.
         private void btnLogout_Click(object sender, EventArgs e)
         {
             if (MessageBox.Show("Are you sure you want to logout?",
@@ -101,9 +89,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  GRID TAB SWITCHER
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         internal void SwitchToGrid(int index)
         {
             _activeGridIndex = index;
@@ -152,7 +137,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         {
             switch (_activeGridIndex)
             {
-                case 0: // Receipts tab
+                case 0:
                     bool hasRcpt = dgvReceipts.SelectedRows.Count > 0;
                     btnViewReceiptLines.Enabled = hasRcpt;
                     btnUploadReceipt.Enabled    = true;
@@ -169,7 +154,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                     }
                     break;
 
-                case 1: // PO tab
+                case 1:
                     bool hasPO = dgvPO.SelectedRows.Count > 0;
                     btnViewPODetail.Enabled     = hasPO;
                     btnRecordInvoice.Enabled    = hasPO;
@@ -177,7 +162,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                     btnUploadReceipt.Enabled    = false;
                     break;
 
-                case 2: // Invoices tab
+                case 2:
                     btnViewPODetail.Enabled     = false;
                     btnViewReceiptLines.Enabled = false;
                     btnUploadReceipt.Enabled    = false;
@@ -186,27 +171,18 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  Grid refresh
-        //  After loading VM from controller, push user info + menus + breadcrumb
-        //  into _shell so TopNavBar and UserBar render correctly.
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void RefreshGrids()
         {
-            string    keyword = txtKeyword.Text.Trim();
-            string    status  = cboStatus.SelectedIndex == 0 ? null : cboStatus.SelectedItem?.ToString();
-            DateTime? from    = chkDateFrom.Checked ? (DateTime?)dtpDateFrom.Value.Date : null;
+            string keyword = txtKeyword.Text.Trim();
+            string status = cboStatus.SelectedIndex == 0 ? null : cboStatus.SelectedItem?.ToString();
+            DateTime? from = chkDateFrom.Checked ? (DateTime?)dtpDateFrom.Value.Date : null;
 
             _vm = _ctrl.GetHandlingGoodsReceivedVM(status, keyword, from);
             if (_vm == null) return;
 
-            // ── AppShell data binding (TopNavBar + UserBar) ──────────────────
-            // SetUser   → drives UserInfoLabel (DisplayName, Department)
-            // SetVisibleMenus → drives TopNavBar tab visibility
-            // SetBreadcrumb   → drives the breadcrumb label in TopNavBar
             _shell.SetUser(_vm.UserBar.DisplayName, _vm.UserBar.Department);
             _shell.SetVisibleMenus(_vm.AllowedMenus);
-            _shell.SetBreadcrumb("Logistics Processing  \u203a  Handling Goods Received");
+            _shell.SetBreadcrumb("Logistics Processing  ›  Handling Goods Received");
 
             BindReceipts(_vm.Receipts);
             BindPO(_vm.PurchaseOrders);
@@ -225,7 +201,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             RefreshGrids();
         }
 
-        // ── Grid binding ──────────────────────────────────────────────────
         private void BindReceipts(List<GoodsReceivedEntity> rows)
         {
             dgvReceipts.Rows.Clear();
@@ -271,9 +246,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  KPI Bar
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void RenderKpi()
         {
             pnlKpi.Controls.Clear();
@@ -384,7 +356,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlKpi.Controls.Add(flow);
         }
 
-        // ── DGV events — Receipts ────────────────────────────────────────────
         private void dgvReceipts_SelectionChanged(object sender, EventArgs e)
         {
             if (_activeGridIndex == 0) UpdateActionButtons();
@@ -406,7 +377,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             if (e.RowIndex >= 0) ShowReceiptDetail(dgvReceipts.Rows[e.RowIndex].Tag as GoodsReceivedEntity);
         }
 
-        // ── DGV events — Purchase Orders ────────────────────────────────────────
         private void dgvPO_SelectionChanged(object sender, EventArgs e)
         {
             if (_activeGridIndex == 1) UpdateActionButtons();
@@ -423,14 +393,12 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             if (e.RowIndex >= 0) ShowPODetail(dgvPO.Rows[e.RowIndex].Tag as PurchaseOrderEntity);
         }
 
-        // ── DGV events — Purchase Invoices ──────────────────────────────────────
         private void dgvInvoices_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
             if (e.RowIndex < 0) return;
             if (dgvInvoices.Columns[e.ColumnIndex].Name == "colInvPay") ApplyStatusStyle(e);
         }
 
-        // ── Shared status-badge formatter ───────────────────────────────────────
         private void ApplyStatusStyle(DataGridViewCellFormattingEventArgs e)
         {
             string val = e.Value?.ToString() ?? "";
@@ -445,7 +413,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }
         }
 
-        // ── Cross-highlight ──────────────────────────────────────────────────
         private void HighlightPORow(string purchaseId)
         {
             foreach (DataGridViewRow row in dgvPO.Rows)
@@ -460,7 +427,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }
         }
 
-        // ── Rounded-rect helper ──────────────────────────────────────────────
         private static GraphicsPath RoundedRect(Rectangle bounds, int radius)
         {
             int d    = radius * 2;
@@ -473,7 +439,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             return path;
         }
 
-        // ── Card border paint ───────────────────────────────────────────────
         private static void PaintCardBorder(object sender, PaintEventArgs e)
         {
             var ctrl   = (Control)sender;
@@ -484,9 +449,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 e.Graphics.DrawRectangle(pen, bounds);
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  Action Button Handlers
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void btnViewPODetail_Click(object sender, EventArgs e)
         {
             PurchaseOrderEntity po = null;
@@ -513,13 +475,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             ShowReceiptDetail(dgvReceipts.SelectedRows[0].Tag as GoodsReceivedEntity);
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  Dialog helpers
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void ShowPODetail(PurchaseOrderEntity po)
         {
             if (po == null) return;
-            // PODetailDialog only accepts (PODetailVM) — build the VM here.
             var poDetailVm = new Models.ViewModels.PODetailVM
             {
                 PurchaseOrder = po,
@@ -532,8 +490,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         private void ShowReceiptDetail(GoodsReceivedEntity receipt)
         {
             if (receipt == null) return;
-            // ReceiptDetailDialog(GoodsReceivedEntity, List<GoodsReceivedEntity>)
-            // 2nd arg = detail lines sharing the same ReceiptID.
             var lines = _vm?.Receipts?
                             .Where(r => r.ReceiptID == receipt.ReceiptID)
                             .ToList()
@@ -545,7 +501,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         private void ShowRecordInvoice(PurchaseOrderEntity po)
         {
             if (po == null) return;
-            // RecordInvoiceDialog only accepts (PurchaseOrderEntity) — no controller arg.
             using (var dlg = new RecordInvoiceDialog(po))
             {
                 if (dlg.ShowDialog(this) == DialogResult.OK)
@@ -565,9 +520,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  Upload Receipt — CSV Bulk Import
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void btnUploadReceipt_Click(object sender, EventArgs e)
         {
             using (var dlg = new OpenFileDialog
@@ -591,14 +543,14 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 }
 
                 var sb = new StringBuilder();
-                sb.AppendLine($"\u2705  {result.SuccessCount} receipt(s) imported successfully.");
+                sb.AppendLine($"✅  {result.SuccessCount} receipt(s) imported successfully.");
 
                 if (result.HasErrors)
                 {
                     sb.AppendLine();
-                    sb.AppendLine($"\u26a0\ufe0f  {result.Errors.Count} row(s) skipped due to errors:");
+                    sb.AppendLine($"⚠️  {result.Errors.Count} row(s) skipped due to errors:");
                     foreach (var err in result.Errors)
-                        sb.AppendLine($"  \u2022 {err}");
+                        sb.AppendLine($"  • {err}");
                 }
 
                 MessageBox.Show(
