@@ -260,12 +260,44 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             const int BtnGap = 8;
             const int BtnPad = 12;
 
-            lblSubtotalTitle       = new Label { Text = "Subtotal:",         Font = new Font("Segoe UI", 12f),               ForeColor = Color.FromArgb(98, 112, 135), AutoSize = true, Anchor = AnchorStyles.Left | AnchorStyles.Top };
-            lblSubtotalValue       = new Label { Text = "HK$ 0.00",         Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), AutoSize = true, Anchor = AnchorStyles.Left | AnchorStyles.Top };
-            lblDiscountAmountTitle = new Label { Text = "Discount Amount:", Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), AutoSize = true, Anchor = AnchorStyles.Left | AnchorStyles.Top };
-            lblDiscountAmountValue = new Label { Text = "HK$ 0.00",         Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), AutoSize = true, Anchor = AnchorStyles.Left | AnchorStyles.Top };
-            lblGrandTotalTitle     = new Label { Text = "Grand Total:",     Font = new Font("Segoe UI", 14f, FontStyle.Bold), ForeColor = Palette.TextMain,              AutoSize = true, Anchor = AnchorStyles.Left | AnchorStyles.Top };
-            lblGrandTotalValue     = new Label { Text = "HK$ 0.00",         Font = new Font("Segoe UI", 14f, FontStyle.Bold), ForeColor = Palette.Primary,               AutoSize = true, Anchor = AnchorStyles.Left | AnchorStyles.Top };
+            // ── Footer summary labels ──────────────────────────────────────────────
+            // Use Dock=Fill so each cell owns its own space — no AutoSize width race
+            // that caused Discount Amount to be covered by Subtotal.
+            lblSubtotalTitle       = new Label { Text = "Subtotal:",        Font = new Font("Segoe UI", 12f),                ForeColor = Color.FromArgb(98, 112, 135), Dock = DockStyle.Top,  AutoSize = false, Height = 20, TextAlign = ContentAlignment.BottomLeft  };
+            lblSubtotalValue       = new Label { Text = "HK$ 0.00",        Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), Dock = DockStyle.Fill, AutoSize = false,             TextAlign = ContentAlignment.TopLeft     };
+            lblDiscountAmountTitle = new Label { Text = "Discount Amount:", Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), Dock = DockStyle.Top,  AutoSize = false, Height = 20, TextAlign = ContentAlignment.BottomLeft  };
+            lblDiscountAmountValue = new Label { Text = "HK$ 0.00",        Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), Dock = DockStyle.Fill, AutoSize = false,             TextAlign = ContentAlignment.TopLeft     };
+            lblGrandTotalTitle     = new Label { Text = "Grand Total:",     Font = new Font("Segoe UI", 14f, FontStyle.Bold), ForeColor = Palette.TextMain,              Dock = DockStyle.Top,  AutoSize = false, Height = 22, TextAlign = ContentAlignment.BottomLeft  };
+            lblGrandTotalValue     = new Label { Text = "HK$ 0.00",        Font = new Font("Segoe UI", 14f, FontStyle.Bold), ForeColor = Palette.Primary,               Dock = DockStyle.Fill, AutoSize = false,             TextAlign = ContentAlignment.TopLeft     };
+
+            // Stack title + value inside a small panel so we can put them in a TLP cell
+            Panel MakeSummaryCell(Label title, Label value)
+            {
+                var cell = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(8, 6, 8, 6) };
+                cell.Controls.Add(value);   // Fill — added first
+                cell.Controls.Add(title);   // Top  — added second (DockStyle.Top rendered first)
+                return cell;
+            }
+
+            // 3-column TLP: [Subtotal | Discount Amount | Grand Total]
+            // Each column is Percent 33%, so all three get equal width — no overlap possible.
+            var tblSummary = new TableLayoutPanel
+            {
+                Dock            = DockStyle.Fill,
+                ColumnCount     = 3,
+                RowCount        = 1,
+                BackColor       = Color.Transparent,
+                CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                Padding         = new Padding(8, 0, 0, 0)
+            };
+            tblSummary.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.33f));
+            tblSummary.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.33f));
+            tblSummary.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.34f));
+            tblSummary.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+
+            tblSummary.Controls.Add(MakeSummaryCell(lblSubtotalTitle,       lblSubtotalValue),       0, 0);
+            tblSummary.Controls.Add(MakeSummaryCell(lblDiscountAmountTitle, lblDiscountAmountValue), 1, 0);
+            tblSummary.Controls.Add(MakeSummaryCell(lblGrandTotalTitle,     lblGrandTotalValue),     2, 0);
 
             btnSaveChanges    = MakeGreenBtn  ("✔  Save Changes",    Point.Empty, BtnW, BtnH);
             btnDiscardChanges = MakeOutlineBtn("↺  Discard Changes", Point.Empty, BtnW, BtnH);
@@ -284,35 +316,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             pnlActionBtns.Resize += (s, e) => CentreFooterBtns();
 
             pnlFooterContent = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(4, 0, 0, 0) };
-            pnlFooterContent.Controls.Add(lblSubtotalTitle);
-            pnlFooterContent.Controls.Add(lblSubtotalValue);
-            pnlFooterContent.Controls.Add(lblDiscountAmountTitle);
-            pnlFooterContent.Controls.Add(lblDiscountAmountValue);
-            pnlFooterContent.Controls.Add(lblGrandTotalTitle);
-            pnlFooterContent.Controls.Add(lblGrandTotalValue);
-            pnlFooterContent.Controls.Add(pnlActionBtns);
-            pnlFooterContent.Resize += (s, e) =>
-            {
-                var pnl = (Panel)s; int h = pnl.Height;
-                int subRowH = Math.Max(lblSubtotalTitle.Height, lblSubtotalValue.Height);
-                int subTop  = (h - subRowH) / 2; if (subTop < 0) subTop = 0;
-                lblSubtotalTitle.Location = new Point(8, subTop + (subRowH - lblSubtotalTitle.Height) / 2);
-                int subValX = 8 + lblSubtotalTitle.Width + 4;
-                lblSubtotalValue.Location = new Point(subValX, subTop + (subRowH - lblSubtotalValue.Height) / 2);
-
-                int discRowH = Math.Max(lblDiscountAmountTitle.Height, lblDiscountAmountValue.Height);
-                int discTop  = (h - discRowH) / 2; if (discTop < 0) discTop = 0;
-                int discTitleX = subValX + lblSubtotalValue.Width + 64;
-                lblDiscountAmountTitle.Location = new Point(discTitleX, discTop + (discRowH - lblDiscountAmountTitle.Height) / 2);
-                lblDiscountAmountValue.Location = new Point(discTitleX + lblDiscountAmountTitle.Width + 4, discTop + (discRowH - lblDiscountAmountValue.Height) / 2);
-
-                int grandRowH   = Math.Max(lblGrandTotalTitle.Height, lblGrandTotalValue.Height);
-                int grandTop    = (h - grandRowH) / 2; if (grandTop < 0) grandTop = 0;
-                int grandTitleX = discTitleX + lblDiscountAmountTitle.Width + lblDiscountAmountValue.Width + 64;
-                lblGrandTotalTitle.Location = new Point(grandTitleX, grandTop + (grandRowH - lblGrandTotalTitle.Height) / 2);
-                lblGrandTotalValue.Location = new Point(grandTitleX + lblGrandTotalTitle.Width + 4, grandTop + (grandRowH - lblGrandTotalValue.Height) / 2);
-                CentreFooterBtns();
-            };
+            pnlFooterContent.Controls.Add(tblSummary);     // Fill — summary TLP
+            pnlFooterContent.Controls.Add(pnlActionBtns);  // Right — action buttons
 
             var footerInner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
             footerInner.Paint += (s, e) => { var p = (Panel)s; using var pen = new Pen(Color.FromArgb(221, 227, 236), 1); e.Graphics.DrawRectangle(pen, 0, 0, p.Width - 1, p.Height - 1); };
