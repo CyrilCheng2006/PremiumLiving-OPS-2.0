@@ -80,6 +80,23 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         }
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        //  AppShell Navigation Handlers
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        private void OnTopNavMenuItemClicked(object sender, string menuKey)
+        {
+            AppShellNavigator.Navigate(this, menuKey);
+        }
+
+        private void btnLogout_Click(object sender, EventArgs e)
+        {
+            if (MessageBox.Show("Are you sure you want to logout?",
+                "Logout", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+            {
+                AppShellNavigator.Logout(this);
+            }
+        }
+
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         //  GRID TAB SWITCHER
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         internal void SwitchToGrid(int index)
@@ -119,9 +136,11 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             var btn = (Button)sender;
             bool isActive = btn.ForeColor == Color.FromArgb(47, 111, 237);
             if (!isActive) return;
-            using var pen = new Pen(Color.FromArgb(47, 111, 237), 3f);
-            int y = btn.Height - 2;
-            e.Graphics.DrawLine(pen, 0, y, btn.Width, y);
+            using (var pen = new Pen(Color.FromArgb(47, 111, 237), 3f))
+            {
+                int y = btn.Height - 2;
+                e.Graphics.DrawLine(pen, 0, y, btn.Width, y);
+            }
         }
 
         private void UpdateActionButtons()
@@ -296,9 +315,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 pill.Paint += (s, e) =>
                 {
                     e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-                    using var path  = RoundedRect(((Panel)s).ClientRectangle, 8);
-                    using var brush = new SolidBrush(((Panel)s).BackColor);
-                    e.Graphics.FillPath(brush, path);
+                    using (var path  = RoundedRect(((Panel)s).ClientRectangle, 8))
+                    using (var brush = new SolidBrush(((Panel)s).BackColor))
+                        e.Graphics.FillPath(brush, path);
                 };
 
                 var tlp = new TableLayoutPanel
@@ -450,8 +469,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             var bounds = ctrl.ClientRectangle;
             bounds.Width--; bounds.Height--;
             e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-            using var pen = new Pen(Color.FromArgb(221, 227, 236), 1f);
-            e.Graphics.DrawRectangle(pen, bounds);
+            using (var pen = new Pen(Color.FromArgb(221, 227, 236), 1f))
+                e.Graphics.DrawRectangle(pen, bounds);
         }
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -484,54 +503,77 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         }
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        //  Dialog helpers
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        private void ShowPODetail(PurchaseOrderEntity po)
+        {
+            if (po == null) return;
+            using (var dlg = new PODetailDialog(po, _ctrl))
+                dlg.ShowDialog(this);
+        }
+
+        private void ShowReceiptDetail(GoodsReceivedEntity receipt)
+        {
+            if (receipt == null) return;
+            using (var dlg = new ReceiptDetailDialog(receipt, _ctrl))
+                dlg.ShowDialog(this);
+        }
+
+        private void ShowRecordInvoice(PurchaseOrderEntity po)
+        {
+            if (po == null) return;
+            using (var dlg = new RecordInvoiceDialog(po, _ctrl))
+            {
+                if (dlg.ShowDialog(this) == DialogResult.OK)
+                    RefreshGrids();
+            }
+        }
+
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         //  📤 Upload Receipt — CSV Bulk Import
-        //
-        //  Flow:
-        //    1. OpenFileDialog (*.csv only)
-        //    2. Controller.ImportReceiptsFromCsv() → parses, validates, inserts
-        //    3. Show result summary (success count + error list)
-        //    4. RefreshGrids() so new rows appear immediately
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void btnUploadReceipt_Click(object sender, EventArgs e)
         {
-            using var dlg = new OpenFileDialog
+            using (var dlg = new OpenFileDialog
             {
                 Title  = "Select Receipt CSV File",
                 Filter = "CSV Files (*.csv)|*.csv"
-            };
-            if (dlg.ShowDialog() != DialogResult.OK) return;
-
-            ReceiptImportResult result;
-            try
+            })
             {
-                result = _ctrl.ImportReceiptsFromCsv(dlg.FileName);
+                if (dlg.ShowDialog() != DialogResult.OK) return;
+
+                ReceiptImportResult result;
+                try
+                {
+                    result = _ctrl.ImportReceiptsFromCsv(dlg.FileName);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Unexpected error during import:\n{ex.Message}",
+                        "Import Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+
+                var sb = new StringBuilder();
+                sb.AppendLine($"\u2705  {result.SuccessCount} receipt(s) imported successfully.");
+
+                if (result.HasErrors)
+                {
+                    sb.AppendLine();
+                    sb.AppendLine($"\u26a0\ufe0f  {result.Errors.Count} row(s) skipped due to errors:");
+                    foreach (var err in result.Errors)
+                        sb.AppendLine($"  \u2022 {err}");
+                }
+
+                MessageBox.Show(
+                    sb.ToString(),
+                    result.HasErrors ? "Import Completed with Warnings" : "Import Successful",
+                    MessageBoxButtons.OK,
+                    result.HasErrors ? MessageBoxIcon.Warning : MessageBoxIcon.Information);
+
+                if (result.SuccessCount > 0)
+                    RefreshGrids();
             }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Unexpected error during import:\n{ex.Message}",
-                    "Import Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
-            }
-
-            var sb = new StringBuilder();
-            sb.AppendLine($"✅  {result.SuccessCount} receipt(s) imported successfully.");
-
-            if (result.HasErrors)
-            {
-                sb.AppendLine();
-                sb.AppendLine($"⚠️  {result.Errors.Count} row(s) skipped due to errors:");
-                foreach (var err in result.Errors)
-                    sb.AppendLine($"  • {err}");
-            }
-
-            MessageBox.Show(
-                sb.ToString(),
-                result.HasErrors ? "Import Completed with Warnings" : "Import Successful",
-                MessageBoxButtons.OK,
-                result.HasErrors ? MessageBoxIcon.Warning : MessageBoxIcon.Information);
-
-            if (result.SuccessCount > 0)
-                RefreshGrids();
         }
 
         private void btnRecordInvoice_Click(object sender, EventArgs e)
