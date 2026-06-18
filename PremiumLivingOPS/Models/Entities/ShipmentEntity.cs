@@ -6,17 +6,17 @@ namespace PremiumLivingOPS.Models.Entities
     {
         public string    ShipmentID      { get; set; }
         public string    OrderID         { get; set; }
-        public string    TrackingNumber  { get; set; }
+        public string    TrackingNumber  { get; set; }  // DB col: TrackingNumber
         public DateTime  ShipDate        { get; set; }
         public string    DeliveryMethod  { get; set; }
         public string    ShipmentStatus  { get; set; }
         public string    ShipmentType    { get; set; }
         public double    TotalAmount     { get; set; }
 
-        // Joined fields
+        // Joined from Order
         public string    CustomerName    { get; set; }
-        public string    ShippingAddress { get; set; }
-        public DateTime? DeliveryDate    { get; set; }
+        public string    ShippingAddress { get; set; }  // comes from o.ShippingAddress (Order table)
+        public DateTime? DeliveryDate    { get; set; }  // comes from o.DeliveryDate   (Order table)
     }
 
     public class ShipmentLineEntity

@@ -19,13 +19,19 @@ namespace PremiumLivingOPS.Models.DAL
             var list = new List<ShipmentEntity>();
             using var conn = DatabaseHelper.GetConnection();
             conn.Open();
+            // s.ShippingAddress does NOT exist on Shipment — use o.ShippingAddress (Order table).
+            // s.TrackingNo   does NOT exist on Shipment — correct column is s.TrackingNumber.
+            // o.DeliveryDate is joined from Order for display.
             var sql = @"
-                SELECT s.ShipmentID, s.OrderID, s.ShipDate, s.ShipmentStatus,
-                       s.ShippingAddress, s.TrackingNo,
-                       COALESCE(c.CustomerName,'') AS CustomerName
+                SELECT s.ShipmentID, s.OrderID, s.TrackingNumber,
+                       s.ShipDate, s.DeliveryMethod, s.ShipmentStatus,
+                       s.ShipmentType, s.TotalAmount,
+                       COALESCE(o.ShippingAddress,'') AS ShippingAddress,
+                       o.DeliveryDate,
+                       COALESCE(c.CustomerName,'')   AS CustomerName
                 FROM   Shipment s
-                LEFT JOIN `Order` o ON o.OrderID = s.OrderID
-                LEFT JOIN Customer c ON c.CustomerID = o.CustomerID
+                JOIN   `Order`   o ON o.OrderID    = s.OrderID
+                JOIN   Customer  c ON c.CustomerID = o.CustomerID
                 WHERE  (@status IS NULL OR s.ShipmentStatus = @status)
                   AND  (@kw IS NULL OR s.ShipmentID LIKE @kw OR s.OrderID LIKE @kw
                         OR c.CustomerName LIKE @kw)
@@ -37,16 +43,7 @@ namespace PremiumLivingOPS.Models.DAL
             cmd.Parameters.AddWithValue("@from",   (object)dateFrom ?? DBNull.Value);
             using var rd = cmd.ExecuteReader();
             while (rd.Read())
-                list.Add(new ShipmentEntity
-                {
-                    ShipmentID      = rd.GetString("ShipmentID"),
-                    OrderID         = rd.GetString("OrderID"),
-                    ShipDate        = rd.GetDateTime("ShipDate"),
-                    ShipmentStatus  = rd.GetString("ShipmentStatus"),
-                    ShippingAddress = rd.GetString("ShippingAddress"),
-                    TrackingNumber  = rd["TrackingNo"] as string,   // fix CS0117: was TrackingNo
-                    CustomerName    = rd.GetString("CustomerName")
-                });
+                list.Add(MapShipment(rd));
             return list;
         }
 
@@ -55,28 +52,37 @@ namespace PremiumLivingOPS.Models.DAL
             using var conn = DatabaseHelper.GetConnection();
             conn.Open();
             var sql = @"
-                SELECT s.ShipmentID, s.OrderID, s.ShipDate, s.ShipmentStatus,
-                       s.ShippingAddress, s.TrackingNo,
-                       COALESCE(c.CustomerName,'') AS CustomerName
+                SELECT s.ShipmentID, s.OrderID, s.TrackingNumber,
+                       s.ShipDate, s.DeliveryMethod, s.ShipmentStatus,
+                       s.ShipmentType, s.TotalAmount,
+                       COALESCE(o.ShippingAddress,'') AS ShippingAddress,
+                       o.DeliveryDate,
+                       COALESCE(c.CustomerName,'')   AS CustomerName
                 FROM   Shipment s
-                LEFT JOIN `Order` o ON o.OrderID = s.OrderID
-                LEFT JOIN Customer c ON c.CustomerID = o.CustomerID
+                JOIN   `Order`   o ON o.OrderID    = s.OrderID
+                JOIN   Customer  c ON c.CustomerID = o.CustomerID
                 WHERE  s.ShipmentID = @id";
             using var cmd = new MySqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("@id", shipmentId);
             using var rd = cmd.ExecuteReader();
             if (!rd.Read()) return null;
-            return new ShipmentEntity
-            {
-                ShipmentID      = rd.GetString("ShipmentID"),
-                OrderID         = rd.GetString("OrderID"),
-                ShipDate        = rd.GetDateTime("ShipDate"),
-                ShipmentStatus  = rd.GetString("ShipmentStatus"),
-                ShippingAddress = rd.GetString("ShippingAddress"),
-                TrackingNumber  = rd["TrackingNo"] as string,   // fix CS0117: was TrackingNo
-                CustomerName    = rd.GetString("CustomerName")
-            };
+            return MapShipment(rd);
         }
+
+        private static ShipmentEntity MapShipment(MySqlDataReader rd) => new ShipmentEntity
+        {
+            ShipmentID      = rd.GetString("ShipmentID"),
+            OrderID         = rd.GetString("OrderID"),
+            TrackingNumber  = rd.GetString("TrackingNumber"),
+            ShipDate        = rd.GetDateTime("ShipDate"),
+            DeliveryMethod  = rd.GetString("DeliveryMethod"),
+            ShipmentStatus  = rd.GetString("ShipmentStatus"),
+            ShipmentType    = rd.GetString("ShipmentType"),
+            TotalAmount     = rd.GetDouble("TotalAmount"),
+            ShippingAddress = rd.GetString("ShippingAddress"),
+            DeliveryDate    = rd["DeliveryDate"] as DateTime?,
+            CustomerName    = rd.GetString("CustomerName")
+        };
 
         public List<ShipmentLineEntity> GetShipmentLines(string shipmentId)
         {
@@ -273,10 +279,6 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
-        /// <summary>
-        /// Returns all Receipt rows that belong to a given PurchaseID,
-        /// used by ReceiptDetailDialog to populate the line-items grid.
-        /// </summary>
         public List<GoodsReceivedEntity> GetReceiptsByPurchaseID(string purchaseId)
         {
             var list = new List<GoodsReceivedEntity>();
@@ -344,11 +346,6 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
-        /// <summary>
-        /// Returns lines for a specific PurchaseOrder with full
-        /// RawMaterial name, MaterialType, WarehouseID, WarehouseLocation.
-        /// Used by PODetailDialog.
-        /// </summary>
         public List<PurchaseOrderLineEntity> GetPODetailLines(string purchaseId)
         {
             var list = new List<PurchaseOrderLineEntity>();
@@ -386,9 +383,6 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
-        /// <summary>
-        /// Returns the PurchaseOrder header plus supplier contact details.
-        /// </summary>
         public (PurchaseOrderEntity po, string supplierPhone, string supplierAddress,
                 string invoiceStatus) GetPOHeaderFull(string purchaseId)
         {
