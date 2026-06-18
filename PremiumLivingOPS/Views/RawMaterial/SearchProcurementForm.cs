@@ -152,11 +152,11 @@ namespace PremiumLivingOPS.Views.RawMaterial
                 ("Completed",    completed.ToString(), Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229)),
             };
 
-            const int PillW   = 260;   // slightly narrower to fit 5 pills comfortably
+            const int PillW   = 260;
             const int PillH   =  60;
             const int Gap     =  10;
             const int LeftPad =  12;
-            const int NumColW =  70;   // fixed width for count column
+            const int NumColW =  70;
 
             var flow = new FlowLayoutPanel
             {
@@ -185,10 +185,6 @@ namespace PremiumLivingOPS.Views.RawMaterial
                     e.Graphics.FillPath(brush, path);
                 };
 
-                // Inner TLP: 2 columns (count | label), 1 row, fills entire pill.
-                // Both cells use Dock=Fill so they stretch to the TLP height.
-                // TextAlign = MiddleCenter / MiddleLeft ensures vertical centring
-                // within each cell without needing an extra wrapper.
                 var tlp = new TableLayoutPanel
                 {
                     Dock            = DockStyle.Fill,
@@ -198,10 +194,8 @@ namespace PremiumLivingOPS.Views.RawMaterial
                     CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
                     Padding         = new Padding(10, 0, 8, 0)
                 };
-                // Col 0: fixed width for the number; Col 1: remaining space for text
                 tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, NumColW));
                 tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
-                // Single row that fills the full pill height
                 tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
                 var lblCount = new Label
@@ -210,8 +204,8 @@ namespace PremiumLivingOPS.Views.RawMaterial
                     Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
                     ForeColor = fg,
                     BackColor = Color.Transparent,
-                    Dock      = DockStyle.Fill,          // stretches to full cell height
-                    TextAlign = ContentAlignment.MiddleCenter,  // vertically centred
+                    Dock      = DockStyle.Fill,
+                    TextAlign = ContentAlignment.MiddleCenter,
                     AutoSize  = false
                 };
                 var lblText = new Label
@@ -220,8 +214,8 @@ namespace PremiumLivingOPS.Views.RawMaterial
                     Font      = new Font("Segoe UI", 11f),
                     ForeColor = fg,
                     BackColor = Color.Transparent,
-                    Dock      = DockStyle.Fill,          // stretches to full cell height
-                    TextAlign = ContentAlignment.MiddleLeft,    // vertically centred
+                    Dock      = DockStyle.Fill,
+                    TextAlign = ContentAlignment.MiddleLeft,
                     AutoSize  = false
                 };
 
@@ -231,7 +225,6 @@ namespace PremiumLivingOPS.Views.RawMaterial
                 flow.Controls.Add(pill);
             }
 
-            // Wrapper centres the flow row vertically inside pnlKpi
             var wrapper = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             wrapper.Controls.Add(flow);
             wrapper.Layout += (s, e) =>
@@ -448,7 +441,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
             using var dlg = new Form
             {
                 Text            = $"View Purchase Order  \u2014  {o.PurchaseID}",
-                Size            = new Size(1400, 900),
+                Size            = new Size(2200, 900),   // updated from 1400 x 900
                 MinimumSize     = new Size(1100, 700),
                 StartPosition   = FormStartPosition.CenterParent,
                 FormBorderStyle = FormBorderStyle.FixedDialog,
