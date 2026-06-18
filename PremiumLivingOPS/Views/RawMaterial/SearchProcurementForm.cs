@@ -441,7 +441,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
             using var dlg = new Form
             {
                 Text            = $"View Purchase Order  \u2014  {o.PurchaseID}",
-                Size            = new Size(2200, 900),   // updated from 1400 x 900
+                Size            = new Size(2200, 1500),
                 MinimumSize     = new Size(1100, 700),
                 StartPosition   = FormStartPosition.CenterParent,
                 FormBorderStyle = FormBorderStyle.FixedDialog,
