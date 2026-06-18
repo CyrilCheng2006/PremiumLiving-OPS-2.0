@@ -391,10 +391,10 @@ namespace PremiumLivingOPS.Views.RawMaterial
                         ForeColor          = Color.FromArgb(15, 31, 53),
                         SelectionBackColor = Color.FromArgb(219, 234, 254),
                         SelectionForeColor = Color.FromArgb(15, 31, 53),
-                        Padding            = new Padding(10, 4, 10, 4)
+                        Padding            = new Padding(10, 8, 10, 8)
                     }
                 };
-                lineDgv.RowTemplate.Height = 44;
+                lineDgv.RowTemplate.Height = 68;   // increased from 44 — prevents cell text clipping
                 lineDgv.Columns.Add("cPOLine", "PO LINE ID");
                 lineDgv.Columns.Add("cMat",    "RAW MATERIAL");
                 lineDgv.Columns.Add("cType",   "TYPE");
@@ -409,7 +409,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
                         ln.WarehouseLocation, ln.OrderQty,
                         $"HK$ {ln.UnitPrice:N2}", $"HK$ {ln.LineTotal:N2}");
 
-                const int LineSecH = 46, LineHdrH = 42, LineRowH = 44;
+                const int LineSecH = 46, LineHdrH = 42, LineRowH = 68;
                 int c3H = LineSecH + LineHdrH + lines.Count * LineRowH + 16 + 22;
 
                 var lineHeader = new Panel

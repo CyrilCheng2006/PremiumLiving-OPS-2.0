@@ -110,7 +110,6 @@ namespace PremiumLivingOPS.Views.RawMaterial
             tblFields.Controls.Add(MakeCell("Date From", dtpDateFrom,     true),  3, 0);
             tblFields.Controls.Add(MakeCell("Date To",   dtpDateTo,       false), 4, 0);
 
-            // Button sizes — aligned with SearchMaterialRequestForm
             const int SBtnW  = 200;
             const int RBtnW  = 160;
             const int BtnH   =  52;
@@ -253,10 +252,10 @@ namespace PremiumLivingOPS.Views.RawMaterial
                     ForeColor          = Color.FromArgb(15, 31, 53),
                     SelectionBackColor = Color.FromArgb(219, 234, 254),
                     SelectionForeColor = Color.FromArgb(15, 31, 53),
-                    Padding            = new Padding(12, 6, 12, 6)
+                    Padding            = new Padding(12, 10, 12, 10)
                 }
             };
-            dgvOrders.RowTemplate.Height = 48;
+            dgvOrders.RowTemplate.Height = 72;   // increased from 48 — prevents cell text clipping
 
             dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPurchaseID", HeaderText = "PURCHASE ID",  FillWeight = 16 });
             dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colSupplier",   HeaderText = "SUPPLIER",     FillWeight = 20 });
@@ -290,16 +289,10 @@ namespace PremiumLivingOPS.Views.RawMaterial
             this.ResumeLayout(false);
         }
 
-        // ════════════════════════════════════════════════════════════════
+        // ════════════════════════════════════════════════════════════
         // Helpers — aligned 1-to-1 with SearchMaterialRequestForm
-        // ════════════════════════════════════════════════════════════════
+        // ════════════════════════════════════════════════════════════
 
-        /// <summary>
-        /// Title panel helper.
-        /// isSectionTitle=true  → 15f Bold (section heading level)
-        /// isSectionTitle=false → 13f Bold (card-level title)
-        /// Matches SearchMaterialRequestForm.BuildTitlePanel exactly.
-        /// </summary>
         private static Panel BuildTitlePanel(string title, bool isSectionTitle)
         {
             var pnl = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
@@ -322,7 +315,6 @@ namespace PremiumLivingOPS.Views.RawMaterial
             return pnl;
         }
 
-        /// <summary>Labelled-cell helper — matches SearchMaterialRequestForm.MakeCell.</summary>
         private static TableLayoutPanel MakeCell(string caption, Control ctrl, bool rightPad)
         {
             var tlp = new TableLayoutPanel
@@ -347,7 +339,6 @@ namespace PremiumLivingOPS.Views.RawMaterial
             return tlp;
         }
 
-        /// <summary>Cell with checkbox extra control.</summary>
         private static TableLayoutPanel MakeCellWithExtra(string caption, Control extra, bool rightPad)
         {
             var tlp = new TableLayoutPanel
@@ -366,12 +357,6 @@ namespace PremiumLivingOPS.Views.RawMaterial
             return tlp;
         }
 
-        // ── Button factories — font & colour aligned with SearchMaterialRequestForm ──
-
-        /// <summary>
-        /// Primary (blue) button.
-        /// Font: Segoe UI 12f Bold — matches SearchMaterialRequestForm.MakePrimaryBtn.
-        /// </summary>
         private static Button MakePrimaryBtn(string text, Point loc, int w, int h)
         {
             var b = new Button
@@ -391,10 +376,6 @@ namespace PremiumLivingOPS.Views.RawMaterial
             return b;
         }
 
-        /// <summary>
-        /// Green (create) button.
-        /// Font: Segoe UI 12f Bold — matches SearchMaterialRequestForm.MakeGreenBtn.
-        /// </summary>
         private static Button MakeGreenBtn(string text, Point loc, int w, int h)
         {
             var b = new Button
@@ -414,10 +395,6 @@ namespace PremiumLivingOPS.Views.RawMaterial
             return b;
         }
 
-        /// <summary>
-        /// Outline (secondary) button.
-        /// Font: Segoe UI 12f, ForeColor: RGB(15,31,53) — matches SearchMaterialRequestForm.MakeOutlineBtn.
-        /// </summary>
         private static Button MakeOutlineBtn(string text, Point loc, int w, int h)
         {
             var b = new Button
@@ -437,7 +414,6 @@ namespace PremiumLivingOPS.Views.RawMaterial
             return b;
         }
 
-        // ── Border painter ──────────────────────────────────────────────
         private static void PaintCardBorder(object s, PaintEventArgs e)
         {
             var p = (Panel)s;
