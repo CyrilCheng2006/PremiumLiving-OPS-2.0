@@ -1,5 +1,7 @@
 using PremiumLivingOPS.Models.Entities;
+using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace PremiumLivingOPS.Models.ViewModels
 {
@@ -53,7 +55,7 @@ namespace PremiumLivingOPS.Models.ViewModels
         public string   SupplierName    { get; set; }
         public double   TotalAmount     { get; set; }
         public string   PaymentStatus   { get; set; }   // 'Partial' | 'Full'
-        public System.DateTime ExpectedDate { get; set; }
+        public DateTime ExpectedDate    { get; set; }
         public PurchaseInvoiceEntity ExistingInvoice { get; set; }
     }
 
@@ -75,17 +77,46 @@ namespace PremiumLivingOPS.Models.ViewModels
         public string SupplierAddress { get; set; }
         /// <summary>PurchaseInvoice.PaymentStatus  ('Partial' | 'Full' | 'N/A')</summary>
         public string InvoiceStatus   { get; set; }
+        /// <summary>PurchaseInvoice.ExpectedDate — payment/delivery deadline. Null when no invoice exists.</summary>
+        public DateTime? ExpectedDate { get; set; }
+
+        // ── Derived receipt-progress fields (populated by controller) ──
+        /// <summary>Sum of Receipt.QtyReceived across all lines of this PO.</summary>
+        public int TotalQtyReceived { get; set; }
+        /// <summary>Sum of PurchaseOrderLine.OrderQty across all lines of this PO.</summary>
+        public int TotalQtyOrdered  { get; set; }
+        /// <summary>"3 / 10 units received" style summary label.</summary>
+        public string ReceiptProgressLabel =>
+            TotalQtyOrdered > 0
+                ? $"{TotalQtyReceived} / {TotalQtyOrdered} units received"
+                : "No order lines";
     }
 
     /// <summary>
     /// View model for ReceiptDetailDialog.
     /// Receipt = the selected row (used for header).
-    /// AllReceipts = all Receipt rows sharing the same PurchaseID (grid).
+    /// AllReceipts = all Receipt rows sharing the same PurchaseID (grid), sorted by ReceiptDate ASC.
     /// Populated by LogisticsProcessingController.GetReceiptDetailVM().
     /// </summary>
     public class ReceiptDetailVM
     {
+        private List<GoodsReceivedEntity> _allReceipts;
+
         public GoodsReceivedEntity       Receipt     { get; set; }
-        public List<GoodsReceivedEntity> AllReceipts { get; set; }
+
+        /// <summary>All receipts under the same PO, sorted by ReceiptDate ASC then ReceiptID.</summary>
+        public List<GoodsReceivedEntity> AllReceipts
+        {
+            get => _allReceipts;
+            set => _allReceipts = value
+                       ?.OrderBy(r => r.ReceiptDate)
+                       .ThenBy(r => r.ReceiptID)
+                       .ToList();
+        }
+
+        // ── Derived grid-footer aggregates ──
+        public int   TotalQtyReceived  => AllReceipts?.Sum(r => r.QtyReceived)  ?? 0;
+        public int   TotalOutstanding  => AllReceipts?.Sum(r => r.OutstandingQty ?? 0) ?? 0;
+        public double TotalLineAmount  => AllReceipts?.Sum(r => r.QtyReceived * r.UnitPrice) ?? 0;
     }
 }

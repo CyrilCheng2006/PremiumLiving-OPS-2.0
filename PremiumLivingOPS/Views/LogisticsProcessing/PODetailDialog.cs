@@ -9,9 +9,10 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 {
     /// <summary>
     /// Read-only Purchase Order detail dialog.
-    /// Shows header (PO ID, RequestID, Supplier with contact, Order Date,
-    /// Total Amount, Invoice Status, PO Status) and all line items
-    /// (POLineID, Item, Material Type, Warehouse, Qty, Unit Price, Subtotal).
+    /// Header: PO ID, Request ID, Supplier (name/phone/address), Order Date,
+    ///         Expected Date (from PurchaseInvoice), Total Amount, Invoice Status,
+    ///         PO Status, Receipt Progress.
+    /// Grid: all line items with subtotal column.
     /// </summary>
     public class PODetailDialog : Form
     {
@@ -38,8 +39,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             var po = _vm.PurchaseOrder;
 
             Text            = $"Purchase Order Detail  —  {po?.PurchaseID}";
-            Size            = new Size(2200, 800);
-            MinimumSize     = new Size(1200, 600);
+            Size            = new Size(2200, 860);
+            MinimumSize     = new Size(1200, 640);
             StartPosition   = FormStartPosition.CenterParent;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox     = false;
@@ -53,13 +54,15 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 72, BackColor = Color.FromArgb(19, 35, 61) };
             var tblHeader = new TableLayoutPanel
             {
-                Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
+                Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 1,
                 BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
                 Padding = new Padding(28, 0, 28, 0)
             };
             tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
-            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 220f));
+            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 260f)); // receipt progress
+            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 200f)); // status badge
             tblHeader.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+
             tblHeader.Controls.Add(new Label
             {
                 Text      = $"Purchase Order Details  —  {po?.PurchaseID}",
@@ -67,15 +70,29 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 ForeColor = Color.White, Dock = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
             }, 0, 0);
+
+            // Receipt progress pill
+            tblHeader.Controls.Add(new Label
+            {
+                Text      = _vm.ReceiptProgressLabel,
+                Font      = new Font("Segoe UI", 11f),
+                ForeColor = Color.FromArgb(186, 230, 253),
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleRight,
+                AutoSize  = false
+            }, 1, 0);
+
+            // Status badge
             tblHeader.Controls.Add(new Label
             {
                 Text      = po?.PurchaseStatus ?? "Unknown",
                 Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
                 ForeColor = sc.fg != default ? sc.fg : Color.White,
                 BackColor = sc.bg != default ? sc.bg : Color.FromArgb(80, 80, 80),
-                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter,
-                AutoSize = false, Padding = new Padding(8, 4, 8, 4)
-            }, 1, 0);
+                Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter,
+                AutoSize  = false, Padding = new Padding(8, 4, 8, 4)
+            }, 2, 0);
+
             pnlHeader.Controls.Add(tblHeader);
             Controls.Add(pnlHeader);
 
@@ -101,54 +118,65 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 btnClose.Location = new Point(pnlFooter.Width - 110 - 28, (pnlFooter.Height - 38) / 2);
             Controls.Add(pnlFooter);
 
-            // ── 3. Main content panel ────────────────────────────────
+            // ── 3. Main content ──────────────────────────────────────
             var pnlContent = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
             Controls.Add(pnlContent);
 
-            // ── 3a. Info panel — 4 rows × 4 cols (key/val pairs) ────
+            // ── 3a. Info panel — 5 rows × 4 cols ────────────────────
             // Row 0: PO ID            | Order Date
             // Row 1: Request ID       | Supplier
             // Row 2: Supplier Phone   | Supplier Address
             // Row 3: Total Amount     | Invoice Status
+            // Row 4: Expected Date    | Receipt Progress
             var pnlInfo = new Panel
             {
-                Dock = DockStyle.Top, Height = 240,
+                Dock = DockStyle.Top, Height = 280,
                 BackColor = Color.White, Padding = new Padding(28, 18, 28, 10)
             };
             pnlInfo.Paint += PaintBottomBorder;
 
             var tblInfo = new TableLayoutPanel
             {
-                Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 4,
+                Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 5,
                 BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
-            for (int r = 0; r < 4; r++) tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 25f));
+            for (int r = 0; r < 5; r++) tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 20f));
 
-            // Left column (0,1)
+            string expectedDateStr = _vm.ExpectedDate.HasValue
+                ? _vm.ExpectedDate.Value.ToString("yyyy-MM-dd")
+                : "N/A";
+
             var leftFields = new[]
             {
-                ("PO ID",         po?.PurchaseID   ?? ""),
-                ("Request ID",    po?.RequestID    ?? "(none)"),
-                ("Supplier Phone",_vm.SupplierPhone ?? ""),
-                ("Total Amount",  $"HK$ {po?.POTotalAmount:F2}")
+                ("PO ID",          po?.PurchaseID   ?? ""),
+                ("Request ID",     po?.RequestID    ?? "(none)"),
+                ("Supplier Phone", _vm.SupplierPhone ?? ""),
+                ("Total Amount",   $"HK$ {po?.POTotalAmount:F2}"),
+                ("Expected Date",  expectedDateStr)
             };
             for (int i = 0; i < leftFields.Length; i++)
             {
                 tblInfo.Controls.Add(MakeLabelKey(leftFields[i].Item1), 0, i);
-                tblInfo.Controls.Add(MakeLabelVal(leftFields[i].Item2), 1, i);
+                // Highlight Expected Date label when it's approaching or overdue
+                var valLabel = MakeLabelVal(leftFields[i].Item2);
+                if (i == 4 && _vm.ExpectedDate.HasValue && _vm.ExpectedDate.Value < DateTime.Today)
+                    valLabel.ForeColor = Color.FromArgb(185, 28, 28); // overdue → red
+                else if (i == 4 && _vm.ExpectedDate.HasValue && _vm.ExpectedDate.Value <= DateTime.Today.AddDays(7))
+                    valLabel.ForeColor = Color.FromArgb(146, 64, 14); // within 7 days → amber
+                tblInfo.Controls.Add(valLabel, 1, i);
             }
 
-            // Right column (2,3)
             var rightFields = new[]
             {
                 ("Order Date",       po?.OrderDate == default ? "" : po.OrderDate.ToString("yyyy-MM-dd")),
                 ("Supplier",         po?.SupplierName    ?? ""),
                 ("Supplier Address", _vm.SupplierAddress ?? ""),
-                ("Invoice Status",   _vm.InvoiceStatus   ?? "N/A")
+                ("Invoice Status",   _vm.InvoiceStatus   ?? "N/A"),
+                ("Receipt Progress", _vm.ReceiptProgressLabel)
             };
             for (int i = 0; i < rightFields.Length; i++)
             {
@@ -181,19 +209,23 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             };
             var dgv = BuildDataGrid();
 
-            // Columns: POLineID | Item Name | Mat. Type | WarehouseID | Warehouse Location | Qty | Unit Price | Subtotal
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLineID",   HeaderText = "Line ID",            FillWeight =  10f });
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colItem",     HeaderText = "Item",               FillWeight =  28f });
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colMatType",  HeaderText = "Material Type",      FillWeight =  10f });
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colWHID",     HeaderText = "Warehouse ID",       FillWeight =  10f });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colWHLoc",    HeaderText = "Warehouse Location", FillWeight =  16f });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colWHLoc",    HeaderText = "Warehouse Location", FillWeight =  15f });
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colQty",      HeaderText = "Qty Ordered",        FillWeight =   8f });
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colUnit",     HeaderText = "Unit Price (HK$)",   FillWeight =   9f });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colSubtotal", HeaderText = "Subtotal (HK$)",     FillWeight =   9f });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colSubtotal", HeaderText = "Subtotal (HK$)",     FillWeight =  10f });
             AlignGridColumns(dgv);
+            AlignRightColumns(dgv, "colQty", "colUnit", "colSubtotal");
 
+            double grandTotal = 0;
             if (_vm.Lines != null)
                 foreach (var line in _vm.Lines)
+                {
+                    double sub = line.OrderQty * line.UnitPrice;
+                    grandTotal += sub;
                     dgv.Rows.Add(
                         line.POLineID,
                         line.MaterialName      ?? line.RawMaterialItemID,
@@ -202,10 +234,13 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                         line.WarehouseLocation ?? "",
                         line.OrderQty,
                         $"{line.UnitPrice:F2}",
-                        $"{line.LineTotal:F2}");
+                        $"{sub:F2}");
+                }
 
             if (dgv.Rows.Count == 0)
                 AddEmptyRow(dgv, 8);
+            else
+                AddGrandTotalRow(dgv, grandTotal);
 
             pnlGrid.Controls.Add(dgv);
             pnlContent.Controls.Add(pnlGrid);
@@ -241,14 +276,31 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 col.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
         }
 
+        private static void AlignRightColumns(DataGridView dgv, params string[] names)
+        {
+            foreach (var name in names)
+                if (dgv.Columns.Contains(name))
+                    dgv.Columns[name].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+        }
+
         private static void AddEmptyRow(DataGridView dgv, int colCount)
         {
             var row = new object[colCount];
-            row[0] = "";
-            row[1] = "(No line items found)";
+            row[0] = ""; row[1] = "(No line items found)";
             for (int i = 2; i < colCount; i++) row[i] = "";
             dgv.Rows.Add(row);
             dgv.Rows[0].DefaultCellStyle.ForeColor = Color.FromArgb(148, 163, 184);
+        }
+
+        private static void AddGrandTotalRow(DataGridView dgv, double grandTotal)
+        {
+            int idx = dgv.Rows.Add("", "", "", "", "", "", "Grand Total (HK$)", $"{grandTotal:F2}");
+            var style = dgv.Rows[idx].DefaultCellStyle;
+            style.BackColor = Color.FromArgb(241, 245, 249);
+            style.Font      = new Font("Segoe UI", 12f, FontStyle.Bold);
+            style.ForeColor = Color.FromArgb(30, 41, 59);
+            dgv.Rows[idx].Cells["colUnit"].Style.Alignment     = DataGridViewContentAlignment.MiddleRight;
+            dgv.Rows[idx].Cells["colSubtotal"].Style.Alignment = DataGridViewContentAlignment.MiddleRight;
         }
 
         private static void PaintTopBorder(object s, System.Windows.Forms.PaintEventArgs e)
