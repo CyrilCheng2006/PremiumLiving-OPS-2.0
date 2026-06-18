@@ -48,7 +48,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         public HandlingGoodsReceivedForm()
         {
             InitializeComponent();
-            // Events subscribed once in Designer.cs — do NOT re-subscribe here.
             this.Load += HandlingGoodsReceivedForm_Load;
         }
 
@@ -71,7 +70,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         }
 
         // ──────────────────────────────────────────────────────────────────
-        //  Navigation / logout — wired in Designer.cs
+        //  Navigation / logout
         // ──────────────────────────────────────────────────────────────────
         private void OnTopNavMenuItemClicked(string menu, string subItem)
             => FormNavigator.NavigateTo(this, menu, subItem);
@@ -180,7 +179,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             BindReceipts(_vm.Receipts);
             BindPO(_vm.PurchaseOrders);
             BindInvoices(_vm.Invoices);
-            RenderKpi();
+            RefreshKpi();          // ← was RenderKpi()
             UpdateActionButtons();
         }
 
@@ -239,14 +238,14 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         }
 
         // ──────────────────────────────────────────────────────────────────
-        //  KPI pills
+        //  KPI pills  ——  identical pattern to ViewShipmentForm.RefreshKpi()
         // ──────────────────────────────────────────────────────────────────
-        private void RenderKpi()
+        private void RefreshKpi()
         {
             pnlKpi.Controls.Clear();
 
-            var all = _ctrl.GetHandlingGoodsReceivedVM().PurchaseOrders
-                      ?? new List<PurchaseOrderEntity>();
+            // Re-use the already-loaded _vm data — no extra DB round-trip.
+            var all = _vm?.PurchaseOrders ?? new List<PurchaseOrderEntity>();
 
             int total     = all.Count;
             int sent      = all.FindAll(p => p.PurchaseStatus == "Sent").Count;
@@ -271,32 +270,40 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 FlowDirection = FlowDirection.LeftToRight,
                 WrapContents  = false,
                 BackColor     = Color.Transparent,
-                Padding       = Padding.Empty,
+                Padding       = new Padding(0),
                 AutoScroll    = false
             };
 
-            const int PillW = 210, PillH = 60, Gap = 8, NumColW = 70;
+            const int PillW   = 290;   // matches ViewShipmentForm
+            const int PillH   = 60;
+            const int Gap     = 8;
+            const int NumColW = 80;    // matches ViewShipmentForm
 
             foreach (var (label, count, fg, bg, filterItem) in pills)
             {
                 var pill = new Panel
                 {
-                    BackColor = bg, Size = new Size(PillW, PillH),
-                    Margin = new Padding(0, 0, Gap, 0), Cursor = Cursors.Hand
+                    BackColor = bg,
+                    Size      = new Size(PillW, PillH),
+                    Margin    = new Padding(0, 0, Gap, 0),
+                    Cursor    = Cursors.Hand
                 };
-                pill.Paint += (s, ev) =>
+                pill.Paint += (s, e) =>
                 {
-                    ev.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                    e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
                     using var path  = RoundedRect(((Panel)s).ClientRectangle, 8);
                     using var brush = new SolidBrush(((Panel)s).BackColor);
-                    ev.Graphics.FillPath(brush, path);
+                    e.Graphics.FillPath(brush, path);
                 };
 
                 var tlp = new TableLayoutPanel
                 {
-                    Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
-                    BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                    Padding = new Padding(10, 0, 8, 0)
+                    Dock            = DockStyle.Fill,
+                    ColumnCount     = 2,
+                    RowCount        = 1,
+                    BackColor       = Color.Transparent,
+                    CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                    Padding         = new Padding(10, 0, 8, 0)
                 };
                 tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, NumColW));
                 tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
@@ -304,27 +311,36 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
                 tlp.Controls.Add(new Label
                 {
-                    Text = count, Font = new Font("Segoe UI", 14f, FontStyle.Bold),
-                    ForeColor = fg, BackColor = Color.Transparent,
-                    Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, AutoSize = false
+                    Text      = count,
+                    Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
+                    ForeColor = fg,
+                    BackColor = Color.Transparent,
+                    Dock      = DockStyle.Fill,
+                    TextAlign = ContentAlignment.MiddleCenter,
+                    AutoSize  = false
                 }, 0, 0);
                 tlp.Controls.Add(new Label
                 {
-                    Text = label, Font = new Font("Segoe UI", 12f),
-                    ForeColor = fg, BackColor = Color.Transparent,
-                    Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
+                    Text      = label,
+                    Font      = new Font("Segoe UI", 12f),
+                    ForeColor = fg,
+                    BackColor = Color.Transparent,
+                    Dock      = DockStyle.Fill,
+                    TextAlign = ContentAlignment.MiddleLeft,
+                    AutoSize  = false
                 }, 1, 0);
 
-                string fi = filterItem;
-                EventHandler click = (s, ev) =>
+                string localFilterItem = filterItem;   // matches ViewShipmentForm closure pattern
+                EventHandler clickHandler = (s, e) =>
                 {
-                    int idx = cboStatus.FindStringExact(fi);
+                    int idx = cboStatus.FindStringExact(localFilterItem);
                     if (idx >= 0) cboStatus.SelectedIndex = idx;
                     RefreshGrids();
                 };
-                pill.Click += click;
-                tlp.Click  += click;
-                foreach (Control c in tlp.Controls) c.Click += click;
+                pill.Click += clickHandler;
+                tlp.Click  += clickHandler;
+                foreach (Control c in tlp.Controls) c.Click += clickHandler;
+
                 pill.Controls.Add(tlp);
                 flow.Controls.Add(pill);
             }
@@ -416,9 +432,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 dgvPO.ClearSelection();
                 row.Selected = true;
 
-                // FirstDisplayedScrollingRowIndex requires the grid to have
-                // a positive display height.  Guard: only scroll when the
-                // parent panel is visible AND the grid has rendered rows.
                 if (dgvPO.Visible && dgvPO.Height > 0 && dgvPO.Rows.Count > 0)
                 {
                     try { dgvPO.FirstDisplayedScrollingRowIndex = row.Index; }
