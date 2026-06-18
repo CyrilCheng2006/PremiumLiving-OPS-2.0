@@ -7,13 +7,6 @@ using System.Windows.Forms;
 
 namespace PremiumLivingOPS.Views.LogisticsProcessing
 {
-    /// <summary>
-    /// Read-only Purchase Order detail dialog.
-    /// Header: PO ID, Request ID, Supplier (name/phone/address), Order Date,
-    ///         Expected Date (from PurchaseInvoice), Total Amount, Invoice Status,
-    ///         PO Status, Receipt Progress.
-    /// Grid: all line items with subtotal column + Grand Total footer.
-    /// </summary>
     public class PODetailDialog : Form
     {
         private readonly PODetailVM _vm;
@@ -45,12 +38,12 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox     = false;
             MinimizeBox     = false;
-            BackColor       = Color.FromArgb(244, 246, 250);  // light page bg
+            BackColor       = Color.FromArgb(244, 246, 250);
             Font            = new Font("Segoe UI", 12f);
 
             StatusColors.TryGetValue(po?.PurchaseStatus ?? "", out var sc);
 
-            // ── 1. Dark header bar ───────────────────────────────────
+            // 1. Header bar
             var pnlHeader = new Panel
             {
                 Dock      = DockStyle.Top,
@@ -68,7 +61,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 260f));
             tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 200f));
             tblHeader.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-
             tblHeader.Controls.Add(new Label
             {
                 Text = $"Purchase Order Details  —  {po?.PurchaseID}",
@@ -96,7 +88,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlHeader.Controls.Add(tblHeader);
             Controls.Add(pnlHeader);
 
-            // ── 2. Footer strip ──────────────────────────────────────
+            // 2. Footer strip
             var pnlFooter = new Panel
             {
                 Dock = DockStyle.Bottom, Height = 64,
@@ -120,28 +112,22 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                                               (pnlFooter.Height - 38) / 2);
             Controls.Add(pnlFooter);
 
-            // ── 3. Scrollable body ─────────────────────────────────
+            // 3. Scrollable body — top:100 = 5× the original 20px gap
             var pnlBody = new Panel
             {
                 Dock      = DockStyle.Fill,
                 BackColor = Color.FromArgb(244, 246, 250),
-                Padding   = new Padding(24, 20, 24, 16)   // ← top:20 = breathing space below header
+                Padding   = new Padding(24, 100, 24, 16)
             };
             Controls.Add(pnlBody);
 
-            // ── 3a. White info card ───────────────────────────────
-            // 5 rows × 4 cols
-            // Row 0: PO ID            | Order Date
-            // Row 1: Request ID       | Supplier
-            // Row 2: Supplier Phone   | Supplier Address
-            // Row 3: Total Amount     | Invoice Status
-            // Row 4: Expected Date    | Receipt Progress
+            // 3a. White info card
             var cardInfo = new Panel
             {
-                Dock        = DockStyle.Top,
-                Height      = 300,
-                BackColor   = Color.White,
-                Padding     = new Padding(28, 20, 28, 16)
+                Dock      = DockStyle.Top,
+                Height    = 300,
+                BackColor = Color.White,
+                Padding   = new Padding(28, 20, 28, 16)
             };
             cardInfo.Paint += PaintRoundedCard;
             pnlBody.Controls.Add(cardInfo);
@@ -178,9 +164,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 if (i == 4 && _vm.ExpectedDate.HasValue)
                 {
                     if (_vm.ExpectedDate.Value < DateTime.Today)
-                        valLabel.ForeColor = Color.FromArgb(185, 28, 28);          // overdue → red
+                        valLabel.ForeColor = Color.FromArgb(185, 28, 28);
                     else if (_vm.ExpectedDate.Value <= DateTime.Today.AddDays(7))
-                        valLabel.ForeColor = Color.FromArgb(146, 64, 14);          // ≤7 days → amber
+                        valLabel.ForeColor = Color.FromArgb(146, 64, 14);
                 }
                 tblInfo.Controls.Add(valLabel, 1, i);
             }
@@ -200,19 +186,19 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }
             cardInfo.Controls.Add(tblInfo);
 
-            // ── 3b. Gap between info card and grid card ───────────
+            // 3b. Spacer between cards
             pnlBody.Controls.Add(new Panel
             {
                 Dock = DockStyle.Top, Height = 16,
                 BackColor = Color.Transparent
             });
 
-            // ── 3c. White grid card ───────────────────────────────
+            // 3c. White grid card
             var cardGrid = new Panel
             {
                 Dock      = DockStyle.Fill,
                 BackColor = Color.White,
-                Padding   = new Padding(0, 0, 0, 0)
+                Padding   = new Padding(0)
             };
             cardGrid.Paint += PaintRoundedCard;
             pnlBody.Controls.Add(cardGrid);
@@ -232,9 +218,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
             });
             cardGrid.Controls.Add(pnlGridTitle);
-
-            var pnlDivider = new Panel { Dock = DockStyle.Top, Height = 1, BackColor = Color.FromArgb(226, 232, 240) };
-            cardGrid.Controls.Add(pnlDivider);
+            cardGrid.Controls.Add(new Panel { Dock = DockStyle.Top, Height = 1, BackColor = Color.FromArgb(226, 232, 240) });
 
             var pnlGridWrap = new Panel
             {
@@ -242,7 +226,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 Padding = new Padding(28, 0, 28, 12)
             };
             var dgv = BuildDataGrid();
-
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLineID",   HeaderText = "Line ID",            FillWeight =  10f });
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colItem",     HeaderText = "Item",               FillWeight =  28f });
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colMatType",  HeaderText = "Material Type",      FillWeight =  10f });
@@ -271,16 +254,13 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                         $"{sub:F2}");
                 }
 
-            if (dgv.Rows.Count == 0)
-                AddEmptyRow(dgv, 8);
-            else
-                AddGrandTotalRow(dgv, grandTotal);
+            if (dgv.Rows.Count == 0) AddEmptyRow(dgv, 8);
+            else AddGrandTotalRow(dgv, grandTotal);
 
             pnlGridWrap.Controls.Add(dgv);
             cardGrid.Controls.Add(pnlGridWrap);
         }
 
-        // ── Helpers ──────────────────────────────────────────────
         private static DataGridView BuildDataGrid()
         {
             var dgv = new DataGridView
@@ -338,7 +318,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             dgv.Rows[idx].Cells["colSubtotal"].Style.Alignment = DataGridViewContentAlignment.MiddleRight;
         }
 
-        // Lightweight rounded-shadow effect via OnPaint
         private static void PaintRoundedCard(object s, System.Windows.Forms.PaintEventArgs e)
         {
             var ctrl = (Control)s;

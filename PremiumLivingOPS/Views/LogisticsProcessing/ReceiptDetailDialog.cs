@@ -7,14 +7,6 @@ using System.Windows.Forms;
 
 namespace PremiumLivingOPS.Views.LogisticsProcessing
 {
-    /// <summary>
-    /// Read-only Receipt detail dialog.
-    /// Header: ReceiptID, PurchaseID, POLineID, Item Name, SupplierName,
-    ///         ReceiptDate, QtyReceived, OutstandingQty, WarehouseLocation, PO Status.
-    /// Grid:   All Receipt rows sharing the same PurchaseID, sorted by ReceiptDate ASC.
-    ///         Columns include Line Amount (Qty × UnitPrice).
-    ///         Footer row shows grand totals.
-    /// </summary>
     public class ReceiptDetailDialog : Form
     {
         private readonly ReceiptDetailVM _vm;
@@ -46,12 +38,12 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox     = false;
             MinimizeBox     = false;
-            BackColor       = Color.FromArgb(244, 246, 250);  // light page bg
+            BackColor       = Color.FromArgb(244, 246, 250);
             Font            = new Font("Segoe UI", 12f);
 
             StatusColors.TryGetValue(r?.PurchaseStatus ?? "", out var sc);
 
-            // ── 1. Dark header bar ───────────────────────────────────
+            // 1. Header bar
             var pnlHeader = new Panel
             {
                 Dock      = DockStyle.Top,
@@ -87,7 +79,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlHeader.Controls.Add(tblHeader);
             Controls.Add(pnlHeader);
 
-            // ── 2. Footer strip ──────────────────────────────────────
+            // 2. Footer strip
             var pnlFooter = new Panel
             {
                 Dock = DockStyle.Bottom, Height = 64,
@@ -111,22 +103,16 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                                               (pnlFooter.Height - 38) / 2);
             Controls.Add(pnlFooter);
 
-            // ── 3. Scrollable body ─────────────────────────────────
+            // 3. Scrollable body — top:100 = 5× the original 20px gap
             var pnlBody = new Panel
             {
                 Dock      = DockStyle.Fill,
                 BackColor = Color.FromArgb(244, 246, 250),
-                Padding   = new Padding(24, 20, 24, 16)   // ← top:20 = breathing space below header
+                Padding   = new Padding(24, 100, 24, 16)
             };
             Controls.Add(pnlBody);
 
-            // ── 3a. White info card ───────────────────────────────
-            // 5 rows × 4 cols
-            // Row 0: Receipt ID       | Purchase ID
-            // Row 1: PO Line ID       | Item Name
-            // Row 2: Supplier         | Warehouse Location
-            // Row 3: Receipt Date     | Outstanding Qty
-            // Row 4: Qty Received     | (blank)
+            // 3a. White info card
             var cardInfo = new Panel
             {
                 Dock      = DockStyle.Top,
@@ -183,14 +169,14 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }
             cardInfo.Controls.Add(tblInfo);
 
-            // ── 3b. Gap between cards ─────────────────────────────
+            // 3b. Spacer between cards
             pnlBody.Controls.Add(new Panel
             {
                 Dock = DockStyle.Top, Height = 16,
                 BackColor = Color.Transparent
             });
 
-            // ── 3c. White grid card ───────────────────────────────
+            // 3c. White grid card
             var cardGrid = new Panel
             {
                 Dock      = DockStyle.Fill,
@@ -215,9 +201,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
             });
             cardGrid.Controls.Add(pnlGridTitle);
-
-            var pnlDivider = new Panel { Dock = DockStyle.Top, Height = 1, BackColor = Color.FromArgb(226, 232, 240) };
-            cardGrid.Controls.Add(pnlDivider);
+            cardGrid.Controls.Add(new Panel { Dock = DockStyle.Top, Height = 1, BackColor = Color.FromArgb(226, 232, 240) });
 
             var pnlGridWrap = new Panel
             {
@@ -225,7 +209,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 Padding = new Padding(28, 0, 28, 12)
             };
             var dgv = BuildDataGrid();
-
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colReceiptID",   HeaderText = "Receipt ID",         FillWeight = 12f });
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colReceiptDate", HeaderText = "Receipt Date",        FillWeight = 10f });
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPOLineID",    HeaderText = "PO Line ID",         FillWeight = 10f });
@@ -260,16 +243,13 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                     }
                 }
 
-            if (dgv.Rows.Count == 0)
-                AddEmptyRow(dgv, 9);
-            else
-                AddTotalRow(dgv, _vm.TotalQtyReceived, _vm.TotalOutstanding, _vm.TotalLineAmount);
+            if (dgv.Rows.Count == 0) AddEmptyRow(dgv, 9);
+            else AddTotalRow(dgv, _vm.TotalQtyReceived, _vm.TotalOutstanding, _vm.TotalLineAmount);
 
             pnlGridWrap.Controls.Add(dgv);
             cardGrid.Controls.Add(pnlGridWrap);
         }
 
-        // ── Helpers ──────────────────────────────────────────────
         private static DataGridView BuildDataGrid()
         {
             var dgv = new DataGridView
