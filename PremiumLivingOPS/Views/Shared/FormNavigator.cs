@@ -23,12 +23,10 @@ namespace PremiumLivingOPS.Views.Shared
     ///   3. When the target is closed, dispose it and re-show the previous
     ///      form so Application.Run() keeps the message loop alive.
     ///
-    /// This ensures only ONE window is visible at any time — no new-window
-    /// flash, no brief double-window state.
-    ///
     /// Logout Pattern:
-    ///   Show a fresh LoginForm, then close every other open Form so that
-    ///   Application.Run() transfers its lifetime to the new LoginForm.
+    ///   Show a fresh LoginForm, then Hide+Dispose every other open Form
+    ///   WITHOUT triggering their FormClosed events (which would try to
+    ///   Show already-disposed predecessors and throw ObjectDisposedException).
     /// </summary>
     public static class FormNavigator
     {
@@ -43,12 +41,17 @@ namespace PremiumLivingOPS.Views.Shared
                 login.WindowState   = current.WindowState;
                 login.Show();
 
-                // Close every Form that is NOT the new LoginForm.
-                // ToArray() avoids mutating the collection during iteration.
+                // Use Hide() + Dispose() instead of Close().
+                // Close() fires FormClosed, which triggers the NavigateTo lambda
+                // that calls current.Show() on an already-disposed predecessor
+                // → ObjectDisposedException.
+                // Dispose() destroys the window handle directly, bypassing the
+                // FormClosed event chain.
                 foreach (Form f in Application.OpenForms.Cast<Form>().ToArray())
                 {
-                    if (f != login)
-                        f.Close();
+                    if (f == login) continue;
+                    f.Hide();
+                    f.Dispose();
                 }
                 return;
             }
