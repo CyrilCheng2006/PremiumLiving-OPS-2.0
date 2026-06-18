@@ -11,7 +11,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
     /// Visual language mirrors ViewShipmentForm.ShowDetailDialog:
     ///   • Dark header bar with Receipt ID + status badge
     ///   • 4-column info panel (label-key / label-val × 2 sides)
-    ///   • Divider line, then full-width DataGrid for line items
+    ///   • Divider line, then "Line Items" title, then full-width DataGrid
     ///   • Footer strip with right-aligned Close button
     /// </summary>
     public class ReceiptDetailDialog : Form
@@ -19,9 +19,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         private readonly GoodsReceivedEntity       _receipt;
         private readonly List<GoodsReceivedEntity> _lines;
 
-        // Status badge colours — mirrors StatusTheme in HandlingGoodsReceivedForm
-        private static readonly System.Collections.Generic.Dictionary<string, (Color bg, Color fg)>
-            StatusColors = new System.Collections.Generic.Dictionary<string, (Color, Color)>(StringComparer.OrdinalIgnoreCase)
+        private static readonly Dictionary<string, (Color bg, Color fg)>
+            StatusColors = new Dictionary<string, (Color, Color)>(StringComparer.OrdinalIgnoreCase)
         {
             ["Sent"]               = (Color.FromArgb(254, 243, 199), Color.FromArgb(146,  64,  14)),
             ["Partially Received"] = (Color.FromArgb(219, 234, 254), Color.FromArgb( 29,  78, 216)),
@@ -39,11 +38,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         }
 
         // ─────────────────────────────────────────────────────────────────
-        //  UI construction
-        // ─────────────────────────────────────────────────────────────────
         private void BuildUI()
         {
-            // ―― Form shell ――
             Text            = $"Receipt Detail  —  {_receipt.ReceiptID}";
             Size            = new Size(1100, 700);
             MinimumSize     = new Size(900, 580);
@@ -63,7 +59,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 Height    = 72,
                 BackColor = Color.FromArgb(19, 35, 61)
             };
-
             var tblHeader = new TableLayoutPanel
             {
                 Dock            = DockStyle.Fill,
@@ -76,7 +71,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
             tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 220f));
             tblHeader.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-
             tblHeader.Controls.Add(new Label
             {
                 Text      = $"Receipt Details  —  {_receipt.ReceiptID}",
@@ -86,7 +80,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 TextAlign = ContentAlignment.MiddleLeft,
                 AutoSize  = false
             }, 0, 0);
-
             var lblBadge = new Label
             {
                 Text      = _receipt.PurchaseStatus ?? "Unknown",
@@ -102,8 +95,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlHeader.Controls.Add(tblHeader);
             Controls.Add(pnlHeader);
 
-            // ―― 2. Footer strip with Close button ――
-            // Add footer BEFORE the content panels so DockStyle.Bottom works correctly.
+            // ―― 2. Footer strip — add BEFORE content ――
             var pnlFooter = new Panel
             {
                 Dock      = DockStyle.Bottom,
@@ -116,7 +108,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
                 e.Graphics.DrawLine(pen, 0, 0, ((Control)s).Width, 0);
             };
-
             var btnClose = new Button
             {
                 Text      = "Close",
@@ -129,23 +120,18 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 Cursor    = Cursors.Hand
             };
             btnClose.FlatAppearance.BorderSize = 0;
-            btnClose.Location = new Point(
-                pnlFooter.Width - 110 - 28,
-                (pnlFooter.Height - 38) / 2);
+            btnClose.Location = new Point(pnlFooter.Width - 110 - 28,
+                                          (pnlFooter.Height - 38) / 2);
             btnClose.Anchor = AnchorStyles.Right | AnchorStyles.Top;
             btnClose.Click += (s, e) => Close();
             pnlFooter.Controls.Add(btnClose);
             Controls.Add(pnlFooter);
 
-            // ―― 3. Main content area (fills between header and footer) ――
-            var pnlContent = new Panel
-            {
-                Dock      = DockStyle.Fill,
-                BackColor = Color.White
-            };
+            // ―― 3. Main content ――
+            var pnlContent = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
             Controls.Add(pnlContent);
 
-            // ―― 3a. Info panel (4-column label-key / label-val grid) ――
+            // ―― 3a. Info panel ――
             var pnlInfo = new Panel
             {
                 Dock      = DockStyle.Top,
@@ -153,7 +139,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 BackColor = Color.White,
                 Padding   = new Padding(28, 18, 28, 10)
             };
-            // Bottom separator line
             pnlInfo.Paint += (s, e) =>
             {
                 using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
@@ -169,8 +154,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 BackColor       = Color.Transparent,
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
-            // col 0 = left key (15%), col 1 = left val (35%)
-            // col 2 = right key (15%), col 3 = right val (35%)
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
@@ -178,7 +161,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             for (int r = 0; r < 4; r++)
                 tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 25f));
 
-            // Left column fields
             var leftFields = new[]
             {
                 ("Receipt ID",   _receipt.ReceiptID ?? ""),
@@ -192,15 +174,13 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 tblInfo.Controls.Add(MakeLabelVal(leftFields[i].Item2), 1, i);
             }
 
-            // Right column fields
             var rightFields = new[]
             {
-                ("Purchase ID",      _receipt.PurchaseID ?? ""),
-                ("Receipt Date",     _receipt.ReceiptDate == default
-                                        ? ""
+                ("Purchase ID",     _receipt.PurchaseID ?? ""),
+                ("Receipt Date",    _receipt.ReceiptDate == default ? ""
                                         : _receipt.ReceiptDate.ToString("yyyy-MM-dd")),
-                ("Outstanding Qty",  _receipt.OutstandingQty.ToString()),
-                ("Warehouse",        _receipt.WarehouseLocation ?? "")
+                ("Outstanding Qty", _receipt.OutstandingQty.ToString()),
+                ("Warehouse",       _receipt.WarehouseLocation ?? "")
             };
             for (int i = 0; i < rightFields.Length; i++)
             {
@@ -210,7 +190,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlInfo.Controls.Add(tblInfo);
             pnlContent.Controls.Add(pnlInfo);
 
-            // ―― 3b. Section title: "Line Items" ――
+            // ―― 3b. Section title strip ――
             var pnlGridTitle = new Panel
             {
                 Dock      = DockStyle.Top,
@@ -236,7 +216,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 BackColor = Color.White,
                 Padding   = new Padding(28, 0, 28, 0)
             };
-
             var dgv = new DataGridView
             {
                 Dock                  = DockStyle.Fill,
@@ -259,8 +238,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             dgv.EnableHeadersVisualStyles                = false;
             dgv.ColumnHeadersHeight                      = 40;
             dgv.ColumnHeadersHeightSizeMode              = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
-
-            // Alternating row shade
             dgv.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(248, 250, 252);
 
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colItem",    HeaderText = "Item ID",          FillWeight = 15f });
@@ -273,17 +250,14 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 col.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
 
             foreach (var line in _lines)
-            {
                 dgv.Rows.Add(
                     line.RawMaterialItemID,
                     line.ItemName,
                     line.QtyReceived,
                     line.OutstandingQty,
                     $"{line.UnitPrice:F2}");
-            }
 
-            // Empty-state placeholder
-            if (_lines.Count == 0)
+            if (dgv.Rows.Count == 0)
             {
                 dgv.Rows.Add("", "(No line items found)", "", "", "");
                 dgv.Rows[0].DefaultCellStyle.ForeColor = Color.FromArgb(148, 163, 184);
@@ -293,8 +267,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlContent.Controls.Add(pnlGrid);
         }
 
-        // ─────────────────────────────────────────────────────────────────
-        //  Label factory methods (mirror ViewShipmentForm helpers)
         // ─────────────────────────────────────────────────────────────────
         private static Label MakeLabelKey(string text)
             => new Label
