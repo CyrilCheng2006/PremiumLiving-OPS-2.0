@@ -33,16 +33,29 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         private int  _activeGridIndex = 0;
         private bool _tabPaintWired   = false;
 
+        // ─────────────────────────────────────────────────────────────────
+        //  Status badge colour palette
+        //  Each status has a unique hue so pills AND DataGrid badges are
+        //  immediately distinguishable at a glance:
+        //
+        //  Sent               → amber   #FEF3C7 / #92400E
+        //  Partially Received → blue    #DBEAFE / #1D4ED8
+        //  Received           → teal    #CCFBF1 / #0F766E
+        //  Completed          → green   #D1FAE5 / #065F46
+        //  Cancelled          → slate   #F1F5F9 / #475569
+        //  Partial (invoice)  → amber   (reuses Sent amber)
+        //  Full    (invoice)  → green   (reuses Completed green)
+        // ─────────────────────────────────────────────────────────────────
         private static readonly Dictionary<string, (Color bg, Color fg)> StatusTheme
             = new Dictionary<string, (Color, Color)>(StringComparer.OrdinalIgnoreCase)
         {
-            ["Sent"]               = (FromHex("#FEF3C7"), FromHex("#92400E")),
-            ["Partially Received"] = (FromHex("#DBEAFE"), FromHex("#1D4ED8")),
-            ["Received"]           = (FromHex("#CCFBF1"), FromHex("#0F766E")),   // teal — distinct from Partially Received
-            ["Completed"]          = (FromHex("#D1FAE5"), FromHex("#065F46")),
-            ["Cancelled"]          = (FromHex("#F3F4F6"), FromHex("#6B7280")),
-            ["Partial"]            = (FromHex("#FEF3C7"), FromHex("#92400E")),
-            ["Full"]               = (FromHex("#D1FAE5"), FromHex("#065F46"))
+            ["Sent"]               = (FromHex("#FEF3C7"), FromHex("#92400E")),  // amber
+            ["Partially Received"] = (FromHex("#DBEAFE"), FromHex("#1D4ED8")),  // blue
+            ["Received"]           = (FromHex("#CCFBF1"), FromHex("#0F766E")),  // teal
+            ["Completed"]          = (FromHex("#D1FAE5"), FromHex("#065F46")),  // green
+            ["Cancelled"]          = (FromHex("#F1F5F9"), FromHex("#475569")),  // slate
+            ["Partial"]            = (FromHex("#FEF3C7"), FromHex("#92400E")),  // amber (invoice)
+            ["Full"]               = (FromHex("#D1FAE5"), FromHex("#065F46")),  // green (invoice)
         };
 
         public HandlingGoodsReceivedForm()
@@ -238,17 +251,17 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         }
 
         // ──────────────────────────────────────────────────────────────────
-        //  KPI pills
+        //  KPI pills ─ 6 pills, 6 distinct hues
         //
-        //  Colour semantics
-        //  ─────────────────────────────────────────────────────────────────
-        //  • Partially Received → blue  (#DBEAFE / #1D4ED8)  "in progress"
-        //  • Received           → teal  (#CCFBF1 / #0F766E)  "done, awaiting close"
-        //  The two statuses were previously both blue; teal makes Received
-        //  visually distinct while staying in a cool-progress hue family.
-        //
-        //  Label text: "Partially Received" pill shows "Partially" only.
-        // ──────────────────────────────────────────────────────────────────
+        //  Pill   Label       Hue family   bg hex    fg hex
+        //  ─────────────────────────────────────────────────────────────
+        //  1      Total POs   indigo       #EEF2FF   #3730A3
+        //  2      Sent        amber        #FEF3C7   #92400E
+        //  3      Partially   blue         #DBEAFE   #1D4ED8
+        //  4      Received    teal         #CCFBF1   #0F766E
+        //  5      Completed   green        #D1FAE5   #065F46
+        //  6      Cancelled   slate        #F1F5F9   #475569
+        // ─────────────────────────────────────────────────────────────
         private void RefreshKpi()
         {
             pnlKpi.Controls.Clear();
@@ -264,15 +277,13 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             var pills = new[]
             {
-                // label            count                 fg (text)                      bg (pill)                          cboStatus filter key
-                ("Total POs",      total.ToString(),     Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254),     "All"),
-                ("Sent",           sent.ToString(),      Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199),     "Sent"),
-                // ── "Partially Received" pill: label shortened to "Partially", blue colour ──
-                ("Partially",      partial.ToString(),   Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254),     "Partially Received"),
-                // ── "Received" pill: teal — clearly distinct from blue Partially Received ──
-                ("Received",       received.ToString(),  Color.FromArgb( 15, 118, 110), Color.FromArgb(204, 251, 241),     "Received"),
-                ("Completed",      completed.ToString(), Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229),     "Completed"),
-                ("Cancelled",      cancelled.ToString(), Color.FromArgb(107, 114, 128), Color.FromArgb(243, 244, 246),     "Cancelled"),
+                // label         count                  fg                              bg                              cboStatus filter key
+                ("Total POs",   total.ToString(),     Color.FromArgb( 55,  48, 163), Color.FromArgb(238, 242, 255),  "All"),               // indigo
+                ("Sent",        sent.ToString(),      Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199),  "Sent"),              // amber
+                ("Partially",   partial.ToString(),   Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254),  "Partially Received"), // blue
+                ("Received",    received.ToString(),  Color.FromArgb( 15, 118, 110), Color.FromArgb(204, 251, 241),  "Received"),           // teal
+                ("Completed",   completed.ToString(), Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229),  "Completed"),          // green
+                ("Cancelled",   cancelled.ToString(), Color.FromArgb( 71,  85, 105), Color.FromArgb(241, 245, 249),  "Cancelled"),          // slate
             };
 
             var flow = new FlowLayoutPanel
@@ -421,10 +432,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }
         }
 
-        /// <summary>
-        /// Highlights the matching PO row in dgvPO.
-        /// Safe to call regardless of which tab is active.
-        /// </summary>
         private void HighlightPORow(string purchaseId)
         {
             foreach (DataGridViewRow row in dgvPO.Rows)
