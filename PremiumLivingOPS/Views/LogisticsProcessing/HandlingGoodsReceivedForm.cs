@@ -38,7 +38,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         {
             ["Sent"]               = (FromHex("#FEF3C7"), FromHex("#92400E")),
             ["Partially Received"] = (FromHex("#DBEAFE"), FromHex("#1D4ED8")),
-            ["Received"]           = (FromHex("#E0F2FE"), FromHex("#0360AA")),
+            ["Received"]           = (FromHex("#CCFBF1"), FromHex("#0F766E")),   // teal — distinct from Partially Received
             ["Completed"]          = (FromHex("#D1FAE5"), FromHex("#065F46")),
             ["Cancelled"]          = (FromHex("#F3F4F6"), FromHex("#6B7280")),
             ["Partial"]            = (FromHex("#FEF3C7"), FromHex("#92400E")),
@@ -179,7 +179,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             BindReceipts(_vm.Receipts);
             BindPO(_vm.PurchaseOrders);
             BindInvoices(_vm.Invoices);
-            RefreshKpi();          // ← was RenderKpi()
+            RefreshKpi();
             UpdateActionButtons();
         }
 
@@ -238,13 +238,21 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         }
 
         // ──────────────────────────────────────────────────────────────────
-        //  KPI pills  ——  identical pattern to ViewShipmentForm.RefreshKpi()
+        //  KPI pills
+        //
+        //  Colour semantics
+        //  ─────────────────────────────────────────────────────────────────
+        //  • Partially Received → blue  (#DBEAFE / #1D4ED8)  "in progress"
+        //  • Received           → teal  (#CCFBF1 / #0F766E)  "done, awaiting close"
+        //  The two statuses were previously both blue; teal makes Received
+        //  visually distinct while staying in a cool-progress hue family.
+        //
+        //  Label text: "Partially Received" pill shows "Partially" only.
         // ──────────────────────────────────────────────────────────────────
         private void RefreshKpi()
         {
             pnlKpi.Controls.Clear();
 
-            // Re-use the already-loaded _vm data — no extra DB round-trip.
             var all = _vm?.PurchaseOrders ?? new List<PurchaseOrderEntity>();
 
             int total     = all.Count;
@@ -256,12 +264,15 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             var pills = new[]
             {
-                ("Total POs",      total.ToString(),     Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254), "All"),
-                ("Sent",           sent.ToString(),      Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), "Sent"),
-                ("Partially Rcvd", partial.ToString(),   Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254), "Partially Received"),
-                ("Received",       received.ToString(),  Color.FromArgb(  3,  96, 170), Color.FromArgb(224, 242, 254), "Received"),
-                ("Completed",      completed.ToString(), Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229), "Completed"),
-                ("Cancelled",      cancelled.ToString(), Color.FromArgb(107, 114, 128), Color.FromArgb(243, 244, 246), "Cancelled"),
+                // label            count                 fg (text)                      bg (pill)                          cboStatus filter key
+                ("Total POs",      total.ToString(),     Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254),     "All"),
+                ("Sent",           sent.ToString(),      Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199),     "Sent"),
+                // ── "Partially Received" pill: label shortened to "Partially", blue colour ──
+                ("Partially",      partial.ToString(),   Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254),     "Partially Received"),
+                // ── "Received" pill: teal — clearly distinct from blue Partially Received ──
+                ("Received",       received.ToString(),  Color.FromArgb( 15, 118, 110), Color.FromArgb(204, 251, 241),     "Received"),
+                ("Completed",      completed.ToString(), Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229),     "Completed"),
+                ("Cancelled",      cancelled.ToString(), Color.FromArgb(107, 114, 128), Color.FromArgb(243, 244, 246),     "Cancelled"),
             };
 
             var flow = new FlowLayoutPanel
@@ -274,10 +285,10 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 AutoScroll    = false
             };
 
-            const int PillW   = 290;   // matches ViewShipmentForm
+            const int PillW   = 290;
             const int PillH   = 60;
             const int Gap     = 8;
-            const int NumColW = 80;    // matches ViewShipmentForm
+            const int NumColW = 80;
 
             foreach (var (label, count, fg, bg, filterItem) in pills)
             {
@@ -330,7 +341,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                     AutoSize  = false
                 }, 1, 0);
 
-                string localFilterItem = filterItem;   // matches ViewShipmentForm closure pattern
+                string localFilterItem = filterItem;
                 EventHandler clickHandler = (s, e) =>
                 {
                     int idx = cboStatus.FindStringExact(localFilterItem);
@@ -355,10 +366,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         {
             if (_activeGridIndex == 0) UpdateActionButtons();
 
-            // Only attempt to highlight the linked PO row when dgvPO is
-            // currently visible (i.e. the PO tab is active).  Calling
-            // FirstDisplayedScrollingRowIndex on a hidden DataGridView
-            // raises InvalidOperationException: 沒有可以顯示列的空間。
             if (dgvReceipts.SelectedRows.Count > 0)
             {
                 var entity = dgvReceipts.SelectedRows[0].Tag as GoodsReceivedEntity;
@@ -416,11 +423,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
         /// <summary>
         /// Highlights the matching PO row in dgvPO.
-        /// Safe to call regardless of which tab is active: when dgvPO is not
-        /// visible we only set row.Selected (cheap metadata op); we skip
-        /// FirstDisplayedScrollingRowIndex because DataGridView throws
-        /// InvalidOperationException when the grid has no display space.
-        /// The scroll will happen naturally when the user switches to the PO tab.
+        /// Safe to call regardless of which tab is active.
         /// </summary>
         private void HighlightPORow(string purchaseId)
         {
