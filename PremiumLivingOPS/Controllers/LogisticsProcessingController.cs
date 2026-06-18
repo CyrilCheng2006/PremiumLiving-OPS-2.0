@@ -150,6 +150,38 @@ namespace PremiumLivingOPS.Controllers
             };
         }
 
+        /// <summary>
+        /// Builds the full PODetailVM for PODetailDialog:
+        /// header with supplier contact + invoice status + RequestID,
+        /// lines with WarehouseID / WarehouseLocation.
+        /// </summary>
+        public PODetailVM GetPODetailVM(string purchaseId)
+        {
+            var (po, phone, address, invoiceStatus) = _repo.GetPOHeaderFull(purchaseId);
+            return new PODetailVM
+            {
+                PurchaseOrder   = po,
+                Lines           = _repo.GetPODetailLines(purchaseId),
+                SupplierPhone   = phone,
+                SupplierAddress = address,
+                InvoiceStatus   = invoiceStatus
+            };
+        }
+
+        /// <summary>
+        /// Builds ReceiptDetailVM for ReceiptDetailDialog:
+        /// the clicked receipt row as header + all receipts for the same PurchaseID as lines.
+        /// </summary>
+        public ReceiptDetailVM GetReceiptDetailVM(GoodsReceivedEntity selectedReceipt)
+        {
+            if (selectedReceipt == null) throw new ArgumentNullException(nameof(selectedReceipt));
+            return new ReceiptDetailVM
+            {
+                Receipt     = selectedReceipt,
+                AllReceipts = _repo.GetReceiptsByPurchaseID(selectedReceipt.PurchaseID)
+            };
+        }
+
         public RecordPurchaseInvoiceVM GetRecordPurchaseInvoiceVM(PurchaseOrderEntity po)
         {
             var existing = _repo.GetPurchaseInvoiceByPO(po?.PurchaseID);
@@ -174,107 +206,70 @@ namespace PremiumLivingOPS.Controllers
         }
 
         // ── CSV Import: Receipt ───────────────────────────────────────────
-        /// <summary>
-        /// Parses a CSV file, validates each row against the DB, then bulk-inserts
-        /// all valid rows inside a single transaction.
-        ///
-        /// Expected CSV header (case-insensitive):
-        ///   PurchaseID, POLineID, QtyReceived, ReceiptDate, Outstanding_QTY
-        ///
-        /// Rules:
-        ///   • PurchaseID must exist in PurchaseOrder table.
-        ///   • POLineID must exist in PurchaseOrderLine AND belong to that PurchaseID.
-        ///   • QtyReceived must be a positive integer.
-        ///   • ReceiptDate must be a valid date (yyyy-MM-dd preferred).
-        ///   • Outstanding_QTY is optional; blank = NULL.
-        ///
-        /// Returns a ReceiptImportResult with success count and per-row error messages.
-        /// </summary>
         public ReceiptImportResult ImportReceiptsFromCsv(string filePath)
         {
-            var result = new ReceiptImportResult();
+            var result    = new ReceiptImportResult();
             var validRows = new List<ReceiptImportRow>();
 
             if (!File.Exists(filePath))
-            {
-                result.Errors.Add("File not found: " + filePath);
-                return result;
-            }
+            { result.Errors.Add("File not found: " + filePath); return result; }
 
             string[] lines;
             try   { lines = File.ReadAllLines(filePath); }
             catch (Exception ex)
-            {
-                result.Errors.Add("Cannot read file: " + ex.Message);
-                return result;
-            }
+            { result.Errors.Add("Cannot read file: " + ex.Message); return result; }
 
             if (lines.Length < 2)
-            {
-                result.Errors.Add("CSV file has no data rows (only a header or is empty).");
-                return result;
-            }
+            { result.Errors.Add("CSV file has no data rows."); return result; }
 
-            // ── Parse header ────────────────────────────────────────────
             var header = lines[0].Split(',');
-            int idxPurchaseID   = FindCol(header, "PurchaseID");
-            int idxPOLineID     = FindCol(header, "POLineID");
-            int idxQtyReceived  = FindCol(header, "QtyReceived");
-            int idxReceiptDate  = FindCol(header, "ReceiptDate");
-            int idxOutstanding  = FindCol(header, "Outstanding_QTY");
+            int idxPurchaseID  = FindCol(header, "PurchaseID");
+            int idxPOLineID    = FindCol(header, "POLineID");
+            int idxQtyReceived = FindCol(header, "QtyReceived");
+            int idxReceiptDate = FindCol(header, "ReceiptDate");
+            int idxOutstanding = FindCol(header, "Outstanding_QTY");
 
             if (idxPurchaseID < 0 || idxPOLineID < 0 ||
                 idxQtyReceived < 0 || idxReceiptDate < 0)
             {
-                result.Errors.Add(
-                    "CSV header must contain: PurchaseID, POLineID, QtyReceived, ReceiptDate");
+                result.Errors.Add("CSV header must contain: PurchaseID, POLineID, QtyReceived, ReceiptDate");
                 return result;
             }
 
-            // ── Parse + validate rows ───────────────────────────────────
             for (int i = 1; i < lines.Length; i++)
             {
                 string line = lines[i].Trim();
-                if (string.IsNullOrEmpty(line)) continue;   // skip blank lines
+                if (string.IsNullOrEmpty(line)) continue;
+                int rowNum = i;
+                var cols = line.Split(',');
 
-                int rowNum = i;  // 1-based data row number equals line index
-                var cols   = line.Split(',');
+                string purchaseId = GetCol(cols, idxPurchaseID);
+                string poLineId   = GetCol(cols, idxPOLineID);
+                string qtyStr     = GetCol(cols, idxQtyReceived);
+                string dateStr    = GetCol(cols, idxReceiptDate);
+                string outStr     = idxOutstanding >= 0 ? GetCol(cols, idxOutstanding) : "";
 
-                string purchaseId  = GetCol(cols, idxPurchaseID);
-                string poLineId    = GetCol(cols, idxPOLineID);
-                string qtyStr      = GetCol(cols, idxQtyReceived);
-                string dateStr     = GetCol(cols, idxReceiptDate);
-                string outStr      = idxOutstanding >= 0 ? GetCol(cols, idxOutstanding) : "";
-
-                // ── Field presence checks
                 if (string.IsNullOrEmpty(purchaseId))
                 { result.Errors.Add($"Row {rowNum}: PurchaseID is empty."); continue; }
                 if (string.IsNullOrEmpty(poLineId))
                 { result.Errors.Add($"Row {rowNum}: POLineID is empty."); continue; }
-
-                // ── QtyReceived
                 if (!int.TryParse(qtyStr, out int qty) || qty <= 0)
                 { result.Errors.Add($"Row {rowNum}: QtyReceived '{qtyStr}' must be a positive integer."); continue; }
-
-                // ── ReceiptDate
                 if (!DateTime.TryParse(dateStr, out DateTime receiptDate))
                 { result.Errors.Add($"Row {rowNum}: ReceiptDate '{dateStr}' is not a valid date."); continue; }
 
-                // ── Outstanding_QTY (optional)
                 int? outstanding = null;
                 if (!string.IsNullOrEmpty(outStr))
                 {
                     if (!int.TryParse(outStr, out int outVal) || outVal < 0)
-                    { result.Errors.Add($"Row {rowNum}: Outstanding_QTY '{outStr}' must be a non-negative integer or blank."); continue; }
+                    { result.Errors.Add($"Row {rowNum}: Outstanding_QTY '{outStr}' must be non-negative or blank."); continue; }
                     outstanding = outVal;
                 }
 
-                // ── DB FK checks
                 if (!_repo.PurchaseOrderExists(purchaseId))
-                { result.Errors.Add($"Row {rowNum}: PurchaseID '{purchaseId}' not found in database."); continue; }
-
+                { result.Errors.Add($"Row {rowNum}: PurchaseID '{purchaseId}' not found."); continue; }
                 if (!_repo.POLineExists(poLineId, purchaseId))
-                { result.Errors.Add($"Row {rowNum}: POLineID '{poLineId}' not found or does not belong to PurchaseID '{purchaseId}'."); continue; }
+                { result.Errors.Add($"Row {rowNum}: POLineID '{poLineId}' does not belong to '{purchaseId}'."); continue; }
 
                 validRows.Add(new ReceiptImportRow
                 {
@@ -287,31 +282,20 @@ namespace PremiumLivingOPS.Controllers
                 });
             }
 
-            // ── Bulk insert all valid rows in one transaction ───────────────
             if (validRows.Count > 0)
             {
-                try
-                {
-                    result.SuccessCount = _repo.BulkInsertReceipts(validRows);
-                }
-                catch (Exception ex)
-                {
-                    result.Errors.Add("Database error during insert: " + ex.Message);
-                }
+                try   { result.SuccessCount = _repo.BulkInsertReceipts(validRows); }
+                catch (Exception ex) { result.Errors.Add("Database error: " + ex.Message); }
             }
-
             return result;
         }
 
-        // ── Private CSV helpers ───────────────────────────────────────────
         private static int FindCol(string[] header, string name)
         {
             for (int i = 0; i < header.Length; i++)
-                if (header[i].Trim().Equals(name, StringComparison.OrdinalIgnoreCase))
-                    return i;
+                if (header[i].Trim().Equals(name, StringComparison.OrdinalIgnoreCase)) return i;
             return -1;
         }
-
         private static string GetCol(string[] cols, int idx)
             => idx < cols.Length ? cols[idx].Trim() : string.Empty;
     }

@@ -6,7 +6,6 @@ namespace PremiumLivingOPS.Models.ViewModels
     // ── View Shipment ─────────────────────────────────────────────────────────────────
     public class ViewShipmentVM
     {
-        /// <summary>Shared user bar — uses the same UserBarViewModel as Order Processing.</summary>
         public UserBarViewModel     UserBar      { get; set; }
         public string[]             AllowedMenus { get; set; }
         public List<ShipmentEntity> Shipments    { get; set; }
@@ -24,51 +23,69 @@ namespace PremiumLivingOPS.Models.ViewModels
     // ── Handling Goods Received ─────────────────────────────────────────────────
     public class HandlingGoodsReceivedVM
     {
-        /// <summary>Shared user bar — uses the same UserBarViewModel as Order Processing.</summary>
-        public UserBarViewModel              UserBar        { get; set; }
-        public string[]                      AllowedMenus   { get; set; }
-        public List<GoodsReceivedEntity>     Receipts       { get; set; }
-        public List<PurchaseOrderEntity>     PurchaseOrders { get; set; }
-        public List<PurchaseInvoiceEntity>   Invoices       { get; set; }
+        public UserBarViewModel            UserBar        { get; set; }
+        public string[]                    AllowedMenus   { get; set; }
+        public List<GoodsReceivedEntity>   Receipts       { get; set; }
+        public List<PurchaseOrderEntity>   PurchaseOrders { get; set; }
+        public List<PurchaseInvoiceEntity> Invoices       { get; set; }
     }
 
     /// <summary>
     /// View model for the Upload Supplier Receipt dialog.
-    /// Carries the selected Receipt row + file path chosen by the user.
     /// </summary>
     public class UploadSupplierReceiptVM
     {
         public string ReceiptID    { get; set; }
         public string PurchaseID   { get; set; }
         public string SupplierName { get; set; }
-        public string FilePath     { get; set; }   // full local path
-        public string FileName     { get; set; }   // display name (basename)
+        public string FilePath     { get; set; }
+        public string FileName     { get; set; }
     }
 
     /// <summary>
     /// View model for the Record Purchase Invoice dialog.
-    /// Maps to PurchaseInvoice table: PurInvoiceID, PurchaseID, TotalAmount, PaymentStatus, ExpectedDate.
+    /// Maps to PurchaseInvoice: PurInvoiceID, PurchaseID, TotalAmount, PaymentStatus, ExpectedDate.
     /// </summary>
     public class RecordPurchaseInvoiceVM
     {
-        public string   PurInvoiceID   { get; set; }  // auto-generated or user-supplied
-        public string   PurchaseID     { get; set; }  // FK → PurchaseOrder
-        public string   SupplierName   { get; set; }  // display only
-        public double   TotalAmount    { get; set; }
-        public string   PaymentStatus  { get; set; }  // 'Partial' | 'Full'
-        public DateTime ExpectedDate   { get; set; }
-        // Existing invoice (null if none yet)
+        public string   PurInvoiceID    { get; set; }
+        public string   PurchaseID      { get; set; }
+        public string   SupplierName    { get; set; }
+        public double   TotalAmount     { get; set; }
+        public string   PaymentStatus   { get; set; }   // 'Partial' | 'Full'
+        public System.DateTime ExpectedDate { get; set; }
         public PurchaseInvoiceEntity ExistingInvoice { get; set; }
     }
 
     /// <summary>
     /// View model for PODetailDialog.
-    /// Carries the PurchaseOrder header and its line items.
+    /// Carries the PurchaseOrder header (with supplier contact + invoice status)
+    /// and all line items (with WarehouseLocation).
     /// Populated by LogisticsProcessingController.GetPODetailVM().
     /// </summary>
     public class PODetailVM
     {
-        public PurchaseOrderEntity           PurchaseOrder { get; set; }
-        public List<PurchaseOrderLineEntity> Lines         { get; set; }
+        public PurchaseOrderEntity           PurchaseOrder   { get; set; }
+        public List<PurchaseOrderLineEntity> Lines           { get; set; }
+
+        // Extra header fields from Supplier + PurchaseInvoice JOIN
+        /// <summary>Supplier.PhoneNumber</summary>
+        public string SupplierPhone   { get; set; }
+        /// <summary>Supplier.SupplierAddress</summary>
+        public string SupplierAddress { get; set; }
+        /// <summary>PurchaseInvoice.PaymentStatus  ('Partial' | 'Full' | 'N/A')</summary>
+        public string InvoiceStatus   { get; set; }
+    }
+
+    /// <summary>
+    /// View model for ReceiptDetailDialog.
+    /// Receipt = the selected row (used for header).
+    /// AllReceipts = all Receipt rows sharing the same PurchaseID (grid).
+    /// Populated by LogisticsProcessingController.GetReceiptDetailVM().
+    /// </summary>
+    public class ReceiptDetailVM
+    {
+        public GoodsReceivedEntity       Receipt     { get; set; }
+        public List<GoodsReceivedEntity> AllReceipts { get; set; }
     }
 }

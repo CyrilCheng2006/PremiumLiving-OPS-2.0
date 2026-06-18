@@ -7,6 +7,12 @@ using System.Windows.Forms;
 
 namespace PremiumLivingOPS.Views.LogisticsProcessing
 {
+    /// <summary>
+    /// Read-only Purchase Order detail dialog.
+    /// Shows header (PO ID, RequestID, Supplier with contact, Order Date,
+    /// Total Amount, Invoice Status, PO Status) and all line items
+    /// (POLineID, Item, Material Type, Warehouse, Qty, Unit Price, Subtotal).
+    /// </summary>
     public class PODetailDialog : Form
     {
         private readonly PODetailVM _vm;
@@ -43,7 +49,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             StatusColors.TryGetValue(po?.PurchaseStatus ?? "", out var sc);
 
-            // 1. Dark header bar
+            // ── 1. Dark header bar ───────────────────────────────────
             var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 72, BackColor = Color.FromArgb(19, 35, 61) };
             var tblHeader = new TableLayoutPanel
             {
@@ -56,8 +62,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             tblHeader.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
             tblHeader.Controls.Add(new Label
             {
-                Text = $"Purchase Order Details  —  {po?.PurchaseID}",
-                Font = new Font("Segoe UI", 16f, FontStyle.Bold),
+                Text      = $"Purchase Order Details  —  {po?.PurchaseID}",
+                Font      = new Font("Segoe UI", 16f, FontStyle.Bold),
                 ForeColor = Color.White, Dock = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
             }, 0, 0);
@@ -73,30 +79,44 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlHeader.Controls.Add(tblHeader);
             Controls.Add(pnlHeader);
 
-            // 2. Footer strip
-            var pnlFooter = new Panel { Dock = DockStyle.Bottom, Height = 60, BackColor = Color.White, Padding = new Padding(0, 10, 28, 10) };
-            pnlFooter.Paint += (s, e) => { using var pen = new Pen(Color.FromArgb(221, 227, 236), 1); e.Graphics.DrawLine(pen, 0, 0, ((Control)s).Width, 0); };
+            // ── 2. Footer strip ──────────────────────────────────────
+            var pnlFooter = new Panel
+            {
+                Dock = DockStyle.Bottom, Height = 60, BackColor = Color.White,
+                Padding = new Padding(0, 10, 28, 10)
+            };
+            pnlFooter.Paint += PaintTopBorder;
             var btnClose = new Button
             {
                 Text = "Close", Size = new Size(110, 38),
-                Anchor = AnchorStyles.Right | AnchorStyles.Top,
                 BackColor = Color.FromArgb(47, 111, 237), ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 12f, FontStyle.Bold), Cursor = Cursors.Hand
+                FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 12f, FontStyle.Bold),
+                Cursor = Cursors.Hand
             };
             btnClose.FlatAppearance.BorderSize = 0;
-            btnClose.Location = new Point(pnlFooter.Width - 110 - 28, (pnlFooter.Height - 38) / 2);
             btnClose.Anchor = AnchorStyles.Right | AnchorStyles.Top;
             btnClose.Click += (s, e) => Close();
             pnlFooter.Controls.Add(btnClose);
+            pnlFooter.Layout += (s, e) =>
+                btnClose.Location = new Point(pnlFooter.Width - 110 - 28, (pnlFooter.Height - 38) / 2);
             Controls.Add(pnlFooter);
 
-            // 3. Main content
+            // ── 3. Main content panel ────────────────────────────────
             var pnlContent = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
             Controls.Add(pnlContent);
 
-            // 3a. Info panel
-            var pnlInfo = new Panel { Dock = DockStyle.Top, Height = 210, BackColor = Color.White, Padding = new Padding(28, 18, 28, 10) };
-            pnlInfo.Paint += (s, e) => { using var pen = new Pen(Color.FromArgb(221, 227, 236), 1); e.Graphics.DrawLine(pen, 0, ((Control)s).Height - 1, ((Control)s).Width, ((Control)s).Height - 1); };
+            // ── 3a. Info panel — 4 rows × 4 cols (key/val pairs) ────
+            // Row 0: PO ID            | Order Date
+            // Row 1: Request ID       | Supplier
+            // Row 2: Supplier Phone   | Supplier Address
+            // Row 3: Total Amount     | Invoice Status
+            var pnlInfo = new Panel
+            {
+                Dock = DockStyle.Top, Height = 240,
+                BackColor = Color.White, Padding = new Padding(28, 18, 28, 10)
+            };
+            pnlInfo.Paint += PaintBottomBorder;
+
             var tblInfo = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 4,
@@ -108,22 +128,27 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
             for (int r = 0; r < 4; r++) tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 25f));
 
-            var leftFields = new[] {
-                ("PO ID",        po?.PurchaseID    ?? ""),
-                ("Order Date",   po?.OrderDate == default ? "" : po.OrderDate.ToString("yyyy-MM-dd")),
-                ("Total Amount", $"HK$ {po?.POTotalAmount:F2}"),
-                ("Status",       po?.PurchaseStatus ?? "")
+            // Left column (0,1)
+            var leftFields = new[]
+            {
+                ("PO ID",         po?.PurchaseID   ?? ""),
+                ("Request ID",    po?.RequestID    ?? "(none)"),
+                ("Supplier Phone",_vm.SupplierPhone ?? ""),
+                ("Total Amount",  $"HK$ {po?.POTotalAmount:F2}")
             };
             for (int i = 0; i < leftFields.Length; i++)
             {
                 tblInfo.Controls.Add(MakeLabelKey(leftFields[i].Item1), 0, i);
                 tblInfo.Controls.Add(MakeLabelVal(leftFields[i].Item2), 1, i);
             }
-            var rightFields = new[] {
-                ("Supplier",      po?.SupplierName ?? ""),
-                ("Expected Date", po?.OrderDate == default ? "" : po.OrderDate.AddDays(14).ToString("yyyy-MM-dd")),
-                ("Lines",         (_vm.Lines?.Count ?? 0).ToString() + " item(s)"),
-                ("",              "")
+
+            // Right column (2,3)
+            var rightFields = new[]
+            {
+                ("Order Date",       po?.OrderDate == default ? "" : po.OrderDate.ToString("yyyy-MM-dd")),
+                ("Supplier",         po?.SupplierName    ?? ""),
+                ("Supplier Address", _vm.SupplierAddress ?? ""),
+                ("Invoice Status",   _vm.InvoiceStatus   ?? "N/A")
             };
             for (int i = 0; i < rightFields.Length; i++)
             {
@@ -133,18 +158,62 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlInfo.Controls.Add(tblInfo);
             pnlContent.Controls.Add(pnlInfo);
 
-            // 3b. Section title
-            var pnlGridTitle = new Panel { Dock = DockStyle.Top, Height = 40, BackColor = Color.White, Padding = new Padding(28, 6, 28, 0) };
+            // ── 3b. Section title ────────────────────────────────────
+            var pnlGridTitle = new Panel
+            {
+                Dock = DockStyle.Top, Height = 40,
+                BackColor = Color.White, Padding = new Padding(28, 6, 28, 0)
+            };
             pnlGridTitle.Controls.Add(new Label
             {
-                Text = "Line Items", Font = new Font("Segoe UI", 13f, FontStyle.Bold),
+                Text = "Line Items",
+                Font = new Font("Segoe UI", 13f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(30, 41, 59), Dock = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
             });
             pnlContent.Controls.Add(pnlGridTitle);
 
-            // 3c. DataGrid
-            var pnlGrid = new Panel { Dock = DockStyle.Fill, BackColor = Color.White, Padding = new Padding(28, 0, 28, 0) };
+            // ── 3c. DataGrid ─────────────────────────────────────────
+            var pnlGrid = new Panel
+            {
+                Dock = DockStyle.Fill, BackColor = Color.White,
+                Padding = new Padding(28, 0, 28, 8)
+            };
+            var dgv = BuildDataGrid();
+
+            // Columns: POLineID | Item Name | Mat. Type | WarehouseID | Warehouse Location | Qty | Unit Price | Subtotal
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLineID",   HeaderText = "Line ID",            FillWeight =  10f });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colItem",     HeaderText = "Item",               FillWeight =  28f });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colMatType",  HeaderText = "Material Type",      FillWeight =  10f });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colWHID",     HeaderText = "Warehouse ID",       FillWeight =  10f });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colWHLoc",    HeaderText = "Warehouse Location", FillWeight =  16f });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colQty",      HeaderText = "Qty Ordered",        FillWeight =   8f });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colUnit",     HeaderText = "Unit Price (HK$)",   FillWeight =   9f });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colSubtotal", HeaderText = "Subtotal (HK$)",     FillWeight =   9f });
+            AlignGridColumns(dgv);
+
+            if (_vm.Lines != null)
+                foreach (var line in _vm.Lines)
+                    dgv.Rows.Add(
+                        line.POLineID,
+                        line.MaterialName      ?? line.RawMaterialItemID,
+                        line.MaterialType      ?? "",
+                        line.WarehouseID       ?? "",
+                        line.WarehouseLocation ?? "",
+                        line.OrderQty,
+                        $"{line.UnitPrice:F2}",
+                        $"{line.LineTotal:F2}");
+
+            if (dgv.Rows.Count == 0)
+                AddEmptyRow(dgv, 8);
+
+            pnlGrid.Controls.Add(dgv);
+            pnlContent.Controls.Add(pnlGrid);
+        }
+
+        // ── Helpers ──────────────────────────────────────────────────
+        private static DataGridView BuildDataGrid()
+        {
             var dgv = new DataGridView
             {
                 Dock = DockStyle.Fill, ReadOnly = true,
@@ -163,45 +232,51 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             dgv.ColumnHeadersHeight                     = 40;
             dgv.ColumnHeadersHeightSizeMode             = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
             dgv.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(248, 250, 252);
+            return dgv;
+        }
 
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLineID",   HeaderText = "Line ID",          FillWeight = 12f });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colItem",     HeaderText = "Item",             FillWeight = 38f });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colQty",      HeaderText = "Qty Ordered",      FillWeight = 15f });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colUnit",     HeaderText = "Unit Price (HK$)", FillWeight = 17f });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colSubtotal", HeaderText = "Subtotal (HK$)",  FillWeight = 18f });
+        private static void AlignGridColumns(DataGridView dgv)
+        {
             foreach (DataGridViewColumn col in dgv.Columns)
                 col.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
+        }
 
-            if (_vm.Lines != null)
-                foreach (var line in _vm.Lines)
-                    dgv.Rows.Add(
-                        line.POLineID,
-                        line.MaterialName ?? line.RawMaterialItemID,
-                        line.OrderQty,
-                        $"{line.UnitPrice:F2}",
-                        $"{line.OrderQty * line.UnitPrice:F2}");
+        private static void AddEmptyRow(DataGridView dgv, int colCount)
+        {
+            var row = new object[colCount];
+            row[0] = "";
+            row[1] = "(No line items found)";
+            for (int i = 2; i < colCount; i++) row[i] = "";
+            dgv.Rows.Add(row);
+            dgv.Rows[0].DefaultCellStyle.ForeColor = Color.FromArgb(148, 163, 184);
+        }
 
-            if (dgv.Rows.Count == 0)
-            {
-                dgv.Rows.Add("", "(No line items found)", "", "", "");
-                dgv.Rows[0].DefaultCellStyle.ForeColor = Color.FromArgb(148, 163, 184);
-            }
-            pnlGrid.Controls.Add(dgv);
-            pnlContent.Controls.Add(pnlGrid);
+        private static void PaintTopBorder(object s, System.Windows.Forms.PaintEventArgs e)
+        {
+            using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
+            e.Graphics.DrawLine(pen, 0, 0, ((Control)s).Width, 0);
+        }
+
+        private static void PaintBottomBorder(object s, System.Windows.Forms.PaintEventArgs e)
+        {
+            using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
+            e.Graphics.DrawLine(pen, 0, ((Control)s).Height - 1, ((Control)s).Width, ((Control)s).Height - 1);
         }
 
         private static Label MakeLabelKey(string text) => new Label
         {
             Text = text, Font = new Font("Segoe UI", 10f),
             ForeColor = Color.FromArgb(100, 116, 139), Dock = DockStyle.Fill,
-            TextAlign = ContentAlignment.MiddleLeft, AutoSize = false, Padding = new Padding(4, 0, 0, 0)
+            TextAlign = ContentAlignment.MiddleLeft, AutoSize = false,
+            Padding = new Padding(4, 0, 0, 0)
         };
 
         private static Label MakeLabelVal(string text) => new Label
         {
             Text = text ?? "", Font = new Font("Segoe UI", 12f),
             ForeColor = Color.FromArgb(30, 41, 59), Dock = DockStyle.Fill,
-            TextAlign = ContentAlignment.MiddleLeft, AutoSize = false, Padding = new Padding(4, 0, 0, 0)
+            TextAlign = ContentAlignment.MiddleLeft, AutoSize = false,
+            Padding = new Padding(4, 0, 0, 0)
         };
     }
 }
