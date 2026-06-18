@@ -30,8 +30,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             new LogisticsProcessingController();
 
         private HandlingGoodsReceivedVM _vm;
-        private int _activeGridIndex = 0;
-        private bool _tabPaintWired  = false;
+        private int  _activeGridIndex = 0;
+        private bool _tabPaintWired   = false;
 
         private static readonly Dictionary<string, (Color bg, Color fg)> StatusTheme
             = new Dictionary<string, (Color, Color)>(StringComparer.OrdinalIgnoreCase)
@@ -338,10 +338,16 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         private void dgvReceipts_SelectionChanged(object sender, EventArgs e)
         {
             if (_activeGridIndex == 0) UpdateActionButtons();
+
+            // Only attempt to highlight the linked PO row when dgvPO is
+            // currently visible (i.e. the PO tab is active).  Calling
+            // FirstDisplayedScrollingRowIndex on a hidden DataGridView
+            // raises InvalidOperationException: 沒有可以顯示列的空間。
             if (dgvReceipts.SelectedRows.Count > 0)
             {
                 var entity = dgvReceipts.SelectedRows[0].Tag as GoodsReceivedEntity;
-                if (entity?.PurchaseID != null) HighlightPORow(entity.PurchaseID);
+                if (entity?.PurchaseID != null)
+                    HighlightPORow(entity.PurchaseID);
             }
         }
 
@@ -392,17 +398,33 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }
         }
 
+        /// <summary>
+        /// Highlights the matching PO row in dgvPO.
+        /// Safe to call regardless of which tab is active: when dgvPO is not
+        /// visible we only set row.Selected (cheap metadata op); we skip
+        /// FirstDisplayedScrollingRowIndex because DataGridView throws
+        /// InvalidOperationException when the grid has no display space.
+        /// The scroll will happen naturally when the user switches to the PO tab.
+        /// </summary>
         private void HighlightPORow(string purchaseId)
         {
             foreach (DataGridViewRow row in dgvPO.Rows)
             {
-                if (row.Tag is PurchaseOrderEntity po && po.PurchaseID == purchaseId)
+                if (!(row.Tag is PurchaseOrderEntity po) || po.PurchaseID != purchaseId)
+                    continue;
+
+                dgvPO.ClearSelection();
+                row.Selected = true;
+
+                // FirstDisplayedScrollingRowIndex requires the grid to have
+                // a positive display height.  Guard: only scroll when the
+                // parent panel is visible AND the grid has rendered rows.
+                if (dgvPO.Visible && dgvPO.Height > 0 && dgvPO.Rows.Count > 0)
                 {
-                    dgvPO.ClearSelection();
-                    row.Selected = true;
-                    dgvPO.FirstDisplayedScrollingRowIndex = row.Index;
-                    break;
+                    try { dgvPO.FirstDisplayedScrollingRowIndex = row.Index; }
+                    catch (InvalidOperationException) { /* grid not yet laid out — ignore */ }
                 }
+                break;
             }
         }
 
