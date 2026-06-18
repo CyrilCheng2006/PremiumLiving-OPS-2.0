@@ -1,4 +1,5 @@
 using PremiumLivingOPS.Views.AfterService;
+using PremiumLivingOPS.Views.Auth;
 using PremiumLivingOPS.Views.InventoryControl;
 using PremiumLivingOPS.Views.LogisticsProcessing;
 using PremiumLivingOPS.Views.MasterData;
@@ -8,6 +9,7 @@ using PremiumLivingOPS.Views.RawMaterial;
 using PremiumLivingOPS.Views.StatisticalReports;
 using PremiumLivingOPS.Views.SystemControl;
 using System;
+using System.Linq;
 using System.Windows.Forms;
 
 namespace PremiumLivingOPS.Views.Shared
@@ -23,11 +25,34 @@ namespace PremiumLivingOPS.Views.Shared
     ///
     /// This ensures only ONE window is visible at any time — no new-window
     /// flash, no brief double-window state.
+    ///
+    /// Logout Pattern:
+    ///   Show a fresh LoginForm, then close every other open Form so that
+    ///   Application.Run() transfers its lifetime to the new LoginForm.
     /// </summary>
     public static class FormNavigator
     {
         public static void NavigateTo(Form current, string menuLabel, string subItem = "")
         {
+            // ── Logout ─────────────────────────────────────────────────────────────
+            if (string.Equals(menuLabel, "Logout", StringComparison.OrdinalIgnoreCase))
+            {
+                var login = new LoginForm();
+                login.StartPosition = FormStartPosition.Manual;
+                login.Bounds        = current.Bounds;
+                login.WindowState   = current.WindowState;
+                login.Show();
+
+                // Close every Form that is NOT the new LoginForm.
+                // ToArray() avoids mutating the collection during iteration.
+                foreach (Form f in Application.OpenForms.Cast<Form>().ToArray())
+                {
+                    if (f != login)
+                        f.Close();
+                }
+                return;
+            }
+
             Form target = Resolve(menuLabel, subItem);
 
             if (target == null)
