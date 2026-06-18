@@ -1,5 +1,4 @@
 using PremiumLivingOPS.Views.AfterService;
-using PremiumLivingOPS.Views.Auth;
 using PremiumLivingOPS.Views.InventoryControl;
 using PremiumLivingOPS.Views.LogisticsProcessing;
 using PremiumLivingOPS.Views.MasterData;
@@ -9,7 +8,6 @@ using PremiumLivingOPS.Views.RawMaterial;
 using PremiumLivingOPS.Views.StatisticalReports;
 using PremiumLivingOPS.Views.SystemControl;
 using System;
-using System.Linq;
 using System.Windows.Forms;
 
 namespace PremiumLivingOPS.Views.Shared
@@ -24,9 +22,11 @@ namespace PremiumLivingOPS.Views.Shared
     ///      form so Application.Run() keeps the message loop alive.
     ///
     /// Logout Pattern:
-    ///   Show a fresh LoginForm, then Hide+Dispose every other open Form
-    ///   WITHOUT triggering their FormClosed events (which would try to
-    ///   Show already-disposed predecessors and throw ObjectDisposedException).
+    ///   Application.Run(new LoginForm()) makes LoginForm the main form.
+    ///   Disposing it would terminate the message loop and exit the app.
+    ///   The correct WinForms pattern is Application.Restart():
+    ///   it cleanly ends the current process and spawns a fresh instance
+    ///   which starts at Program.Main() → Application.Run(new LoginForm()).
     /// </summary>
     public static class FormNavigator
     {
@@ -35,24 +35,16 @@ namespace PremiumLivingOPS.Views.Shared
             // ── Logout ─────────────────────────────────────────────────────────────
             if (string.Equals(menuLabel, "Logout", StringComparison.OrdinalIgnoreCase))
             {
-                var login = new LoginForm();
-                login.StartPosition = FormStartPosition.Manual;
-                login.Bounds        = current.Bounds;
-                login.WindowState   = current.WindowState;
-                login.Show();
-
-                // Use Hide() + Dispose() instead of Close().
-                // Close() fires FormClosed, which triggers the NavigateTo lambda
-                // that calls current.Show() on an already-disposed predecessor
-                // → ObjectDisposedException.
-                // Dispose() destroys the window handle directly, bypassing the
-                // FormClosed event chain.
-                foreach (Form f in Application.OpenForms.Cast<Form>().ToArray())
-                {
-                    if (f == login) continue;
-                    f.Hide();
-                    f.Dispose();
-                }
+                // Application.Run(new LoginForm()) makes the original LoginForm
+                // the WinForms main form.  Any attempt to Dispose or Close it
+                // terminates the message loop — the whole app exits before a
+                // new LoginForm can appear.
+                //
+                // Application.Restart() is the correct WinForms logout pattern:
+                // it shuts down the current process cleanly and immediately
+                // launches a fresh instance, which runs Program.Main() again
+                // and arrives at a brand-new LoginForm.
+                Application.Restart();
                 return;
             }
 
