@@ -16,7 +16,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
     ///   • White footer strip (80 px) with Cancel + Confirm buttons
     ///   • Size: 2200 × 920  (identical to ReceiptDetailDialog)
     ///   • MinimumSize: 1200 × 680
-    /// On OK the caller reads dialog.Result.
+    ///
+    /// DOCK ORDER RULE (WinForms): Fill must be added FIRST, then Top controls.
+    /// Controls are rendered in reverse add-order for Top/Bottom docking.
     /// </summary>
     public class RecordInvoiceDialog : Form
     {
@@ -25,7 +27,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         /// <summary>Populated when the user clicks Confirm (DialogResult.OK).</summary>
         public RecordPurchaseInvoiceVM Result { get; private set; }
 
-        // ─ Input controls ─────────────────────────────────────
         private NumericUpDown  _nudTotal;
         private ComboBox       _cboPayStatus;
         private DateTimePicker _dtpExpected;
@@ -36,12 +37,11 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             BuildUI();
         }
 
-        // ──────────────────────────────────────────────────────
         private void BuildUI()
         {
             Text            = $"Record Invoice  —  {_po.PurchaseID}";
-            Size            = new Size(2200, 920);   // same as ReceiptDetailDialog
-            MinimumSize     = new Size(1200, 680);   // same as ReceiptDetailDialog
+            Size            = new Size(2200, 920);
+            MinimumSize     = new Size(1200, 680);
             StartPosition   = FormStartPosition.CenterParent;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox     = false;
@@ -49,7 +49,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             BackColor       = Color.FromArgb(244, 246, 250);
             Font            = new Font("Segoe UI", 12f);
 
-            // ── 1. Dark header bar ────────────────────────────────
+            // ── 1. Header (Top) ──────────────────────────────────────
             var pnlHeader = new Panel
             {
                 Dock      = DockStyle.Top,
@@ -87,9 +87,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 AutoSize  = false
             }, 1, 0);
             pnlHeader.Controls.Add(tblHeader);
-            Controls.Add(pnlHeader);
 
-            // ── 2. Footer strip ───────────────────────────────────
+            // ── 2. Footer (Bottom) ───────────────────────────────────
             var pnlFooter = new Panel
             {
                 Dock      = DockStyle.Bottom,
@@ -107,8 +106,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 ForeColor = Color.FromArgb(51, 65, 85),
                 FlatStyle = FlatStyle.Flat,
                 Font      = new Font("Segoe UI", 13f),
-                Cursor    = Cursors.Hand,
-                Anchor    = AnchorStyles.Right | AnchorStyles.Top
+                Cursor    = Cursors.Hand
             };
             btnCancel.FlatAppearance.BorderColor = Color.FromArgb(203, 213, 225);
             btnCancel.FlatAppearance.BorderSize  = 1;
@@ -122,8 +120,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
                 Font      = new Font("Segoe UI", 13f, FontStyle.Bold),
-                Cursor    = Cursors.Hand,
-                Anchor    = AnchorStyles.Right | AnchorStyles.Top
+                Cursor    = Cursors.Hand
             };
             btnConfirm.FlatAppearance.BorderSize = 0;
             btnConfirm.Click += BtnConfirm_Click;
@@ -134,32 +131,49 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             {
                 int right  = pnlFooter.Width - 32;
                 int btnTop = (pnlFooter.Height - 60) / 2;
-                btnConfirm.Location = new Point(right - 210,               btnTop);
-                btnCancel.Location  = new Point(right - 210 - 12 - 160,   btnTop);
+                btnConfirm.Location = new Point(right - 210,             btnTop);
+                btnCancel.Location  = new Point(right - 210 - 12 - 160, btnTop);
             };
-            Controls.Add(pnlFooter);
 
-            // ── 3. Body — 75 px top gap (same as ReceiptDetailDialog) ─
+            // ── 3. Body (Fill) ───────────────────────────────────────
             var pnlBody = new Panel
             {
                 Dock      = DockStyle.Fill,
                 BackColor = Color.FromArgb(244, 246, 250),
                 Padding   = new Padding(24, 75, 24, 16)
             };
-            Controls.Add(pnlBody);
 
-            // ── 3a. Read-only context card (PO ID + Supplier) ─────
-            var cardContext = new Panel
+            // DOCK ORDER: Fill → then Top controls (added last = rendered first/top)
+            // Add Fill controls first ────────────────────────────────
+            var cardInput = BuildInputCard();   // DockStyle.Fill — add first
+
+            // Add Top controls after (render on top in reverse order) ─
+            var spacer = new Panel { Dock = DockStyle.Top, Height = 16, BackColor = Color.Transparent };
+            var cardContext = BuildContextCard();  // DockStyle.Top — add last = topmost
+
+            pnlBody.Controls.Add(cardInput);    // Fill  — first
+            pnlBody.Controls.Add(spacer);       // Top   — second
+            pnlBody.Controls.Add(cardContext);  // Top   — third (rendered topmost)
+
+            // Form-level dock order: Fill first, then Top/Bottom
+            Controls.Add(pnlBody);      // Fill
+            Controls.Add(pnlFooter);    // Bottom
+            Controls.Add(pnlHeader);    // Top (last added = visually on top)
+        }
+
+        // ── Context card (read-only PO info) ────────────────────────
+        private Panel BuildContextCard()
+        {
+            var card = new Panel
             {
                 Dock      = DockStyle.Top,
                 Height    = 100,
                 BackColor = Color.White,
                 Padding   = new Padding(28, 14, 28, 14)
             };
-            cardContext.Paint += PaintRoundedCard;
-            pnlBody.Controls.Add(cardContext);
+            card.Paint += PaintRoundedCard;
 
-            var tblCtx = new TableLayoutPanel
+            var tbl = new TableLayoutPanel
             {
                 Dock            = DockStyle.Fill,
                 ColumnCount     = 4,
@@ -167,66 +181,84 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 BackColor       = Color.Transparent,
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
-            tblCtx.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
-            tblCtx.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
-            tblCtx.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
-            tblCtx.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
-            tblCtx.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-            tblCtx.Controls.Add(MakeLabelKey("Purchase ID"), 0, 0);
-            tblCtx.Controls.Add(MakeLabelVal(_po.PurchaseID ?? ""), 1, 0);
-            tblCtx.Controls.Add(MakeLabelKey("Supplier"), 2, 0);
+            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
+            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
+            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
+            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
+            tbl.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+
+            tbl.Controls.Add(MakeLabelKey("Purchase ID"), 0, 0);
+            tbl.Controls.Add(MakeLabelVal(_po.PurchaseID ?? ""), 1, 0);
+            tbl.Controls.Add(MakeLabelKey("Supplier"), 2, 0);
             var lblSupplier = MakeLabelVal(_po.SupplierName ?? "");
             lblSupplier.Font = new Font("Segoe UI", 12f, FontStyle.Bold);
-            tblCtx.Controls.Add(lblSupplier, 3, 0);
-            cardContext.Controls.Add(tblCtx);
+            tbl.Controls.Add(lblSupplier, 3, 0);
 
-            // ── 3b. Spacer ────────────────────────────────────────
-            pnlBody.Controls.Add(new Panel { Dock = DockStyle.Top, Height = 16, BackColor = Color.Transparent });
+            card.Controls.Add(tbl);
+            return card;
+        }
 
-            // ── 3c. Input card ────────────────────────────────────
-            var cardInput = new Panel
+        // ── Input card (Invoice Details + 3 fields) ─────────────────
+        private Panel BuildInputCard()
+        {
+            var card = new Panel
             {
                 Dock      = DockStyle.Fill,
                 BackColor = Color.White,
                 Padding   = new Padding(28, 20, 28, 20)
             };
-            cardInput.Paint += PaintRoundedCard;
-            pnlBody.Controls.Add(cardInput);
+            card.Paint += PaintRoundedCard;
 
-            var pnlCardTitle = new Panel
+            // Build field rows (DockStyle.Top inside card)
+            // DOCK ORDER inside card: Fill first (none here), then Top last-in = topmost
+            // We want: Title → Divider → Spacer → Fields (top-to-bottom)
+            // So add in REVERSE: fields last → spacer → divider → title first
+
+            var rowDate    = BuildFieldRow("Expected Date",     BuildDatePicker());  // row 3
+            var spacer3    = new Panel { Dock = DockStyle.Top, Height = 12, BackColor = Color.Transparent };
+            var rowStatus  = BuildFieldRow("Payment Status",    BuildPayStatus());   // row 2
+            var spacer2    = new Panel { Dock = DockStyle.Top, Height = 12, BackColor = Color.Transparent };
+            var rowTotal   = BuildFieldRow("Total Amount (HK$)", BuildNud());        // row 1
+            var spacer1    = new Panel { Dock = DockStyle.Top, Height = 16, BackColor = Color.Transparent };
+            var divider    = new Panel { Dock = DockStyle.Top, Height = 1,  BackColor = Color.FromArgb(226, 232, 240) };
+            var pnlTitle   = BuildCardTitlePanel("Invoice Details");
+
+            // Add in reverse visual order (last added = topmost for DockStyle.Top)
+            card.Controls.Add(rowDate);    // bottom-most field
+            card.Controls.Add(spacer3);
+            card.Controls.Add(rowStatus);
+            card.Controls.Add(spacer2);
+            card.Controls.Add(rowTotal);   // top-most field
+            card.Controls.Add(spacer1);
+            card.Controls.Add(divider);
+            card.Controls.Add(pnlTitle);   // last added = visually topmost
+
+            return card;
+        }
+
+        private static Panel BuildCardTitlePanel(string title)
+        {
+            var pnl = new Panel
             {
                 Dock      = DockStyle.Top,
                 Height    = 48,
                 BackColor = Color.White,
                 Padding   = new Padding(0, 12, 0, 0)
             };
-            pnlCardTitle.Controls.Add(new Label
+            pnl.Controls.Add(new Label
             {
-                Text      = "Invoice Details",
+                Text      = title,
                 Font      = new Font("Segoe UI", 13f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(30, 41, 59),
                 Dock      = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft,
                 AutoSize  = false
             });
-            cardInput.Controls.Add(pnlCardTitle);
-            cardInput.Controls.Add(new Panel
-            {
-                Dock      = DockStyle.Top,
-                Height    = 1,
-                BackColor = Color.FromArgb(226, 232, 240)
-            });
-            cardInput.Controls.Add(new Panel { Dock = DockStyle.Top, Height = 16, BackColor = Color.Transparent });
-
-            AddFieldRow(cardInput, "Total Amount (HK$)", BuildNud());
-            cardInput.Controls.Add(new Panel { Dock = DockStyle.Top, Height = 12, BackColor = Color.Transparent });
-            AddFieldRow(cardInput, "Payment Status", BuildPayStatus());
-            cardInput.Controls.Add(new Panel { Dock = DockStyle.Top, Height = 12, BackColor = Color.Transparent });
-            AddFieldRow(cardInput, "Expected Date", BuildDatePicker());
+            return pnl;
         }
 
-        // ─ Field-row builder ──────────────────────────────────
-        private static void AddFieldRow(Panel parent, string labelText, Control input)
+        // Each field row: label (top, 28 px) + input control (top, 46 px)
+        private static Panel BuildFieldRow(string labelText, Control input)
         {
             var row = new Panel
             {
@@ -234,6 +266,10 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 Height    = 82,
                 BackColor = Color.Transparent
             };
+
+            input.Dock   = DockStyle.Top;
+            input.Height = 46;
+
             var lbl = new Label
             {
                 Text      = labelText,
@@ -245,14 +281,15 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 AutoSize  = false,
                 Padding   = new Padding(2, 0, 0, 0)
             };
-            input.Dock   = DockStyle.Top;
-            input.Height = 46;
+
+            // Inside the row: input goes below label
+            // Add input first (bottom), label second (top)
             row.Controls.Add(input);
             row.Controls.Add(lbl);
-            parent.Controls.Add(row);
+            return row;
         }
 
-        // ─ Control builders ──────────────────────────────────
+        // ── Control builders ─────────────────────────────────────────
         private NumericUpDown BuildNud()
         {
             _nudTotal = new NumericUpDown
@@ -295,7 +332,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             return _dtpExpected;
         }
 
-        // ─ Confirm handler ───────────────────────────────────
+        // ── Confirm handler ──────────────────────────────────────────
         private void BtnConfirm_Click(object sender, EventArgs e)
         {
             Result = new RecordPurchaseInvoiceVM
@@ -310,7 +347,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             Close();
         }
 
-        // ─ Paint helpers ─────────────────────────────────────
+        // ── Paint helpers ────────────────────────────────────────────
         private static void PaintRoundedCard(object s, PaintEventArgs e)
         {
             var c = (Control)s;
@@ -324,7 +361,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             e.Graphics.DrawLine(pen, 0, 0, ((Control)s).Width, 0);
         }
 
-        // ─ Label factories ───────────────────────────────────
+        // ── Label factories ──────────────────────────────────────────
         private static Label MakeLabelKey(string text) => new Label
         {
             Text      = text,
