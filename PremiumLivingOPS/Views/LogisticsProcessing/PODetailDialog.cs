@@ -88,19 +88,19 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlHeader.Controls.Add(tblHeader);
             Controls.Add(pnlHeader);
 
-            // 2. Footer strip
+            // 2. Footer strip — height accommodates 60px button
             var pnlFooter = new Panel
             {
-                Dock = DockStyle.Bottom, Height = 64,
+                Dock = DockStyle.Bottom, Height = 80,
                 BackColor = Color.White,
-                Padding = new Padding(0, 12, 32, 12)
+                Padding = new Padding(0, 10, 32, 10)
             };
             pnlFooter.Paint += PaintTopBorder;
             var btnClose = new Button
             {
-                Text = "Close", Size = new Size(110, 38),
+                Text = "Close", Size = new Size(210, 60),
                 BackColor = Color.FromArgb(47, 111, 237), ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 12f, FontStyle.Bold),
+                FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 13f, FontStyle.Bold),
                 Cursor = Cursors.Hand
             };
             btnClose.FlatAppearance.BorderSize = 0;
@@ -108,16 +108,16 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             btnClose.Click += (s, e) => Close();
             pnlFooter.Controls.Add(btnClose);
             pnlFooter.Layout += (s, e) =>
-                btnClose.Location = new Point(pnlFooter.Width - 110 - 32,
-                                              (pnlFooter.Height - 38) / 2);
+                btnClose.Location = new Point(pnlFooter.Width - 210 - 32,
+                                              (pnlFooter.Height - 60) / 2);
             Controls.Add(pnlFooter);
 
-            // 3. Scrollable body — top:100 = 5× the original 20px gap
+            // 3. Body — top:75 gap between HeaderBar and InfoPanel
             var pnlBody = new Panel
             {
                 Dock      = DockStyle.Fill,
                 BackColor = Color.FromArgb(244, 246, 250),
-                Padding   = new Padding(24, 100, 24, 16)
+                Padding   = new Padding(24, 75, 24, 16)
             };
             Controls.Add(pnlBody);
 
@@ -146,8 +146,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 20f));
 
             string expectedDateStr = _vm.ExpectedDate.HasValue
-                ? _vm.ExpectedDate.Value.ToString("yyyy-MM-dd")
-                : "N/A";
+                ? _vm.ExpectedDate.Value.ToString("yyyy-MM-dd") : "N/A";
 
             var leftFields = new[]
             {
@@ -187,11 +186,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             cardInfo.Controls.Add(tblInfo);
 
             // 3b. Spacer between cards
-            pnlBody.Controls.Add(new Panel
-            {
-                Dock = DockStyle.Top, Height = 16,
-                BackColor = Color.Transparent
-            });
+            pnlBody.Controls.Add(new Panel { Dock = DockStyle.Top, Height = 16, BackColor = Color.Transparent });
 
             // 3c. White grid card
             var cardGrid = new Panel
@@ -205,8 +200,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             var pnlGridTitle = new Panel
             {
-                Dock = DockStyle.Top, Height = 48,
-                BackColor = Color.White,
+                Dock = DockStyle.Top, Height = 48, BackColor = Color.White,
                 Padding = new Padding(28, 12, 28, 0)
             };
             pnlGridTitle.Controls.Add(new Label
@@ -214,8 +208,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 Text = "Line Items",
                 Font = new Font("Segoe UI", 13f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(30, 41, 59),
-                Dock = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
+                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
             });
             cardGrid.Controls.Add(pnlGridTitle);
             cardGrid.Controls.Add(new Panel { Dock = DockStyle.Top, Height = 1, BackColor = Color.FromArgb(226, 232, 240) });
@@ -244,14 +237,10 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                     double sub = line.OrderQty * line.UnitPrice;
                     grandTotal += sub;
                     dgv.Rows.Add(
-                        line.POLineID,
-                        line.MaterialName      ?? line.RawMaterialItemID,
-                        line.MaterialType      ?? "",
-                        line.WarehouseID       ?? "",
-                        line.WarehouseLocation ?? "",
-                        line.OrderQty,
-                        $"{line.UnitPrice:F2}",
-                        $"{sub:F2}");
+                        line.POLineID, line.MaterialName ?? line.RawMaterialItemID,
+                        line.MaterialType ?? "", line.WarehouseID ?? "",
+                        line.WarehouseLocation ?? "", line.OrderQty,
+                        $"{line.UnitPrice:F2}", $"{sub:F2}");
                 }
 
             if (dgv.Rows.Count == 0) AddEmptyRow(dgv, 8);
@@ -286,67 +275,35 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         }
 
         private static void AlignGridColumns(DataGridView dgv)
-        {
-            foreach (DataGridViewColumn col in dgv.Columns)
-                col.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
-        }
+        { foreach (DataGridViewColumn col in dgv.Columns) col.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft; }
 
         private static void AlignRightColumns(DataGridView dgv, params string[] names)
-        {
-            foreach (var name in names)
-                if (dgv.Columns.Contains(name))
-                    dgv.Columns[name].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
-        }
+        { foreach (var n in names) if (dgv.Columns.Contains(n)) dgv.Columns[n].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight; }
 
-        private static void AddEmptyRow(DataGridView dgv, int colCount)
-        {
-            var row = new object[colCount];
-            row[0] = ""; row[1] = "(No line items found)";
-            for (int i = 2; i < colCount; i++) row[i] = "";
-            dgv.Rows.Add(row);
-            dgv.Rows[0].DefaultCellStyle.ForeColor = Color.FromArgb(148, 163, 184);
-        }
+        private static void AddEmptyRow(DataGridView dgv, int cols)
+        { var r = new object[cols]; r[0] = ""; r[1] = "(No line items found)"; for (int i = 2; i < cols; i++) r[i] = ""; dgv.Rows.Add(r); dgv.Rows[0].DefaultCellStyle.ForeColor = Color.FromArgb(148, 163, 184); }
 
-        private static void AddGrandTotalRow(DataGridView dgv, double grandTotal)
+        private static void AddGrandTotalRow(DataGridView dgv, double total)
         {
-            int idx = dgv.Rows.Add("", "", "", "", "", "", "Grand Total (HK$)", $"{grandTotal:F2}");
-            var style = dgv.Rows[idx].DefaultCellStyle;
-            style.BackColor = Color.FromArgb(241, 245, 249);
-            style.Font      = new Font("Segoe UI", 12f, FontStyle.Bold);
-            style.ForeColor = Color.FromArgb(30, 41, 59);
+            int idx = dgv.Rows.Add("", "", "", "", "", "", "Grand Total (HK$)", $"{total:F2}");
+            var s = dgv.Rows[idx].DefaultCellStyle;
+            s.BackColor = Color.FromArgb(241, 245, 249);
+            s.Font = new Font("Segoe UI", 12f, FontStyle.Bold);
+            s.ForeColor = Color.FromArgb(30, 41, 59);
             dgv.Rows[idx].Cells["colUnit"].Style.Alignment     = DataGridViewContentAlignment.MiddleRight;
             dgv.Rows[idx].Cells["colSubtotal"].Style.Alignment = DataGridViewContentAlignment.MiddleRight;
         }
 
         private static void PaintRoundedCard(object s, System.Windows.Forms.PaintEventArgs e)
-        {
-            var ctrl = (Control)s;
-            using var pen = new Pen(Color.FromArgb(226, 232, 240), 1);
-            e.Graphics.DrawRectangle(pen, 0, 0, ctrl.Width - 1, ctrl.Height - 1);
-        }
+        { var c = (Control)s; using var p = new Pen(Color.FromArgb(226, 232, 240), 1); e.Graphics.DrawRectangle(p, 0, 0, c.Width - 1, c.Height - 1); }
 
         private static void PaintTopBorder(object s, System.Windows.Forms.PaintEventArgs e)
-        {
-            using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
-            e.Graphics.DrawLine(pen, 0, 0, ((Control)s).Width, 0);
-        }
+        { using var p = new Pen(Color.FromArgb(221, 227, 236), 1); e.Graphics.DrawLine(p, 0, 0, ((Control)s).Width, 0); }
 
         private static Label MakeLabelKey(string text) => new Label
-        {
-            Text = text, Font = new Font("Segoe UI", 10f),
-            ForeColor = Color.FromArgb(100, 116, 139),
-            Dock = DockStyle.Fill,
-            TextAlign = ContentAlignment.MiddleLeft, AutoSize = false,
-            Padding = new Padding(4, 0, 0, 0)
-        };
+        { Text = text, Font = new Font("Segoe UI", 10f), ForeColor = Color.FromArgb(100, 116, 139), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false, Padding = new Padding(4, 0, 0, 0) };
 
         private static Label MakeLabelVal(string text) => new Label
-        {
-            Text = text ?? "", Font = new Font("Segoe UI", 12f),
-            ForeColor = Color.FromArgb(30, 41, 59),
-            Dock = DockStyle.Fill,
-            TextAlign = ContentAlignment.MiddleLeft, AutoSize = false,
-            Padding = new Padding(4, 0, 0, 0)
-        };
+        { Text = text ?? "", Font = new Font("Segoe UI", 12f), ForeColor = Color.FromArgb(30, 41, 59), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false, Padding = new Padding(4, 0, 0, 0) };
     }
 }
