@@ -50,7 +50,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
                 { "Medium",   (Color.FromArgb(209, 250, 229), Color.FromArgb(  6,  95,  70)) }
             };
 
-        private const int D_RowH   = 60;
+        private const int D_RowH   = 80;   // increased from 60 — prevents label text clipping at bottom
         private const int D_LabelW = 260;
         private const int D_BtnW   = 200;
         private const int D_BtnH   = 56;
@@ -324,7 +324,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
                     Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft,
                     AutoSize = false, Padding = new Padding(20, 0, 8, 0)
                 };
-                var wrap = new Panel { Dock = DockStyle.Fill, BackColor = Color.White, Padding = new Padding(20, 10, 20, 10) };
+                var wrap = new Panel { Dock = DockStyle.Fill, BackColor = Color.White, Padding = new Padding(20, 12, 20, 12) };
                 input.Dock = DockStyle.Fill;
                 wrap.Controls.Add(input);
                 tlp.Controls.Add(lbl,  0, 0);
@@ -394,7 +394,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
                         Padding            = new Padding(10, 8, 10, 8)
                     }
                 };
-                lineDgv.RowTemplate.Height = 68;   // increased from 44 — prevents cell text clipping
+                lineDgv.RowTemplate.Height = 68;
                 lineDgv.Columns.Add("cPOLine", "PO LINE ID");
                 lineDgv.Columns.Add("cMat",    "RAW MATERIAL");
                 lineDgv.Columns.Add("cType",   "TYPE");
