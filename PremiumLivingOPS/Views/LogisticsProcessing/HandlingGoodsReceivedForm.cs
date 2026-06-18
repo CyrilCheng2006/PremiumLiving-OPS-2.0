@@ -19,12 +19,10 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
     /// MVC contract
     /// ─────────────────────────────────────────────────────────────────
     /// • All DB access delegated to LogisticsProcessingController (zero SQL here).
-    /// • AppShell follows the same runtime wiring pattern as ViewShipmentForm.
+    /// • AppShell wired in Designer.cs; this file calls SetUser / SetVisibleMenus /
+    ///   SetBreadcrumb in RefreshGrids() only — never re-subscribes events.
     /// • CardPanel three-layer nesting: grey outer → white card → content.
-    /// • KPI pills + four action buttons mirror ViewOrderForm layout exactly.
-    /// • Grid Tab Switcher: three tab buttons below KPI bar switch between
-    ///   the three grids (Goods Received Receipts / Purchase Orders / Invoices).
-    ///   Only one grid is visible at a time; SwitchToGrid(index) controls this.
+    /// • Grid Tab Switcher: three tab buttons switch Receipts / POs / Invoices.
     /// </summary>
     public partial class HandlingGoodsReceivedForm : Form
     {
@@ -33,6 +31,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
         private HandlingGoodsReceivedVM _vm;
         private int _activeGridIndex = 0;
+        private bool _tabPaintWired  = false;
 
         private static readonly Dictionary<string, (Color bg, Color fg)> StatusTheme
             = new Dictionary<string, (Color, Color)>(StringComparer.OrdinalIgnoreCase)
@@ -49,10 +48,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         public HandlingGoodsReceivedForm()
         {
             InitializeComponent();
-            // NOTE: Do NOT subscribe MenuItemClicked / LogoutClicked here.
-            //       Both events are subscribed exactly ONCE in Designer.cs
-            //       (RULE 4). Subscribing again here would cause every click
-            //       to fire the handler twice.
+            // Events subscribed once in Designer.cs — do NOT re-subscribe here.
             this.Load += HandlingGoodsReceivedForm_Load;
         }
 
@@ -65,30 +61,31 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 Convert.ToInt32(hex.Substring(4, 2), 16));
         }
 
+        // ──────────────────────────────────────────────────────────────────
+        //  Load
+        // ──────────────────────────────────────────────────────────────────
         private void HandlingGoodsReceivedForm_Load(object sender, EventArgs e)
         {
-            // ── No event re-subscription here (RULE 4) ───────────────────────
-            // MenuItemClicked and LogoutClicked are wired once in Designer.cs.
-            // Re-subscribing here would fire every click/logout twice.
-
             RefreshGrids();
             SwitchToGrid(0);
         }
 
+        // ──────────────────────────────────────────────────────────────────
+        //  Navigation / logout — wired in Designer.cs
+        // ──────────────────────────────────────────────────────────────────
         private void OnTopNavMenuItemClicked(string menu, string subItem)
-        {
-            FormNavigator.NavigateTo(this, menu, subItem);
-        }
+            => FormNavigator.NavigateTo(this, menu, subItem);
 
         private void btnLogout_Click(object sender, EventArgs e)
         {
             if (MessageBox.Show("Are you sure you want to logout?",
                 "Logout", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
-            {
                 FormNavigator.NavigateTo(this, "Logout");
-            }
         }
 
+        // ──────────────────────────────────────────────────────────────────
+        //  Tab switcher
+        // ──────────────────────────────────────────────────────────────────
         internal void SwitchToGrid(int index)
         {
             _activeGridIndex = index;
@@ -97,12 +94,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             for (int i = 0; i < tabs.Length; i++)
             {
                 bool active = (i == index);
-                tabs[i].ForeColor = active
-                    ? Color.FromArgb(47, 111, 237)
-                    : Color.FromArgb(98, 112, 135);
-                tabs[i].Font = active
-                    ? new Font("Segoe UI", 12f, FontStyle.Bold)
-                    : new Font("Segoe UI", 12f);
+                tabs[i].ForeColor = active ? Color.FromArgb(47, 111, 237) : Color.FromArgb(98, 112, 135);
+                tabs[i].Font      = active ? new Font("Segoe UI", 12f, FontStyle.Bold) : new Font("Segoe UI", 12f);
                 tabs[i].Invalidate();
                 if (tabs[i].Tag is Panel card)
                     card.Visible = active;
@@ -119,20 +112,17 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             UpdateActionButtons();
         }
 
-        private bool _tabPaintWired = false;
-
-        private void PaintTabUnderline(object sender, PaintEventArgs e)
+        private static void PaintTabUnderline(object sender, PaintEventArgs e)
         {
             var btn = (Button)sender;
-            bool isActive = btn.ForeColor == Color.FromArgb(47, 111, 237);
-            if (!isActive) return;
-            using (var pen = new Pen(Color.FromArgb(47, 111, 237), 3f))
-            {
-                int y = btn.Height - 2;
-                e.Graphics.DrawLine(pen, 0, y, btn.Width, y);
-            }
+            if (btn.ForeColor != Color.FromArgb(47, 111, 237)) return;
+            using var pen = new Pen(Color.FromArgb(47, 111, 237), 3f);
+            e.Graphics.DrawLine(pen, 0, btn.Height - 2, btn.Width, btn.Height - 2);
         }
 
+        // ──────────────────────────────────────────────────────────────────
+        //  Action button state
+        // ──────────────────────────────────────────────────────────────────
         private void UpdateActionButtons()
         {
             switch (_activeGridIndex)
@@ -162,7 +152,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                     btnUploadReceipt.Enabled    = false;
                     break;
 
-                case 2:
+                default:
                     btnViewPODetail.Enabled     = false;
                     btnViewReceiptLines.Enabled = false;
                     btnUploadReceipt.Enabled    = false;
@@ -171,10 +161,13 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }
         }
 
+        // ──────────────────────────────────────────────────────────────────
+        //  Data refresh
+        // ──────────────────────────────────────────────────────────────────
         private void RefreshGrids()
         {
             string keyword = txtKeyword.Text.Trim();
-            string status = cboStatus.SelectedIndex == 0 ? null : cboStatus.SelectedItem?.ToString();
+            string status  = cboStatus.SelectedIndex == 0 ? null : cboStatus.SelectedItem?.ToString();
             DateTime? from = chkDateFrom.Checked ? (DateTime?)dtpDateFrom.Value.Date : null;
 
             _vm = _ctrl.GetHandlingGoodsReceivedVM(status, keyword, from);
@@ -188,7 +181,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             BindPO(_vm.PurchaseOrders);
             BindInvoices(_vm.Invoices);
             RenderKpi();
-
             UpdateActionButtons();
         }
 
@@ -196,8 +188,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         {
             txtKeyword.Clear();
             cboStatus.SelectedIndex = 0;
-            chkDateFrom.Checked = false;
-            dtpDateFrom.Value = DateTime.Today.AddMonths(-1);
+            chkDateFrom.Checked     = false;
+            dtpDateFrom.Value       = DateTime.Today.AddMonths(-1);
             RefreshGrids();
         }
 
@@ -246,6 +238,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }
         }
 
+        // ──────────────────────────────────────────────────────────────────
+        //  KPI pills
+        // ──────────────────────────────────────────────────────────────────
         private void RenderKpi()
         {
             pnlKpi.Controls.Clear();
@@ -276,41 +271,32 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 FlowDirection = FlowDirection.LeftToRight,
                 WrapContents  = false,
                 BackColor     = Color.Transparent,
-                Padding       = new Padding(0),
+                Padding       = Padding.Empty,
                 AutoScroll    = false
             };
 
-            const int PillW   = 290;
-            const int PillH   = 60;
-            const int Gap     = 8;
-            const int NumColW = 80;
+            const int PillW = 210, PillH = 60, Gap = 8, NumColW = 70;
 
             foreach (var (label, count, fg, bg, filterItem) in pills)
             {
                 var pill = new Panel
                 {
-                    BackColor = bg,
-                    Size      = new Size(PillW, PillH),
-                    Margin    = new Padding(0, 0, Gap, 0),
-                    Cursor    = Cursors.Hand
+                    BackColor = bg, Size = new Size(PillW, PillH),
+                    Margin = new Padding(0, 0, Gap, 0), Cursor = Cursors.Hand
                 };
-
-                pill.Paint += (s, e) =>
+                pill.Paint += (s, ev) =>
                 {
-                    e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-                    using (var path  = RoundedRect(((Panel)s).ClientRectangle, 8))
-                    using (var brush = new SolidBrush(((Panel)s).BackColor))
-                        e.Graphics.FillPath(brush, path);
+                    ev.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                    using var path  = RoundedRect(((Panel)s).ClientRectangle, 8);
+                    using var brush = new SolidBrush(((Panel)s).BackColor);
+                    ev.Graphics.FillPath(brush, path);
                 };
 
                 var tlp = new TableLayoutPanel
                 {
-                    Dock            = DockStyle.Fill,
-                    ColumnCount     = 2,
-                    RowCount        = 1,
-                    BackColor       = Color.Transparent,
-                    CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                    Padding         = new Padding(10, 0, 8, 0)
+                    Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
+                    BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                    Padding = new Padding(10, 0, 8, 0)
                 };
                 tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, NumColW));
                 tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
@@ -318,37 +304,27 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
                 tlp.Controls.Add(new Label
                 {
-                    Text      = count,
-                    Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
-                    ForeColor = fg,
-                    BackColor = Color.Transparent,
-                    Dock      = DockStyle.Fill,
-                    TextAlign = ContentAlignment.MiddleCenter,
-                    AutoSize  = false
+                    Text = count, Font = new Font("Segoe UI", 14f, FontStyle.Bold),
+                    ForeColor = fg, BackColor = Color.Transparent,
+                    Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, AutoSize = false
                 }, 0, 0);
-
                 tlp.Controls.Add(new Label
                 {
-                    Text      = label,
-                    Font      = new Font("Segoe UI", 12f),
-                    ForeColor = fg,
-                    BackColor = Color.Transparent,
-                    Dock      = DockStyle.Fill,
-                    TextAlign = ContentAlignment.MiddleLeft,
-                    AutoSize  = false
+                    Text = label, Font = new Font("Segoe UI", 12f),
+                    ForeColor = fg, BackColor = Color.Transparent,
+                    Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
                 }, 1, 0);
 
-                string localFilterItem = filterItem;
-                EventHandler clickHandler = (s, e) =>
+                string fi = filterItem;
+                EventHandler click = (s, ev) =>
                 {
-                    int idx = cboStatus.FindStringExact(localFilterItem);
+                    int idx = cboStatus.FindStringExact(fi);
                     if (idx >= 0) cboStatus.SelectedIndex = idx;
                     RefreshGrids();
                 };
-                pill.Click += clickHandler;
-                tlp.Click  += clickHandler;
-                foreach (Control c in tlp.Controls) c.Click += clickHandler;
-
+                pill.Click += click;
+                tlp.Click  += click;
+                foreach (Control c in tlp.Controls) c.Click += click;
                 pill.Controls.Add(tlp);
                 flow.Controls.Add(pill);
             }
@@ -356,6 +332,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlKpi.Controls.Add(flow);
         }
 
+        // ──────────────────────────────────────────────────────────────────
+        //  Grid event handlers
+        // ──────────────────────────────────────────────────────────────────
         private void dgvReceipts_SelectionChanged(object sender, EventArgs e)
         {
             if (_activeGridIndex == 0) UpdateActionButtons();
@@ -368,8 +347,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
         private void dgvReceipts_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
-            if (e.RowIndex < 0) return;
-            if (dgvReceipts.Columns[e.ColumnIndex].Name == "colPOSt") ApplyStatusStyle(e);
+            if (e.RowIndex < 0 || dgvReceipts.Columns[e.ColumnIndex].Name != "colPOSt") return;
+            ApplyStatusStyle(e);
         }
 
         private void dgvReceipts_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
@@ -384,8 +363,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
         private void dgvPO_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
-            if (e.RowIndex < 0) return;
-            if (dgvPO.Columns[e.ColumnIndex].Name == "colPSt") ApplyStatusStyle(e);
+            if (e.RowIndex < 0 || dgvPO.Columns[e.ColumnIndex].Name != "colPSt") return;
+            ApplyStatusStyle(e);
         }
 
         private void dgvPO_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
@@ -395,8 +374,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
         private void dgvInvoices_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
-            if (e.RowIndex < 0) return;
-            if (dgvInvoices.Columns[e.ColumnIndex].Name == "colInvPay") ApplyStatusStyle(e);
+            if (e.RowIndex < 0 || dgvInvoices.Columns[e.ColumnIndex].Name != "colInvPay") return;
+            ApplyStatusStyle(e);
         }
 
         private void ApplyStatusStyle(DataGridViewCellFormattingEventArgs e)
@@ -429,7 +408,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
         private static GraphicsPath RoundedRect(Rectangle bounds, int radius)
         {
-            int d    = radius * 2;
+            int d = radius * 2;
             var path = new GraphicsPath();
             path.AddArc(bounds.X,         bounds.Y,          d, d, 180, 90);
             path.AddArc(bounds.Right - d, bounds.Y,          d, d, 270, 90);
@@ -439,16 +418,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             return path;
         }
 
-        private static void PaintCardBorder(object sender, PaintEventArgs e)
-        {
-            var ctrl   = (Control)sender;
-            var bounds = ctrl.ClientRectangle;
-            bounds.Width--; bounds.Height--;
-            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-            using (var pen = new Pen(Color.FromArgb(221, 227, 236), 1f))
-                e.Graphics.DrawRectangle(pen, bounds);
-        }
-
+        // ──────────────────────────────────────────────────────────────────
+        //  Action button click handlers
+        // ──────────────────────────────────────────────────────────────────
         private void btnViewPODetail_Click(object sender, EventArgs e)
         {
             PurchaseOrderEntity po = null;
@@ -478,12 +450,12 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         private void ShowPODetail(PurchaseOrderEntity po)
         {
             if (po == null) return;
-            var poDetailVm = new Models.ViewModels.PODetailVM
+            var vm = new Models.ViewModels.PODetailVM
             {
                 PurchaseOrder = po,
                 Lines         = new List<Models.Entities.PurchaseOrderLineEntity>()
             };
-            using (var dlg = new PODetailDialog(poDetailVm))
+            using (var dlg = new PODetailDialog(vm))
                 dlg.ShowDialog(this);
         }
 
@@ -522,19 +494,12 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
         private void btnUploadReceipt_Click(object sender, EventArgs e)
         {
-            using (var dlg = new OpenFileDialog
-            {
-                Title  = "Select Receipt CSV File",
-                Filter = "CSV Files (*.csv)|*.csv"
-            })
+            using (var dlg = new OpenFileDialog { Title = "Select Receipt CSV File", Filter = "CSV Files (*.csv)|*.csv" })
             {
                 if (dlg.ShowDialog() != DialogResult.OK) return;
 
                 ReceiptImportResult result;
-                try
-                {
-                    result = _ctrl.ImportReceiptsFromCsv(dlg.FileName);
-                }
+                try   { result = _ctrl.ImportReceiptsFromCsv(dlg.FileName); }
                 catch (Exception ex)
                 {
                     MessageBox.Show($"Unexpected error during import:\n{ex.Message}",
@@ -544,7 +509,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
                 var sb = new StringBuilder();
                 sb.AppendLine($"\u2705  {result.SuccessCount} receipt(s) imported successfully.");
-
                 if (result.HasErrors)
                 {
                     sb.AppendLine();
@@ -552,15 +516,11 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                     foreach (var err in result.Errors)
                         sb.AppendLine($"  \u2022 {err}");
                 }
-
-                MessageBox.Show(
-                    sb.ToString(),
+                MessageBox.Show(sb.ToString(),
                     result.HasErrors ? "Import Completed with Warnings" : "Import Successful",
                     MessageBoxButtons.OK,
                     result.HasErrors ? MessageBoxIcon.Warning : MessageBoxIcon.Information);
-
-                if (result.SuccessCount > 0)
-                    RefreshGrids();
+                if (result.SuccessCount > 0) RefreshGrids();
             }
         }
 
