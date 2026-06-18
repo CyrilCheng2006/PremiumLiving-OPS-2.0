@@ -12,7 +12,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
     /// Header: PO ID, Request ID, Supplier (name/phone/address), Order Date,
     ///         Expected Date (from PurchaseInvoice), Total Amount, Invoice Status,
     ///         PO Status, Receipt Progress.
-    /// Grid: all line items with subtotal column.
+    /// Grid: all line items with subtotal column + Grand Total footer.
     /// </summary>
     public class PODetailDialog : Form
     {
@@ -39,68 +39,69 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             var po = _vm.PurchaseOrder;
 
             Text            = $"Purchase Order Detail  —  {po?.PurchaseID}";
-            Size            = new Size(2200, 860);
-            MinimumSize     = new Size(1200, 640);
+            Size            = new Size(2200, 920);
+            MinimumSize     = new Size(1200, 680);
             StartPosition   = FormStartPosition.CenterParent;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox     = false;
             MinimizeBox     = false;
-            BackColor       = Color.White;
+            BackColor       = Color.FromArgb(244, 246, 250);  // light page bg
             Font            = new Font("Segoe UI", 12f);
 
             StatusColors.TryGetValue(po?.PurchaseStatus ?? "", out var sc);
 
             // ── 1. Dark header bar ───────────────────────────────────
-            var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 72, BackColor = Color.FromArgb(19, 35, 61) };
+            var pnlHeader = new Panel
+            {
+                Dock      = DockStyle.Top,
+                Height    = 72,
+                BackColor = Color.FromArgb(19, 35, 61)
+            };
             var tblHeader = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 1,
-                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                BackColor = Color.Transparent,
+                CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
                 Padding = new Padding(28, 0, 28, 0)
             };
             tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
-            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 260f)); // receipt progress
-            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 200f)); // status badge
+            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 260f));
+            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 200f));
             tblHeader.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
             tblHeader.Controls.Add(new Label
             {
-                Text      = $"Purchase Order Details  —  {po?.PurchaseID}",
-                Font      = new Font("Segoe UI", 16f, FontStyle.Bold),
+                Text = $"Purchase Order Details  —  {po?.PurchaseID}",
+                Font = new Font("Segoe UI", 16f, FontStyle.Bold),
                 ForeColor = Color.White, Dock = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
             }, 0, 0);
-
-            // Receipt progress pill
             tblHeader.Controls.Add(new Label
             {
-                Text      = _vm.ReceiptProgressLabel,
-                Font      = new Font("Segoe UI", 11f),
+                Text = _vm.ReceiptProgressLabel,
+                Font = new Font("Segoe UI", 11f),
                 ForeColor = Color.FromArgb(186, 230, 253),
-                Dock      = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleRight,
-                AutoSize  = false
+                Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleRight, AutoSize = false
             }, 1, 0);
-
-            // Status badge
             tblHeader.Controls.Add(new Label
             {
-                Text      = po?.PurchaseStatus ?? "Unknown",
-                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                Text = po?.PurchaseStatus ?? "Unknown",
+                Font = new Font("Segoe UI", 12f, FontStyle.Bold),
                 ForeColor = sc.fg != default ? sc.fg : Color.White,
                 BackColor = sc.bg != default ? sc.bg : Color.FromArgb(80, 80, 80),
-                Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter,
-                AutoSize  = false, Padding = new Padding(8, 4, 8, 4)
+                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter,
+                AutoSize = false, Padding = new Padding(8, 4, 8, 4)
             }, 2, 0);
-
             pnlHeader.Controls.Add(tblHeader);
             Controls.Add(pnlHeader);
 
             // ── 2. Footer strip ──────────────────────────────────────
             var pnlFooter = new Panel
             {
-                Dock = DockStyle.Bottom, Height = 60, BackColor = Color.White,
-                Padding = new Padding(0, 10, 28, 10)
+                Dock = DockStyle.Bottom, Height = 64,
+                BackColor = Color.White,
+                Padding = new Padding(0, 12, 32, 12)
             };
             pnlFooter.Paint += PaintTopBorder;
             var btnClose = new Button
@@ -115,36 +116,48 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             btnClose.Click += (s, e) => Close();
             pnlFooter.Controls.Add(btnClose);
             pnlFooter.Layout += (s, e) =>
-                btnClose.Location = new Point(pnlFooter.Width - 110 - 28, (pnlFooter.Height - 38) / 2);
+                btnClose.Location = new Point(pnlFooter.Width - 110 - 32,
+                                              (pnlFooter.Height - 38) / 2);
             Controls.Add(pnlFooter);
 
-            // ── 3. Main content ──────────────────────────────────────
-            var pnlContent = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
-            Controls.Add(pnlContent);
+            // ── 3. Scrollable body ─────────────────────────────────
+            var pnlBody = new Panel
+            {
+                Dock      = DockStyle.Fill,
+                BackColor = Color.FromArgb(244, 246, 250),
+                Padding   = new Padding(24, 20, 24, 16)   // ← top:20 = breathing space below header
+            };
+            Controls.Add(pnlBody);
 
-            // ── 3a. Info panel — 5 rows × 4 cols ────────────────────
+            // ── 3a. White info card ───────────────────────────────
+            // 5 rows × 4 cols
             // Row 0: PO ID            | Order Date
             // Row 1: Request ID       | Supplier
             // Row 2: Supplier Phone   | Supplier Address
             // Row 3: Total Amount     | Invoice Status
             // Row 4: Expected Date    | Receipt Progress
-            var pnlInfo = new Panel
+            var cardInfo = new Panel
             {
-                Dock = DockStyle.Top, Height = 280,
-                BackColor = Color.White, Padding = new Padding(28, 18, 28, 10)
+                Dock        = DockStyle.Top,
+                Height      = 300,
+                BackColor   = Color.White,
+                Padding     = new Padding(28, 20, 28, 16)
             };
-            pnlInfo.Paint += PaintBottomBorder;
+            cardInfo.Paint += PaintRoundedCard;
+            pnlBody.Controls.Add(cardInfo);
 
             var tblInfo = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 5,
-                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+                BackColor = Color.Transparent,
+                CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
-            for (int r = 0; r < 5; r++) tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 20f));
+            for (int r = 0; r < 5; r++)
+                tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 20f));
 
             string expectedDateStr = _vm.ExpectedDate.HasValue
                 ? _vm.ExpectedDate.Value.ToString("yyyy-MM-dd")
@@ -161,12 +174,14 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             for (int i = 0; i < leftFields.Length; i++)
             {
                 tblInfo.Controls.Add(MakeLabelKey(leftFields[i].Item1), 0, i);
-                // Highlight Expected Date label when it's approaching or overdue
                 var valLabel = MakeLabelVal(leftFields[i].Item2);
-                if (i == 4 && _vm.ExpectedDate.HasValue && _vm.ExpectedDate.Value < DateTime.Today)
-                    valLabel.ForeColor = Color.FromArgb(185, 28, 28); // overdue → red
-                else if (i == 4 && _vm.ExpectedDate.HasValue && _vm.ExpectedDate.Value <= DateTime.Today.AddDays(7))
-                    valLabel.ForeColor = Color.FromArgb(146, 64, 14); // within 7 days → amber
+                if (i == 4 && _vm.ExpectedDate.HasValue)
+                {
+                    if (_vm.ExpectedDate.Value < DateTime.Today)
+                        valLabel.ForeColor = Color.FromArgb(185, 28, 28);          // overdue → red
+                    else if (_vm.ExpectedDate.Value <= DateTime.Today.AddDays(7))
+                        valLabel.ForeColor = Color.FromArgb(146, 64, 14);          // ≤7 days → amber
+                }
                 tblInfo.Controls.Add(valLabel, 1, i);
             }
 
@@ -183,29 +198,48 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 tblInfo.Controls.Add(MakeLabelKey(rightFields[i].Item1), 2, i);
                 tblInfo.Controls.Add(MakeLabelVal(rightFields[i].Item2), 3, i);
             }
-            pnlInfo.Controls.Add(tblInfo);
-            pnlContent.Controls.Add(pnlInfo);
+            cardInfo.Controls.Add(tblInfo);
 
-            // ── 3b. Section title ────────────────────────────────────
+            // ── 3b. Gap between info card and grid card ───────────
+            pnlBody.Controls.Add(new Panel
+            {
+                Dock = DockStyle.Top, Height = 16,
+                BackColor = Color.Transparent
+            });
+
+            // ── 3c. White grid card ───────────────────────────────
+            var cardGrid = new Panel
+            {
+                Dock      = DockStyle.Fill,
+                BackColor = Color.White,
+                Padding   = new Padding(0, 0, 0, 0)
+            };
+            cardGrid.Paint += PaintRoundedCard;
+            pnlBody.Controls.Add(cardGrid);
+
             var pnlGridTitle = new Panel
             {
-                Dock = DockStyle.Top, Height = 40,
-                BackColor = Color.White, Padding = new Padding(28, 6, 28, 0)
+                Dock = DockStyle.Top, Height = 48,
+                BackColor = Color.White,
+                Padding = new Padding(28, 12, 28, 0)
             };
             pnlGridTitle.Controls.Add(new Label
             {
                 Text = "Line Items",
                 Font = new Font("Segoe UI", 13f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(30, 41, 59), Dock = DockStyle.Fill,
+                ForeColor = Color.FromArgb(30, 41, 59),
+                Dock = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
             });
-            pnlContent.Controls.Add(pnlGridTitle);
+            cardGrid.Controls.Add(pnlGridTitle);
 
-            // ── 3c. DataGrid ─────────────────────────────────────────
-            var pnlGrid = new Panel
+            var pnlDivider = new Panel { Dock = DockStyle.Top, Height = 1, BackColor = Color.FromArgb(226, 232, 240) };
+            cardGrid.Controls.Add(pnlDivider);
+
+            var pnlGridWrap = new Panel
             {
                 Dock = DockStyle.Fill, BackColor = Color.White,
-                Padding = new Padding(28, 0, 28, 8)
+                Padding = new Padding(28, 0, 28, 12)
             };
             var dgv = BuildDataGrid();
 
@@ -242,21 +276,22 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             else
                 AddGrandTotalRow(dgv, grandTotal);
 
-            pnlGrid.Controls.Add(dgv);
-            pnlContent.Controls.Add(pnlGrid);
+            pnlGridWrap.Controls.Add(dgv);
+            cardGrid.Controls.Add(pnlGridWrap);
         }
 
-        // ── Helpers ──────────────────────────────────────────────────
+        // ── Helpers ──────────────────────────────────────────────
         private static DataGridView BuildDataGrid()
         {
             var dgv = new DataGridView
             {
                 Dock = DockStyle.Fill, ReadOnly = true,
                 AllowUserToAddRows = false, AllowUserToDeleteRows = false,
-                RowHeadersVisible = false, SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                RowHeadersVisible = false,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
                 BackgroundColor = Color.White, BorderStyle = BorderStyle.None,
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-                Font = new Font("Segoe UI", 12f), RowTemplate = { Height = 36 }
+                Font = new Font("Segoe UI", 12f), RowTemplate = { Height = 38 }
             };
             dgv.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(248, 250, 252);
             dgv.ColumnHeadersDefaultCellStyle.ForeColor = Color.FromArgb(30, 41, 59);
@@ -264,7 +299,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             dgv.ColumnHeadersDefaultCellStyle.Padding   = new Padding(10, 0, 0, 0);
             dgv.DefaultCellStyle.Padding                = new Padding(10, 0, 0, 0);
             dgv.EnableHeadersVisualStyles               = false;
-            dgv.ColumnHeadersHeight                     = 40;
+            dgv.ColumnHeadersHeight                     = 42;
             dgv.ColumnHeadersHeightSizeMode             = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
             dgv.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(248, 250, 252);
             return dgv;
@@ -303,22 +338,25 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             dgv.Rows[idx].Cells["colSubtotal"].Style.Alignment = DataGridViewContentAlignment.MiddleRight;
         }
 
+        // Lightweight rounded-shadow effect via OnPaint
+        private static void PaintRoundedCard(object s, System.Windows.Forms.PaintEventArgs e)
+        {
+            var ctrl = (Control)s;
+            using var pen = new Pen(Color.FromArgb(226, 232, 240), 1);
+            e.Graphics.DrawRectangle(pen, 0, 0, ctrl.Width - 1, ctrl.Height - 1);
+        }
+
         private static void PaintTopBorder(object s, System.Windows.Forms.PaintEventArgs e)
         {
             using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
             e.Graphics.DrawLine(pen, 0, 0, ((Control)s).Width, 0);
         }
 
-        private static void PaintBottomBorder(object s, System.Windows.Forms.PaintEventArgs e)
-        {
-            using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
-            e.Graphics.DrawLine(pen, 0, ((Control)s).Height - 1, ((Control)s).Width, ((Control)s).Height - 1);
-        }
-
         private static Label MakeLabelKey(string text) => new Label
         {
             Text = text, Font = new Font("Segoe UI", 10f),
-            ForeColor = Color.FromArgb(100, 116, 139), Dock = DockStyle.Fill,
+            ForeColor = Color.FromArgb(100, 116, 139),
+            Dock = DockStyle.Fill,
             TextAlign = ContentAlignment.MiddleLeft, AutoSize = false,
             Padding = new Padding(4, 0, 0, 0)
         };
@@ -326,7 +364,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         private static Label MakeLabelVal(string text) => new Label
         {
             Text = text ?? "", Font = new Font("Segoe UI", 12f),
-            ForeColor = Color.FromArgb(30, 41, 59), Dock = DockStyle.Fill,
+            ForeColor = Color.FromArgb(30, 41, 59),
+            Dock = DockStyle.Fill,
             TextAlign = ContentAlignment.MiddleLeft, AutoSize = false,
             Padding = new Padding(4, 0, 0, 0)
         };
