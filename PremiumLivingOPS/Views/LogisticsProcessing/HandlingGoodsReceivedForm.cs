@@ -507,11 +507,21 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         private void ShowReceiptDetail(GoodsReceivedEntity receipt)
         {
             if (receipt == null) return;
-            var lines = _vm?.Receipts?
-                            .Where(r => r.ReceiptID == receipt.ReceiptID)
-                            .ToList()
-                        ?? new List<GoodsReceivedEntity>();
-            using (var dlg = new ReceiptDetailDialog(receipt, lines))
+
+            // fix CS1729: ReceiptDetailDialog only accepts ReceiptDetailVM (1 arg).
+            // Build the VM from the selected entity + sibling receipts under same PurchaseID.
+            var allUnderSamePO = _vm?.Receipts?
+                                     .Where(r => r.PurchaseID == receipt.PurchaseID)
+                                     .ToList()
+                                 ?? new List<GoodsReceivedEntity>();
+
+            var vm = new ReceiptDetailVM
+            {
+                Receipt     = receipt,
+                AllReceipts = allUnderSamePO
+            };
+
+            using (var dlg = new ReceiptDetailDialog(vm))
                 dlg.ShowDialog(this);
         }
 

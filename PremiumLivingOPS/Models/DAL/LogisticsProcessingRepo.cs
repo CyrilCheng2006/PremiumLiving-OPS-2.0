@@ -44,7 +44,7 @@ namespace PremiumLivingOPS.Models.DAL
                     ShipDate        = rd.GetDateTime("ShipDate"),
                     ShipmentStatus  = rd.GetString("ShipmentStatus"),
                     ShippingAddress = rd.GetString("ShippingAddress"),
-                    TrackingNo      = rd["TrackingNo"] as string,
+                    TrackingNumber  = rd["TrackingNo"] as string,   // fix CS0117: was TrackingNo
                     CustomerName    = rd.GetString("CustomerName")
                 });
             return list;
@@ -73,7 +73,7 @@ namespace PremiumLivingOPS.Models.DAL
                 ShipDate        = rd.GetDateTime("ShipDate"),
                 ShipmentStatus  = rd.GetString("ShipmentStatus"),
                 ShippingAddress = rd.GetString("ShippingAddress"),
-                TrackingNo      = rd["TrackingNo"] as string,
+                TrackingNumber  = rd["TrackingNo"] as string,   // fix CS0117: was TrackingNo
                 CustomerName    = rd.GetString("CustomerName")
             };
         }
