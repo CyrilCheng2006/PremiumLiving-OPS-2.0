@@ -717,7 +717,7 @@ namespace PremiumLivingOPS.Views.AfterService
             var rowId = MakeRow("Complaint ID  (auto)", txtComplaintId);
 
             // ── 2. Order No. (picker, optional) ──────────────────────
-            Label lblOrderVal;
+            Label lblOrderVal = null;   // initialised by MakePickerRow via out parameter
             var rowOrder = MakePickerRow("Order No. (optional)", out lblOrderVal, () =>
             {
                 string result = ShowOrderPicker(dlg);
@@ -740,7 +740,7 @@ namespace PremiumLivingOPS.Views.AfterService
             });
 
             // ── 3. Handled By (picker, required) ─────────────────────
-            Label lblStaffVal;
+            Label lblStaffVal = null;   // initialised by MakePickerRow via out parameter
             var rowStaff = MakePickerRow("Handled By *", out lblStaffVal, () =>
             {
                 StaffItem result = ShowStaffPicker(dlg);
