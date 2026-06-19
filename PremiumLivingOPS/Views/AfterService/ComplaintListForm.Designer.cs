@@ -43,15 +43,18 @@ namespace PremiumLivingOPS.Views.AfterService
             _shell.MenuItemClicked += OnTopNavMenuItemClicked;
             _shell.LogoutClicked   += btnLogout_Click;
 
-            // ══════════════════════════════════════════════════════════════════
-            // CARD 1 — Search Bar  (outerHeight 150)
-            // ══════════════════════════════════════════════════════════════════
-            var (searchOuter, searchInner) = CardPanel.Create(outerHeight: 150);
+            // ════════════════════════════════════════════════════════════════
+            // CARD 1 — Search  (Top, fixed 300px) — mirrors ViewOrderForm pattern
+            // tblCard: row0=Title+divider(60) / row1=fields(125) / row2=buttons(65)
+            // tblFields: 4 equal-percent columns, each wrapped in MakeCell helper
+            // ════════════════════════════════════════════════════════════════
+            var (searchOuter, searchInner) = CardPanel.Create(outerHeight: 300);
 
+            // ── Input controls
             txtKeyword = new TextBox
             {
                 Font = new Font("Segoe UI", 12f), BorderStyle = BorderStyle.FixedSingle,
-                PlaceholderText = "Complaint ID / Order No. / Staff name / Description"
+                PlaceholderText = "Complaint ID / Order No. / Staff name"
             };
             txtKeyword.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) RefreshGrid(); };
 
@@ -62,46 +65,105 @@ namespace PremiumLivingOPS.Views.AfterService
             cboStatus.Items.AddRange(new object[] { "All", "Pending", "Processing", "Escalated", "Completed" });
             cboStatus.SelectedIndex = 0;
 
-            btnSearch = MakePrimaryBtn("🔍  Search", Point.Empty, 190, 52);
-            btnReset  = MakeOutlineBtn("↺  Reset",  Point.Empty, 190, 52);
+            // ── MakeCell helper — identical to ViewOrderForm
+            TableLayoutPanel MakeCell(string caption, Control ctrl, bool rightPad = true)
+            {
+                var tlp = new TableLayoutPanel
+                {
+                    Dock            = DockStyle.Fill,
+                    RowCount        = 2,
+                    ColumnCount     = 1,
+                    BackColor       = Color.Transparent,
+                    CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                    Padding         = rightPad ? new Padding(0, 0, 12, 0) : Padding.Empty
+                };
+                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+                tlp.RowStyles.Add(new RowStyle(SizeType.Absolute,  40f));
+                tlp.RowStyles.Add(new RowStyle(SizeType.Percent,   70f));
+                var lbl = new Label
+                {
+                    Text      = caption,
+                    Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
+                    ForeColor = Palette.TextMuted,
+                    Dock      = DockStyle.Fill,
+                    TextAlign = ContentAlignment.BottomLeft,
+                    Padding   = new Padding(0, 0, 0, 2)
+                };
+                ctrl.Dock = DockStyle.Fill;
+                tlp.Controls.Add(lbl,  0, 0);
+                tlp.Controls.Add(ctrl, 0, 1);
+                return tlp;
+            }
+
+            // ── 4-column fields TLP (4 × Percent 25%) — mirrors ViewOrderForm
+            var tblFields = new TableLayoutPanel
+            {
+                Dock            = DockStyle.Fill,
+                ColumnCount     = 4,
+                RowCount        = 1,
+                BackColor       = Color.Transparent,
+                CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+            };
+            tblFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
+            tblFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
+            tblFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
+            tblFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
+            tblFields.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+            tblFields.Controls.Add(MakeCell("Keyword", txtKeyword),  0, 0);
+            tblFields.Controls.Add(MakeCell("Status",  cboStatus),   1, 0);
+            // cols 2-3 intentionally empty (reserved for future filters)
+
+            // ── Search / Reset buttons panel (210×60, matches ViewOrderForm)
+            var pnlBtns = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
+            btnSearch = MakePrimaryBtn("🔍  Search", new Point(0,   0), 210, 60);
+            btnReset  = MakeOutlineBtn("↺  Reset",  new Point(218, 0), 210, 60);
             btnSearch.Click += (s, e) => RefreshGrid();
             btnReset.Click  += (s, e) => ResetSearch();
-
-            var tblSearch = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 2,
-                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                Padding = new Padding(18, 10, 18, 10)
-            };
-            tblSearch.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
-            tblSearch.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
-            tblSearch.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 205f));
-            tblSearch.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 205f));
-            tblSearch.RowStyles.Add(new RowStyle(SizeType.Absolute, 42f));
-            tblSearch.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-
-            tblSearch.Controls.Add(MakeFieldLabel("Search"), 0, 0);
-            tblSearch.Controls.Add(MakeFieldLabel("Status"), 1, 0);
-            txtKeyword.Dock = DockStyle.Fill;
-            cboStatus.Dock  = DockStyle.Fill;
-            tblSearch.Controls.Add(txtKeyword, 0, 1);
-            tblSearch.Controls.Add(cboStatus,  1, 1);
-
-            var pnlBtns = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            btnSearch.Location = new Point(0, 0);
-            btnReset.Location  = new Point(198, 0);
             pnlBtns.Controls.Add(btnSearch);
             pnlBtns.Controls.Add(btnReset);
-            tblSearch.SetColumnSpan(pnlBtns, 2);
-            tblSearch.Controls.Add(pnlBtns, 2, 1);
-            searchInner.Controls.Add(tblSearch);
 
-            // ══════════════════════════════════════════════════════════════════
-            // CARD 2 — KPI Bar + Action Buttons  (outerHeight 90)
-            // ══════════════════════════════════════════════════════════════════
+            // ── Search card TLP: 3 rows — title(60) / fields(125) / buttons(65)
+            var tblCard = new TableLayoutPanel
+            {
+                Dock            = DockStyle.Fill,
+                RowCount        = 3,
+                ColumnCount     = 1,
+                BackColor       = Color.Transparent,
+                CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                Padding         = new Padding(18, 14, 18, 14)
+            };
+            tblCard.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  60f));   // Title
+            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute, 125f));   // Fields
+            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  65f));   // Buttons
+
+            // Title + divider
+            var pnlTitle = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
+            var lblTitle = new Label
+            {
+                Text      = "Search Complaints",
+                Font      = new Font("Segoe UI", 13f, FontStyle.Bold),
+                ForeColor = Palette.TextMain,
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+            var divider = new Panel { Dock = DockStyle.Bottom, Height = 1, BackColor = Palette.BorderColor };
+            pnlTitle.Controls.Add(lblTitle);
+            pnlTitle.Controls.Add(divider);
+
+            tblCard.Controls.Add(pnlTitle,  0, 0);
+            tblCard.Controls.Add(tblFields, 0, 1);
+            tblCard.Controls.Add(pnlBtns,   0, 2);
+            searchInner.Controls.Add(tblCard);
+
+            // ════════════════════════════════════════════════════════════════
+            // CARD 2 — KPI Bar + Action Buttons  (Top, fixed 90px)
+            // Left : pnlKpi (FlowLayout pills) — DockStyle.Fill
+            // Right: btnUpdateStatus + btnViewDetail side-by-side, vertically centred
+            // BtnW = 290 to match ViewOrderForm
+            // ════════════════════════════════════════════════════════════════
             var (kpiOuter, kpiInner) = CardPanel.Create(outerHeight: 90);
 
-            // pnlKpi: fills left side, RefreshKpi() populates FlowLayoutPanel of pills
             pnlKpi = new Panel
             {
                 Dock      = DockStyle.Fill,
@@ -109,7 +171,7 @@ namespace PremiumLivingOPS.Views.AfterService
                 Padding   = new Padding(12, 10, 12, 10)
             };
 
-            const int BtnW   = 240;
+            const int BtnW   = 290;
             const int BtnH   = 60;
             const int BtnGap = 8;
             const int BtnPad = 12;
@@ -121,7 +183,6 @@ namespace PremiumLivingOPS.Views.AfterService
             btnUpdateStatus.Click  += btnUpdateStatus_Click;
             btnViewDetail.Click    += btnViewDetail_Click;
 
-            // Panel wide enough for two buttons side-by-side + outer padding
             var pnlActionBtns = new Panel
             {
                 Dock      = DockStyle.Right,
@@ -140,15 +201,14 @@ namespace PremiumLivingOPS.Views.AfterService
             pnlActionBtns.Controls.Add(btnViewDetail);
             pnlActionBtns.Resize += (s, e) => CentreActionBtns();
 
-            // Container: pills fill left, action buttons docked right
             var pnlKpiRow = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            pnlKpiRow.Controls.Add(pnlKpi);        // DockStyle.Fill  — pills
-            pnlKpiRow.Controls.Add(pnlActionBtns); // DockStyle.Right — buttons (must add AFTER Fill)
+            pnlKpiRow.Controls.Add(pnlKpi);        // Fill  — pills
+            pnlKpiRow.Controls.Add(pnlActionBtns); // Right — buttons (added AFTER Fill)
             kpiInner.Controls.Add(pnlKpiRow);
 
-            // ══════════════════════════════════════════════════════════════════
+            // ════════════════════════════════════════════════════════════════
             // CARD 3 — Complaints Grid  (Fill)
-            // ══════════════════════════════════════════════════════════════════
+            // ════════════════════════════════════════════════════════════════
             var (gridOuter, gridInner) = CardPanel.CreateFill();
 
             dgvComplaints = new DataGridView
@@ -186,16 +246,16 @@ namespace PremiumLivingOPS.Views.AfterService
             gridInner.Controls.Add(dgvComplaints);
 
             // ── Assemble
-            pnlMain.Controls.Add(gridOuter);   // Fill
-            pnlMain.Controls.Add(kpiOuter);    // Top
-            pnlMain.Controls.Add(searchOuter); // Top
-            pnlMain.Controls.Add(_shell);      // Top — topmost
+            pnlMain.Controls.Add(gridOuter);    // Fill
+            pnlMain.Controls.Add(kpiOuter);     // Top
+            pnlMain.Controls.Add(searchOuter);  // Top
+            pnlMain.Controls.Add(_shell);       // Top — topmost
 
             this.Controls.Add(pnlMain);
             this.ResumeLayout(false);
         }
 
-        // ── Button factories ──────────────────────────────────────────────────
+        // ── Button factories ───────────────────────────────────────────────────
         private static Button MakePrimaryBtn(string text, Point loc, int w, int h)
         {
             var b = new Button { Text = text, Font = new Font("Segoe UI", 12f, FontStyle.Bold),
@@ -203,6 +263,7 @@ namespace PremiumLivingOPS.Views.AfterService
                 Location = loc, Width = w, Height = h, Cursor = Cursors.Hand };
             b.FlatAppearance.BorderSize = 0;
             b.FlatAppearance.MouseOverBackColor = Palette.PrimaryDark;
+            b.FlatAppearance.MouseDownBackColor = Color.FromArgb(21, 60, 155);
             return b;
         }
         private static Button MakeWarningBtn(string text, Point loc, int w, int h)
@@ -212,6 +273,7 @@ namespace PremiumLivingOPS.Views.AfterService
                 Location = loc, Width = w, Height = h, Cursor = Cursors.Hand };
             b.FlatAppearance.BorderSize = 0;
             b.FlatAppearance.MouseOverBackColor = Color.FromArgb(217, 119, 6);
+            b.FlatAppearance.MouseDownBackColor = Color.FromArgb(180, 90, 0);
             return b;
         }
         private static Button MakeOutlineBtn(string text, Point loc, int w, int h)
