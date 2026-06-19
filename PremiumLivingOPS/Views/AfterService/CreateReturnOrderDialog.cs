@@ -9,32 +9,28 @@ using System.Windows.Forms;
 namespace PremiumLivingOPS.Views.AfterService
 {
     /// <summary>
-    /// Dialog for creating a new Return Order.
-    /// Uses CardPanel.Create() / CardPanel.CreateFill() — CardPanel is a static class.
+    /// Create Return Order dialog — rendered to match ComplaintListForm.btnAddNew_Click baseline.
+    /// Layout: dark header (19,35,61) → section-title bar → scrollable card rows → white footer.
     /// </summary>
     public class CreateReturnOrderDialog : Form
     {
+        // ── Constants (mirror ComplaintListForm DLG_* constants) ───────────
+        private const int DLG_LabelW = 340;
+        private const int DLG_RowH   = 80;
+        private const int DLG_BtnW   = 210;
+        private const int DLG_BtnH   = 60;
+
+        // ── State ──────────────────────────────────────────────────────────
         private readonly AfterServiceController _ctrl;
 
-        private List<OrderEntity> _orderList;
+        private List<OrderEntity>                                              _orderList;
         private List<(string StaffID, string StaffName, string Department, string StaffRole)> _staffList;
 
         private string _selectedOrderID;
         private string _selectedStaffID;
         private string _selectedStaffName;
-
-        private TextBox        txtReturnID;
-        private TextBox        txtOrderID;
-        private Button         btnPickOrder;
-        private TextBox        txtCustomer;
-        private TextBox        txtHandedBy;
-        private Button         btnPickStaff;
-        private TextBox        txtReason;
-        private TextBox        txtRefundAmount;
-        private DateTimePicker dtpReturnDate;
-        private ComboBox       cmbStatus;
-        private Button         btnSave;
-        private Button         btnCancel;
+        private string _autoCustomer;
+        private double _autoRefund;
 
         public CreateReturnOrderDialog(AfterServiceController ctrl)
         {
@@ -49,282 +45,439 @@ namespace PremiumLivingOPS.Views.AfterService
             _staffList = _ctrl.GetStaffListForPicker();
         }
 
+        // ════════════════════════════════════════════════════════════════
+        //  InitUI
+        // ════════════════════════════════════════════════════════════════
         private void InitUI()
         {
             Text            = "Create Return Order";
-            Size            = new Size(640, 580);
-            MinimumSize     = new Size(560, 520);
+            Size            = new Size(1400, 800);
+            MinimumSize     = new Size(1100, 800);
             StartPosition   = FormStartPosition.CenterParent;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox     = false;
             MinimizeBox     = false;
             BackColor       = Color.FromArgb(240, 244, 249);
-            Font            = new Font("Segoe UI", 9.5f);
+            Font            = new Font("Segoe UI", 13f);
 
-            // ── outer fill panel ─────────────────────────────────────────────
-            var layout = new Panel { Dock = DockStyle.Fill };
-            Controls.Add(layout);
+            string autoId = _ctrl.GenerateReturnId();
 
-            // ── title card ───────────────────────────────────────────────────
-            var (titleOuter, titleInner) = CardPanel.Create(outerHeight: 52,
-                outerPadding: new Padding(16, 10, 16, 4));
-            titleOuter.Dock = DockStyle.Top;
-            layout.Controls.Add(titleOuter);
-
-            var lblTitle = new Label
+            // ── 1. Dark header ────────────────────────────────────────
+            var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 80, BackColor = Color.FromArgb(19, 35, 61) };
+            pnlHeader.Controls.Add(new Label
             {
-                Text      = "Create Return Order",
-                Font      = new Font("Segoe UI", 13f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(30, 30, 30),
-                AutoSize  = true,
-                Location  = new Point(12, 8)
-            };
-            titleInner.Controls.Add(lblTitle);
-
-            // ── action buttons card (bottom) ─────────────────────────────────
-            var (btnOuter, btnInner) = CardPanel.Create(outerHeight: 58,
-                outerPadding: new Padding(16, 8, 16, 8));
-            btnOuter.Dock = DockStyle.Bottom;
-            layout.Controls.Add(btnOuter);
-
-            btnSave = new Button
-            {
-                Text      = "Save",
-                Size      = new Size(100, 36),
-                BackColor = Color.FromArgb(22, 163, 74),
+                Text      = "\u2795  Create Return Order",
+                Font      = new Font("Segoe UI", 18f, FontStyle.Bold),
                 ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font      = new Font("Segoe UI", 9.5f, FontStyle.Bold)
-            };
-            btnSave.FlatAppearance.BorderSize = 0;
-            btnSave.Click += BtnSave_Click;
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft,
+                AutoSize  = false,
+                Padding   = new Padding(32, 0, 0, 0)
+            });
 
-            btnCancel = new Button
+            // ── 2. Section title bar ──────────────────────────────────
+            var pnlSectionTitle = new Panel
+            {
+                Dock      = DockStyle.Top,
+                Height    = 44,
+                BackColor = Color.FromArgb(241, 245, 255),
+                Padding   = new Padding(32, 0, 16, 0)
+            };
+            PaintBottomBorder(pnlSectionTitle);
+            pnlSectionTitle.Controls.Add(new Label
+            {
+                Text      = "\uD83D\uDCCB  Return Order Information",
+                Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(47, 111, 237),
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft,
+                AutoSize  = false
+            });
+
+            // ── 3. White footer ───────────────────────────────────────
+            var pnlFoot = new Panel
+            {
+                Dock      = DockStyle.Bottom,
+                Height    = 96,
+                BackColor = Color.White,
+                Padding   = new Padding(0, 18, 28, 18)
+            };
+            pnlFoot.Paint += (s, pe) =>
+            {
+                using var pen = new System.Drawing.Pen(Color.FromArgb(221, 227, 236), 1);
+                pe.Graphics.DrawLine(pen, 0, 0, ((Panel)s).Width, 0);
+            };
+
+            var btnCreate = new Button
+            {
+                Text      = "\u2714  Create Return Order",
+                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.White,
+                BackColor = Color.FromArgb(5, 150, 105),
+                FlatStyle = FlatStyle.Flat,
+                Width     = DLG_BtnW + 60,   // wider to fit longer text
+                Height    = DLG_BtnH,
+                Cursor    = Cursors.Hand,
+                Margin    = new Padding(0, 0, 10, 0)
+            };
+            btnCreate.FlatAppearance.BorderSize = 0;
+            btnCreate.FlatAppearance.MouseOverBackColor = Color.FromArgb(4, 120, 87);
+            btnCreate.FlatAppearance.MouseDownBackColor = Color.FromArgb(3, 90, 68);
+
+            var btnCancelDlg = new Button
             {
                 Text      = "Cancel",
-                Size      = new Size(100, 36),
+                Font      = new Font("Segoe UI", 12f),
+                ForeColor = Color.FromArgb(15, 31, 53),
+                BackColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font      = new Font("Segoe UI", 9.5f)
+                Width     = DLG_BtnW,
+                Height    = DLG_BtnH,
+                Cursor    = Cursors.Hand
             };
-            btnCancel.Click += (s, e) => { DialogResult = DialogResult.Cancel; Close(); };
+            btnCancelDlg.FlatAppearance.BorderColor = Color.FromArgb(221, 227, 236);
+            btnCancelDlg.FlatAppearance.BorderSize  = 1;
+            btnCancelDlg.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
 
-            var btnFlow = new FlowLayoutPanel
+            var footFlow = new FlowLayoutPanel
             {
-                Dock          = DockStyle.Fill,
-                FlowDirection = FlowDirection.RightToLeft,
-                WrapContents  = false
+                Dock          = DockStyle.Right,
+                AutoSize      = true,
+                FlowDirection = FlowDirection.LeftToRight,
+                BackColor     = Color.Transparent
             };
-            btnFlow.Controls.Add(btnCancel);
-            btnFlow.Controls.Add(btnSave);
-            btnInner.Controls.Add(btnFlow);
+            footFlow.Controls.Add(btnCreate);
+            footFlow.Controls.Add(btnCancelDlg);
+            pnlFoot.Controls.Add(footFlow);
 
-            // ── form fields card (fills remaining space) ─────────────────────
-            var (formOuter, formInner) = CardPanel.CreateFill(
-                outerPadding: new Padding(16, 4, 16, 4));
-            layout.Controls.Add(formOuter);
+            // ── 4. Build rows ─────────────────────────────────────────
 
-            // TableLayoutPanel for the form fields
-            var tlp = new TableLayoutPanel
+            // ── Row builders (mirror ComplaintListForm helpers exactly) ─
+            Panel MakeRow(string lText, Control input, bool last = false)
             {
-                Dock        = DockStyle.Fill,
-                ColumnCount = 3,
-                RowCount    = 8,
-                Padding     = new Padding(12)
-            };
-            tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140f));  // label
-            tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));   // field
-            tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 92f));   // browse btn
-            for (int i = 0; i < 8; i++)
-                tlp.RowStyles.Add(new RowStyle(SizeType.Absolute, 46f));
-            formInner.Controls.Add(tlp);
-
-            Label Lbl(string t) => new Label
-            {
-                Text      = t,
-                Anchor    = AnchorStyles.Left | AnchorStyles.Top,
-                AutoSize  = true,
-                ForeColor = Color.FromArgb(60, 60, 60),
-                Margin    = new Padding(0, 12, 4, 0)
-            };
-            TextBox ROBox(string placeholder = "") => new TextBox
-            {
-                Dock        = DockStyle.Fill,
-                ReadOnly    = true,
-                BackColor   = Color.FromArgb(235, 238, 242),
-                PlaceholderText = placeholder,
-                Margin      = new Padding(0, 8, 4, 0)
-            };
-
-            // Row 0 — Return ID
-            txtReturnID = ROBox();
-            txtReturnID.Text = _ctrl.GenerateReturnId();
-            tlp.Controls.Add(Lbl("Return ID:"),  0, 0);
-            tlp.Controls.Add(txtReturnID,         1, 0);
-            tlp.SetColumnSpan(txtReturnID, 2);
-
-            // Row 1 — Order ID + Browse
-            txtOrderID = ROBox("(click Browse…)");
-            btnPickOrder = new Button
-            {
-                Text      = "Browse…",
-                Dock      = DockStyle.Fill,
-                BackColor = Color.FromArgb(59, 130, 246),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font      = new Font("Segoe UI", 8.5f),
-                Margin    = new Padding(0, 8, 0, 0)
-            };
-            btnPickOrder.FlatAppearance.BorderSize = 0;
-            btnPickOrder.Click += BtnPickOrder_Click;
-            tlp.Controls.Add(Lbl("Order ID: *"), 0, 1);
-            tlp.Controls.Add(txtOrderID,          1, 1);
-            tlp.Controls.Add(btnPickOrder,        2, 1);
-
-            // Row 2 — Customer (auto-filled)
-            txtCustomer = ROBox();
-            tlp.Controls.Add(Lbl("Customer:"),   0, 2);
-            tlp.Controls.Add(txtCustomer,         1, 2);
-            tlp.SetColumnSpan(txtCustomer, 2);
-
-            // Row 3 — Handed By + Browse
-            txtHandedBy = ROBox("(click Browse…)");
-            btnPickStaff = new Button
-            {
-                Text      = "Browse…",
-                Dock      = DockStyle.Fill,
-                BackColor = Color.FromArgb(59, 130, 246),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font      = new Font("Segoe UI", 8.5f),
-                Margin    = new Padding(0, 8, 0, 0)
-            };
-            btnPickStaff.FlatAppearance.BorderSize = 0;
-            btnPickStaff.Click += BtnPickStaff_Click;
-            tlp.Controls.Add(Lbl("Handed By: *"), 0, 3);
-            tlp.Controls.Add(txtHandedBy,          1, 3);
-            tlp.Controls.Add(btnPickStaff,         2, 3);
-
-            // Row 4 — Return Date
-            dtpReturnDate = new DateTimePicker
-            {
-                Dock   = DockStyle.Fill,
-                Format = DateTimePickerFormat.Short,
-                Value  = DateTime.Today,
-                Margin = new Padding(0, 8, 4, 0)
-            };
-            tlp.Controls.Add(Lbl("Return Date: *"), 0, 4);
-            tlp.Controls.Add(dtpReturnDate,          1, 4);
-            tlp.SetColumnSpan(dtpReturnDate, 2);
-
-            // Row 5 — Refund Amount
-            txtRefundAmount = new TextBox
-            {
-                Dock            = DockStyle.Fill,
-                PlaceholderText = "0.00",
-                Margin          = new Padding(0, 8, 4, 0)
-            };
-            tlp.Controls.Add(Lbl("Refund Amount: *"), 0, 5);
-            tlp.Controls.Add(txtRefundAmount,          1, 5);
-            tlp.SetColumnSpan(txtRefundAmount, 2);
-
-            // Row 6 — Status
-            cmbStatus = new ComboBox
-            {
-                Dock          = DockStyle.Fill,
-                DropDownStyle = ComboBoxStyle.DropDownList,
-                Margin        = new Padding(0, 8, 4, 0)
-            };
-            cmbStatus.Items.AddRange(new[] { "Pending", "Processing", "Refunded", "Rejected" });
-            cmbStatus.SelectedIndex = 0;
-            tlp.Controls.Add(Lbl("Status: *"), 0, 6);
-            tlp.Controls.Add(cmbStatus,         1, 6);
-            tlp.SetColumnSpan(cmbStatus, 2);
-
-            // Row 7 — Reason
-            txtReason = new TextBox
-            {
-                Dock       = DockStyle.Fill,
-                Multiline  = true,
-                ScrollBars = ScrollBars.Vertical,
-                Margin     = new Padding(0, 8, 4, 0)
-            };
-            tlp.RowStyles[7] = new RowStyle(SizeType.Absolute, 66f);
-            tlp.Controls.Add(Lbl("Reason:"), 0, 7);
-            tlp.Controls.Add(txtReason,       1, 7);
-            tlp.SetColumnSpan(txtReason, 2);
-        }
-
-        private void BtnPickOrder_Click(object sender, EventArgs e)
-        {
-            using var picker = new OrderPickerForm(_orderList);
-            if (picker.ShowDialog(this) == DialogResult.OK)
-            {
-                _selectedOrderID = picker.SelectedOrderID;
-                txtOrderID.Text  = picker.SelectedOrderID;
-                txtCustomer.Text = picker.SelectedCustomer;
-                if (string.IsNullOrWhiteSpace(txtRefundAmount.Text))
-                    txtRefundAmount.Text = picker.SelectedGrandTotal.ToString("N2");
+                var row = new Panel { Height = DLG_RowH, BackColor = Color.White };
+                if (!last)
+                    row.Paint += (s, pe) =>
+                    {
+                        using var pen = new System.Drawing.Pen(Color.FromArgb(221, 227, 236), 1);
+                        pe.Graphics.DrawLine(pen, 0, ((Panel)s).Height - 1, ((Panel)s).Width, ((Panel)s).Height - 1);
+                    };
+                var tlp = new TableLayoutPanel
+                {
+                    Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
+                    BackColor = Color.White, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+                };
+                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, DLG_LabelW));
+                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+                tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+                var lbl = new Label
+                {
+                    Text      = lText,
+                    Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                    ForeColor = Color.FromArgb(70, 85, 110),
+                    BackColor = Color.FromArgb(248, 250, 252),
+                    Dock      = DockStyle.Fill,
+                    TextAlign = ContentAlignment.MiddleLeft,
+                    AutoSize  = false,
+                    Padding   = new Padding(24, 0, 8, 0)
+                };
+                var wrap = new Panel { Dock = DockStyle.Fill, BackColor = Color.White, Padding = new Padding(20, 14, 24, 14) };
+                input.Dock = DockStyle.Fill;
+                wrap.Controls.Add(input);
+                tlp.Controls.Add(lbl,  0, 0);
+                tlp.Controls.Add(wrap, 1, 0);
+                row.Controls.Add(tlp);
+                return row;
             }
-        }
 
-        private void BtnPickStaff_Click(object sender, EventArgs e)
-        {
-            using var picker = new StaffPickerForm(_staffList);
-            if (picker.ShowDialog(this) == DialogResult.OK)
+            Panel MakePickerRow(string labelText, out Label valueDisplay, Action onBrowse, bool last = false)
             {
+                var row = new Panel { Height = DLG_RowH, BackColor = Color.White };
+                if (!last)
+                    row.Paint += (s, pe) =>
+                    {
+                        using var pen = new System.Drawing.Pen(Color.FromArgb(221, 227, 236), 1);
+                        pe.Graphics.DrawLine(pen, 0, ((Panel)s).Height - 1, ((Panel)s).Width, ((Panel)s).Height - 1);
+                    };
+                var outer = new TableLayoutPanel
+                {
+                    Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
+                    BackColor = Color.White, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+                };
+                outer.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, DLG_LabelW));
+                outer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+                outer.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+
+                var lbl = new Label
+                {
+                    Text      = labelText,
+                    Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                    ForeColor = Color.FromArgb(70, 85, 110),
+                    BackColor = Color.FromArgb(248, 250, 252),
+                    Dock      = DockStyle.Fill,
+                    TextAlign = ContentAlignment.MiddleLeft,
+                    AutoSize  = false,
+                    Padding   = new Padding(24, 0, 8, 0)
+                };
+
+                var inner = new TableLayoutPanel
+                {
+                    Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
+                    BackColor = Color.White, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                    Padding = new Padding(20, 14, 24, 14)
+                };
+                inner.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+                inner.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 150));
+                inner.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+
+                valueDisplay = new Label
+                {
+                    Text      = "(none selected)",
+                    Font      = new Font("Segoe UI", 12f, FontStyle.Italic),
+                    ForeColor = Color.FromArgb(150, 160, 175),
+                    BackColor = Color.FromArgb(248, 250, 252),
+                    Dock      = DockStyle.Fill,
+                    TextAlign = ContentAlignment.MiddleLeft,
+                    AutoSize  = false,
+                    Padding   = new Padding(8, 0, 4, 0)
+                };
+
+                var btnBrowse = new Button
+                {
+                    Text      = "\uD83D\uDD0D  Browse",
+                    Font      = new Font("Segoe UI", 11f),
+                    BackColor = Color.FromArgb(47, 111, 237),
+                    ForeColor = Color.White,
+                    FlatStyle = FlatStyle.Flat,
+                    Dock      = DockStyle.Fill,
+                    Cursor    = Cursors.Hand,
+                    Margin    = new Padding(4, 0, 0, 0)
+                };
+                btnBrowse.FlatAppearance.BorderSize = 0;
+                btnBrowse.FlatAppearance.MouseOverBackColor = Color.FromArgb(29, 78, 216);
+                btnBrowse.Click += (_, __) => onBrowse();
+
+                inner.Controls.Add(valueDisplay, 0, 0);
+                inner.Controls.Add(btnBrowse,    1, 0);
+                outer.Controls.Add(lbl,   0, 0);
+                outer.Controls.Add(inner, 1, 0);
+                row.Controls.Add(outer);
+                return row;
+            }
+
+            // ── Field state labels (out params from MakePickerRow) ─────
+            Label lblOrderVal  = null;
+            Label lblStaffVal  = null;
+            Label lblCustDisp  = null;
+
+            // Row 0 — Return ID (read-only, auto)
+            var txtReturnID = new TextBox
+            {
+                Text        = autoId,
+                Font        = new Font("Segoe UI", 12f, FontStyle.Bold),
+                BorderStyle = BorderStyle.FixedSingle,
+                ReadOnly    = true,
+                BackColor   = Color.FromArgb(240, 244, 249),
+                ForeColor   = Color.FromArgb(47, 111, 237)
+            };
+            var rowReturnID = MakeRow("Return ID  (auto)", txtReturnID);
+
+            // Row 1 — Order ID (picker, required)
+            var rowOrder = MakePickerRow("Order ID *", out lblOrderVal, () =>
+            {
+                using var picker = new OrderPickerForm(_orderList);
+                if (picker.ShowDialog(this) != DialogResult.OK) return;
+
+                _selectedOrderID = picker.SelectedOrderID;
+                _autoCustomer    = picker.SelectedCustomer;
+                _autoRefund      = picker.SelectedGrandTotal;
+
+                lblOrderVal.Text      = _selectedOrderID;
+                lblOrderVal.Font      = new Font("Segoe UI", 12f, FontStyle.Bold);
+                lblOrderVal.ForeColor = Color.FromArgb(15, 31, 53);
+                lblOrderVal.BackColor = Color.White;
+
+                // auto-fill Customer display
+                lblCustDisp.Text      = _autoCustomer;
+                lblCustDisp.Font      = new Font("Segoe UI", 12f);
+                lblCustDisp.ForeColor = Color.FromArgb(15, 31, 53);
+                lblCustDisp.BackColor = Color.White;
+            });
+
+            // Row 2 — Customer (read-only, auto-filled from Order picker)
+            lblCustDisp = new Label
+            {
+                Text      = "(auto-filled after selecting Order ID)",
+                Font      = new Font("Segoe UI", 12f, FontStyle.Italic),
+                ForeColor = Color.FromArgb(150, 160, 175),
+                BackColor = Color.White,
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft,
+                AutoSize  = false
+            };
+            var rowCustomer = MakeRow("Customer  (auto)", lblCustDisp);
+
+            // Row 3 — Handled By (picker, required)
+            var rowStaff = MakePickerRow("Handled By *", out lblStaffVal, () =>
+            {
+                using var picker = new StaffPickerForm(_staffList);
+                if (picker.ShowDialog(this) != DialogResult.OK) return;
+
                 _selectedStaffID   = picker.SelectedStaffID;
                 _selectedStaffName = picker.SelectedStaffName;
-                txtHandedBy.Text   = $"{picker.SelectedStaffName} ({picker.SelectedStaffID})";
-            }
-        }
 
-        private void BtnSave_Click(object sender, EventArgs e)
-        {
-            if (string.IsNullOrWhiteSpace(_selectedOrderID))
-            {
-                MessageBox.Show("Please select an Order ID.", "Validation",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-            if (string.IsNullOrWhiteSpace(_selectedStaffID))
-            {
-                MessageBox.Show("Please select a staff member (Handed By).", "Validation",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-            if (!double.TryParse(txtRefundAmount.Text,
-                    System.Globalization.NumberStyles.Any,
-                    System.Globalization.CultureInfo.CurrentCulture,
-                    out double refund) || refund < 0)
-            {
-                MessageBox.Show("Please enter a valid Refund Amount.", "Validation",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
+                lblStaffVal.Text      = $"{picker.SelectedStaffName}  [{picker.SelectedStaffID}]";
+                lblStaffVal.Font      = new Font("Segoe UI", 12f, FontStyle.Bold);
+                lblStaffVal.ForeColor = Color.FromArgb(15, 31, 53);
+                lblStaffVal.BackColor = Color.White;
+            });
 
-            var entity = new ReturnOrderEntity
+            // Row 4 — Return Date
+            var dtpReturnDate = new DateTimePicker
             {
-                ReturnID     = txtReturnID.Text,
-                OrderID      = _selectedOrderID,
-                ReturnDate   = dtpReturnDate.Value.Date,
-                Reason       = txtReason.Text.Trim(),
-                RefundAmount = refund,
-                ReturnStatus = cmbStatus.SelectedItem?.ToString() ?? "Pending"
+                Format    = DateTimePickerFormat.Short,
+                Value     = DateTime.Today,
+                Font      = new Font("Segoe UI", 12f),
+                BackColor = Color.White
+            };
+            var rowDate = MakeRow("Return Date *", dtpReturnDate);
+
+            // Row 5 — Refund Amount
+            var txtRefund = new TextBox
+            {
+                Font            = new Font("Segoe UI", 12f),
+                BorderStyle     = BorderStyle.FixedSingle,
+                PlaceholderText = "0.00"
+            };
+            var rowRefund = MakeRow("Refund Amount (HK$) *", txtRefund);
+
+            // Row 6 — Status
+            var cboStatus = new ComboBox
+            {
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Font          = new Font("Segoe UI", 12f)
+            };
+            cboStatus.Items.AddRange(new object[] { "Pending", "Processing", "Refunded", "Rejected" });
+            cboStatus.SelectedIndex = 0;
+            var rowStatus = MakeRow("Status *", cboStatus);
+
+            // Row 7 — Reason (last row, no bottom border)
+            var txtReason = new TextBox
+            {
+                Font            = new Font("Segoe UI", 12f),
+                BorderStyle     = BorderStyle.FixedSingle,
+                PlaceholderText = "Describe the reason for the return"
+            };
+            var rowReason = MakeRow("Reason", txtReason, last: true);
+
+            // ── 5. Assemble card (mirror ComplaintListForm cardOuter) ──
+            var allRows = new Panel[] { rowReturnID, rowOrder, rowCustomer, rowStaff, rowDate, rowRefund, rowStatus, rowReason };
+            int cardHeight = allRows.Length * DLG_RowH;
+
+            var cardOuter = new Panel
+            {
+                Dock      = DockStyle.Top,
+                Height    = cardHeight + 32,
+                BackColor = Color.Transparent,
+                Padding   = new Padding(20, 16, 20, 16)
+            };
+            var cardInner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
+            cardInner.Paint += (s, pe) =>
+            {
+                using var pen = new System.Drawing.Pen(Color.FromArgb(221, 227, 236), 1);
+                pe.Graphics.DrawRectangle(pen, 0, 0, ((Panel)s).Width - 1, ((Panel)s).Height - 1);
             };
 
-            if (_ctrl.CreateReturnOrder(entity))
+            int y = 0;
+            foreach (var r in allRows)
             {
-                MessageBox.Show(
-                    $"Return Order {entity.ReturnID} created successfully.",
-                    "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                DialogResult = DialogResult.OK;
-                Close();
+                r.Location = new Point(0, y);
+                r.Anchor   = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+                r.Width    = 1200;
+                cardInner.Controls.Add(r);
+                y += DLG_RowH;
             }
-            else
+            cardInner.Resize += (s, _) =>
+            { var p = (Panel)s; foreach (Control r in p.Controls) r.Width = p.Width; };
+            cardOuter.Controls.Add(cardInner);
+
+            // ── 6. Scroll fill area ───────────────────────────────────
+            var pnlFill = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(240, 244, 249), AutoScroll = true };
+            pnlFill.Controls.Add(cardOuter);
+
+            // ── 7. Wire Create button ─────────────────────────────────
+            btnCreate.Click += (s, ev) =>
             {
-                MessageBox.Show("Failed to create return order. Please try again.",
-                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
+                // Validation
+                if (string.IsNullOrWhiteSpace(_selectedOrderID))
+                {
+                    MessageBox.Show("Please select an Order ID.",
+                        "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning); return;
+                }
+                if (string.IsNullOrWhiteSpace(_selectedStaffID))
+                {
+                    MessageBox.Show("Please select a staff member for Handled By.",
+                        "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning); return;
+                }
+                if (!double.TryParse(txtRefund.Text.Trim(),
+                        System.Globalization.NumberStyles.Any,
+                        System.Globalization.CultureInfo.CurrentCulture,
+                        out double refund) || refund < 0)
+                {
+                    MessageBox.Show("Please enter a valid Refund Amount.",
+                        "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    txtRefund.Focus(); return;
+                }
+
+                try
+                {
+                    var entity = new ReturnOrderEntity
+                    {
+                        ReturnID     = txtReturnID.Text.Trim(),
+                        OrderID      = _selectedOrderID,
+                        ReturnDate   = dtpReturnDate.Value.Date,
+                        Reason       = txtReason.Text.Trim(),
+                        RefundAmount = refund,
+                        ReturnStatus = cboStatus.SelectedItem?.ToString() ?? "Pending"
+                    };
+
+                    if (_ctrl.CreateReturnOrder(entity))
+                    {
+                        MessageBox.Show(
+                            $"Return Order {entity.ReturnID} created successfully.",
+                            "Created", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        DialogResult = DialogResult.OK;
+                        Close();
+                    }
+                    else
+                    {
+                        MessageBox.Show("Failed to create return order. Please try again.",
+                            "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Failed to create return order:\n{ex.Message}",
+                        "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            };
+            btnCancelDlg.Click += (s, ev) => { DialogResult = DialogResult.Cancel; Close(); };
+
+            // ── 8. Compose form (bottom → top, then fill) ─────────────
+            Controls.Add(pnlFill);
+            Controls.Add(pnlFoot);
+            Controls.Add(pnlSectionTitle);
+            Controls.Add(pnlHeader);
+        }
+
+        // ── Shared paint helper ────────────────────────────────────────────
+        private static void PaintBottomBorder(Panel p)
+        {
+            p.Paint += (s, e) =>
+            {
+                using var pen = new System.Drawing.Pen(Color.FromArgb(221, 227, 236), 1);
+                e.Graphics.DrawLine(pen, 0, ((Panel)s).Height - 1, ((Panel)s).Width, ((Panel)s).Height - 1);
+            };
         }
     }
 }
