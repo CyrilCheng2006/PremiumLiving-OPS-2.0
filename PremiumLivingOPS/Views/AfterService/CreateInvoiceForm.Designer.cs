@@ -52,11 +52,10 @@ namespace PremiumLivingOPS.Views.AfterService
             _shell.LogoutClicked   += btnLogout_Click;
 
             // ════════════════════════════════════════════════════════════════
-            // CARD 1 — Search  (outerHeight 210, title row 48 + inputs 108 + padding)
+            // CARD 1 — Search  (Top, fixed 210px)
             // ════════════════════════════════════════════════════════════════
             var (searchOuter, searchInner) = CardPanel.Create(outerHeight: 210);
 
-            // Section title
             var pnlSearchTitle = new Panel { Dock = DockStyle.Top, Height = 48, BackColor = Color.Transparent };
             var lblSearchTitle = new Label
             {
@@ -117,12 +116,14 @@ namespace PremiumLivingOPS.Views.AfterService
             tblSearch.Controls.Add(pnlBtn1, 2, 1);
 
             searchInner.Controls.Add(tblSearch);
-            searchInner.Controls.Add(pnlSearchTitle);  // Top — added after Fill so it renders above
+            searchInner.Controls.Add(pnlSearchTitle);
 
             // ════════════════════════════════════════════════════════════════
-            // CARD 2 — Orders Without Invoice  (Top, fixed height 340)
+            // CARD 2 — Orders Without Invoice  (Fill — expands to consume all remaining space)
+            //   dgvOrders has Dock=Fill inside gridInner; DataGridView provides a native
+            //   vertical scrollbar automatically once rows exceed the visible area.
             // ════════════════════════════════════════════════════════════════
-            var (gridOuter, gridInner) = CardPanel.Create(outerHeight: 340);
+            var (gridOuter, gridInner) = CardPanel.CreateFill();
 
             var pnlGridTitle = new Panel { Dock = DockStyle.Top, Height = 48, BackColor = Color.Transparent };
             var lblGridTitle = new Label
@@ -146,6 +147,7 @@ namespace PremiumLivingOPS.Views.AfterService
                 CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal,
                 RowTemplate = { Height = 48 }, Dock = DockStyle.Fill,
                 ColumnHeadersHeight = 46, EnableHeadersVisualStyles = false,
+                ScrollBars = ScrollBars.Vertical,
                 ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
                 {
                     BackColor = Color.FromArgb(246, 249, 255), ForeColor = Palette.TextMuted,
@@ -174,9 +176,9 @@ namespace PremiumLivingOPS.Views.AfterService
             gridInner.Controls.Add(pnlGridTitle);
 
             // ════════════════════════════════════════════════════════════════
-            // CARD 3 — Invoice Detail  (Fill — takes remaining vertical space)
+            // CARD 3 — Invoice Detail  (Top, fixed 280px — always fully visible at the bottom)
             // ════════════════════════════════════════════════════════════════
-            var (formOuter, formInner) = CardPanel.CreateFill();
+            var (formOuter, formInner) = CardPanel.Create(outerHeight: 280);
 
             var pnlFormTitle = new Panel { Dock = DockStyle.Top, Height = 52, BackColor = Color.Transparent };
             var lblFormTitle = new Label
@@ -221,11 +223,11 @@ namespace PremiumLivingOPS.Views.AfterService
             {
                 Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 2,
                 BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                Padding = new Padding(18, 14, 18, 14)
+                Padding = new Padding(18, 10, 18, 10)
             };
             for (int i = 0; i < 4; i++)
                 tblInputs.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
-            tblInputs.RowStyles.Add(new RowStyle(SizeType.Absolute, 44f));
+            tblInputs.RowStyles.Add(new RowStyle(SizeType.Absolute, 40f));
             tblInputs.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
             nudDeposit = new NumericUpDown
@@ -271,7 +273,6 @@ namespace PremiumLivingOPS.Views.AfterService
             tblInputs.Controls.Add(dtpDueDate,       2, 1);
             tblInputs.Controls.Add(cboPaymentStatus, 3, 1);
 
-            // Action row: Remaining balance + Create Invoice button (210 × 60)
             var pnlActionRow = new Panel
             {
                 Dock = DockStyle.Bottom, Height = 80, BackColor = Color.Transparent,
@@ -286,10 +287,9 @@ namespace PremiumLivingOPS.Views.AfterService
             };
             tblAction.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 160f));
             tblAction.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
-            tblAction.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 220f));  // column wide enough for 210px btn
+            tblAction.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 220f));
             tblAction.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
-            // Create Invoice button: 210 × 60 as specified
             btnCreateInvoice = MakePrimaryBtn("✔  Create Invoice", Point.Empty, 210, 60);
             btnCreateInvoice.Dock    = DockStyle.Right;
             btnCreateInvoice.Enabled = false;
@@ -305,14 +305,13 @@ namespace PremiumLivingOPS.Views.AfterService
             formInner.Controls.Add(pnlOrderSummary);
             formInner.Controls.Add(pnlFormTitle);
 
-            // ── Assemble ─────────────────────────────────────────────────────────────────────
-            // AppShell Canonical Rule: Fill first, Top controls in reverse render order, _shell last.
-            // Desired on-screen order (top → bottom): AppShell | Search | Orders Grid | Invoice Detail
-            // Controls.Add order:  formOuter (Fill) → gridOuter (Top) → searchOuter (Top) → _shell (Top)
-            pnlMain.Controls.Add(formOuter);   // Fill  — renders last (bottom)
-            pnlMain.Controls.Add(gridOuter);   // Top   — added 2nd, rendered 3rd from top
-            pnlMain.Controls.Add(searchOuter); // Top   — added 3rd, rendered 2nd from top
-            pnlMain.Controls.Add(_shell);      // Top   — added last, rendered topmost
+            // ── Assemble ──────────────────────────────────────────────────────────────────
+            // Visual order (top → bottom): AppShell | Search(210) | Orders Grid(Fill) | Invoice Detail(280)
+            // Controls.Add order — Fill first, then Top in reverse visual order, _shell last:
+            pnlMain.Controls.Add(gridOuter);   // Fill  — Orders Without Invoice expands to fill all middle space
+            pnlMain.Controls.Add(formOuter);   // Top   — Invoice Detail pinned at bottom (280px)
+            pnlMain.Controls.Add(searchOuter); // Top   — Search pinned below AppShell (210px)
+            pnlMain.Controls.Add(_shell);      // Top   — AppShell topmost
 
             this.Controls.Add(pnlMain);
             this.ResumeLayout(false);
