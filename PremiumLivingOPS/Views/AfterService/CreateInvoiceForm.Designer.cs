@@ -119,12 +119,10 @@ namespace PremiumLivingOPS.Views.AfterService
             searchInner.Controls.Add(pnlSearchTitle);
 
             // ════════════════════════════════════════════════════════════════
-            // CARD 3 — Invoice Detail  (Bottom, fixed 280px — anchored to bottom edge)
-            // Declared and added to pnlMain BEFORE gridOuter so DockStyle.Bottom
-            // claims its space first; gridOuter (Fill) then fills the remainder.
+            // CARD 3 — Invoice Detail  (Bottom, fixed 450px — anchored to bottom edge)
             // ════════════════════════════════════════════════════════════════
-            var (formOuter, formInner) = CardPanel.Create(outerHeight: 280);
-            formOuter.Dock = DockStyle.Bottom;  // override to Bottom so it anchors at page foot
+            var (formOuter, formInner) = CardPanel.Create(outerHeight: 450);
+            formOuter.Dock = DockStyle.Bottom;
 
             var pnlFormTitle = new Panel { Dock = DockStyle.Top, Height = 52, BackColor = Color.Transparent };
             var lblFormTitle = new Label
@@ -308,19 +306,9 @@ namespace PremiumLivingOPS.Views.AfterService
 
             // ── Assemble ──────────────────────────────────────────────────────────────────
             // Visual order (top → bottom): AppShell | Search | Orders Without Invoice | Invoice Detail
-            //
-            // WinForms DockStyle layout rules:
-            //   - Top controls stack downward in the order they are added (last-added Top = lowest Top slot).
-            //   - Bottom controls stack upward in the order they are added (last-added Bottom = highest Bottom slot).
-            //   - Fill takes whatever space remains after all Top/Bottom/Left/Right are resolved.
-            //
-            // Required Controls.Add sequence:
-            //   1. gridOuter  (Fill)   — added first; claims remaining space after Top+Bottom are resolved
-            //   2. formOuter  (Bottom) — anchors Invoice Detail at the page foot (280px)
-            //   3. searchOuter(Top)    — pins Search just below AppShell
-            //   4. _shell     (Top)    — AppShell topmost (added last per Canonical Rule)
+            // Controls.Add: gridOuter(Fill) → formOuter(Bottom,450) → searchOuter(Top,210) → _shell(Top)
             pnlMain.Controls.Add(gridOuter);    // Fill
-            pnlMain.Controls.Add(formOuter);    // Bottom (280px) — Invoice Detail at foot
+            pnlMain.Controls.Add(formOuter);    // Bottom (450px) — Invoice Detail at foot
             pnlMain.Controls.Add(searchOuter);  // Top   (210px) — Search below AppShell
             pnlMain.Controls.Add(_shell);       // Top            — AppShell topmost
 
