@@ -23,7 +23,7 @@ namespace PremiumLivingOPS.Views.AfterService
                 { "Completed",  (Color.FromArgb(220, 252, 231), Color.FromArgb( 22, 101,  52)) },
             };
 
-        // ── Detail dialog layout constants (mirrors SearchProcurementForm)
+        // ── Layout constants shared by both dialogs
         private const int D_RowH   = 80;
         private const int D_LabelW = 260;
         private const int D_BtnW   = 200;
@@ -37,7 +37,9 @@ namespace PremiumLivingOPS.Views.AfterService
 
         private void ComplaintListForm_Load(object sender, EventArgs e) => RefreshGrid();
 
-        // ── Refresh ─────────────────────────────────────────────────────────────
+        // ════════════════════════════════════════════════════════════════
+        //  Refresh
+        // ════════════════════════════════════════════════════════════════
         private void RefreshGrid()
         {
             string statusSel    = cboStatus.SelectedItem?.ToString();
@@ -72,7 +74,9 @@ namespace PremiumLivingOPS.Views.AfterService
             RefreshGrid();
         }
 
-        // ── KPI Pills ────────────────────────────────────────────────────────
+        // ════════════════════════════════════════════════════════════════
+        //  KPI Pills
+        // ════════════════════════════════════════════════════════════════
         private void RefreshKpi()
         {
             pnlKpi.Controls.Clear();
@@ -118,7 +122,6 @@ namespace PremiumLivingOPS.Views.AfterService
                     Margin    = new Padding(0, 0, Gap, 0),
                     Cursor    = Cursors.Hand,
                 };
-
                 pill.Paint += (s, e) =>
                 {
                     e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
@@ -144,22 +147,15 @@ namespace PremiumLivingOPS.Views.AfterService
                 {
                     Text      = count,
                     Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
-                    ForeColor = fg,
-                    BackColor = Color.Transparent,
-                    Dock      = DockStyle.Fill,
-                    TextAlign = ContentAlignment.MiddleCenter,
-                    AutoSize  = false,
+                    ForeColor = fg, BackColor = Color.Transparent,
+                    Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, AutoSize = false,
                 }, 0, 0);
-
                 tlp.Controls.Add(new Label
                 {
                     Text      = label,
                     Font      = new Font("Segoe UI", 12f),
-                    ForeColor = fg,
-                    BackColor = Color.Transparent,
-                    Dock      = DockStyle.Fill,
-                    TextAlign = ContentAlignment.MiddleLeft,
-                    AutoSize  = false,
+                    ForeColor = fg, BackColor = Color.Transparent,
+                    Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false,
                 }, 1, 0);
 
                 string localFilter = filterVal;
@@ -171,7 +167,7 @@ namespace PremiumLivingOPS.Views.AfterService
                 };
                 pill.Click += click;
                 tlp.Click  += click;
-                foreach (Control c in tlp.Controls) c.Click += click;
+                foreach (Control ch in tlp.Controls) ch.Click += click;
 
                 pill.Controls.Add(tlp);
                 flow.Controls.Add(pill);
@@ -180,7 +176,9 @@ namespace PremiumLivingOPS.Views.AfterService
             pnlKpi.Controls.Add(flow);
         }
 
-        // ── Action buttons enable/disable ────────────────────────────────────
+        // ════════════════════════════════════════════════════════════════
+        //  Action state
+        // ════════════════════════════════════════════════════════════════
         private void UpdateActionButtons()
         {
             bool sel = dgvComplaints.SelectedRows.Count > 0;
@@ -190,7 +188,6 @@ namespace PremiumLivingOPS.Views.AfterService
 
         private void dgvComplaints_SelectionChanged(object sender, EventArgs e) => UpdateActionButtons();
 
-        // ── CellFormatting — status badge ───────────────────────────────────
         private void dgvComplaints_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
             if (dgvComplaints.Columns[e.ColumnIndex].Name != "colStatus" || e.Value == null) return;
@@ -204,88 +201,17 @@ namespace PremiumLivingOPS.Views.AfterService
             e.FormattingApplied   = true;
         }
 
-        // ── Update Status ──────────────────────────────────────────────────
+        // ════════════════════════════════════════════════════════════════
+        //  Update Status Dialog  (mirrors ViewDetail pattern)
+        // ════════════════════════════════════════════════════════════════
         private void btnUpdateStatus_Click(object sender, EventArgs e)
         {
             if (dgvComplaints.SelectedRows.Count == 0) return;
-            string id         = dgvComplaints.SelectedRows[0].Cells["colComplaintID"].Value?.ToString();
-            string currentSts = dgvComplaints.SelectedRows[0].Cells["colStatus"].Value?.ToString();
+            string id  = dgvComplaints.SelectedRows[0].Cells["colComplaintID"].Value?.ToString();
+            var    ent = _currentComplaints.Find(x => x.ComplaintID == id);
+            if (ent == null) return;
 
-            using var dlg = new Form
-            {
-                Text            = "Update Complaint Status",
-                Size            = new Size(460, 260),
-                StartPosition   = FormStartPosition.CenterParent,
-                BackColor       = Color.White,
-                Font            = new Font("Segoe UI", 12f),
-                FormBorderStyle = FormBorderStyle.FixedDialog,
-                MaximizeBox     = false,
-                MinimizeBox     = false,
-            };
-            var lbl = new Label
-            {
-                Text    = $"Complaint:  {id}\nCurrent Status:  {currentSts}\n\nNew Status:",
-                Dock    = DockStyle.Top,
-                Height  = 120,
-                Padding = new Padding(20, 16, 20, 8),
-                Font    = new Font("Segoe UI", 12f),
-            };
-            var cbo = new ComboBox
-            {
-                DropDownStyle = ComboBoxStyle.DropDownList,
-                Font          = new Font("Segoe UI", 12f),
-                Left = 20, Top = 140, Width = 400,
-            };
-            cbo.Items.AddRange(new object[] { "Pending", "Processing", "Escalated", "Completed" });
-            cbo.SelectedItem = currentSts;
-
-            var btnOk = new Button
-            {
-                Text      = "Confirm",
-                Left      = 20, Top = 185, Width = 190, Height = 40,
-                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
-                BackColor = Color.FromArgb(19, 35, 61),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-            };
-            var btnCnl = new Button
-            {
-                Text      = "Cancel",
-                Left      = 220, Top = 185, Width = 190, Height = 40,
-                Font      = new Font("Segoe UI", 12f),
-                BackColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-            };
-            btnOk.FlatAppearance.BorderSize   = 0;
-            btnCnl.FlatAppearance.BorderColor = Color.FromArgb(209, 213, 219);
-
-            btnOk.Click += (s2, e2) =>
-            {
-                if (cbo.SelectedItem == null) return;
-                bool ok = _ctrl.UpdateComplaintStatus(id, cbo.SelectedItem.ToString());
-                if (ok) { dlg.DialogResult = DialogResult.OK; dlg.Close(); }
-                else MessageBox.Show("Update failed.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            };
-            btnCnl.Click += (s2, e2) => dlg.Close();
-
-            dlg.Controls.Add(lbl);
-            dlg.Controls.Add(cbo);
-            dlg.Controls.Add(btnOk);
-            dlg.Controls.Add(btnCnl);
-            if (dlg.ShowDialog(this) == DialogResult.OK) RefreshGrid();
-        }
-
-        // ── View Detail ──────────────────────────────────────────────────────
-        private void btnViewDetail_Click(object sender, EventArgs e) => ShowDetailDialog();
-
-        private void ShowDetailDialog()
-        {
-            if (dgvComplaints.SelectedRows.Count == 0) return;
-            string id = dgvComplaints.SelectedRows[0].Cells["colComplaintID"].Value?.ToString();
-            var c = _currentComplaints.Find(x => x.ComplaintID == id);
-            if (c == null) return;
-
-            // ── Local helpers (mirrors SearchProcurementForm) ────────────────
+            // ── Shared helpers (identical to ShowDetailDialog) ───────────────
             Label ReadLabel(string text) => new Label
             {
                 Text      = text ?? "\u2014",
@@ -300,10 +226,10 @@ namespace PremiumLivingOPS.Views.AfterService
             {
                 var row = new Panel { Height = D_RowH, BackColor = Color.White };
                 if (!lastRow)
-                    row.Paint += (s, pe) =>
+                    row.Paint += (s2, pe) =>
                     {
                         using var pen = new System.Drawing.Pen(Color.FromArgb(221, 227, 236), 1);
-                        pe.Graphics.DrawLine(pen, 0, ((Panel)s).Height - 1, ((Panel)s).Width, ((Panel)s).Height - 1);
+                        pe.Graphics.DrawLine(pen, 0, ((Panel)s2).Height - 1, ((Panel)s2).Width, ((Panel)s2).Height - 1);
                     };
 
                 var tlp = new TableLayoutPanel
@@ -343,37 +269,38 @@ namespace PremiumLivingOPS.Views.AfterService
                 return row;
             }
 
-            // ── CARD 1 — Complaint Header ─────────────────────────────────
-            var c1Rows = new Panel[]
+            // ── New Status ComboBox ───────────────────────────────────────
+            var cboNew = new ComboBox
             {
-                FieldRow("Complaint ID", ReadLabel(c.ComplaintID)),
-                FieldRow("Order No.",    ReadLabel(c.OrderID ?? "\u2014")),
-                FieldRow("Status",       ReadLabel(c.ComplaintStatus), lastRow: true)
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Font          = new Font("Segoe UI", 12f),
+                FlatStyle     = FlatStyle.Flat,
+                BackColor     = Color.White,
+                ForeColor     = Color.FromArgb(15, 31, 53),
             };
-            var (c1Outer, c1Inner) = CardPanel.Create(
-                outerHeight: c1Rows.Length * D_RowH + 22,
+            cboNew.Items.AddRange(new object[] { "Pending", "Processing", "Escalated", "Completed" });
+            cboNew.SelectedItem = ent.ComplaintStatus;
+
+            // ── Card — 4 field rows ───────────────────────────────────────
+            var rows = new Panel[]
+            {
+                FieldRow("Complaint ID",    ReadLabel(ent.ComplaintID)),
+                FieldRow("Order No.",        ReadLabel(ent.OrderID ?? "\u2014")),
+                FieldRow("Current Status",   ReadLabel(ent.ComplaintStatus)),
+                FieldRow("New Status",       cboNew, lastRow: true)
+            };
+            var (cardOuter, cardInner) = CardPanel.Create(
+                outerHeight: rows.Length * D_RowH + 22,
                 outerPadding: new Padding(20, 14, 20, 8));
-            c1Inner.Padding = new Padding(0);
-            c1Inner.Controls.Add(BuildStack(c1Rows));
+            cardInner.Padding = new Padding(0);
+            cardInner.Controls.Add(BuildStack(rows));
 
-            // ── CARD 2 — Detail Fields ────────────────────────────────────
-            var c2Rows = new Panel[]
-            {
-                FieldRow("Handled By",  ReadLabel(c.StaffName)),
-                FieldRow("Description", ReadLabel(c.ComplaintDescription ?? "\u2014"), lastRow: true)
-            };
-            var (c2Outer, c2Inner) = CardPanel.Create(
-                outerHeight: c2Rows.Length * D_RowH + 30,
-                outerPadding: new Padding(20, 8, 20, 16));
-            c2Inner.Padding = new Padding(0);
-            c2Inner.Controls.Add(BuildStack(c2Rows));
-
-            // ── Dialog shell ────────────────────────────────────────────────
+            // ── Dialog shell ───────────────────────────────────────────────
             using var dlg = new Form
             {
-                Text            = $"Complaint Detail  \u2014  {c.ComplaintID}",
-                Size            = new Size(1900, 700),
-                MinimumSize     = new Size(1100, 700),
+                Text            = $"Update Complaint Status  \u2014  {ent.ComplaintID}",
+                Size            = new Size(900, 580),
+                MinimumSize     = new Size(900, 580),
                 StartPosition   = FormStartPosition.CenterParent,
                 FormBorderStyle = FormBorderStyle.FixedDialog,
                 MaximizeBox     = false,
@@ -382,19 +309,19 @@ namespace PremiumLivingOPS.Views.AfterService
                 Font            = new Font("Segoe UI", 12f)
             };
 
-            // ── Header — navy bar with title + dynamic status pill
+            // ── Header: navy bar, 18f bold title + dynamic status pill
             Color pillBg = Color.FromArgb(229, 231, 235);
             Color pillFg = Color.FromArgb(55, 65, 81);
-            if (StatusColors.TryGetValue(c.ComplaintStatus ?? "", out var hsc))
+            if (StatusColors.TryGetValue(ent.ComplaintStatus ?? "", out var hsc))
             { pillBg = hsc.bg; pillFg = hsc.fg; }
 
             var statusFont = new Font("Segoe UI", 13f, FontStyle.Bold);
-            int textW      = TextRenderer.MeasureText(c.ComplaintStatus ?? "\u2014", statusFont).Width;
+            int textW      = TextRenderer.MeasureText(ent.ComplaintStatus ?? "\u2014", statusFont).Width;
             int statusColW = textW + 80;
 
             var statusLbl = new Label
             {
-                Text      = c.ComplaintStatus ?? "\u2014",
+                Text      = ent.ComplaintStatus ?? "\u2014",
                 Font      = statusFont,
                 ForeColor = pillFg,
                 BackColor = pillBg,
@@ -402,9 +329,9 @@ namespace PremiumLivingOPS.Views.AfterService
                 AutoSize  = false,
                 TextAlign = ContentAlignment.MiddleCenter
             };
-            statusLbl.Paint += (s, pe) =>
+            statusLbl.Paint += (s2, pe) =>
             {
-                var lb = (Label)s;
+                var lb = (Label)s2;
                 using var pen = new System.Drawing.Pen(Color.FromArgb(120, pillFg.R, pillFg.G, pillFg.B), 1);
                 pe.Graphics.DrawRectangle(pen, 0, 0, lb.Width - 1, lb.Height - 1);
             };
@@ -422,7 +349,7 @@ namespace PremiumLivingOPS.Views.AfterService
             headerTlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
             headerTlp.Controls.Add(new Label
             {
-                Text      = $"Complaint  \u2014  {c.ComplaintID}",
+                Text      = $"Update Status  \u2014  {ent.ComplaintID}",
                 Font      = new Font("Segoe UI", 18f, FontStyle.Bold),
                 ForeColor = Color.White,
                 Dock      = DockStyle.Fill,
@@ -440,7 +367,7 @@ namespace PremiumLivingOPS.Views.AfterService
             };
             pnlHeader.Controls.Add(headerTlp);
 
-            // ── Footer — 96px, top border, Close button Dock Right
+            // ── Footer: Height 96, top border, Confirm (navy) + Cancel (outline)
             var pnlFoot = new Panel
             {
                 Dock      = DockStyle.Bottom,
@@ -448,14 +375,29 @@ namespace PremiumLivingOPS.Views.AfterService
                 BackColor = Color.White,
                 Padding   = new Padding(0, 18, 40, 18)
             };
-            pnlFoot.Paint += (s, pe) =>
+            pnlFoot.Paint += (s2, pe) =>
             {
                 using var pen = new System.Drawing.Pen(Color.FromArgb(221, 227, 236), 1);
-                pe.Graphics.DrawLine(pen, 0, 0, ((Panel)s).Width, 0);
+                pe.Graphics.DrawLine(pen, 0, 0, ((Panel)s2).Width, 0);
             };
-            var btnClose = new Button
+
+            var btnConfirm = new Button
             {
-                Text      = "Close",
+                Text      = "Confirm",
+                Font      = new Font("Segoe UI", 13f, FontStyle.Bold),
+                BackColor = Color.FromArgb(19, 35, 61),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Width     = D_BtnW,
+                Height    = D_BtnH,
+                Cursor    = Cursors.Hand,
+                Margin    = new Padding(0, 0, 12, 0)
+            };
+            btnConfirm.FlatAppearance.BorderSize = 0;
+
+            var btnCancel = new Button
+            {
+                Text      = "Cancel",
                 Font      = new Font("Segoe UI", 13f),
                 BackColor = Color.White,
                 ForeColor = Color.FromArgb(15, 31, 53),
@@ -464,9 +406,18 @@ namespace PremiumLivingOPS.Views.AfterService
                 Height    = D_BtnH,
                 Cursor    = Cursors.Hand
             };
-            btnClose.FlatAppearance.BorderColor = Color.FromArgb(200, 207, 220);
-            btnClose.FlatAppearance.BorderSize  = 1;
-            btnClose.Click += (s2, ev) => dlg.Close();
+            btnCancel.FlatAppearance.BorderColor = Color.FromArgb(200, 207, 220);
+            btnCancel.FlatAppearance.BorderSize  = 1;
+
+            btnConfirm.Click += (s2, ev) =>
+            {
+                if (cboNew.SelectedItem == null) return;
+                bool ok = _ctrl.UpdateComplaintStatus(id, cboNew.SelectedItem.ToString());
+                if (ok) { dlg.DialogResult = DialogResult.OK; dlg.Close(); }
+                else MessageBox.Show("Update failed.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            };
+            btnCancel.Click += (s2, ev) => dlg.Close();
+
             var footFlow = new FlowLayoutPanel
             {
                 Dock          = DockStyle.Right,
@@ -474,18 +425,201 @@ namespace PremiumLivingOPS.Views.AfterService
                 FlowDirection = FlowDirection.LeftToRight,
                 BackColor     = Color.Transparent
             };
+            footFlow.Controls.Add(btnConfirm);
+            footFlow.Controls.Add(btnCancel);
+            pnlFoot.Controls.Add(footFlow);
+
+            // ── Scrollable body
+            var scroll = new Panel
+            {
+                Dock       = DockStyle.Fill,
+                BackColor  = Color.FromArgb(240, 244, 249),
+                AutoScroll = true
+            };
+            scroll.Controls.Add(cardOuter);
+
+            dlg.Controls.Add(scroll);
+            dlg.Controls.Add(pnlFoot);
+            dlg.Controls.Add(pnlHeader);
+
+            if (dlg.ShowDialog(this) == DialogResult.OK) RefreshGrid();
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  View Detail Dialog
+        // ════════════════════════════════════════════════════════════════
+        private void btnViewDetail_Click(object sender, EventArgs e) => ShowDetailDialog();
+
+        private void ShowDetailDialog()
+        {
+            if (dgvComplaints.SelectedRows.Count == 0) return;
+            string id = dgvComplaints.SelectedRows[0].Cells["colComplaintID"].Value?.ToString();
+            var c = _currentComplaints.Find(x => x.ComplaintID == id);
+            if (c == null) return;
+
+            Label ReadLabel(string text) => new Label
+            {
+                Text      = text ?? "\u2014",
+                Font      = new Font("Segoe UI", 12f),
+                ForeColor = Color.FromArgb(15, 31, 53),
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft,
+                BackColor = Color.White
+            };
+
+            Panel FieldRow(string labelText, Control input, bool lastRow = false)
+            {
+                var row = new Panel { Height = D_RowH, BackColor = Color.White };
+                if (!lastRow)
+                    row.Paint += (s, pe) =>
+                    {
+                        using var pen = new System.Drawing.Pen(Color.FromArgb(221, 227, 236), 1);
+                        pe.Graphics.DrawLine(pen, 0, ((Panel)s).Height - 1, ((Panel)s).Width, ((Panel)s).Height - 1);
+                    };
+                var tlp = new TableLayoutPanel
+                {
+                    Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
+                    BackColor = Color.White, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+                };
+                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, D_LabelW));
+                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
+                tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+                var lbl = new Label
+                {
+                    Text = labelText, Font = new Font("Segoe UI", 12f, FontStyle.Bold),
+                    ForeColor = Color.FromArgb(70, 85, 110), BackColor = Color.FromArgb(248, 250, 252),
+                    Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft,
+                    AutoSize = false, Padding = new Padding(20, 0, 8, 0)
+                };
+                var wrap = new Panel
+                {
+                    Dock = DockStyle.Fill, BackColor = Color.White,
+                    Padding = new Padding(20, 12, 20, 12)
+                };
+                input.Dock = DockStyle.Fill;
+                wrap.Controls.Add(input);
+                tlp.Controls.Add(lbl,  0, 0);
+                tlp.Controls.Add(wrap, 1, 0);
+                row.Controls.Add(tlp);
+                return row;
+            }
+
+            var c1Rows = new Panel[]
+            {
+                FieldRow("Complaint ID", ReadLabel(c.ComplaintID)),
+                FieldRow("Order No.",    ReadLabel(c.OrderID ?? "\u2014")),
+                FieldRow("Status",       ReadLabel(c.ComplaintStatus), lastRow: true)
+            };
+            var (c1Outer, c1Inner) = CardPanel.Create(
+                outerHeight: c1Rows.Length * D_RowH + 22,
+                outerPadding: new Padding(20, 14, 20, 8));
+            c1Inner.Padding = new Padding(0);
+            c1Inner.Controls.Add(BuildStack(c1Rows));
+
+            var c2Rows = new Panel[]
+            {
+                FieldRow("Handled By",  ReadLabel(c.StaffName)),
+                FieldRow("Description", ReadLabel(c.ComplaintDescription ?? "\u2014"), lastRow: true)
+            };
+            var (c2Outer, c2Inner) = CardPanel.Create(
+                outerHeight: c2Rows.Length * D_RowH + 30,
+                outerPadding: new Padding(20, 8, 20, 16));
+            c2Inner.Padding = new Padding(0);
+            c2Inner.Controls.Add(BuildStack(c2Rows));
+
+            using var dlg = new Form
+            {
+                Text            = $"Complaint Detail  \u2014  {c.ComplaintID}",
+                Size            = new Size(1900, 700),
+                MinimumSize     = new Size(1100, 700),
+                StartPosition   = FormStartPosition.CenterParent,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox     = false, MinimizeBox = false,
+                BackColor       = Color.FromArgb(240, 244, 249),
+                Font            = new Font("Segoe UI", 12f)
+            };
+
+            Color pillBg = Color.FromArgb(229, 231, 235);
+            Color pillFg = Color.FromArgb(55, 65, 81);
+            if (StatusColors.TryGetValue(c.ComplaintStatus ?? "", out var hsc))
+            { pillBg = hsc.bg; pillFg = hsc.fg; }
+
+            var statusFont = new Font("Segoe UI", 13f, FontStyle.Bold);
+            int textW      = TextRenderer.MeasureText(c.ComplaintStatus ?? "\u2014", statusFont).Width;
+            int statusColW = textW + 80;
+
+            var statusLbl = new Label
+            {
+                Text = c.ComplaintStatus ?? "\u2014",
+                Font = statusFont, ForeColor = pillFg, BackColor = pillBg,
+                Dock = DockStyle.Fill, AutoSize = false,
+                TextAlign = ContentAlignment.MiddleCenter
+            };
+            statusLbl.Paint += (s, pe) =>
+            {
+                var lb = (Label)s;
+                using var pen = new System.Drawing.Pen(Color.FromArgb(120, pillFg.R, pillFg.G, pillFg.B), 1);
+                pe.Graphics.DrawRectangle(pen, 0, 0, lb.Width - 1, lb.Height - 1);
+            };
+
+            var headerTlp = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
+                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+            };
+            headerTlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+            headerTlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, statusColW));
+            headerTlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+            headerTlp.Controls.Add(new Label
+            {
+                Text = $"Complaint  \u2014  {c.ComplaintID}",
+                Font = new Font("Segoe UI", 18f, FontStyle.Bold),
+                ForeColor = Color.White, Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft,
+                BackColor = Color.Transparent, Padding = new Padding(40, 0, 0, 0)
+            }, 0, 0);
+            headerTlp.Controls.Add(statusLbl, 1, 0);
+
+            var pnlHeader = new Panel
+            {
+                Dock = DockStyle.Top, Height = 88,
+                BackColor = Color.FromArgb(19, 35, 61)
+            };
+            pnlHeader.Controls.Add(headerTlp);
+
+            var pnlFoot = new Panel
+            {
+                Dock = DockStyle.Bottom, Height = 96,
+                BackColor = Color.White, Padding = new Padding(0, 18, 40, 18)
+            };
+            pnlFoot.Paint += (s, pe) =>
+            {
+                using var pen = new System.Drawing.Pen(Color.FromArgb(221, 227, 236), 1);
+                pe.Graphics.DrawLine(pen, 0, 0, ((Panel)s).Width, 0);
+            };
+            var btnClose = new Button
+            {
+                Text = "Close", Font = new Font("Segoe UI", 13f),
+                BackColor = Color.White, ForeColor = Color.FromArgb(15, 31, 53),
+                FlatStyle = FlatStyle.Flat, Width = D_BtnW, Height = D_BtnH, Cursor = Cursors.Hand
+            };
+            btnClose.FlatAppearance.BorderColor = Color.FromArgb(200, 207, 220);
+            btnClose.FlatAppearance.BorderSize  = 1;
+            btnClose.Click += (s2, ev) => dlg.Close();
+            var footFlow = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Right, AutoSize = true,
+                FlowDirection = FlowDirection.LeftToRight, BackColor = Color.Transparent
+            };
             footFlow.Controls.Add(btnClose);
             pnlFoot.Controls.Add(footFlow);
 
-            // ── Scrollable body — cards stacked top-to-bottom
             var scroll = new Panel
             {
-                Dock      = DockStyle.Fill,
-                BackColor = Color.FromArgb(240, 244, 249),
-                AutoScroll = true
+                Dock = DockStyle.Fill, BackColor = Color.FromArgb(240, 244, 249), AutoScroll = true
             };
-            scroll.Controls.Add(c2Outer);   // added first = lower (Fill stacks reversed)
-            scroll.Controls.Add(c1Outer);   // added second = higher
+            scroll.Controls.Add(c2Outer);
+            scroll.Controls.Add(c1Outer);
 
             dlg.Controls.Add(scroll);
             dlg.Controls.Add(pnlFoot);
@@ -493,7 +627,9 @@ namespace PremiumLivingOPS.Views.AfterService
             dlg.ShowDialog(this);
         }
 
-        // ── BuildStack helper (mirrors SearchProcurementForm) ───────────────
+        // ════════════════════════════════════════════════════════════════
+        //  Shared helpers
+        // ════════════════════════════════════════════════════════════════
         private Panel BuildStack(Panel[] rows)
         {
             var content = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
@@ -516,7 +652,9 @@ namespace PremiumLivingOPS.Views.AfterService
             return content;
         }
 
-        // ── Navigation / logout ─────────────────────────────────────────────
+        // ════════════════════════════════════════════════════════════════
+        //  Navigation / logout
+        // ════════════════════════════════════════════════════════════════
         private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
             => FormNavigator.NavigateTo(this, menuLabel, subItem);
 
