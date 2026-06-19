@@ -284,7 +284,7 @@ namespace PremiumLivingOPS.Views.AfterService
             using var dlg = new Form
             {
                 Text            = $"Complaint Detail \u2014 {c.ComplaintID}",
-                Size            = new Size(680, 380),
+                Size            = new Size(1900, 700),
                 StartPosition   = FormStartPosition.CenterParent,
                 BackColor       = Color.White,
                 Font            = new Font("Segoe UI", 12f),
