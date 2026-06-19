@@ -202,6 +202,285 @@ namespace PremiumLivingOPS.Views.AfterService
         }
 
         // ════════════════════════════════════════════════════════════════
+        //  ★ ADD NEW — Create Complaint Dialog
+        //
+        //  Visual language mirrors ViewShipment's Generate Reply Slip dialog:
+        //    pnlHeader   DockStyle.Top    80   — dark navy (#13233D) + title
+        //    pnlInputCard Top             280  — input fields (OrderID, Staff, Status, Desc)
+        //    pnlFooter   DockStyle.Bottom 80   — [✔ Create Complaint] [Cancel]
+        //
+        //  Fields (reference: complaint table schema):
+        //    OrderID           — TextBox (optional, placeholder "e.g. ORD-0001")
+        //    Handled By Staff  — ComboBox (staff list from controller)
+        //    Status            — ComboBox (Pending / Processing / Escalated / Completed)
+        //    Description       — multiline TextBox (*required)
+        // ════════════════════════════════════════════════════════════════
+        private void btnAddNew_Click(object sender, EventArgs e)
+        {
+            // ── Dialog shell ─────────────────────────────────────────────────
+            using var dlg = new Form
+            {
+                Text            = "Create New Complaint",
+                Size            = new Size(1400, 620),
+                MinimumSize     = new Size(1100, 620),
+                StartPosition   = FormStartPosition.CenterParent,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox     = false,
+                MinimizeBox     = false,
+                BackColor       = Color.White,
+                Font            = new Font("Segoe UI", 13f)
+            };
+
+            // ── Header ───────────────────────────────────────────────────────
+            //  Dark navy background + white title — matches all existing dialogs
+            var pnlHeader = new Panel
+            {
+                Dock      = DockStyle.Top,
+                Height    = 80,
+                BackColor = Color.FromArgb(19, 35, 61)
+            };
+            pnlHeader.Controls.Add(new Label
+            {
+                Text      = "\u2795  Create New Complaint",
+                Font      = new Font("Segoe UI", 18f, FontStyle.Bold),
+                ForeColor = Color.White,
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft,
+                AutoSize  = false,
+                Padding   = new Padding(32, 0, 0, 0)
+            });
+
+            // ── Input section title bar ───────────────────────────────────────
+            //  Light blue-tinted background row (mirrors ViewShipment input card)
+            var pnlInputTitle = new Panel
+            {
+                Dock      = DockStyle.Top,
+                Height    = 44,
+                BackColor = Color.FromArgb(241, 245, 255),
+                Padding   = new Padding(32, 0, 16, 0)
+            };
+            PaintBottomBorderStatic(pnlInputTitle);
+            pnlInputTitle.Controls.Add(new Label
+            {
+                Text      = "\uD83D\uDCCB  Complaint Information",
+                Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(47, 111, 237),
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft,
+                AutoSize  = false
+            });
+
+            // ── Input body ────────────────────────────────────────────────────
+            //
+            //  Row 1  Y=10  — Order No. (optional) | Handled By Staff *
+            //  Row 2  Y=70  — Status *             | (spacer)
+            //  Row 3  Y=130 — Description *        (full-width multiline)
+            //
+            //  Padding (32, 16, 32, 12) — matches ViewShipment input body rhythm
+            var pnlInputBody = new Panel
+            {
+                Dock      = DockStyle.Top,
+                Height    = 230,
+                BackColor = Color.FromArgb(249, 251, 255),
+                Padding   = new Padding(32, 16, 32, 12)
+            };
+            PaintBottomBorderStatic(pnlInputBody);
+
+            // Row 1 — Order No.
+            var lblOrderNo = MakeLabelKey("Order No.");
+            lblOrderNo.AutoSize = true; lblOrderNo.Dock = DockStyle.None;
+            lblOrderNo.Location = new Point(0, 14);
+
+            var txtOrderNo = new TextBox
+            {
+                Font            = new Font("Segoe UI", 12f),
+                BorderStyle     = BorderStyle.FixedSingle,
+                Location        = new Point(180, 10),
+                Size            = new Size(300, 32),
+                PlaceholderText = "e.g. ORD-0001  (optional)"
+            };
+
+            // Row 1 — Handled By Staff  (gap = 50px from txtOrderNo right edge: 180+300=480 → 530)
+            var lblStaff = MakeLabelKey("Handled By *");
+            lblStaff.AutoSize = true; lblStaff.Dock = DockStyle.None;
+            lblStaff.Location = new Point(530, 14);
+
+            var cboStaff = new ComboBox
+            {
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Font          = new Font("Segoe UI", 12f),
+                Location      = new Point(700, 10),
+                Size          = new Size(300, 32)
+            };
+            // Populate staff list from controller; fallback to placeholder if unavailable
+            try
+            {
+                var staffList = _ctrl.GetStaffList();
+                foreach (var staff in staffList)
+                    cboStaff.Items.Add(staff);
+            }
+            catch
+            {
+                cboStaff.Items.Add("(No staff loaded)");
+            }
+            if (cboStaff.Items.Count > 0) cboStaff.SelectedIndex = 0;
+
+            // Row 2 — Status *  (Y = 10+32+28 = 70)
+            var lblStatus = MakeLabelKey("Status *");
+            lblStatus.AutoSize = true; lblStatus.Dock = DockStyle.None;
+            lblStatus.Location = new Point(0, 74);
+
+            var cboNewStatus = new ComboBox
+            {
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Font          = new Font("Segoe UI", 12f),
+                Location      = new Point(180, 70),
+                Size          = new Size(220, 32)
+            };
+            cboNewStatus.Items.AddRange(new object[] { "Pending", "Processing", "Escalated", "Completed" });
+            cboNewStatus.SelectedIndex = 0;
+
+            // Row 3 — Description *  (Y = 70+32+28 = 130 → use 134 for breathing room)
+            var lblDesc = MakeLabelKey("Description *");
+            lblDesc.AutoSize = true; lblDesc.Dock = DockStyle.None;
+            lblDesc.Location = new Point(0, 138);
+
+            // Full-width multiline box: X = 180, width fills to right edge (matching txtRemarkEdit)
+            var txtDesc = new TextBox
+            {
+                Font            = new Font("Segoe UI", 12f),
+                BorderStyle     = BorderStyle.FixedSingle,
+                Multiline       = false,
+                Location        = new Point(180, 134),
+                Size            = new Size(820, 32),
+                PlaceholderText = "Describe the complaint in detail"
+            };
+
+            pnlInputBody.Controls.Add(lblOrderNo);
+            pnlInputBody.Controls.Add(txtOrderNo);
+            pnlInputBody.Controls.Add(lblStaff);
+            pnlInputBody.Controls.Add(cboStaff);
+            pnlInputBody.Controls.Add(lblStatus);
+            pnlInputBody.Controls.Add(cboNewStatus);
+            pnlInputBody.Controls.Add(lblDesc);
+            pnlInputBody.Controls.Add(txtDesc);
+
+            // ── Footer — [✔ Create Complaint] [Cancel] ────────────────────────
+            //  Mirrors ViewShipment Confirm Generate footer exactly
+            var pnlFooter = new Panel
+            {
+                Dock      = DockStyle.Bottom,
+                Height    = 80,
+                BackColor = Color.White,
+                Padding   = new Padding(0, 12, 28, 12)
+            };
+            pnlFooter.Paint += (o, ev) =>
+            {
+                using var pen = new System.Drawing.Pen(Color.FromArgb(221, 227, 236), 1);
+                ev.Graphics.DrawLine(pen, 0, 0, ((Panel)o).Width, 0);
+            };
+
+            var btnConfirm = new Button
+            {
+                Text      = "\u2714  Create Complaint",
+                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.White,
+                BackColor = Color.FromArgb(5, 150, 105),   // green — mirrors Confirm Generate
+                FlatStyle = FlatStyle.Flat,
+                Dock      = DockStyle.Right,
+                Width     = 240,
+                Cursor    = Cursors.Hand
+            };
+            btnConfirm.FlatAppearance.BorderSize         = 0;
+            btnConfirm.FlatAppearance.MouseOverBackColor = Color.FromArgb(4, 120, 87);
+            btnConfirm.Margin = new Padding(0, 0, 8, 0);
+
+            var btnCancel = new Button
+            {
+                Text      = "Cancel",
+                Font      = new Font("Segoe UI", 12f),
+                ForeColor = Color.FromArgb(15, 31, 53),
+                BackColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Dock      = DockStyle.Right,
+                Width     = 140,
+                Cursor    = Cursors.Hand
+            };
+            btnCancel.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
+            btnCancel.FlatAppearance.BorderSize         = 1;
+            btnCancel.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
+
+            bool confirmed = false;
+
+            btnConfirm.Click += (o, ev) =>
+            {
+                // Validation — Description is required
+                if (string.IsNullOrWhiteSpace(txtDesc.Text))
+                {
+                    MessageBox.Show("Description is required.",
+                        "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    txtDesc.Focus();
+                    return;
+                }
+                // Validation — Staff must be selected
+                if (cboStaff.SelectedItem == null)
+                {
+                    MessageBox.Show("Please select a staff member.",
+                        "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    cboStaff.Focus();
+                    return;
+                }
+                confirmed = true;
+                dlg.Close();
+            };
+
+            btnCancel.Click += (o, ev) => dlg.Close();
+
+            pnlFooter.Controls.Add(btnConfirm);
+            pnlFooter.Controls.Add(btnCancel);
+
+            // ── Filler panel (between input body and footer) ─────────────────
+            //  Gives the dialog a clean grey body consistent with other dialogs
+            var pnlFill = new Panel
+            {
+                Dock      = DockStyle.Fill,
+                BackColor = Color.FromArgb(240, 244, 249)
+            };
+
+            // ── Assemble (Bottom → Fill → Top in DockStyle priority order) ───
+            dlg.Controls.Add(pnlFill);
+            dlg.Controls.Add(pnlInputBody);
+            dlg.Controls.Add(pnlInputTitle);
+            dlg.Controls.Add(pnlHeader);
+            dlg.Controls.Add(pnlFooter);
+
+            dlg.ShowDialog(this);
+
+            if (!confirmed) return;
+
+            // ── Persist new complaint via controller ──────────────────────────
+            try
+            {
+                string orderID     = string.IsNullOrWhiteSpace(txtOrderNo.Text) ? null : txtOrderNo.Text.Trim();
+                string staffName   = cboStaff.SelectedItem?.ToString();
+                string status      = cboNewStatus.SelectedItem?.ToString() ?? "Pending";
+                string description = txtDesc.Text.Trim();
+
+                _ctrl.CreateComplaint(orderID, staffName, status, description);
+
+                MessageBox.Show("Complaint created successfully.",
+                    "Created", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                RefreshGrid();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to create complaint:\n{ex.Message}",
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // ════════════════════════════════════════════════════════════════
         //  Update Status Dialog
         // ════════════════════════════════════════════════════════════════
         private void btnUpdateStatus_Click(object sender, EventArgs e)
@@ -292,7 +571,6 @@ namespace PremiumLivingOPS.Views.AfterService
             cardInner.Padding = new Padding(0);
             cardInner.Controls.Add(BuildStack(rows));
 
-            // ── Dialog: 1800 × 700 ─────────────────────────────────────────
             using var dlg = new Form
             {
                 Text            = $"Update Complaint Status  \u2014  {ent.ComplaintID}",
@@ -644,6 +922,28 @@ namespace PremiumLivingOPS.Views.AfterService
                 foreach (Panel r in stack.Controls) r.Width = p.Width;
             };
             return content;
+        }
+
+        // ── Label factory (mirrors ViewShipmentForm.MakeLabelKey) ─────────────
+        private static Label MakeLabelKey(string text) => new Label
+        {
+            Text      = text,
+            Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
+            ForeColor = Color.FromArgb(98, 112, 135),
+            Dock      = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleLeft,
+            AutoSize  = false,
+            Padding   = new Padding(0, 0, 8, 0)
+        };
+
+        // ── Border painter helper (instance version for Add New dialog) ────────
+        private static void PaintBottomBorderStatic(Panel p)
+        {
+            p.Paint += (s, e) =>
+            {
+                using var pen = new System.Drawing.Pen(Color.FromArgb(221, 227, 236), 1);
+                e.Graphics.DrawLine(pen, 0, ((Panel)s).Height - 1, ((Panel)s).Width, ((Panel)s).Height - 1);
+            };
         }
 
         // ════════════════════════════════════════════════════════════════

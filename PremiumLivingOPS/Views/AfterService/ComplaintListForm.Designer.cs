@@ -18,6 +18,7 @@ namespace PremiumLivingOPS.Views.AfterService
         private DataGridView  dgvComplaints;
         private Button        btnUpdateStatus;
         private Button        btnViewDetail;
+        private Button        btnAddNew;   // ★ KPI Bar — Add New
 
         protected override void Dispose(bool disposing)
         {
@@ -44,9 +45,7 @@ namespace PremiumLivingOPS.Views.AfterService
             _shell.LogoutClicked   += btnLogout_Click;
 
             // ════════════════════════════════════════════════════════════════
-            // CARD 1 — Search  (Top, fixed 300px) — mirrors ViewOrderForm pattern
-            // tblCard: row0=Title+divider(60) / row1=fields(125) / row2=buttons(65)
-            // tblFields: 4 equal-percent columns, each wrapped in MakeCell helper
+            // CARD 1 — Search  (Top, fixed 300px)
             // ════════════════════════════════════════════════════════════════
             var (searchOuter, searchInner) = CardPanel.Create(outerHeight: 300);
 
@@ -65,7 +64,7 @@ namespace PremiumLivingOPS.Views.AfterService
             cboStatus.Items.AddRange(new object[] { "All", "Pending", "Processing", "Escalated", "Completed" });
             cboStatus.SelectedIndex = 0;
 
-            // ── MakeCell helper — identical to ViewOrderForm
+            // ── MakeCell helper
             TableLayoutPanel MakeCell(string caption, Control ctrl, bool rightPad = true)
             {
                 var tlp = new TableLayoutPanel
@@ -95,7 +94,6 @@ namespace PremiumLivingOPS.Views.AfterService
                 return tlp;
             }
 
-            // ── 4-column fields TLP (4 × Percent 25%) — mirrors ViewOrderForm
             var tblFields = new TableLayoutPanel
             {
                 Dock            = DockStyle.Fill,
@@ -111,18 +109,15 @@ namespace PremiumLivingOPS.Views.AfterService
             tblFields.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
             tblFields.Controls.Add(MakeCell("Keyword", txtKeyword),  0, 0);
             tblFields.Controls.Add(MakeCell("Status",  cboStatus),   1, 0);
-            // cols 2-3 intentionally empty (reserved for future filters)
 
-            // ── Search / Reset buttons panel (210×60, matches ViewOrderForm)
             var pnlBtns = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            btnSearch = MakePrimaryBtn("🔍  Search", new Point(0,   0), 210, 60);
-            btnReset  = MakeOutlineBtn("↺  Reset",  new Point(218, 0), 210, 60);
+            btnSearch = MakePrimaryBtn("\uD83D\uDD0D  Search", new Point(0,   0), 210, 60);
+            btnReset  = MakeOutlineBtn("\u21BA  Reset",       new Point(218, 0), 210, 60);
             btnSearch.Click += (s, e) => RefreshGrid();
             btnReset.Click  += (s, e) => ResetSearch();
             pnlBtns.Controls.Add(btnSearch);
             pnlBtns.Controls.Add(btnReset);
 
-            // ── Search card TLP: 3 rows — title(60) / fields(125) / buttons(65)
             var tblCard = new TableLayoutPanel
             {
                 Dock            = DockStyle.Fill,
@@ -133,11 +128,10 @@ namespace PremiumLivingOPS.Views.AfterService
                 Padding         = new Padding(18, 14, 18, 14)
             };
             tblCard.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  60f));   // Title
-            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute, 125f));   // Fields
-            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  65f));   // Buttons
+            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  60f));
+            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute, 125f));
+            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  65f));
 
-            // Title + divider
             var pnlTitle = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             var lblTitle = new Label
             {
@@ -158,9 +152,15 @@ namespace PremiumLivingOPS.Views.AfterService
 
             // ════════════════════════════════════════════════════════════════
             // CARD 2 — KPI Bar + Action Buttons  (Top, fixed 90px)
-            // Left : pnlKpi (FlowLayout pills) — DockStyle.Fill
-            // Right: btnUpdateStatus + btnViewDetail side-by-side, vertically centred
-            // BtnW = 290 to match ViewOrderForm
+            //
+            // Layout (left → right):
+            //   pnlKpi          — DockStyle.Fill   — KPI pills
+            //   pnlActionBtns   — DockStyle.Right  — [Add New] [Update Status] [View Detail]
+            //
+            // Button order inside pnlActionBtns (X positions, left → right):
+            //   btnAddNew       BtnPad
+            //   btnUpdateStatus BtnPad + BtnW + BtnGap
+            //   btnViewDetail   BtnPad + (BtnW+BtnGap)*2
             // ════════════════════════════════════════════════════════════════
             var (kpiOuter, kpiInner) = CardPanel.Create(outerHeight: 90);
 
@@ -176,17 +176,22 @@ namespace PremiumLivingOPS.Views.AfterService
             const int BtnGap = 8;
             const int BtnPad = 12;
 
-            btnUpdateStatus = MakeWarningBtn("✏️  Update Status", Point.Empty, BtnW, BtnH);
-            btnViewDetail   = MakePrimaryBtn("🔍  View Detail",   Point.Empty, BtnW, BtnH);
+            // ★ Add New — green success button (mirrors ViewShipment colour language)
+            btnAddNew = MakeSuccessBtn("\u2795  Add New", Point.Empty, BtnW, BtnH);
+            btnAddNew.Click += btnAddNew_Click;
+
+            btnUpdateStatus = MakeWarningBtn("\u270F\uFE0F  Update Status", Point.Empty, BtnW, BtnH);
+            btnViewDetail   = MakePrimaryBtn("\uD83D\uDD0D  View Detail",   Point.Empty, BtnW, BtnH);
             btnUpdateStatus.Enabled = false;
             btnViewDetail.Enabled   = false;
             btnUpdateStatus.Click  += btnUpdateStatus_Click;
             btnViewDetail.Click    += btnViewDetail_Click;
 
+            // 3 buttons: Add New | Update Status | View Detail
             var pnlActionBtns = new Panel
             {
                 Dock      = DockStyle.Right,
-                Width     = BtnPad + BtnW + BtnGap + BtnW + BtnPad,
+                Width     = BtnPad + BtnW + BtnGap + BtnW + BtnGap + BtnW + BtnPad,
                 BackColor = Color.Transparent
             };
 
@@ -194,16 +199,18 @@ namespace PremiumLivingOPS.Views.AfterService
             {
                 int top = (pnlActionBtns.Height - BtnH) / 2;
                 if (top < 0) top = 0;
-                btnUpdateStatus.Location = new Point(BtnPad, top);
-                btnViewDetail.Location   = new Point(BtnPad + BtnW + BtnGap, top);
+                btnAddNew.Location       = new Point(BtnPad, top);
+                btnUpdateStatus.Location = new Point(BtnPad + BtnW + BtnGap, top);
+                btnViewDetail.Location   = new Point(BtnPad + (BtnW + BtnGap) * 2, top);
             }
+            pnlActionBtns.Controls.Add(btnAddNew);
             pnlActionBtns.Controls.Add(btnUpdateStatus);
             pnlActionBtns.Controls.Add(btnViewDetail);
             pnlActionBtns.Resize += (s, e) => CentreActionBtns();
 
             var pnlKpiRow = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             pnlKpiRow.Controls.Add(pnlKpi);        // Fill  — pills
-            pnlKpiRow.Controls.Add(pnlActionBtns); // Right — buttons (added AFTER Fill)
+            pnlKpiRow.Controls.Add(pnlActionBtns); // Right — buttons
             kpiInner.Controls.Add(pnlKpiRow);
 
             // ════════════════════════════════════════════════════════════════
@@ -234,11 +241,11 @@ namespace PremiumLivingOPS.Views.AfterService
                     Padding = new Padding(12, 6, 12, 6)
                 }
             };
-            dgvComplaints.Columns.Add(new DataGridViewTextBoxColumn { Name = "colComplaintID",  HeaderText = "COMPLAINT ID", FillWeight = 16 });
-            dgvComplaints.Columns.Add(new DataGridViewTextBoxColumn { Name = "colOrderID",      HeaderText = "ORDER NO.",    FillWeight = 16 });
-            dgvComplaints.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStaff",        HeaderText = "HANDLED BY",   FillWeight = 16 });
-            dgvComplaints.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDescription",  HeaderText = "DESCRIPTION",  FillWeight = 36 });
-            dgvComplaints.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",       HeaderText = "STATUS",       FillWeight = 16 });
+            dgvComplaints.Columns.Add(new DataGridViewTextBoxColumn { Name = "colComplaintID", HeaderText = "COMPLAINT ID", FillWeight = 16 });
+            dgvComplaints.Columns.Add(new DataGridViewTextBoxColumn { Name = "colOrderID",     HeaderText = "ORDER NO.",    FillWeight = 16 });
+            dgvComplaints.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStaff",       HeaderText = "HANDLED BY",   FillWeight = 16 });
+            dgvComplaints.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDescription", HeaderText = "DESCRIPTION",  FillWeight = 36 });
+            dgvComplaints.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",      HeaderText = "STATUS",       FillWeight = 16 });
             dgvComplaints.SelectionChanged += dgvComplaints_SelectionChanged;
             dgvComplaints.CellFormatting   += dgvComplaints_CellFormatting;
             dgvComplaints.CellDoubleClick  += (s, e) => { if (e.RowIndex >= 0) ShowDetailDialog(); };
@@ -274,6 +281,17 @@ namespace PremiumLivingOPS.Views.AfterService
             b.FlatAppearance.BorderSize = 0;
             b.FlatAppearance.MouseOverBackColor = Color.FromArgb(217, 119, 6);
             b.FlatAppearance.MouseDownBackColor = Color.FromArgb(180, 90, 0);
+            return b;
+        }
+        // ★ Green success button — mirrors ViewShipment "Confirm Generate" style
+        private static Button MakeSuccessBtn(string text, Point loc, int w, int h)
+        {
+            var b = new Button { Text = text, Font = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.White, BackColor = Color.FromArgb(5, 150, 105), FlatStyle = FlatStyle.Flat,
+                Location = loc, Width = w, Height = h, Cursor = Cursors.Hand };
+            b.FlatAppearance.BorderSize = 0;
+            b.FlatAppearance.MouseOverBackColor = Color.FromArgb(4, 120, 87);
+            b.FlatAppearance.MouseDownBackColor = Color.FromArgb(3, 90, 68);
             return b;
         }
         private static Button MakeOutlineBtn(string text, Point loc, int w, int h)
