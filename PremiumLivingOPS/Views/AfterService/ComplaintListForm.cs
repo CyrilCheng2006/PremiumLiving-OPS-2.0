@@ -173,6 +173,23 @@ namespace PremiumLivingOPS.Views.AfterService
                 flow.Controls.Add(pill);
             }
 
+            // ── Add New button (right-aligned in the KPI bar) ────────────────────────
+            var btnAdd = new Button
+            {
+                Text      = "\u2795  Add New",
+                Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
+                ForeColor = Color.White,
+                BackColor = Color.FromArgb(5, 150, 105),
+                FlatStyle = FlatStyle.Flat,
+                Size      = new Size(160, PillH),
+                Margin    = new Padding(12, 0, 0, 0),
+                Cursor    = Cursors.Hand
+            };
+            btnAdd.FlatAppearance.BorderSize         = 0;
+            btnAdd.FlatAppearance.MouseOverBackColor = Color.FromArgb(4, 120, 87);
+            btnAdd.Click += btnAddNew_Click;
+            flow.Controls.Add(btnAdd);
+
             pnlKpi.Controls.Add(flow);
         }
 
@@ -203,21 +220,10 @@ namespace PremiumLivingOPS.Views.AfterService
 
         // ════════════════════════════════════════════════════════════════
         //  ★ ADD NEW — Create Complaint Dialog
-        //
-        //  Visual language mirrors ViewShipment's Generate Reply Slip dialog:
-        //    pnlHeader   DockStyle.Top    80   — dark navy (#13233D) + title
-        //    pnlInputCard Top             280  — input fields (OrderID, Staff, Status, Desc)
-        //    pnlFooter   DockStyle.Bottom 80   — [✔ Create Complaint] [Cancel]
-        //
-        //  Fields (reference: complaint table schema):
-        //    OrderID           — TextBox (optional, placeholder "e.g. ORD-0001")
-        //    Handled By Staff  — ComboBox (staff list from controller)
-        //    Status            — ComboBox (Pending / Processing / Escalated / Completed)
-        //    Description       — multiline TextBox (*required)
         // ════════════════════════════════════════════════════════════════
         private void btnAddNew_Click(object sender, EventArgs e)
         {
-            // ── Dialog shell ─────────────────────────────────────────────────
+            // ── Dialog shell ─────────────────────────────────────────────────────
             using var dlg = new Form
             {
                 Text            = "Create New Complaint",
@@ -231,8 +237,7 @@ namespace PremiumLivingOPS.Views.AfterService
                 Font            = new Font("Segoe UI", 13f)
             };
 
-            // ── Header ───────────────────────────────────────────────────────
-            //  Dark navy background + white title — matches all existing dialogs
+            // ── Header ───────────────────────────────────────────────────────────────
             var pnlHeader = new Panel
             {
                 Dock      = DockStyle.Top,
@@ -250,8 +255,7 @@ namespace PremiumLivingOPS.Views.AfterService
                 Padding   = new Padding(32, 0, 0, 0)
             });
 
-            // ── Input section title bar ───────────────────────────────────────
-            //  Light blue-tinted background row (mirrors ViewShipment input card)
+            // ── Input section title bar ───────────────────────────────────────────────
             var pnlInputTitle = new Panel
             {
                 Dock      = DockStyle.Top,
@@ -270,13 +274,7 @@ namespace PremiumLivingOPS.Views.AfterService
                 AutoSize  = false
             });
 
-            // ── Input body ────────────────────────────────────────────────────
-            //
-            //  Row 1  Y=10  — Order No. (optional) | Handled By Staff *
-            //  Row 2  Y=70  — Status *             | (spacer)
-            //  Row 3  Y=130 — Description *        (full-width multiline)
-            //
-            //  Padding (32, 16, 32, 12) — matches ViewShipment input body rhythm
+            // ── Input body ─────────────────────────────────────────────────────────────
             var pnlInputBody = new Panel
             {
                 Dock      = DockStyle.Top,
@@ -286,7 +284,7 @@ namespace PremiumLivingOPS.Views.AfterService
             };
             PaintBottomBorderStatic(pnlInputBody);
 
-            // Row 1 — Order No.
+            // Row 1 — Order No. (optional)
             var lblOrderNo = MakeLabelKey("Order No.");
             lblOrderNo.AutoSize = true; lblOrderNo.Dock = DockStyle.None;
             lblOrderNo.Location = new Point(0, 14);
@@ -300,32 +298,36 @@ namespace PremiumLivingOPS.Views.AfterService
                 PlaceholderText = "e.g. ORD-0001  (optional)"
             };
 
-            // Row 1 — Handled By Staff  (gap = 50px from txtOrderNo right edge: 180+300=480 → 530)
+            // Row 1 — Handled By Staff
             var lblStaff = MakeLabelKey("Handled By *");
             lblStaff.AutoSize = true; lblStaff.Dock = DockStyle.None;
             lblStaff.Location = new Point(530, 14);
 
+            // ComboBox: display StaffName, Tag stores StaffID
             var cboStaff = new ComboBox
             {
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 Font          = new Font("Segoe UI", 12f),
                 Location      = new Point(700, 10),
-                Size          = new Size(300, 32)
+                Size          = new Size(300, 32),
+                DisplayMember = "Display"
             };
-            // Populate staff list from controller; fallback to placeholder if unavailable
             try
             {
                 var staffList = _ctrl.GetStaffList();
-                foreach (var staff in staffList)
-                    cboStaff.Items.Add(staff);
+                foreach (var s in staffList)
+                {
+                    // Store as anonymous-like object so we can retrieve both ID and Name
+                    cboStaff.Items.Add(new StaffItem { StaffID = s.StaffID, StaffName = s.StaffName });
+                }
             }
             catch
             {
-                cboStaff.Items.Add("(No staff loaded)");
+                cboStaff.Items.Add(new StaffItem { StaffID = "", StaffName = "(No staff loaded)" });
             }
             if (cboStaff.Items.Count > 0) cboStaff.SelectedIndex = 0;
 
-            // Row 2 — Status *  (Y = 10+32+28 = 70)
+            // Row 2 — Status *
             var lblStatus = MakeLabelKey("Status *");
             lblStatus.AutoSize = true; lblStatus.Dock = DockStyle.None;
             lblStatus.Location = new Point(0, 74);
@@ -340,12 +342,11 @@ namespace PremiumLivingOPS.Views.AfterService
             cboNewStatus.Items.AddRange(new object[] { "Pending", "Processing", "Escalated", "Completed" });
             cboNewStatus.SelectedIndex = 0;
 
-            // Row 3 — Description *  (Y = 70+32+28 = 130 → use 134 for breathing room)
+            // Row 3 — Description *
             var lblDesc = MakeLabelKey("Description *");
             lblDesc.AutoSize = true; lblDesc.Dock = DockStyle.None;
             lblDesc.Location = new Point(0, 138);
 
-            // Full-width multiline box: X = 180, width fills to right edge (matching txtRemarkEdit)
             var txtDesc = new TextBox
             {
                 Font            = new Font("Segoe UI", 12f),
@@ -365,8 +366,7 @@ namespace PremiumLivingOPS.Views.AfterService
             pnlInputBody.Controls.Add(lblDesc);
             pnlInputBody.Controls.Add(txtDesc);
 
-            // ── Footer — [✔ Create Complaint] [Cancel] ────────────────────────
-            //  Mirrors ViewShipment Confirm Generate footer exactly
+            // ── Footer ─────────────────────────────────────────────────────────────
             var pnlFooter = new Panel
             {
                 Dock      = DockStyle.Bottom,
@@ -385,7 +385,7 @@ namespace PremiumLivingOPS.Views.AfterService
                 Text      = "\u2714  Create Complaint",
                 Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
                 ForeColor = Color.White,
-                BackColor = Color.FromArgb(5, 150, 105),   // green — mirrors Confirm Generate
+                BackColor = Color.FromArgb(5, 150, 105),
                 FlatStyle = FlatStyle.Flat,
                 Dock      = DockStyle.Right,
                 Width     = 240,
@@ -414,21 +414,17 @@ namespace PremiumLivingOPS.Views.AfterService
 
             btnConfirm.Click += (o, ev) =>
             {
-                // Validation — Description is required
                 if (string.IsNullOrWhiteSpace(txtDesc.Text))
                 {
                     MessageBox.Show("Description is required.",
                         "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    txtDesc.Focus();
-                    return;
+                    txtDesc.Focus(); return;
                 }
-                // Validation — Staff must be selected
                 if (cboStaff.SelectedItem == null)
                 {
                     MessageBox.Show("Please select a staff member.",
                         "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    cboStaff.Focus();
-                    return;
+                    cboStaff.Focus(); return;
                 }
                 confirmed = true;
                 dlg.Close();
@@ -439,15 +435,12 @@ namespace PremiumLivingOPS.Views.AfterService
             pnlFooter.Controls.Add(btnConfirm);
             pnlFooter.Controls.Add(btnCancel);
 
-            // ── Filler panel (between input body and footer) ─────────────────
-            //  Gives the dialog a clean grey body consistent with other dialogs
             var pnlFill = new Panel
             {
                 Dock      = DockStyle.Fill,
                 BackColor = Color.FromArgb(240, 244, 249)
             };
 
-            // ── Assemble (Bottom → Fill → Top in DockStyle priority order) ───
             dlg.Controls.Add(pnlFill);
             dlg.Controls.Add(pnlInputBody);
             dlg.Controls.Add(pnlInputTitle);
@@ -458,20 +451,34 @@ namespace PremiumLivingOPS.Views.AfterService
 
             if (!confirmed) return;
 
-            // ── Persist new complaint via controller ──────────────────────────
+            // ── Build ComplaintEntity and persist via controller ──────────────────────
             try
             {
-                string orderID     = string.IsNullOrWhiteSpace(txtOrderNo.Text) ? null : txtOrderNo.Text.Trim();
-                string staffName   = cboStaff.SelectedItem?.ToString();
-                string status      = cboNewStatus.SelectedItem?.ToString() ?? "Pending";
-                string description = txtDesc.Text.Trim();
+                var selectedStaff = cboStaff.SelectedItem as StaffItem;
 
-                _ctrl.CreateComplaint(orderID, staffName, status, description);
+                var entity = new ComplaintEntity
+                {
+                    OrderID              = string.IsNullOrWhiteSpace(txtOrderNo.Text)
+                                              ? null
+                                              : txtOrderNo.Text.Trim(),
+                    StaffID              = selectedStaff?.StaffID ?? string.Empty,
+                    ComplaintStatus      = cboNewStatus.SelectedItem?.ToString() ?? "Pending",
+                    ComplaintDescription = txtDesc.Text.Trim()
+                };
 
-                MessageBox.Show("Complaint created successfully.",
-                    "Created", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                bool ok = _ctrl.CreateComplaint(entity);
 
-                RefreshGrid();
+                if (ok)
+                {
+                    MessageBox.Show("Complaint created successfully.",
+                        "Created", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    RefreshGrid();
+                }
+                else
+                {
+                    MessageBox.Show("Failed to create complaint. Please try again.",
+                        "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
             catch (Exception ex)
             {
@@ -924,7 +931,7 @@ namespace PremiumLivingOPS.Views.AfterService
             return content;
         }
 
-        // ── Label factory (mirrors ViewShipmentForm.MakeLabelKey) ─────────────
+        // ── Label factory ──────────────────────────────────────────────────────────────
         private static Label MakeLabelKey(string text) => new Label
         {
             Text      = text,
@@ -936,7 +943,7 @@ namespace PremiumLivingOPS.Views.AfterService
             Padding   = new Padding(0, 0, 8, 0)
         };
 
-        // ── Border painter helper (instance version for Add New dialog) ────────
+        // ── Bottom-border painter ────────────────────────────────────────────────────────
         private static void PaintBottomBorderStatic(Panel p)
         {
             p.Paint += (s, e) =>
@@ -965,6 +972,16 @@ namespace PremiumLivingOPS.Views.AfterService
             path.AddArc(r.X,         r.Bottom - d, d, d,  90, 90);
             path.CloseFigure();
             return path;
+        }
+
+        // ── Inner helper class: ComboBox item carrying StaffID + StaffName ────────────
+        //  Enables cboStaff to display Name while preserving ID for INSERT.
+        private class StaffItem
+        {
+            public string StaffID   { get; set; }
+            public string StaffName { get; set; }
+            public string Display   => StaffName;   // used by DisplayMember
+            public override string ToString() => StaffName;
         }
     }
 }
