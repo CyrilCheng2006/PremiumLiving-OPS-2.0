@@ -189,6 +189,7 @@ namespace PremiumLivingOPS.Views.AfterService
             bool sel = dgvReturns.SelectedRows.Count > 0;
             btnUpdateStatus.Enabled = sel;
             btnViewDetail.Enabled   = sel;
+            // btnAddNew is always enabled
         }
 
         private void dgvReturns_SelectionChanged(object sender, EventArgs e) => UpdateActionButtons();
@@ -204,6 +205,16 @@ namespace PremiumLivingOPS.Views.AfterService
             e.CellStyle.Font      = new Font("Segoe UI", 11f, FontStyle.Bold);
             e.CellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
             e.FormattingApplied   = true;
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  Add New — Create Return Order
+        // ════════════════════════════════════════════════════════════════
+        private void btnAddNew_Click(object sender, EventArgs e)
+        {
+            using var dlg = new CreateReturnOrderDialog(_ctrl);
+            if (dlg.ShowDialog(this) == DialogResult.OK)
+                RefreshGrid();
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -297,7 +308,7 @@ namespace PremiumLivingOPS.Views.AfterService
             cardInner.Padding = new Padding(0);
             cardInner.Controls.Add(BuildStack(rows));
 
-            // ── Dialog: 1800 × 700 ─────────────────────────────────────
+            // ── Dialog: 1800 × 700 ───────────────────────────────────────────────────────
             using var dlg = new Form
             {
                 Text            = $"Update Return Order Status  \u2014  {ent.ReturnID}",

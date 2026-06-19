@@ -16,6 +16,7 @@ namespace PremiumLivingOPS.Views.AfterService
         private Button       btnReset;
         private Panel        pnlKpi;
         private DataGridView dgvReturns;
+        private Button       btnAddNew;
         private Button       btnUpdateStatus;
         private Button       btnViewDetail;
 
@@ -29,7 +30,7 @@ namespace PremiumLivingOPS.Views.AfterService
         {
             this.SuspendLayout();
 
-            this.Text          = "Premium Living OPS — Return Order List";
+            this.Text          = "Premium Living OPS \u2014 Return Order List";
             this.Size          = new Size(1440, 900);
             this.MinimumSize   = new Size(1200, 720);
             this.StartPosition = FormStartPosition.CenterScreen;
@@ -59,8 +60,8 @@ namespace PremiumLivingOPS.Views.AfterService
             cboStatus.Items.AddRange(new object[] { "All", "Pending", "Approved", "Processing", "Rejected", "Completed" });
             cboStatus.SelectedIndex = 0;
 
-            btnSearch = MakePrimaryBtn("🔍  Search", Point.Empty, 190, 52);
-            btnReset  = MakeOutlineBtn("↺  Reset",  Point.Empty, 190, 52);
+            btnSearch = MakePrimaryBtn("\uD83D\uDD0D  Search", Point.Empty, 190, 52);
+            btnReset  = MakeOutlineBtn("\u21BA  Reset",  Point.Empty, 190, 52);
             btnSearch.Click += (s, e) => RefreshGrid();
             btnReset.Click  += (s, e) => ResetSearch();
 
@@ -100,21 +101,34 @@ namespace PremiumLivingOPS.Views.AfterService
 
             pnlKpi = new Panel { Dock = DockStyle.Fill, BackColor = Color.White, Padding = new Padding(10, 10, 10, 10) };
 
-            const int BtnW = 240; const int BtnH = 60; const int BtnGap = 8; const int BtnPad = 10;
-            btnUpdateStatus = MakeWarningBtn("✏️  Update Status", Point.Empty, BtnW, BtnH);
-            btnViewDetail   = MakePrimaryBtn("🔍  View Detail",   Point.Empty, BtnW, BtnH);
+            // Action buttons: [Add New] [Update Status] [View Detail]
+            const int BtnW   = 220;
+            const int BtnH   = 60;
+            const int BtnGap = 8;
+            const int BtnPad = 10;
+
+            btnAddNew       = MakeSuccessBtn("\u2795  Add New",        Point.Empty, BtnW, BtnH);
+            btnUpdateStatus = MakeWarningBtn("\u270F\uFE0F  Update Status", Point.Empty, BtnW, BtnH);
+            btnViewDetail   = MakePrimaryBtn("\uD83D\uDD0D  View Detail",   Point.Empty, BtnW, BtnH);
+
             btnUpdateStatus.Enabled = false;
             btnViewDetail.Enabled   = false;
-            btnUpdateStatus.Click  += btnUpdateStatus_Click;
-            btnViewDetail.Click    += btnViewDetail_Click;
 
-            var pnlActions = new Panel { Dock = DockStyle.Right, Width = BtnPad + BtnW + BtnGap + BtnW + BtnPad, BackColor = Color.Transparent };
+            btnAddNew.Click       += btnAddNew_Click;
+            btnUpdateStatus.Click += btnUpdateStatus_Click;
+            btnViewDetail.Click   += btnViewDetail_Click;
+
+            // Width: pad + AddNew + gap + UpdateStatus + gap + ViewDetail + pad
+            int actionsW = BtnPad + BtnW + BtnGap + BtnW + BtnGap + BtnW + BtnPad;
+            var pnlActions = new Panel { Dock = DockStyle.Right, Width = actionsW, BackColor = Color.Transparent };
             void CentreActions()
             {
                 int top = (pnlActions.Height - BtnH) / 2; if (top < 0) top = 0;
-                btnUpdateStatus.Location = new Point(BtnPad, top);
-                btnViewDetail.Location   = new Point(BtnPad + BtnW + BtnGap, top);
+                btnAddNew.Location       = new Point(BtnPad,                          top);
+                btnUpdateStatus.Location = new Point(BtnPad + BtnW + BtnGap,          top);
+                btnViewDetail.Location   = new Point(BtnPad + BtnW + BtnGap + BtnW + BtnGap, top);
             }
+            pnlActions.Controls.Add(btnAddNew);
             pnlActions.Controls.Add(btnUpdateStatus);
             pnlActions.Controls.Add(btnViewDetail);
             pnlActions.Resize += (s, e) => CentreActions();
@@ -179,6 +193,11 @@ namespace PremiumLivingOPS.Views.AfterService
         {
             var b = new Button { Text = text, Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.White, BackColor = Palette.Primary, FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand };
             b.FlatAppearance.BorderSize = 0; b.FlatAppearance.MouseOverBackColor = Palette.PrimaryDark; return b;
+        }
+        private static Button MakeSuccessBtn(string text, Point loc, int w, int h)
+        {
+            var b = new Button { Text = text, Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.White, BackColor = Color.FromArgb(22, 163, 74), FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand };
+            b.FlatAppearance.BorderSize = 0; b.FlatAppearance.MouseOverBackColor = Color.FromArgb(15, 118, 52); return b;
         }
         private static Button MakeWarningBtn(string text, Point loc, int w, int h)
         {
