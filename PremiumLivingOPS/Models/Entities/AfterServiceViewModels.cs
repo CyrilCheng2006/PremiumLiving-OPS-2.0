@@ -25,14 +25,19 @@ namespace PremiumLivingOPS.Models.Entities
         public DateTime DueDate          { get; set; }
     }
 
-    /// <summary>Maps to Complaint table (JOINed with Order + Staff).</summary>
+    /// <summary>
+    /// Maps to Complaint table (JOINed with Staff).
+    /// StaffID — used on INSERT (FK to Staff).
+    /// StaffName — resolved via JOIN, populated on SELECT only.
+    /// </summary>
     public class ComplaintEntity
     {
         public string ComplaintID          { get; set; }
-        public string OrderID              { get; set; }
-        public string StaffName            { get; set; }
-        public string ComplaintDescription { get; set; }
-        public string ComplaintStatus      { get; set; }  // Pending|Processing|Escalated|Completed
+        public string OrderID              { get; set; }   // nullable
+        public string StaffID              { get; set; }   // FK — required on INSERT
+        public string StaffName            { get; set; }   // JOIN result — used on SELECT
+        public string ComplaintDescription { get; set; }   // nullable
+        public string ComplaintStatus      { get; set; }   // Pending|Processing|Escalated|Completed
     }
 
     /// <summary>Maps to ReturnOrder table (JOINed with Order + Customer).</summary>
@@ -49,7 +54,7 @@ namespace PremiumLivingOPS.Models.Entities
 
     /// <summary>
     /// Accounts Receivable view: Invoice JOIN Order + Customer.
-    /// IsOverdue = RemainingBalance > 0 AND DueDate &lt; TODAY.
+    /// IsOverdue = RemainingBalance &gt; 0 AND DueDate &lt; TODAY.
     /// </summary>
     public class AccountReceivableEntity
     {
