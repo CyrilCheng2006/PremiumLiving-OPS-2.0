@@ -70,6 +70,13 @@ namespace PremiumLivingOPS.Controllers
         public void DeleteProduct(string itemId)
             => _repo.DeleteProduct(itemId);
 
+        /// <summary>
+        /// Returns the next auto-generated Product Item ID (IID-P-XXXX).
+        /// Delegates to the Repo which queries MAX suffix from the DB.
+        /// </summary>
+        public string GenerateNextProductItemId()
+            => _repo.GenerateNextProductItemId();
+
         // ════════════════════════════════════════════════════════════════
         //  RAW MATERIAL — read
         // ════════════════════════════════════════════════════════════════

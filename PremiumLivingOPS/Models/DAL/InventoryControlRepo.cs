@@ -578,6 +578,35 @@ namespace PremiumLivingOPS.Models.DAL
             }
         }
 
+        /// <summary>
+        /// Returns the next available Product Item ID in the format IID-P-XXXX.
+        /// Extracts the MAX numeric suffix from existing IID-P-* rows so that
+        /// gaps caused by deletions never cause a collision.
+        /// </summary>
+        public string GenerateNextProductItemId()
+        {
+            using (var conn = DatabaseHelper.GetConnection())
+            {
+                conn.Open();
+                // CAST the 7-char suffix to UNSIGNED to get a true numeric MAX,
+                // avoiding lexicographic ordering issues (e.g. '9' > '10').
+                const string sql =
+                    @"SELECT COALESCE(
+                          MAX(CAST(SUBSTRING(ItemID, 7) AS UNSIGNED)),
+                          0
+                      )
+                      FROM Product
+                      WHERE ItemID LIKE 'IID-P-%'
+                        AND LENGTH(ItemID) = 11
+                        AND SUBSTRING(ItemID, 7) REGEXP '^[0-9]{4}$'";
+                using (var cmd = new MySqlCommand(sql, conn))
+                {
+                    int maxSeq = Convert.ToInt32(cmd.ExecuteScalar());
+                    return $"IID-P-{(maxSeq + 1):D4}";
+                }
+            }
+        }
+
         private static string GenerateWarehouseItemId(MySqlConnection conn, MySqlTransaction tx)
         {
             using (var cmd = new MySqlCommand("SELECT COUNT(*) FROM WarehouseItem", conn, tx))

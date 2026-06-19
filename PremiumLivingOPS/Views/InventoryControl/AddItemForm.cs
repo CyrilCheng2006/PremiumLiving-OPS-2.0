@@ -11,6 +11,9 @@ namespace PremiumLivingOPS.Views.InventoryControl
     /// <summary>
     /// Add New Item dialog — supports both Product and Raw Material.
     /// Opened as a modal dialog from ViewProductForm / ViewRawMaterialForm.
+    ///
+    /// Product mode:  Item ID is auto-generated (IID-P-XXXX) and is read-only.
+    /// Raw Material mode: Item ID remains a free-text editable field.
     /// </summary>
     public class AddItemForm : Form
     {
@@ -130,10 +133,33 @@ namespace PremiumLivingOPS.Views.InventoryControl
             Controls.Add(pnlFoot);
             Controls.Add(pnlHeader);
 
-            Load          += (s, e) => ResizeCard();
+            Load          += AddItemForm_Load;
             _scroll.Resize += (s, e) => ResizeCard();
 
             LoadDropdowns();
+        }
+
+        private void AddItemForm_Load(object sender, EventArgs e)
+        {
+            ResizeCard();
+
+            // Auto-generate Item ID for Product mode only.
+            // txtItemId is already ReadOnly with grey background (set in BuildRows).
+            // We populate it here so the DB query runs after the form is shown.
+            if (_mode == ItemMode.Product)
+            {
+                try
+                {
+                    txtItemId.Text = _ctrl.GenerateNextProductItemId();
+                }
+                catch
+                {
+                    // Fallback: leave the field empty so the user can type manually.
+                    txtItemId.ReadOnly   = false;
+                    txtItemId.BackColor  = Color.White;
+                    txtItemId.ForeColor  = Color.FromArgb(15, 31, 53);
+                }
+            }
         }
 
         private void ResizeCard()
@@ -152,7 +178,16 @@ namespace PremiumLivingOPS.Views.InventoryControl
             txtItemName = MakeTxt();
             txtItemDesc = MakeTxt();
 
-            rows.Add(FieldRow("Item ID *",   txtItemId));
+            // Product mode: Item ID is auto-generated — make it read-only.
+            if (_mode == ItemMode.Product)
+            {
+                txtItemId.ReadOnly  = true;
+                txtItemId.BackColor = Color.FromArgb(240, 244, 249);  // grey to signal non-editable
+                txtItemId.ForeColor = Color.FromArgb(70, 85, 110);
+                txtItemId.Text      = "Generating\u2026";             // placeholder until Load fires
+            }
+
+            rows.Add(FieldRow("Item ID",   txtItemId));     // no asterisk — auto-generated
             rows.Add(FieldRow("Item Name *",  txtItemName));
             rows.Add(FieldRow("Description",  txtItemDesc));
 
