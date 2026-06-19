@@ -2,7 +2,6 @@ using PremiumLivingOPS.Models.Entities;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
-using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 
 namespace PremiumLivingOPS.Views.AfterService
@@ -10,7 +9,7 @@ namespace PremiumLivingOPS.Views.AfterService
     /// <summary>
     /// Popup order picker — rendered to match ComplaintListForm.ShowOrderPicker baseline.
     /// Structure: dark header (19,35,61) → white search bar (bottom-bordered)
-    ///            → fill ListBox → white footer with Select / Clear (Optional) / Cancel.
+    ///            → fill ListBox (Order ID only) → white footer with Select / Clear / Cancel.
     /// </summary>
     public class OrderPickerForm : Form
     {
@@ -41,7 +40,7 @@ namespace PremiumLivingOPS.Views.AfterService
             BackColor       = Color.FromArgb(240, 244, 249);
             Font            = new Font("Segoe UI", 12f);
 
-            // ── Header (dark navy, matches ComplaintListForm) ─────────────
+            // ── Header (dark navy) ─────────────────────────────────
             var hdr = new Panel { Dock = DockStyle.Top, Height = 60, BackColor = Color.FromArgb(19, 35, 61) };
             hdr.Controls.Add(new Label
             {
@@ -53,7 +52,7 @@ namespace PremiumLivingOPS.Views.AfterService
                 Padding   = new Padding(20, 0, 0, 0)
             });
 
-            // ── Search bar (white, bottom border) ────────────────────────
+            // ── Search bar (white, bottom border) ───────────────────
             var pnlSearch = new Panel
             {
                 Dock      = DockStyle.Top,
@@ -67,12 +66,12 @@ namespace PremiumLivingOPS.Views.AfterService
                 Dock            = DockStyle.Fill,
                 Font            = new Font("Segoe UI", 12f),
                 BorderStyle     = BorderStyle.FixedSingle,
-                PlaceholderText = "Type to search Order ID or Customer..."
+                PlaceholderText = "Type to search Order ID..."
             };
             _txtSearch.TextChanged += (_, __) => Populate(_txtSearch.Text.Trim());
             pnlSearch.Controls.Add(_txtSearch);
 
-            // ── ListBox (fill) ───────────────────────────────────────────
+            // ── ListBox (fill, Order ID only) ─────────────────────
             _lst = new ListBox
             {
                 Dock          = DockStyle.Fill,
@@ -84,7 +83,7 @@ namespace PremiumLivingOPS.Views.AfterService
             };
             _lst.DoubleClick += (_, __) => Confirm();
 
-            // ── Footer (white, top border) ───────────────────────────────
+            // ── Footer (white, top border) ──────────────────────
             var foot = new Panel
             {
                 Dock      = DockStyle.Bottom,
@@ -150,7 +149,7 @@ namespace PremiumLivingOPS.Views.AfterService
                 else MessageBox.Show("Please select an Order ID.", "Validation",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
             };
-            btnClear.Click  += (_, __) =>
+            btnClear.Click += (_, __) =>
             {
                 SelectedOrderID    = string.Empty;
                 SelectedCustomer   = string.Empty;
@@ -171,7 +170,7 @@ namespace PremiumLivingOPS.Views.AfterService
             footFlow.Controls.Add(btnCancel);
             foot.Controls.Add(footFlow);
 
-            // ── Body ─────────────────────────────────────────────────────
+            // ── Body ─────────────────────────────────────────
             var body = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
             body.Controls.Add(_lst);
 
@@ -181,18 +180,26 @@ namespace PremiumLivingOPS.Views.AfterService
             Controls.Add(hdr);
         }
 
+        /// <summary>
+        /// Populates the ListBox with Order IDs only.
+        /// Search matches against OrderID (and CustomerName internally for convenience,
+        /// but the displayed text is Order ID only).
+        /// </summary>
         private void Populate(string kw)
         {
             _lst.BeginUpdate();
             _lst.Items.Clear();
             foreach (var o in _allOrders)
             {
-                string display = $"{o.OrderID}  |  {o.CustomerName}  |  {o.OrderStatus}  |  HK${o.GrandTotal:N2}";
                 bool match = string.IsNullOrEmpty(kw)
-                    || o.OrderID.IndexOf(kw,      StringComparison.OrdinalIgnoreCase) >= 0
-                    || o.CustomerName.IndexOf(kw, StringComparison.OrdinalIgnoreCase) >= 0
-                    || o.OrderStatus.IndexOf(kw,  StringComparison.OrdinalIgnoreCase) >= 0;
-                if (match) _lst.Items.Add(new OrderListItem { OrderID = o.OrderID, Customer = o.CustomerName, GrandTotal = o.GrandTotal, Display = display });
+                    || o.OrderID.IndexOf(kw, StringComparison.OrdinalIgnoreCase) >= 0;
+                if (match)
+                    _lst.Items.Add(new OrderListItem
+                    {
+                        OrderID    = o.OrderID,
+                        Customer   = o.CustomerName,
+                        GrandTotal = o.GrandTotal
+                    });
             }
             _lst.EndUpdate();
         }
@@ -217,14 +224,15 @@ namespace PremiumLivingOPS.Views.AfterService
             };
         }
 
-        // ── Inner helper for ListBox items ───────────────────────────────
+        // ── Inner helper for ListBox items ──────────────────────
         private class OrderListItem
         {
             public string OrderID    { get; set; }
             public string Customer   { get; set; }
             public double GrandTotal { get; set; }
-            public string Display    { get; set; }
-            public override string ToString() => Display;
+
+            // Only Order ID is shown in the ListBox
+            public override string ToString() => OrderID;
         }
     }
 }
