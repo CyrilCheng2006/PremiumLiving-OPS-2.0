@@ -362,6 +362,28 @@ namespace PremiumLivingOPS.Models.DAL
         }
 
         /// <summary>
+        /// Returns existing ReturnIDs that start with the given prefix.
+        /// Used by AfterServiceController.GenerateReturnId() to compute
+        /// the next daily sequence number in RTN-YYYYMMDD-XXXX format.
+        /// </summary>
+        public List<string> GetReturnIdsByPrefix(string prefix)
+        {
+            var list = new List<string>();
+            using (var conn = DatabaseHelper.GetConnection())
+            {
+                conn.Open();
+                const string sql = "SELECT ReturnID FROM ReturnOrder WHERE ReturnID LIKE @prefix";
+                using (var cmd = new MySqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@prefix", prefix + "%");
+                    using (var rdr = cmd.ExecuteReader())
+                        while (rdr.Read()) list.Add(rdr.GetString(0));
+                }
+            }
+            return list;
+        }
+
+        /// <summary>
         /// Returns all completed/delivered orders that are available for return,
         /// with CustomerName, OrderStatus, GrandTotal, IssuedTime.
         /// Used to populate the Order ID Picker in Create Return Order.
@@ -404,24 +426,14 @@ namespace PremiumLivingOPS.Models.DAL
         }
 
         /// <summary>
-        /// Generates the next ReturnID in the format RET-YYYYMMDD-NNNN.
+        /// Generates the next ReturnID in the format RTN-YYYYMMDD-NNNN.
+        /// Kept for backward compatibility; prefer AfterServiceController.GenerateReturnId().
         /// </summary>
         public string GenerateReturnId()
         {
-            string prefix = "RET-" + DateTime.Today.ToString("yyyyMMdd") + "-";
-            var    list   = new List<string>();
-            using (var conn = DatabaseHelper.GetConnection())
-            {
-                conn.Open();
-                const string sql = "SELECT ReturnID FROM ReturnOrder WHERE ReturnID LIKE @prefix";
-                using (var cmd = new MySqlCommand(sql, conn))
-                {
-                    cmd.Parameters.AddWithValue("@prefix", prefix + "%");
-                    using (var rdr = cmd.ExecuteReader())
-                        while (rdr.Read()) list.Add(rdr.GetString(0));
-                }
-            }
-            int next = 1;
+            string prefix = "RTN-" + DateTime.Today.ToString("yyyyMMdd") + "-";
+            var    list   = GetReturnIdsByPrefix(prefix);
+            int    next   = 1;
             foreach (var id in list)
             {
                 if (id.Length >= prefix.Length + 4 &&
