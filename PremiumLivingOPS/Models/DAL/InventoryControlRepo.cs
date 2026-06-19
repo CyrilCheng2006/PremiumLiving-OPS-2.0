@@ -34,7 +34,7 @@ namespace PremiumLivingOPS.Models.DAL
                     sql += " AND (p.ItemID LIKE @kw OR i.ItemName LIKE @kw OR p.Category LIKE @kw)";
                 if (!string.IsNullOrEmpty(category) && category != "All")
                     sql += " AND p.Category = @category";
-                sql += " GROUP BY p.ItemID, i.ItemName, i.ItemDescription, p.Category, p.SalesPrice ORDER BY i.ItemName";
+                sql += " GROUP BY p.ItemID, i.ItemName, i.ItemDescription, p.Category, p.SalesPrice ORDER BY p.ItemID";
 
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
@@ -195,7 +195,7 @@ namespace PremiumLivingOPS.Models.DAL
                     sql += " AND (rm.ItemID LIKE @kw OR i.ItemName LIKE @kw OR rm.MaterialType LIKE @kw)";
                 if (!string.IsNullOrEmpty(category) && category != "All")
                     sql += " AND rm.MaterialType = @category";
-                sql += " GROUP BY rm.ItemID, i.ItemName, i.ItemDescription, rm.MaterialType, rm.purchasePrice ORDER BY i.ItemName";
+                sql += " GROUP BY rm.ItemID, i.ItemName, i.ItemDescription, rm.MaterialType, rm.purchasePrice ORDER BY rm.ItemID";
 
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
