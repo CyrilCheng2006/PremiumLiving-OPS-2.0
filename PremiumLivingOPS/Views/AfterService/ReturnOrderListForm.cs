@@ -533,8 +533,8 @@ namespace PremiumLivingOPS.Views.AfterService
             using var dlg = new Form
             {
                 Text            = $"Return Order Detail  \u2014  {r.ReturnID}",
-                Size            = new Size(1800, 700),
-                MinimumSize     = new Size(1100, 700),
+                Size            = new Size(1800, 1300),
+                MinimumSize     = new Size(1100, 1300),
                 StartPosition   = FormStartPosition.CenterParent,
                 FormBorderStyle = FormBorderStyle.FixedDialog,
                 MaximizeBox     = false, MinimizeBox = false,
