@@ -201,6 +201,79 @@ namespace PremiumLivingOPS.Models.DAL
             }
         }
 
+        /// <summary>
+        /// Returns a list of (StaffID, StaffName) tuples for all active staff.
+        /// Used to populate the Handled By ComboBox in Create Complaint.
+        /// </summary>
+        public List<(string StaffID, string StaffName)> GetStaffList()
+        {
+            var list = new List<(string, string)>();
+            using (var conn = DatabaseHelper.GetConnection())
+            {
+                conn.Open();
+                const string sql =
+                    "SELECT StaffID, StaffName FROM Staff ORDER BY StaffName ASC";
+                using (var cmd = new MySqlCommand(sql, conn))
+                using (var rdr = cmd.ExecuteReader())
+                    while (rdr.Read())
+                        list.Add((rdr.GetString("StaffID"), rdr.GetString("StaffName")));
+            }
+            return list;
+        }
+
+        /// <summary>
+        /// Generates the next ComplaintID in the format CMP-YYYYMMDD-NNNN.
+        /// </summary>
+        public string GenerateComplaintId()
+        {
+            string prefix   = "CMP-" + DateTime.Today.ToString("yyyyMMdd") + "-";
+            var    list     = new List<string>();
+            using (var conn = DatabaseHelper.GetConnection())
+            {
+                conn.Open();
+                const string sql = "SELECT ComplaintID FROM Complaint WHERE ComplaintID LIKE @prefix";
+                using (var cmd = new MySqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@prefix", prefix + "%");
+                    using (var rdr = cmd.ExecuteReader())
+                        while (rdr.Read()) list.Add(rdr.GetString(0));
+                }
+            }
+            int next = 1;
+            foreach (var id in list)
+            {
+                if (id.Length >= prefix.Length + 4 &&
+                    int.TryParse(id.Substring(prefix.Length, 4), out int seq) && seq >= next)
+                    next = seq + 1;
+            }
+            return $"{prefix}{next:D4}";
+        }
+
+        /// <summary>
+        /// Inserts a new Complaint row. Returns true on success.
+        /// </summary>
+        public bool CreateComplaint(ComplaintEntity c)
+        {
+            using (var conn = DatabaseHelper.GetConnection())
+            {
+                conn.Open();
+                const string sql =
+                    @"INSERT INTO Complaint
+                        (ComplaintID, OrderID, StaffID, ComplaintDescription, ComplaintStatus)
+                      VALUES
+                        (@cid, @oid, @sid, @desc, @status)";
+                using (var cmd = new MySqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@cid",    c.ComplaintID);
+                    cmd.Parameters.AddWithValue("@oid",    string.IsNullOrWhiteSpace(c.OrderID) ? (object)DBNull.Value : c.OrderID);
+                    cmd.Parameters.AddWithValue("@sid",    c.StaffID);
+                    cmd.Parameters.AddWithValue("@desc",   c.ComplaintDescription ?? (object)DBNull.Value);
+                    cmd.Parameters.AddWithValue("@status", c.ComplaintStatus);
+                    return cmd.ExecuteNonQuery() > 0;
+                }
+            }
+        }
+
         // ══════════════════════════════════════════════════════════════════
         //  RETURN ORDER queries
         // ══════════════════════════════════════════════════════════════════
@@ -268,12 +341,6 @@ namespace PremiumLivingOPS.Models.DAL
         //  ACCOUNTS RECEIVABLE queries
         // ══════════════════════════════════════════════════════════════════
 
-        /// <summary>
-        /// Returns Account Receivable records with optional status / keyword filter.
-        /// IsOverdue = RemainingBalance &gt; 0 AND DueDate &lt; CURDATE().
-        /// status filter: 'Partial' | 'Full' | 'Overdue' (computed).
-        /// keyword: searches InvoiceID, OrderID, CustomerName.
-        /// </summary>
         public List<AccountReceivableEntity> SearchAccountReceivables(
             string status  = null,
             string keyword = null)
@@ -334,7 +401,6 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
-        /// <summary>Returns all AR records (no filter). Used by KPI panel.</summary>
         public List<AccountReceivableEntity> GetAccountReceivables(string status = null)
             => SearchAccountReceivables(status);
 
@@ -342,12 +408,6 @@ namespace PremiumLivingOPS.Models.DAL
         //  ACCOUNTS PAYABLE queries
         // ══════════════════════════════════════════════════════════════════
 
-        /// <summary>
-        /// Returns Account Payable records with optional status / keyword filter.
-        /// IsOverdue = PaymentStatus != 'Full' AND ExpectedDate &lt; CURDATE().
-        /// status filter: 'Partial' | 'Full' | 'Overdue' (computed).
-        /// keyword: searches PurInvoiceID, PurchaseID, SupplierName.
-        /// </summary>
         public List<AccountPayableEntity> SearchAccountPayables(
             string status  = null,
             string keyword = null)
@@ -405,7 +465,6 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
-        /// <summary>Returns all AP records (no filter). Used by KPI panel.</summary>
         public List<AccountPayableEntity> GetAccountPayables(string status = null)
             => SearchAccountPayables(status);
 

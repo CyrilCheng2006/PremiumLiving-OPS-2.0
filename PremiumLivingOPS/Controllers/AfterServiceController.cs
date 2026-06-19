@@ -107,6 +107,29 @@ namespace PremiumLivingOPS.Controllers
         public bool UpdateComplaintStatus(string complaintId, string newStatus)
             => _repo.UpdateComplaintStatus(complaintId, newStatus);
 
+        /// <summary>
+        /// Returns a flat list of (StaffID, StaffName) for all staff.
+        /// Used to populate the Handled By ComboBox in the Create Complaint dialog.
+        /// </summary>
+        public List<(string StaffID, string StaffName)> GetStaffList()
+            => _repo.GetStaffList();
+
+        /// <summary>
+        /// Creates a new complaint record.
+        /// Auto-generates ComplaintID; sets ComplaintStatus to 'Pending' if blank.
+        /// Returns true on success.
+        /// </summary>
+        public bool CreateComplaint(ComplaintEntity c)
+        {
+            if (string.IsNullOrWhiteSpace(c.ComplaintID))
+                c.ComplaintID = _repo.GenerateComplaintId();
+
+            if (string.IsNullOrWhiteSpace(c.ComplaintStatus))
+                c.ComplaintStatus = "Pending";
+
+            return _repo.CreateComplaint(c);
+        }
+
         // ════════════════════════════════════════════════════════════════════
         //  Return Order List
         // ════════════════════════════════════════════════════════════════════
