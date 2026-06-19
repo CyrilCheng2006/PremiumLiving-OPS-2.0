@@ -1,4 +1,5 @@
 using PremiumLivingOPS.Controllers;
+using PremiumLivingOPS.Models.DAL;
 using PremiumLivingOPS.Models.Entities;
 using PremiumLivingOPS.Views.Shared;
 using System;
@@ -80,7 +81,7 @@ namespace PremiumLivingOPS.Views.AfterService
         }
 
         // ════════════════════════════════════════════════════════════════
-        //  KPI Pills  (pills only — action buttons live in pnlActionBtns in Designer)
+        //  KPI Pills
         // ════════════════════════════════════════════════════════════════
         private void RefreshKpi()
         {
@@ -218,11 +219,7 @@ namespace PremiumLivingOPS.Views.AfterService
         private void btnAddNew_Click(object sender, EventArgs e)
         {
             // ── Auto-generate Complaint ID ─────────────────────────────────────────
-            string autoId;
-            try   { autoId = _ctrl.CreateComplaint(null) ? "" : ""; } // just a probe; real call below
-            catch { autoId = ""; }
-            // Use the repo-level generator via a temporary entity (ID only)
-            autoId = GeneratePreviewComplaintId();
+            string autoId = GeneratePreviewComplaintId();
 
             // ── Dialog shell ─────────────────────────────────────────────────────
             using var dlg = new Form
@@ -323,7 +320,7 @@ namespace PremiumLivingOPS.Views.AfterService
             }
 
             // ── Controls ────────────────────────────────────────────────────────────
-            // 1. Complaint ID (read-only)
+            // 1. Complaint ID (read-only, auto-generated)
             var txtComplaintId = new TextBox
             {
                 Text        = autoId,
@@ -414,7 +411,7 @@ namespace PremiumLivingOPS.Views.AfterService
             {
                 r.Location = new Point(0, y2);
                 r.Anchor   = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-                r.Width    = 1200; // will be resized by Resize event
+                r.Width    = 1200;
                 cardInner.Controls.Add(r);
                 y2 += DLG_RowH;
             }
@@ -549,37 +546,17 @@ namespace PremiumLivingOPS.Views.AfterService
         }
 
         /// <summary>
-        /// Generates a preview ComplaintID using the same format as the repo
-        /// (CMP-YYYYMMDD-NNNN) without touching the database insert.
+        /// Generates a preview ComplaintID (CMP-YYYYMMDD-NNNN) by reading the
+        /// current MAX sequence from the DB — mirrors AfterServiceRepo.GenerateComplaintId.
+        /// Uses DatabaseHelper.GetConnection() — the correct DAL entry point.
         /// </summary>
         private string GeneratePreviewComplaintId()
         {
+            string prefix = "CMP-" + DateTime.Today.ToString("yyyyMMdd") + "-";
+            var existing  = new List<string>();
             try
             {
-                // Delegate to controller which calls repo's GenerateComplaintId
-                // We create a dummy entity so the controller returns an ID.
-                // But CreateComplaint would insert — use a workaround:
-                // Reconstruct the same logic here (date + sequence placeholder).
-                string prefix = "CMP-" + DateTime.Today.ToString("yyyyMMdd") + "-";
-                // Ask the controller to generate the ID (repo reads MAX sequence)
-                // We expose it via a lightweight wrapper call:
-                return ComplaintIdPreview(prefix);
-            }
-            catch
-            {
-                return "CMP-" + DateTime.Today.ToString("yyyyMMdd") + "-XXXX";
-            }
-        }
-
-        private string ComplaintIdPreview(string prefix)
-        {
-            // Mirror of AfterServiceRepo.GenerateComplaintId logic:
-            // Read existing IDs from DB and find next sequence.
-            var existing = new List<string>();
-            try
-            {
-                var connStr = PremiumLivingOPS.Models.DAL.DBHelper.ConnectionString;
-                using var conn = new MySql.Data.MySqlClient.MySqlConnection(connStr);
+                using var conn = DatabaseHelper.GetConnection();   // ← correct class
                 conn.Open();
                 using var cmd = new MySql.Data.MySqlClient.MySqlCommand(
                     "SELECT ComplaintID FROM Complaint WHERE ComplaintID LIKE @p", conn);
@@ -587,7 +564,11 @@ namespace PremiumLivingOPS.Views.AfterService
                 using var rdr = cmd.ExecuteReader();
                 while (rdr.Read()) existing.Add(rdr.GetString(0));
             }
-            catch { }
+            catch
+            {
+                // If DB unreachable, fall back to a placeholder so the dialog still opens
+                return prefix + "XXXX";
+            }
 
             int next = 1;
             foreach (var id in existing)
