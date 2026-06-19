@@ -390,6 +390,9 @@ namespace PremiumLivingOPS.Views.AfterService
             }
             catch { }
 
+            // Sort by StaffID ascending
+            staffList.Sort((a, b) => string.Compare(a.StaffID, b.StaffID, StringComparison.Ordinal));
+
             StaffItem selected = null;
 
             using var dlg = new Form
