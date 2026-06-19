@@ -24,6 +24,12 @@ namespace PremiumLivingOPS.Views.AfterService
                 { "Completed",  (Color.FromArgb(220, 252, 231), Color.FromArgb( 22, 101,  52)) },
             };
 
+        // ── Layout constants shared by both dialogs (mirrors ComplaintListForm)
+        private const int D_RowH   = 80;
+        private const int D_LabelW = 260;
+        private const int D_BtnW   = 200;
+        private const int D_BtnH   = 56;
+
         public ReturnOrderListForm()
         {
             InitializeComponent();
@@ -32,6 +38,9 @@ namespace PremiumLivingOPS.Views.AfterService
 
         private void ReturnOrderListForm_Load(object sender, EventArgs e) => RefreshGrid();
 
+        // ════════════════════════════════════════════════════════════════
+        //  Refresh
+        // ════════════════════════════════════════════════════════════════
         private void RefreshGrid()
         {
             string statusSel    = cboStatus.SelectedItem?.ToString();
@@ -42,7 +51,7 @@ namespace PremiumLivingOPS.Views.AfterService
 
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
-            _shell.SetBreadcrumb("After-Service  ›  Return Order List");
+            _shell.SetBreadcrumb("After-Service  \u203a  Return Order List");
 
             _currentReturns = vm.ReturnOrders;
 
@@ -53,7 +62,7 @@ namespace PremiumLivingOPS.Views.AfterService
                     r.OrderID,
                     r.CustomerName,
                     r.ReturnDate.ToString("yyyy-MM-dd"),
-                    r.Reason ?? "—",
+                    r.Reason ?? "\u2014",
                     $"HK$ {r.RefundAmount:N2}",
                     r.ReturnStatus);
 
@@ -68,7 +77,9 @@ namespace PremiumLivingOPS.Views.AfterService
             RefreshGrid();
         }
 
-        // ── KPI Pills ────────────────────────────────────────────────────────
+        // ════════════════════════════════════════════════════════════════
+        //  KPI Pills
+        // ════════════════════════════════════════════════════════════════
         private void RefreshKpi()
         {
             pnlKpi.Controls.Clear();
@@ -105,7 +116,7 @@ namespace PremiumLivingOPS.Views.AfterService
             const int PillW   = 290;
             const int PillH   = 60;
             const int Gap     = 8;
-            const int NumColW = 70;
+            const int NumColW = 80;
 
             foreach (var (label, count, fg, bg, filterVal) in pills)
             {
@@ -116,7 +127,6 @@ namespace PremiumLivingOPS.Views.AfterService
                     Margin    = new Padding(0, 0, Gap, 0),
                     Cursor    = Cursors.Hand,
                 };
-
                 pill.Paint += (s, e) =>
                 {
                     e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
@@ -142,22 +152,15 @@ namespace PremiumLivingOPS.Views.AfterService
                 {
                     Text      = count,
                     Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
-                    ForeColor = fg,
-                    BackColor = Color.Transparent,
-                    Dock      = DockStyle.Fill,
-                    TextAlign = ContentAlignment.MiddleCenter,
-                    AutoSize  = false,
+                    ForeColor = fg, BackColor = Color.Transparent,
+                    Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, AutoSize = false,
                 }, 0, 0);
-
                 tlp.Controls.Add(new Label
                 {
                     Text      = label,
                     Font      = new Font("Segoe UI", 12f),
-                    ForeColor = fg,
-                    BackColor = Color.Transparent,
-                    Dock      = DockStyle.Fill,
-                    TextAlign = ContentAlignment.MiddleLeft,
-                    AutoSize  = false,
+                    ForeColor = fg, BackColor = Color.Transparent,
+                    Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false,
                 }, 1, 0);
 
                 string localFilter = filterVal;
@@ -169,7 +172,7 @@ namespace PremiumLivingOPS.Views.AfterService
                 };
                 pill.Click += click;
                 tlp.Click  += click;
-                foreach (Control c in tlp.Controls) c.Click += click;
+                foreach (Control ch in tlp.Controls) ch.Click += click;
 
                 pill.Controls.Add(tlp);
                 flow.Controls.Add(pill);
@@ -178,6 +181,9 @@ namespace PremiumLivingOPS.Views.AfterService
             pnlKpi.Controls.Add(flow);
         }
 
+        // ════════════════════════════════════════════════════════════════
+        //  Action state
+        // ════════════════════════════════════════════════════════════════
         private void UpdateActionButtons()
         {
             bool sel = dgvReturns.SelectedRows.Count > 0;
@@ -200,75 +206,247 @@ namespace PremiumLivingOPS.Views.AfterService
             e.FormattingApplied   = true;
         }
 
+        // ════════════════════════════════════════════════════════════════
+        //  Update Status Dialog  (mirrors ComplaintListForm pattern)
+        // ════════════════════════════════════════════════════════════════
         private void btnUpdateStatus_Click(object sender, EventArgs e)
         {
             if (dgvReturns.SelectedRows.Count == 0) return;
-            string id         = dgvReturns.SelectedRows[0].Cells["colReturnID"].Value?.ToString();
-            string currentSts = dgvReturns.SelectedRows[0].Cells["colStatus"].Value?.ToString();
+            string id  = dgvReturns.SelectedRows[0].Cells["colReturnID"].Value?.ToString();
+            var    ent = _currentReturns.Find(x => x.ReturnID == id);
+            if (ent == null) return;
 
-            using var dlg = new Form
+            Label ReadLabel(string text) => new Label
             {
-                Text            = "Update Return Order Status",
-                Size            = new Size(460, 260),
-                StartPosition   = FormStartPosition.CenterParent,
-                BackColor       = Color.White,
-                Font            = new Font("Segoe UI", 12f),
-                FormBorderStyle = FormBorderStyle.FixedDialog,
-                MaximizeBox     = false,
-                MinimizeBox     = false,
+                Text      = text ?? "\u2014",
+                Font      = new Font("Segoe UI", 12f),
+                ForeColor = Color.FromArgb(15, 31, 53),
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft,
+                BackColor = Color.White
             };
-            var lbl = new Label
+
+            Panel FieldRow(string labelText, Control input, bool lastRow = false)
             {
-                Text    = $"Return ID:  {id}\nCurrent:  {currentSts}\n\nNew Status:",
-                Dock    = DockStyle.Top,
-                Height  = 120,
-                Padding = new Padding(20, 16, 20, 8),
-            };
-            var cbo = new ComboBox
+                var row = new Panel { Height = D_RowH, BackColor = Color.White };
+                if (!lastRow)
+                    row.Paint += (s2, pe) =>
+                    {
+                        using var pen = new System.Drawing.Pen(Color.FromArgb(221, 227, 236), 1);
+                        pe.Graphics.DrawLine(pen, 0, ((Panel)s2).Height - 1, ((Panel)s2).Width, ((Panel)s2).Height - 1);
+                    };
+
+                var tlp = new TableLayoutPanel
+                {
+                    Dock            = DockStyle.Fill,
+                    ColumnCount     = 2,
+                    RowCount        = 1,
+                    BackColor       = Color.White,
+                    CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+                };
+                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, D_LabelW));
+                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
+                tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+
+                var lbl = new Label
+                {
+                    Text      = labelText,
+                    Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                    ForeColor = Color.FromArgb(70, 85, 110),
+                    BackColor = Color.FromArgb(248, 250, 252),
+                    Dock      = DockStyle.Fill,
+                    TextAlign = ContentAlignment.MiddleLeft,
+                    AutoSize  = false,
+                    Padding   = new Padding(20, 0, 8, 0)
+                };
+                var wrap = new Panel
+                {
+                    Dock      = DockStyle.Fill,
+                    BackColor = Color.White,
+                    Padding   = new Padding(20, 12, 20, 12)
+                };
+                input.Dock = DockStyle.Fill;
+                wrap.Controls.Add(input);
+                tlp.Controls.Add(lbl,  0, 0);
+                tlp.Controls.Add(wrap, 1, 0);
+                row.Controls.Add(tlp);
+                return row;
+            }
+
+            var cboNew = new ComboBox
             {
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 Font          = new Font("Segoe UI", 12f),
-                Left = 20, Top = 140, Width = 400,
+                FlatStyle     = FlatStyle.Flat,
+                BackColor     = Color.White,
+                ForeColor     = Color.FromArgb(15, 31, 53),
             };
-            cbo.Items.AddRange(new object[] { "Pending", "Approved", "Processing", "Rejected", "Completed" });
-            cbo.SelectedItem = currentSts;
+            cboNew.Items.AddRange(new object[] { "Pending", "Approved", "Processing", "Rejected", "Completed" });
+            cboNew.SelectedItem = ent.ReturnStatus;
 
-            var btnOk = new Button
+            var rows = new Panel[]
+            {
+                FieldRow("Return ID",      ReadLabel(ent.ReturnID)),
+                FieldRow("Order No.",      ReadLabel(ent.OrderID)),
+                FieldRow("Current Status", ReadLabel(ent.ReturnStatus)),
+                FieldRow("New Status",     cboNew, lastRow: true)
+            };
+            var (cardOuter, cardInner) = CardPanel.Create(
+                outerHeight: rows.Length * D_RowH + 22,
+                outerPadding: new Padding(20, 14, 20, 8));
+            cardInner.Padding = new Padding(0);
+            cardInner.Controls.Add(BuildStack(rows));
+
+            // ── Dialog: 1800 × 700 ─────────────────────────────────────
+            using var dlg = new Form
+            {
+                Text            = $"Update Return Order Status  \u2014  {ent.ReturnID}",
+                Size            = new Size(1800, 700),
+                MinimumSize     = new Size(1800, 700),
+                StartPosition   = FormStartPosition.CenterParent,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox     = false,
+                MinimizeBox     = false,
+                BackColor       = Color.FromArgb(240, 244, 249),
+                Font            = new Font("Segoe UI", 12f)
+            };
+
+            Color pillBg = Color.FromArgb(229, 231, 235);
+            Color pillFg = Color.FromArgb(55, 65, 81);
+            if (StatusColors.TryGetValue(ent.ReturnStatus ?? "", out var hsc))
+            { pillBg = hsc.bg; pillFg = hsc.fg; }
+
+            var statusFont = new Font("Segoe UI", 13f, FontStyle.Bold);
+            int textW      = TextRenderer.MeasureText(ent.ReturnStatus ?? "\u2014", statusFont).Width;
+            int statusColW = textW + 80;
+
+            var statusLbl = new Label
+            {
+                Text      = ent.ReturnStatus ?? "\u2014",
+                Font      = statusFont,
+                ForeColor = pillFg,
+                BackColor = pillBg,
+                Dock      = DockStyle.Fill,
+                AutoSize  = false,
+                TextAlign = ContentAlignment.MiddleCenter
+            };
+            statusLbl.Paint += (s2, pe) =>
+            {
+                var lb = (Label)s2;
+                using var pen = new System.Drawing.Pen(Color.FromArgb(120, pillFg.R, pillFg.G, pillFg.B), 1);
+                pe.Graphics.DrawRectangle(pen, 0, 0, lb.Width - 1, lb.Height - 1);
+            };
+
+            var headerTlp = new TableLayoutPanel
+            {
+                Dock            = DockStyle.Fill,
+                ColumnCount     = 2,
+                RowCount        = 1,
+                BackColor       = Color.Transparent,
+                CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+            };
+            headerTlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
+            headerTlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, statusColW));
+            headerTlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+            headerTlp.Controls.Add(new Label
+            {
+                Text      = $"Update Status  \u2014  {ent.ReturnID}",
+                Font      = new Font("Segoe UI", 18f, FontStyle.Bold),
+                ForeColor = Color.White,
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft,
+                BackColor = Color.Transparent,
+                Padding   = new Padding(40, 0, 0, 0)
+            }, 0, 0);
+            headerTlp.Controls.Add(statusLbl, 1, 0);
+
+            var pnlHeader = new Panel
+            {
+                Dock      = DockStyle.Top,
+                Height    = 88,
+                BackColor = Color.FromArgb(19, 35, 61)
+            };
+            pnlHeader.Controls.Add(headerTlp);
+
+            var pnlFoot = new Panel
+            {
+                Dock      = DockStyle.Bottom,
+                Height    = 96,
+                BackColor = Color.White,
+                Padding   = new Padding(0, 18, 40, 18)
+            };
+            pnlFoot.Paint += (s2, pe) =>
+            {
+                using var pen = new System.Drawing.Pen(Color.FromArgb(221, 227, 236), 1);
+                pe.Graphics.DrawLine(pen, 0, 0, ((Panel)s2).Width, 0);
+            };
+
+            var btnConfirm = new Button
             {
                 Text      = "Confirm",
-                Left      = 20, Top = 185, Width = 190, Height = 40,
-                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                Font      = new Font("Segoe UI", 13f, FontStyle.Bold),
                 BackColor = Color.FromArgb(19, 35, 61),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
+                Width     = D_BtnW,
+                Height    = D_BtnH,
+                Cursor    = Cursors.Hand,
+                Margin    = new Padding(0, 0, 12, 0)
             };
-            var btnCnl = new Button
+            btnConfirm.FlatAppearance.BorderSize = 0;
+
+            var btnCancel = new Button
             {
                 Text      = "Cancel",
-                Left      = 220, Top = 185, Width = 190, Height = 40,
-                Font      = new Font("Segoe UI", 12f),
+                Font      = new Font("Segoe UI", 13f),
                 BackColor = Color.White,
+                ForeColor = Color.FromArgb(15, 31, 53),
                 FlatStyle = FlatStyle.Flat,
+                Width     = D_BtnW,
+                Height    = D_BtnH,
+                Cursor    = Cursors.Hand
             };
-            btnOk.FlatAppearance.BorderSize   = 0;
-            btnCnl.FlatAppearance.BorderColor = Color.FromArgb(209, 213, 219);
+            btnCancel.FlatAppearance.BorderColor = Color.FromArgb(200, 207, 220);
+            btnCancel.FlatAppearance.BorderSize  = 1;
 
-            btnOk.Click += (s2, e2) =>
+            btnConfirm.Click += (s2, ev) =>
             {
-                if (cbo.SelectedItem == null) return;
-                bool ok = _ctrl.UpdateReturnOrderStatus(id, cbo.SelectedItem.ToString());
+                if (cboNew.SelectedItem == null) return;
+                bool ok = _ctrl.UpdateReturnOrderStatus(id, cboNew.SelectedItem.ToString());
                 if (ok) { dlg.DialogResult = DialogResult.OK; dlg.Close(); }
                 else MessageBox.Show("Update failed.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             };
-            btnCnl.Click += (s2, e2) => dlg.Close();
+            btnCancel.Click += (s2, ev) => dlg.Close();
 
-            dlg.Controls.Add(lbl);
-            dlg.Controls.Add(cbo);
-            dlg.Controls.Add(btnOk);
-            dlg.Controls.Add(btnCnl);
+            var footFlow = new FlowLayoutPanel
+            {
+                Dock          = DockStyle.Right,
+                AutoSize      = true,
+                FlowDirection = FlowDirection.LeftToRight,
+                BackColor     = Color.Transparent
+            };
+            footFlow.Controls.Add(btnConfirm);
+            footFlow.Controls.Add(btnCancel);
+            pnlFoot.Controls.Add(footFlow);
+
+            var scroll = new Panel
+            {
+                Dock       = DockStyle.Fill,
+                BackColor  = Color.FromArgb(240, 244, 249),
+                AutoScroll = true
+            };
+            scroll.Controls.Add(cardOuter);
+
+            dlg.Controls.Add(scroll);
+            dlg.Controls.Add(pnlFoot);
+            dlg.Controls.Add(pnlHeader);
+
             if (dlg.ShowDialog(this) == DialogResult.OK) RefreshGrid();
         }
 
+        // ════════════════════════════════════════════════════════════════
+        //  View Detail Dialog  (mirrors ComplaintListForm pattern)
+        // ════════════════════════════════════════════════════════════════
         private void btnViewDetail_Click(object sender, EventArgs e) => ShowDetailDialog();
 
         private void ShowDetailDialog()
@@ -278,71 +456,208 @@ namespace PremiumLivingOPS.Views.AfterService
             var r = _currentReturns.Find(x => x.ReturnID == id);
             if (r == null) return;
 
-            StatusColors.TryGetValue(r.ReturnStatus ?? "", out var sc);
+            Label ReadLabel(string text) => new Label
+            {
+                Text      = text ?? "\u2014",
+                Font      = new Font("Segoe UI", 12f),
+                ForeColor = Color.FromArgb(15, 31, 53),
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft,
+                BackColor = Color.White
+            };
+
+            Panel FieldRow(string labelText, Control input, bool lastRow = false)
+            {
+                var row = new Panel { Height = D_RowH, BackColor = Color.White };
+                if (!lastRow)
+                    row.Paint += (s, pe) =>
+                    {
+                        using var pen = new System.Drawing.Pen(Color.FromArgb(221, 227, 236), 1);
+                        pe.Graphics.DrawLine(pen, 0, ((Panel)s).Height - 1, ((Panel)s).Width, ((Panel)s).Height - 1);
+                    };
+                var tlp = new TableLayoutPanel
+                {
+                    Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
+                    BackColor = Color.White, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+                };
+                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, D_LabelW));
+                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
+                tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+                var lbl = new Label
+                {
+                    Text = labelText, Font = new Font("Segoe UI", 12f, FontStyle.Bold),
+                    ForeColor = Color.FromArgb(70, 85, 110), BackColor = Color.FromArgb(248, 250, 252),
+                    Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft,
+                    AutoSize = false, Padding = new Padding(20, 0, 8, 0)
+                };
+                var wrap = new Panel
+                {
+                    Dock = DockStyle.Fill, BackColor = Color.White,
+                    Padding = new Padding(20, 12, 20, 12)
+                };
+                input.Dock = DockStyle.Fill;
+                wrap.Controls.Add(input);
+                tlp.Controls.Add(lbl,  0, 0);
+                tlp.Controls.Add(wrap, 1, 0);
+                row.Controls.Add(tlp);
+                return row;
+            }
+
+            // Card 1 — Identity
+            var c1Rows = new Panel[]
+            {
+                FieldRow("Return ID",  ReadLabel(r.ReturnID)),
+                FieldRow("Order No.",  ReadLabel(r.OrderID)),
+                FieldRow("Status",     ReadLabel(r.ReturnStatus), lastRow: true)
+            };
+            var (c1Outer, c1Inner) = CardPanel.Create(
+                outerHeight: c1Rows.Length * D_RowH + 22,
+                outerPadding: new Padding(20, 14, 20, 8));
+            c1Inner.Padding = new Padding(0);
+            c1Inner.Controls.Add(BuildStack(c1Rows));
+
+            // Card 2 — Details
+            var c2Rows = new Panel[]
+            {
+                FieldRow("Customer",      ReadLabel(r.CustomerName)),
+                FieldRow("Return Date",   ReadLabel(r.ReturnDate.ToString("yyyy-MM-dd"))),
+                FieldRow("Refund Amount", ReadLabel($"HK$ {r.RefundAmount:N2}")),
+                FieldRow("Reason",        ReadLabel(r.Reason ?? "\u2014"), lastRow: true)
+            };
+            var (c2Outer, c2Inner) = CardPanel.Create(
+                outerHeight: c2Rows.Length * D_RowH + 30,
+                outerPadding: new Padding(20, 8, 20, 16));
+            c2Inner.Padding = new Padding(0);
+            c2Inner.Controls.Add(BuildStack(c2Rows));
+
             using var dlg = new Form
             {
-                Text            = $"Return Order Detail — {r.ReturnID}",
-                Size            = new Size(680, 400),
+                Text            = $"Return Order Detail  \u2014  {r.ReturnID}",
+                Size            = new Size(1800, 700),
+                MinimumSize     = new Size(1100, 700),
                 StartPosition   = FormStartPosition.CenterParent,
-                BackColor       = Color.White,
-                Font            = new Font("Segoe UI", 12f),
                 FormBorderStyle = FormBorderStyle.FixedDialog,
-                MaximizeBox     = false,
-                MinimizeBox     = false,
+                MaximizeBox     = false, MinimizeBox = false,
+                BackColor       = Color.FromArgb(240, 244, 249),
+                Font            = new Font("Segoe UI", 12f)
             };
 
-            var pnlHdr = new Panel { Dock = DockStyle.Top, Height = 70, BackColor = Color.FromArgb(19, 35, 61) };
-            var tblHdr = new TableLayoutPanel
+            Color pillBg = Color.FromArgb(229, 231, 235);
+            Color pillFg = Color.FromArgb(55, 65, 81);
+            if (StatusColors.TryGetValue(r.ReturnStatus ?? "", out var hsc))
+            { pillBg = hsc.bg; pillFg = hsc.fg; }
+
+            var statusFont = new Font("Segoe UI", 13f, FontStyle.Bold);
+            int textW      = TextRenderer.MeasureText(r.ReturnStatus ?? "\u2014", statusFont).Width;
+            int statusColW = textW + 80;
+
+            var statusLbl = new Label
             {
-                Dock        = DockStyle.Fill,
-                ColumnCount = 2, RowCount = 1,
-                BackColor   = Color.Transparent,
-                Padding     = new Padding(20, 0, 20, 0),
+                Text = r.ReturnStatus ?? "\u2014",
+                Font = statusFont, ForeColor = pillFg, BackColor = pillBg,
+                Dock = DockStyle.Fill, AutoSize = false,
+                TextAlign = ContentAlignment.MiddleCenter
             };
-            tblHdr.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
-            tblHdr.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140f));
-            tblHdr.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-            tblHdr.Controls.Add(new Label { Text = $"Return Order  —  {r.ReturnID}", Font = new Font("Segoe UI", 15f, FontStyle.Bold), ForeColor = Color.White, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft }, 0, 0);
-            tblHdr.Controls.Add(new Label { Text = r.ReturnStatus, Font = new Font("Segoe UI", 11f, FontStyle.Bold), ForeColor = sc.fg != default ? sc.fg : Color.White, BackColor = sc.bg != default ? sc.bg : Color.Gray, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter }, 1, 0);
-            pnlHdr.Controls.Add(tblHdr);
-
-            var pnlBody = new Panel { Dock = DockStyle.Fill, Padding = new Padding(24, 16, 24, 16) };
-            var tbl = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 5, BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None };
-            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 150f));
-            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-            for (int i = 0; i < 5; i++) tbl.RowStyles.Add(new RowStyle(SizeType.Percent, 20f));
-            var fields = new[]
+            statusLbl.Paint += (s, pe) =>
             {
-                ("Return ID",     r.ReturnID),
-                ("Order No.",     r.OrderID),
-                ("Customer",      r.CustomerName),
-                ("Return Date",   r.ReturnDate.ToString("yyyy-MM-dd")),
-                ("Refund Amount", $"HK$ {r.RefundAmount:N2}"),
+                var lb = (Label)s;
+                using var pen = new System.Drawing.Pen(Color.FromArgb(120, pillFg.R, pillFg.G, pillFg.B), 1);
+                pe.Graphics.DrawRectangle(pen, 0, 0, lb.Width - 1, lb.Height - 1);
             };
-            for (int i = 0; i < fields.Length; i++)
+
+            var headerTlp = new TableLayoutPanel
             {
-                tbl.Controls.Add(new Label { Text = fields[i].Item1, Font = new Font("Segoe UI", 10f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft }, 0, i);
-                tbl.Controls.Add(new Label { Text = fields[i].Item2, Font = new Font("Segoe UI", 12f), ForeColor = Color.FromArgb(15, 31, 53), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft }, 1, i);
-            }
-            pnlBody.Controls.Add(tbl);
+                Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
+                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+            };
+            headerTlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+            headerTlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, statusColW));
+            headerTlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+            headerTlp.Controls.Add(new Label
+            {
+                Text = $"Return Order  \u2014  {r.ReturnID}",
+                Font = new Font("Segoe UI", 18f, FontStyle.Bold),
+                ForeColor = Color.White, Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft,
+                BackColor = Color.Transparent, Padding = new Padding(40, 0, 0, 0)
+            }, 0, 0);
+            headerTlp.Controls.Add(statusLbl, 1, 0);
 
-            var pnlReason = new Panel { Dock = DockStyle.Bottom, Height = 80, BackColor = Color.FromArgb(246, 249, 255), Padding = new Padding(24, 8, 24, 8) };
-            pnlReason.Paint += (s, e2) => { using var pen = new Pen(Color.FromArgb(209, 213, 219), 1); e2.Graphics.DrawLine(pen, 0, 0, ((Panel)s).Width, 0); };
-            pnlReason.Controls.Add(new Label { Text = $"Reason:  {r.Reason ?? "—"}", Font = new Font("Segoe UI", 12f), ForeColor = Color.FromArgb(15, 31, 53), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft });
+            var pnlHeader = new Panel
+            {
+                Dock = DockStyle.Top, Height = 88,
+                BackColor = Color.FromArgb(19, 35, 61)
+            };
+            pnlHeader.Controls.Add(headerTlp);
 
-            var pnlFtr   = new Panel { Dock = DockStyle.Bottom, Height = 60, BackColor = Color.White, Padding = new Padding(0, 8, 20, 8) };
-            var btnClose = new Button { Text = "Close", Dock = DockStyle.Right, Width = 120, Height = 40, Font = new Font("Segoe UI", 12f), BackColor = Color.White, FlatStyle = FlatStyle.Flat };
-            btnClose.FlatAppearance.BorderColor = Color.FromArgb(209, 213, 219);
-            btnClose.Click += (s2, e2) => dlg.Close();
-            pnlFtr.Controls.Add(btnClose);
+            var pnlFoot = new Panel
+            {
+                Dock = DockStyle.Bottom, Height = 96,
+                BackColor = Color.White, Padding = new Padding(0, 18, 40, 18)
+            };
+            pnlFoot.Paint += (s, pe) =>
+            {
+                using var pen = new System.Drawing.Pen(Color.FromArgb(221, 227, 236), 1);
+                pe.Graphics.DrawLine(pen, 0, 0, ((Panel)s).Width, 0);
+            };
+            var btnClose = new Button
+            {
+                Text = "Close", Font = new Font("Segoe UI", 13f),
+                BackColor = Color.White, ForeColor = Color.FromArgb(15, 31, 53),
+                FlatStyle = FlatStyle.Flat, Width = D_BtnW, Height = D_BtnH, Cursor = Cursors.Hand
+            };
+            btnClose.FlatAppearance.BorderColor = Color.FromArgb(200, 207, 220);
+            btnClose.FlatAppearance.BorderSize  = 1;
+            btnClose.Click += (s2, ev) => dlg.Close();
+            var footFlow = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Right, AutoSize = true,
+                FlowDirection = FlowDirection.LeftToRight, BackColor = Color.Transparent
+            };
+            footFlow.Controls.Add(btnClose);
+            pnlFoot.Controls.Add(footFlow);
 
-            dlg.Controls.Add(pnlBody);
-            dlg.Controls.Add(pnlReason);
-            dlg.Controls.Add(pnlHdr);
-            dlg.Controls.Add(pnlFtr);
+            var scroll = new Panel
+            {
+                Dock = DockStyle.Fill, BackColor = Color.FromArgb(240, 244, 249), AutoScroll = true
+            };
+            scroll.Controls.Add(c2Outer);
+            scroll.Controls.Add(c1Outer);
+
+            dlg.Controls.Add(scroll);
+            dlg.Controls.Add(pnlFoot);
+            dlg.Controls.Add(pnlHeader);
             dlg.ShowDialog(this);
         }
 
+        // ════════════════════════════════════════════════════════════════
+        //  Shared helpers
+        // ════════════════════════════════════════════════════════════════
+        private Panel BuildStack(Panel[] rows)
+        {
+            var content = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
+            var stack   = new Panel { Height = rows.Length * D_RowH, BackColor = Color.White };
+            int y = 0;
+            foreach (var row in rows)
+            {
+                row.Location = new Point(0, y);
+                row.Anchor   = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+                stack.Controls.Add(row);
+                y += D_RowH;
+            }
+            content.Controls.Add(stack);
+            content.Resize += (s, _) =>
+            {
+                var p = (Panel)s;
+                stack.Width = p.Width; stack.Left = 0; stack.Top = 0;
+                foreach (Panel row in stack.Controls) row.Width = p.Width;
+            };
+            return content;
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  Navigation / logout
+        // ════════════════════════════════════════════════════════════════
         private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
             => FormNavigator.NavigateTo(this, menuLabel, subItem);
 
