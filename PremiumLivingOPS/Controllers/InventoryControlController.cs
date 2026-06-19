@@ -72,10 +72,17 @@ namespace PremiumLivingOPS.Controllers
 
         /// <summary>
         /// Returns the next auto-generated Product Item ID (IID-P-XXXX).
-        /// Delegates to the Repo which queries MAX suffix from the DB.
+        /// Collision-safe: loops until a free slot is found in the Item table.
         /// </summary>
         public string GenerateNextProductItemId()
             => _repo.GenerateNextProductItemId();
+
+        /// <summary>
+        /// Returns true if the given ItemID already exists in the Item table.
+        /// Checked by the View before submitting to give an early, friendly error.
+        /// </summary>
+        public bool IsItemIdExists(string itemId)
+            => _repo.IsItemIdExists(itemId);
 
         // ════════════════════════════════════════════════════════════════
         //  RAW MATERIAL — read
@@ -175,7 +182,6 @@ namespace PremiumLivingOPS.Controllers
                                             string toWarehouseId, int qty)
             => _repo.RecordWarehouseTransfer(transferId, fromWarehouseItemId, toWarehouseId, qty);
 
-        // Warehouse list used by dialogs
         public List<WarehouseEntity> GetAllWarehouses() => _repo.GetAllWarehouses();
 
         public List<WarehouseItemEntity> GetWarehouseItemsByItem(string itemId)

@@ -102,6 +102,18 @@ namespace PremiumLivingOPS.Models.DAL
                 {
                     try
                     {
+                        // ── Last-line-of-defence duplicate check (inside transaction) ──
+                        using (var chk = new MySqlCommand(
+                            "SELECT COUNT(*) FROM Item WHERE ItemID = @id", conn, tx))
+                        {
+                            chk.Parameters.AddWithValue("@id", itemId);
+                            int exists = Convert.ToInt32(chk.ExecuteScalar());
+                            if (exists > 0)
+                                throw new Exception(
+                                    $"Item ID '{itemId}' already exists in the database. " +
+                                    "Please close this dialog and try again to get a new ID.");
+                        }
+
                         // 1. Item
                         Run(conn, tx,
                             "INSERT INTO Item (ItemID,ItemName,ItemDescription) VALUES (@id,@name,@desc)",
@@ -262,6 +274,17 @@ namespace PremiumLivingOPS.Models.DAL
                 {
                     try
                     {
+                        // Duplicate check for Raw Material too
+                        using (var chk = new MySqlCommand(
+                            "SELECT COUNT(*) FROM Item WHERE ItemID = @id", conn, tx))
+                        {
+                            chk.Parameters.AddWithValue("@id", itemId);
+                            int exists = Convert.ToInt32(chk.ExecuteScalar());
+                            if (exists > 0)
+                                throw new Exception(
+                                    $"Item ID '{itemId}' already exists in the database.");
+                        }
+
                         Run(conn, tx,
                             "INSERT INTO Item (ItemID,ItemName,ItemDescription) VALUES (@id,@name,@desc)",
                             ("@id", itemId), ("@name", itemName), ("@desc", (object)itemDesc ?? DBNull.Value));
@@ -400,8 +423,7 @@ namespace PremiumLivingOPS.Models.DAL
         }
 
         // ════════════════════════════════════════════════════════════════
-        //  INWARD GOODS — add stock qty to an existing WarehouseItem row
-        //  (or create a new WarehouseItem if the item isn't in that warehouse)
+        //  INWARD GOODS
         // ════════════════════════════════════════════════════════════════
 
         public void RecordInwardGoods(string itemId, string warehouseId, int qtyReceived)
@@ -413,7 +435,6 @@ namespace PremiumLivingOPS.Models.DAL
                 {
                     try
                     {
-                        // Check if WarehouseItem row exists
                         string wiId = null;
                         using (var cmd = new MySqlCommand(
                             "SELECT WarehouseItemID FROM WarehouseItem WHERE ItemID=@iid AND WarehouseID=@whid LIMIT 1", conn, tx))
@@ -426,14 +447,12 @@ namespace PremiumLivingOPS.Models.DAL
 
                         if (wiId != null)
                         {
-                            // Update existing
                             Run(conn, tx,
                                 "UPDATE WarehouseItem SET WarehouseItemQuantity = WarehouseItemQuantity + @qty WHERE WarehouseItemID=@wid",
                                 ("@qty", qtyReceived), ("@wid", wiId));
                         }
                         else
                         {
-                            // Create new row with default ReorderLevel = 0
                             wiId = GenerateWarehouseItemId(conn, tx);
                             Run(conn, tx,
                                 "INSERT INTO WarehouseItem (WarehouseItemID,ItemID,WarehouseID,WarehouseItemQuantity,ReorderLevel) VALUES (@wid,@iid,@whid,@qty,0)",
@@ -450,11 +469,6 @@ namespace PremiumLivingOPS.Models.DAL
         //  WAREHOUSE TRANSFER
         // ════════════════════════════════════════════════════════════════
 
-        /// <summary>
-        /// Creates a TransferForm + TransferForm_WarehouseItem line,
-        /// deducts qty from source WarehouseItem and adds to destination.
-        /// Destination WarehouseItem row is auto-created if absent.
-        /// </summary>
         public void RecordWarehouseTransfer(
             string transferId,
             string fromWarehouseItemId,
@@ -468,7 +482,6 @@ namespace PremiumLivingOPS.Models.DAL
                 {
                     try
                     {
-                        // Get source row details
                         string fromItemId = null;
                         int    fromQty    = 0;
                         using (var cmd = new MySqlCommand(
@@ -483,7 +496,6 @@ namespace PremiumLivingOPS.Models.DAL
                         if (fromItemId == null) throw new Exception("Source warehouse item not found.");
                         if (fromQty < transferQty) throw new Exception($"Insufficient stock. Available: {fromQty}");
 
-                        // Find or create destination WarehouseItem
                         string toWarehouseItemId = null;
                         using (var cmd = new MySqlCommand(
                             "SELECT WarehouseItemID FROM WarehouseItem WHERE ItemID=@iid AND WarehouseID=@whid LIMIT 1", conn, tx))
@@ -501,22 +513,17 @@ namespace PremiumLivingOPS.Models.DAL
                                 ("@wid", toWarehouseItemId), ("@iid", fromItemId), ("@whid", toWarehouseId));
                         }
 
-                        // Deduct source
                         Run(conn, tx,
                             "UPDATE WarehouseItem SET WarehouseItemQuantity=WarehouseItemQuantity-@qty WHERE WarehouseItemID=@id",
                             ("@qty", transferQty), ("@id", fromWarehouseItemId));
-
-                        // Add to destination
                         Run(conn, tx,
                             "UPDATE WarehouseItem SET WarehouseItemQuantity=WarehouseItemQuantity+@qty WHERE WarehouseItemID=@id",
                             ("@qty", transferQty), ("@id", toWarehouseItemId));
 
-                        // Insert TransferForm header
                         Run(conn, tx,
                             "INSERT INTO TransferForm (TransferID,TransferDate,TransferStatus) VALUES (@tid,@date,'Completed')",
                             ("@tid", transferId), ("@date", DateTime.Today.ToString("yyyy-MM-dd")));
 
-                        // Insert TransferForm_WarehouseItem line
                         string lineId = "TL-" + transferId.Substring(3);
                         Run(conn, tx,
                             "INSERT INTO TransferForm_WarehouseItem (TransferLineID,TransferID,FromWarehouseItemID,ToWarehouseItemID,TransferQuantity) VALUES (@lid,@tid,@from,@to,@qty)",
@@ -531,7 +538,7 @@ namespace PremiumLivingOPS.Models.DAL
         }
 
         // ════════════════════════════════════════════════════════════════
-        //  ALL ITEMS LOOKUP (products + raw materials combined)
+        //  ALL ITEMS LOOKUP
         // ════════════════════════════════════════════════════════════════
 
         public List<ItemLookup> GetAllItemsLookup()
@@ -569,8 +576,7 @@ namespace PremiumLivingOPS.Models.DAL
             using (var conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
-                using (var cmd = new MySqlCommand(
-                    "SELECT COUNT(*) FROM TransferForm", conn))
+                using (var cmd = new MySqlCommand("SELECT COUNT(*) FROM TransferForm", conn))
                 {
                     int count = Convert.ToInt32(cmd.ExecuteScalar());
                     return $"TRF-{(count + 1):D4}";
@@ -579,18 +585,19 @@ namespace PremiumLivingOPS.Models.DAL
         }
 
         /// <summary>
-        /// Returns the next available Product Item ID in the format IID-P-XXXX.
-        /// Extracts the MAX numeric suffix from existing IID-P-* rows so that
-        /// gaps caused by deletions never cause a collision.
+        /// Returns the next Product Item ID (IID-P-XXXX) that does NOT yet exist
+        /// anywhere in the Item table.  Starts at MAX+1 and loops until a free
+        /// slot is found — collision-safe even when two dialogs open simultaneously.
         /// </summary>
         public string GenerateNextProductItemId()
         {
             using (var conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
-                // CAST the 7-char suffix to UNSIGNED to get a true numeric MAX,
-                // avoiding lexicographic ordering issues (e.g. '9' > '10').
-                const string sql =
+
+                // Step 1: find the current highest numeric suffix.
+                int maxSeq;
+                const string maxSql =
                     @"SELECT COALESCE(
                           MAX(CAST(SUBSTRING(ItemID, 7) AS UNSIGNED)),
                           0
@@ -599,10 +606,45 @@ namespace PremiumLivingOPS.Models.DAL
                       WHERE ItemID LIKE 'IID-P-%'
                         AND LENGTH(ItemID) = 11
                         AND SUBSTRING(ItemID, 7) REGEXP '^[0-9]{4}$'";
-                using (var cmd = new MySqlCommand(sql, conn))
+                using (var cmd = new MySqlCommand(maxSql, conn))
+                    maxSeq = Convert.ToInt32(cmd.ExecuteScalar());
+
+                // Step 2: walk forward until we find a candidate that is free
+                // in the Item table (covers both Product and RawMaterial IDs).
+                int candidate = maxSeq + 1;
+                const int safetyLimit = 10000;
+                for (int i = 0; i < safetyLimit; i++)
                 {
-                    int maxSeq = Convert.ToInt32(cmd.ExecuteScalar());
-                    return $"IID-P-{(maxSeq + 1):D4}";
+                    string candidateId = $"IID-P-{candidate:D4}";
+                    using (var chk = new MySqlCommand(
+                        "SELECT COUNT(*) FROM Item WHERE ItemID = @id", conn))
+                    {
+                        chk.Parameters.AddWithValue("@id", candidateId);
+                        int exists = Convert.ToInt32(chk.ExecuteScalar());
+                        if (exists == 0)
+                            return candidateId;  // found a free slot
+                    }
+                    candidate++;
+                }
+
+                throw new Exception("Unable to generate a unique Product Item ID after many attempts.");
+            }
+        }
+
+        /// <summary>
+        /// Returns true if the given ItemID already exists in the Item table.
+        /// Used by the View layer for early duplicate detection before submission.
+        /// </summary>
+        public bool IsItemIdExists(string itemId)
+        {
+            using (var conn = DatabaseHelper.GetConnection())
+            {
+                conn.Open();
+                using (var cmd = new MySqlCommand(
+                    "SELECT COUNT(*) FROM Item WHERE ItemID = @id", conn))
+                {
+                    cmd.Parameters.AddWithValue("@id", itemId);
+                    return Convert.ToInt32(cmd.ExecuteScalar()) > 0;
                 }
             }
         }

@@ -10,10 +10,13 @@ namespace PremiumLivingOPS.Views.InventoryControl
 {
     /// <summary>
     /// Add New Item dialog — supports both Product and Raw Material.
-    /// Opened as a modal dialog from ViewProductForm / ViewRawMaterialForm.
     ///
-    /// Product mode:  Item ID is auto-generated (IID-P-XXXX) and is read-only.
-    /// Raw Material mode: Item ID remains a free-text editable field.
+    /// Product mode  : Item ID is auto-generated (IID-P-XXXX), ReadOnly.
+    ///                 On Submit the ID is re-checked for uniqueness before
+    ///                 hitting the DB; if a race-condition duplicate is found
+    ///                 the user is prompted to close and reopen for a new ID.
+    /// Raw Material  : Item ID is free-text editable; uniqueness is validated
+    ///                 on Submit.
     /// </summary>
     public class AddItemForm : Form
     {
@@ -28,7 +31,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
         private NumericUpDown nudInitialQty, nudReorderLevel;
         private Button        btnSubmit, btnCancel;
 
-        // ── Sizing constants ──────────────────────────────────────────────
         private const int RowH      = 84;
         private const int RowGap    = 20;
         private const int LabelW    = 300;
@@ -59,7 +61,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
             BackColor       = Color.FromArgb(240, 244, 249);
             Font            = new Font("Segoe UI", 12f);
 
-            // ── Header ──────────────────────────────────────────────────────────────
             var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 90, BackColor = Color.FromArgb(19, 35, 61) };
             pnlHeader.Controls.Add(new Label
             {
@@ -71,7 +72,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 Padding   = new Padding(48, 0, 0, 0)
             });
 
-            // ── Scroll body ──────────────────────────────────────────────────────
             _scroll = new Panel
             {
                 Dock       = DockStyle.Fill,
@@ -99,7 +99,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
 
             _scroll.Controls.Add(outerCard);
 
-            // ── Footer ──────────────────────────────────────────────────────────────
             var pnlFoot = new Panel
             {
                 Dock      = DockStyle.Bottom,
@@ -143,9 +142,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
         {
             ResizeCard();
 
-            // Auto-generate Item ID for Product mode only.
-            // txtItemId is already ReadOnly with grey background (set in BuildRows).
-            // We populate it here so the DB query runs after the form is shown.
             if (_mode == ItemMode.Product)
             {
                 try
@@ -154,10 +150,11 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 }
                 catch
                 {
-                    // Fallback: leave the field empty so the user can type manually.
-                    txtItemId.ReadOnly   = false;
-                    txtItemId.BackColor  = Color.White;
-                    txtItemId.ForeColor  = Color.FromArgb(15, 31, 53);
+                    // Fallback: let user type manually if DB unreachable
+                    txtItemId.ReadOnly  = false;
+                    txtItemId.BackColor = Color.White;
+                    txtItemId.ForeColor = Color.FromArgb(15, 31, 53);
+                    txtItemId.Text      = string.Empty;
                 }
             }
         }
@@ -178,18 +175,17 @@ namespace PremiumLivingOPS.Views.InventoryControl
             txtItemName = MakeTxt();
             txtItemDesc = MakeTxt();
 
-            // Product mode: Item ID is auto-generated — make it read-only.
             if (_mode == ItemMode.Product)
             {
                 txtItemId.ReadOnly  = true;
-                txtItemId.BackColor = Color.FromArgb(240, 244, 249);  // grey to signal non-editable
+                txtItemId.BackColor = Color.FromArgb(240, 244, 249);
                 txtItemId.ForeColor = Color.FromArgb(70, 85, 110);
-                txtItemId.Text      = "Generating\u2026";             // placeholder until Load fires
+                txtItemId.Text      = "Generating\u2026";
             }
 
-            rows.Add(FieldRow("Item ID",   txtItemId));     // no asterisk — auto-generated
-            rows.Add(FieldRow("Item Name *",  txtItemName));
-            rows.Add(FieldRow("Description",  txtItemDesc));
+            rows.Add(FieldRow("Item ID",       txtItemId));
+            rows.Add(FieldRow("Item Name *",   txtItemName));
+            rows.Add(FieldRow("Description",   txtItemDesc));
 
             cboCategory = new ComboBox
             {
@@ -214,24 +210,17 @@ namespace PremiumLivingOPS.Views.InventoryControl
 
             nudInitialQty = new NumericUpDown
             {
-                Minimum       = 0,
-                Maximum       = 99999,
-                DecimalPlaces = 0,
-                Dock          = DockStyle.Fill,
-                Font          = new Font("Segoe UI", 13f)
+                Minimum = 0, Maximum = 99999, DecimalPlaces = 0,
+                Dock    = DockStyle.Fill, Font = new Font("Segoe UI", 13f)
             };
             nudReorderLevel = new NumericUpDown
             {
-                Minimum       = 0,
-                Maximum       = 99999,
-                DecimalPlaces = 0,
-                Value         = 10,
-                Dock          = DockStyle.Fill,
-                Font          = new Font("Segoe UI", 13f)
+                Minimum = 0, Maximum = 99999, DecimalPlaces = 0,
+                Value   = 10, Dock = DockStyle.Fill, Font = new Font("Segoe UI", 13f)
             };
 
-            rows.Add(FieldRow("Initial Qty *",    nudInitialQty));
-            rows.Add(FieldRow("Reorder Level *",  nudReorderLevel));
+            rows.Add(FieldRow("Initial Qty *",   nudInitialQty));
+            rows.Add(FieldRow("Reorder Level *", nudReorderLevel));
 
             return rows;
         }
@@ -264,10 +253,11 @@ namespace PremiumLivingOPS.Views.InventoryControl
             int    qty      = (int)nudInitialQty.Value;
             int    rl       = (int)nudReorderLevel.Value;
 
+            // ── Basic required-field validation ──────────────────────────
             if (string.IsNullOrEmpty(id) || string.IsNullOrEmpty(name) ||
                 string.IsNullOrEmpty(category) || wh == null)
             {
-                MessageBox.Show("Please fill in all required fields (*)",
+                MessageBox.Show("Please fill in all required fields (*).",
                     "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
@@ -279,6 +269,47 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 return;
             }
 
+            // ── Duplicate Item ID check (application layer) ───────────────
+            // This catches the common case fast and shows a clear message.
+            // The Repo INSERT also performs a final check inside a transaction.
+            try
+            {
+                if (_ctrl.IsItemIdExists(id))
+                {
+                    if (_mode == ItemMode.Product)
+                    {
+                        // Auto-generated ID was taken by a concurrent insert.
+                        // Refresh to a new free ID and tell the user.
+                        string newId = _ctrl.GenerateNextProductItemId();
+                        txtItemId.Text = newId;
+                        MessageBox.Show(
+                            $"Item ID '{id}' was just taken by another record.\n" +
+                            $"A new ID '{newId}' has been generated.\n" +
+                            "Please click Add Item again to confirm.",
+                            "ID Conflict — Refreshed",
+                            MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    }
+                    else
+                    {
+                        MessageBox.Show(
+                            $"Item ID '{id}' already exists in the database.\n" +
+                            "Please enter a different Item ID.",
+                            "Duplicate Item ID",
+                            MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        txtItemId.Focus();
+                        txtItemId.SelectAll();
+                    }
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Could not verify Item ID: " + ex.Message,
+                    "Connection Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            // ── Commit to DB ──────────────────────────────────────────────
             try
             {
                 if (_mode == ItemMode.Product)
@@ -302,11 +333,10 @@ namespace PremiumLivingOPS.Views.InventoryControl
             }
         }
 
-        // ── UI helpers ─────────────────────────────────────────────────────
+        // ── UI helpers ────────────────────────────────────────────────────
         private static Panel FieldRow(string label, Control input)
         {
             var row = new Panel { Height = RowH, BackColor = Color.Transparent };
-
             var tlp = new TableLayoutPanel
             {
                 Dock            = DockStyle.Fill,
