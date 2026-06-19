@@ -28,6 +28,12 @@ namespace PremiumLivingOPS.Views.AfterService
         private const int D_BtnW   = 200;
         private const int D_BtnH   = 56;
 
+        // ── Dialog field layout constants
+        private const int DLG_LabelW = 340;   // wider label column
+        private const int DLG_RowH   = 80;
+        private const int DLG_BtnW   = 210;
+        private const int DLG_BtnH   = 60;
+
         public ComplaintListForm()
         {
             InitializeComponent();
@@ -172,9 +178,6 @@ namespace PremiumLivingOPS.Views.AfterService
                 flow.Controls.Add(pill);
             }
 
-            // NOTE: No btnAdd here — “Add New” button is declared in Designer (btnAddNew)
-            //       and lives inside pnlActionBtns on the right side of the KPI bar.
-
             pnlKpi.Controls.Add(flow);
         }
 
@@ -205,26 +208,40 @@ namespace PremiumLivingOPS.Views.AfterService
 
         // ════════════════════════════════════════════════════════════════
         //  ★ ADD NEW — Create Complaint Dialog
+        //  Fields (one per row):
+        //    Complaint ID  — auto-generated, read-only
+        //    Order No.     — optional text input
+        //    Handled By    — staff ComboBox (required)
+        //    Status        — ENUM ComboBox (required)
+        //    Description   — text input (required)
         // ════════════════════════════════════════════════════════════════
         private void btnAddNew_Click(object sender, EventArgs e)
         {
+            // ── Auto-generate Complaint ID ─────────────────────────────────────────
+            string autoId;
+            try   { autoId = _ctrl.CreateComplaint(null) ? "" : ""; } // just a probe; real call below
+            catch { autoId = ""; }
+            // Use the repo-level generator via a temporary entity (ID only)
+            autoId = GeneratePreviewComplaintId();
+
+            // ── Dialog shell ─────────────────────────────────────────────────────
             using var dlg = new Form
             {
                 Text            = "Create New Complaint",
-                Size            = new Size(1400, 620),
-                MinimumSize     = new Size(1100, 620),
+                Size            = new Size(1400, 800),
+                MinimumSize     = new Size(1100, 800),
                 StartPosition   = FormStartPosition.CenterParent,
                 FormBorderStyle = FormBorderStyle.FixedDialog,
                 MaximizeBox     = false,
                 MinimizeBox     = false,
-                BackColor       = Color.White,
+                BackColor       = Color.FromArgb(240, 244, 249),
                 Font            = new Font("Segoe UI", 13f)
             };
 
+            // ── Header ──────────────────────────────────────────────────────────────
             var pnlHeader = new Panel
             {
-                Dock      = DockStyle.Top,
-                Height    = 80,
+                Dock = DockStyle.Top, Height = 80,
                 BackColor = Color.FromArgb(19, 35, 61)
             };
             pnlHeader.Controls.Add(new Label
@@ -238,15 +255,16 @@ namespace PremiumLivingOPS.Views.AfterService
                 Padding   = new Padding(32, 0, 0, 0)
             });
 
-            var pnlInputTitle = new Panel
+            // ── Section title bar ───────────────────────────────────────────────────
+            var pnlSectionTitle = new Panel
             {
                 Dock      = DockStyle.Top,
                 Height    = 44,
                 BackColor = Color.FromArgb(241, 245, 255),
                 Padding   = new Padding(32, 0, 16, 0)
             };
-            PaintBottomBorderStatic(pnlInputTitle);
-            pnlInputTitle.Controls.Add(new Label
+            PaintBottomBorderStatic(pnlSectionTitle);
+            pnlSectionTitle.Controls.Add(new Label
             {
                 Text      = "\uD83D\uDCCB  Complaint Information",
                 Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
@@ -256,44 +274,84 @@ namespace PremiumLivingOPS.Views.AfterService
                 AutoSize  = false
             });
 
-            var pnlInputBody = new Panel
+            // ── Field builder (one per row, label left / input right) ────────────────
+            Panel MakeRow(string labelText, Control input, bool lastRow = false)
             {
-                Dock      = DockStyle.Top,
-                Height    = 230,
-                BackColor = Color.FromArgb(249, 251, 255),
-                Padding   = new Padding(32, 16, 32, 12)
+                var row = new Panel { Height = DLG_RowH, BackColor = Color.White };
+                if (!lastRow)
+                    row.Paint += (s2, pe) =>
+                    {
+                        using var pen = new System.Drawing.Pen(Color.FromArgb(221, 227, 236), 1);
+                        pe.Graphics.DrawLine(pen, 0, ((Panel)s2).Height - 1, ((Panel)s2).Width, ((Panel)s2).Height - 1);
+                    };
+
+                var tlp = new TableLayoutPanel
+                {
+                    Dock            = DockStyle.Fill,
+                    ColumnCount     = 2,
+                    RowCount        = 1,
+                    BackColor       = Color.White,
+                    CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+                };
+                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, DLG_LabelW));
+                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
+                tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+
+                var lbl = new Label
+                {
+                    Text      = labelText,
+                    Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                    ForeColor = Color.FromArgb(70, 85, 110),
+                    BackColor = Color.FromArgb(248, 250, 252),
+                    Dock      = DockStyle.Fill,
+                    TextAlign = ContentAlignment.MiddleLeft,
+                    AutoSize  = false,
+                    Padding   = new Padding(24, 0, 8, 0)
+                };
+                var wrap = new Panel
+                {
+                    Dock      = DockStyle.Fill,
+                    BackColor = Color.White,
+                    Padding   = new Padding(20, 14, 24, 14)
+                };
+                input.Dock = DockStyle.Fill;
+                wrap.Controls.Add(input);
+                tlp.Controls.Add(lbl,  0, 0);
+                tlp.Controls.Add(wrap, 1, 0);
+                row.Controls.Add(tlp);
+                return row;
+            }
+
+            // ── Controls ────────────────────────────────────────────────────────────
+            // 1. Complaint ID (read-only)
+            var txtComplaintId = new TextBox
+            {
+                Text        = autoId,
+                Font        = new Font("Segoe UI", 12f, FontStyle.Bold),
+                BorderStyle = BorderStyle.FixedSingle,
+                ReadOnly    = true,
+                BackColor   = Color.FromArgb(240, 244, 249),
+                ForeColor   = Color.FromArgb(47, 111, 237)
             };
-            PaintBottomBorderStatic(pnlInputBody);
 
-            var lblOrderNo = MakeLabelKey("Order No.");
-            lblOrderNo.AutoSize = true; lblOrderNo.Dock = DockStyle.None;
-            lblOrderNo.Location = new Point(0, 14);
-
+            // 2. Order No. (optional)
             var txtOrderNo = new TextBox
             {
                 Font            = new Font("Segoe UI", 12f),
                 BorderStyle     = BorderStyle.FixedSingle,
-                Location        = new Point(180, 10),
-                Size            = new Size(300, 32),
-                PlaceholderText = "e.g. ORD-0001  (optional)"
+                PlaceholderText = "e.g. ORD-20260311-0048  (optional)"
             };
 
-            var lblStaff = MakeLabelKey("Handled By *");
-            lblStaff.AutoSize = true; lblStaff.Dock = DockStyle.None;
-            lblStaff.Location = new Point(530, 14);
-
+            // 3. Handled By staff (required)
             var cboStaff = new ComboBox
             {
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 Font          = new Font("Segoe UI", 12f),
-                Location      = new Point(700, 10),
-                Size          = new Size(300, 32),
                 DisplayMember = "Display"
             };
             try
             {
-                var staffList = _ctrl.GetStaffList();
-                foreach (var s in staffList)
+                foreach (var s in _ctrl.GetStaffList())
                     cboStaff.Items.Add(new StaffItem { StaffID = s.StaffID, StaffName = s.StaffName });
             }
             catch
@@ -302,70 +360,99 @@ namespace PremiumLivingOPS.Views.AfterService
             }
             if (cboStaff.Items.Count > 0) cboStaff.SelectedIndex = 0;
 
-            var lblStatus = MakeLabelKey("Status *");
-            lblStatus.AutoSize = true; lblStatus.Dock = DockStyle.None;
-            lblStatus.Location = new Point(0, 74);
-
-            var cboNewStatus = new ComboBox
+            // 4. Status (required ENUM)
+            var cboStatus = new ComboBox
             {
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                Font          = new Font("Segoe UI", 12f),
-                Location      = new Point(180, 70),
-                Size          = new Size(220, 32)
+                Font          = new Font("Segoe UI", 12f)
             };
-            cboNewStatus.Items.AddRange(new object[] { "Pending", "Processing", "Escalated", "Completed" });
-            cboNewStatus.SelectedIndex = 0;
+            cboStatus.Items.AddRange(new object[] { "Pending", "Processing", "Escalated", "Completed" });
+            cboStatus.SelectedIndex = 0;
 
-            var lblDesc = MakeLabelKey("Description *");
-            lblDesc.AutoSize = true; lblDesc.Dock = DockStyle.None;
-            lblDesc.Location = new Point(0, 138);
-
+            // 5. Description (required)
             var txtDesc = new TextBox
             {
                 Font            = new Font("Segoe UI", 12f),
                 BorderStyle     = BorderStyle.FixedSingle,
                 Multiline       = false,
-                Location        = new Point(180, 134),
-                Size            = new Size(820, 32),
                 PlaceholderText = "Describe the complaint in detail"
             };
 
-            pnlInputBody.Controls.Add(lblOrderNo);
-            pnlInputBody.Controls.Add(txtOrderNo);
-            pnlInputBody.Controls.Add(lblStaff);
-            pnlInputBody.Controls.Add(cboStaff);
-            pnlInputBody.Controls.Add(lblStatus);
-            pnlInputBody.Controls.Add(cboNewStatus);
-            pnlInputBody.Controls.Add(lblDesc);
-            pnlInputBody.Controls.Add(txtDesc);
-
-            var pnlFooter = new Panel
+            // ── Build rows (one field per row) ──────────────────────────────────────
+            var rows = new Panel[]
             {
-                Dock      = DockStyle.Bottom,
-                Height    = 80,
-                BackColor = Color.White,
-                Padding   = new Padding(0, 12, 28, 12)
+                MakeRow("Complaint ID  (auto)", txtComplaintId),
+                MakeRow("Order No.",            txtOrderNo),
+                MakeRow("Handled By *",         cboStaff),
+                MakeRow("Status *",             cboStatus),
+                MakeRow("Description *",        txtDesc, lastRow: true)
             };
-            pnlFooter.Paint += (o, ev) =>
+
+            // ── White card wrapping the rows ────────────────────────────────────────
+            int cardHeight = rows.Length * DLG_RowH;
+            var cardOuter = new Panel
+            {
+                Dock      = DockStyle.Top,
+                Height    = cardHeight + 32,
+                BackColor = Color.Transparent,
+                Padding   = new Padding(20, 16, 20, 16)
+            };
+            var cardInner = new Panel
+            {
+                Dock      = DockStyle.Fill,
+                BackColor = Color.White,
+                Padding   = new Padding(0)
+            };
+            cardInner.Paint += (s2, pe) =>
             {
                 using var pen = new System.Drawing.Pen(Color.FromArgb(221, 227, 236), 1);
-                ev.Graphics.DrawLine(pen, 0, 0, ((Panel)o).Width, 0);
+                pe.Graphics.DrawRectangle(pen, 0, 0, ((Panel)s2).Width - 1, ((Panel)s2).Height - 1);
             };
 
-            var btnConfirm = new Button
+            int y2 = 0;
+            foreach (var r in rows)
+            {
+                r.Location = new Point(0, y2);
+                r.Anchor   = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+                r.Width    = 1200; // will be resized by Resize event
+                cardInner.Controls.Add(r);
+                y2 += DLG_RowH;
+            }
+            cardInner.Resize += (s2, _) =>
+            {
+                var p = (Panel)s2;
+                foreach (Control r in p.Controls) r.Width = p.Width;
+            };
+            cardOuter.Controls.Add(cardInner);
+
+            // ── Footer ──────────────────────────────────────────────────────────────
+            var pnlFoot = new Panel
+            {
+                Dock      = DockStyle.Bottom,
+                Height    = 96,
+                BackColor = Color.White,
+                Padding   = new Padding(0, 18, 28, 18)
+            };
+            pnlFoot.Paint += (s2, pe) =>
+            {
+                using var pen = new System.Drawing.Pen(Color.FromArgb(221, 227, 236), 1);
+                pe.Graphics.DrawLine(pen, 0, 0, ((Panel)s2).Width, 0);
+            };
+
+            var btnCreate = new Button
             {
                 Text      = "\u2714  Create Complaint",
                 Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
                 ForeColor = Color.White,
                 BackColor = Color.FromArgb(5, 150, 105),
                 FlatStyle = FlatStyle.Flat,
-                Dock      = DockStyle.Right,
-                Width     = 240,
-                Cursor    = Cursors.Hand
+                Width     = DLG_BtnW,
+                Height    = DLG_BtnH,
+                Cursor    = Cursors.Hand,
+                Margin    = new Padding(0, 0, 10, 0)
             };
-            btnConfirm.FlatAppearance.BorderSize         = 0;
-            btnConfirm.FlatAppearance.MouseOverBackColor = Color.FromArgb(4, 120, 87);
-            btnConfirm.Margin = new Padding(0, 0, 8, 0);
+            btnCreate.FlatAppearance.BorderSize         = 0;
+            btnCreate.FlatAppearance.MouseOverBackColor = Color.FromArgb(4, 120, 87);
 
             var btnCancel = new Button
             {
@@ -374,8 +461,8 @@ namespace PremiumLivingOPS.Views.AfterService
                 ForeColor = Color.FromArgb(15, 31, 53),
                 BackColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Dock      = DockStyle.Right,
-                Width     = 140,
+                Width     = DLG_BtnW,
+                Height    = DLG_BtnH,
                 Cursor    = Cursors.Hand
             };
             btnCancel.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
@@ -384,7 +471,7 @@ namespace PremiumLivingOPS.Views.AfterService
 
             bool confirmed = false;
 
-            btnConfirm.Click += (o, ev) =>
+            btnCreate.Click += (s2, ev) =>
             {
                 if (string.IsNullOrWhiteSpace(txtDesc.Text))
                 {
@@ -401,19 +488,27 @@ namespace PremiumLivingOPS.Views.AfterService
                 confirmed = true;
                 dlg.Close();
             };
+            btnCancel.Click += (s2, ev) => dlg.Close();
 
-            btnCancel.Click += (o, ev) => dlg.Close();
+            var footFlow = new FlowLayoutPanel
+            {
+                Dock          = DockStyle.Right,
+                AutoSize      = true,
+                FlowDirection = FlowDirection.LeftToRight,
+                BackColor     = Color.Transparent
+            };
+            footFlow.Controls.Add(btnCreate);
+            footFlow.Controls.Add(btnCancel);
+            pnlFoot.Controls.Add(footFlow);
 
-            pnlFooter.Controls.Add(btnConfirm);
-            pnlFooter.Controls.Add(btnCancel);
-
+            // ── Assemble dialog ─────────────────────────────────────────────────────
             var pnlFill = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(240, 244, 249) };
 
             dlg.Controls.Add(pnlFill);
-            dlg.Controls.Add(pnlInputBody);
-            dlg.Controls.Add(pnlInputTitle);
+            dlg.Controls.Add(cardOuter);
+            dlg.Controls.Add(pnlSectionTitle);
             dlg.Controls.Add(pnlHeader);
-            dlg.Controls.Add(pnlFooter);
+            dlg.Controls.Add(pnlFoot);
 
             dlg.ShowDialog(this);
 
@@ -422,19 +517,18 @@ namespace PremiumLivingOPS.Views.AfterService
             try
             {
                 var selectedStaff = cboStaff.SelectedItem as StaffItem;
-
                 var entity = new ComplaintEntity
                 {
+                    ComplaintID          = txtComplaintId.Text.Trim(),
                     OrderID              = string.IsNullOrWhiteSpace(txtOrderNo.Text)
                                               ? null
                                               : txtOrderNo.Text.Trim(),
                     StaffID              = selectedStaff?.StaffID ?? string.Empty,
-                    ComplaintStatus      = cboNewStatus.SelectedItem?.ToString() ?? "Pending",
+                    ComplaintStatus      = cboStatus.SelectedItem?.ToString() ?? "Pending",
                     ComplaintDescription = txtDesc.Text.Trim()
                 };
 
                 bool ok = _ctrl.CreateComplaint(entity);
-
                 if (ok)
                 {
                     MessageBox.Show("Complaint created successfully.",
@@ -452,6 +546,58 @@ namespace PremiumLivingOPS.Views.AfterService
                 MessageBox.Show($"Failed to create complaint:\n{ex.Message}",
                     "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+        /// <summary>
+        /// Generates a preview ComplaintID using the same format as the repo
+        /// (CMP-YYYYMMDD-NNNN) without touching the database insert.
+        /// </summary>
+        private string GeneratePreviewComplaintId()
+        {
+            try
+            {
+                // Delegate to controller which calls repo's GenerateComplaintId
+                // We create a dummy entity so the controller returns an ID.
+                // But CreateComplaint would insert — use a workaround:
+                // Reconstruct the same logic here (date + sequence placeholder).
+                string prefix = "CMP-" + DateTime.Today.ToString("yyyyMMdd") + "-";
+                // Ask the controller to generate the ID (repo reads MAX sequence)
+                // We expose it via a lightweight wrapper call:
+                return ComplaintIdPreview(prefix);
+            }
+            catch
+            {
+                return "CMP-" + DateTime.Today.ToString("yyyyMMdd") + "-XXXX";
+            }
+        }
+
+        private string ComplaintIdPreview(string prefix)
+        {
+            // Mirror of AfterServiceRepo.GenerateComplaintId logic:
+            // Read existing IDs from DB and find next sequence.
+            var existing = new List<string>();
+            try
+            {
+                var connStr = PremiumLivingOPS.Models.DAL.DBHelper.ConnectionString;
+                using var conn = new MySql.Data.MySqlClient.MySqlConnection(connStr);
+                conn.Open();
+                using var cmd = new MySql.Data.MySqlClient.MySqlCommand(
+                    "SELECT ComplaintID FROM Complaint WHERE ComplaintID LIKE @p", conn);
+                cmd.Parameters.AddWithValue("@p", prefix + "%");
+                using var rdr = cmd.ExecuteReader();
+                while (rdr.Read()) existing.Add(rdr.GetString(0));
+            }
+            catch { }
+
+            int next = 1;
+            foreach (var id in existing)
+            {
+                if (id.Length >= prefix.Length + 4 &&
+                    int.TryParse(id.Substring(prefix.Length, 4), out int seq) &&
+                    seq >= next)
+                    next = seq + 1;
+            }
+            return $"{prefix}{next:D4}";
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -617,14 +763,14 @@ namespace PremiumLivingOPS.Views.AfterService
             };
             btnConfirm.FlatAppearance.BorderSize = 0;
 
-            var btnCancel = new Button
+            var btnCancelUpd = new Button
             {
                 Text = "Cancel", Font = new Font("Segoe UI", 13f),
                 BackColor = Color.White, ForeColor = Color.FromArgb(15, 31, 53),
                 FlatStyle = FlatStyle.Flat, Width = D_BtnW, Height = D_BtnH, Cursor = Cursors.Hand
             };
-            btnCancel.FlatAppearance.BorderColor = Color.FromArgb(200, 207, 220);
-            btnCancel.FlatAppearance.BorderSize  = 1;
+            btnCancelUpd.FlatAppearance.BorderColor = Color.FromArgb(200, 207, 220);
+            btnCancelUpd.FlatAppearance.BorderSize  = 1;
 
             btnConfirm.Click += (s2, ev) =>
             {
@@ -633,7 +779,7 @@ namespace PremiumLivingOPS.Views.AfterService
                 if (ok) { dlg.DialogResult = DialogResult.OK; dlg.Close(); }
                 else MessageBox.Show("Update failed.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             };
-            btnCancel.Click += (s2, ev) => dlg.Close();
+            btnCancelUpd.Click += (s2, ev) => dlg.Close();
 
             var footFlow = new FlowLayoutPanel
             {
@@ -641,7 +787,7 @@ namespace PremiumLivingOPS.Views.AfterService
                 FlowDirection = FlowDirection.LeftToRight, BackColor = Color.Transparent
             };
             footFlow.Controls.Add(btnConfirm);
-            footFlow.Controls.Add(btnCancel);
+            footFlow.Controls.Add(btnCancelUpd);
             pnlFoot.Controls.Add(footFlow);
 
             var scroll = new Panel
