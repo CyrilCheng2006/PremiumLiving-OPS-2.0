@@ -1,16 +1,16 @@
 using PremiumLivingOPS.Models.Entities;
-using PremiumLivingOPS.Views.Shared;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
-using System.Linq;
+using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 
 namespace PremiumLivingOPS.Views.AfterService
 {
     /// <summary>
-    /// Popup picker for selecting an Order ID in Create Return Order.
-    /// Uses CardPanel.Create() / CardPanel.CreateFill() — CardPanel is a static class.
+    /// Popup order picker — rendered to match ComplaintListForm.ShowOrderPicker baseline.
+    /// Structure: dark header (19,35,61) → white search bar (bottom-bordered)
+    ///            → fill ListBox → white footer with Select / Clear (Optional) / Cancel.
     /// </summary>
     public class OrderPickerForm : Form
     {
@@ -19,169 +19,212 @@ namespace PremiumLivingOPS.Views.AfterService
         public double SelectedGrandTotal { get; private set; }
 
         private readonly List<OrderEntity> _allOrders;
-
-        private TextBox      txtSearch;
-        private DataGridView dgv;
-        private Button       btnSelect;
-        private Button       btnCancel;
+        private ListBox  _lst;
+        private TextBox  _txtSearch;
 
         public OrderPickerForm(List<OrderEntity> orders)
         {
             _allOrders = orders ?? new List<OrderEntity>();
             InitUI();
-            PopulateGrid(_allOrders);
+            Populate(string.Empty);
         }
 
         private void InitUI()
         {
-            Text            = "Select Order";
-            Size            = new Size(860, 520);
-            MinimumSize     = new Size(700, 420);
+            Text            = "Select Order ID";
+            Size            = new Size(700, 560);
+            MinimumSize     = new Size(500, 400);
             StartPosition   = FormStartPosition.CenterParent;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox     = false;
             MinimizeBox     = false;
             BackColor       = Color.FromArgb(240, 244, 249);
-            Font            = new Font("Segoe UI", 9.5f);
+            Font            = new Font("Segoe UI", 12f);
 
-            // ── outer layout panel (fills the form) ──────────────────────────
-            var layout = new Panel { Dock = DockStyle.Fill, Padding = new Padding(0) };
-            Controls.Add(layout);
-
-            // ── search bar card ──────────────────────────────────────────────
-            var (searchOuter, searchInner) = CardPanel.Create(outerHeight: 70,
-                outerPadding: new Padding(12, 8, 12, 4));
-            searchOuter.Dock = DockStyle.Top;
-            layout.Controls.Add(searchOuter);
-
-            var lblTitle = new Label
+            // ── Header (dark navy, matches ComplaintListForm) ─────────────
+            var hdr = new Panel { Dock = DockStyle.Top, Height = 60, BackColor = Color.FromArgb(19, 35, 61) };
+            hdr.Controls.Add(new Label
             {
-                Text      = "Select Order ID",
-                Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(30, 30, 30),
-                AutoSize  = true,
-                Location  = new Point(10, 8)
-            };
-            searchInner.Controls.Add(lblTitle);
-
-            var lblSearch = new Label
-            {
-                Text      = "Search:",
-                AutoSize  = true,
-                Location  = new Point(10, 38),
-                ForeColor = Color.FromArgb(80, 80, 80)
-            };
-            searchInner.Controls.Add(lblSearch);
-
-            txtSearch = new TextBox
-            {
-                Location        = new Point(66, 35),
-                Size            = new Size(320, 26),
-                PlaceholderText = "Order ID, Customer name..."
-            };
-            txtSearch.TextChanged += (s, e) => FilterGrid(txtSearch.Text.Trim());
-            searchInner.Controls.Add(txtSearch);
-
-            // ── button panel ─────────────────────────────────────────────────
-            var (btnOuter, btnInner) = CardPanel.Create(outerHeight: 56,
-                outerPadding: new Padding(12, 6, 12, 6));
-            btnOuter.Dock = DockStyle.Bottom;
-            layout.Controls.Add(btnOuter);
-
-            btnSelect = new Button
-            {
-                Text      = "Select",
-                Size      = new Size(90, 34),
-                Anchor    = AnchorStyles.Right | AnchorStyles.Top,
-                BackColor = Color.FromArgb(37, 99, 235),
+                Text      = "\uD83D\uDD0D  Select Order ID",
+                Font      = new Font("Segoe UI", 15f, FontStyle.Bold),
                 ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font      = new Font("Segoe UI", 9.5f, FontStyle.Bold)
-            };
-            btnSelect.FlatAppearance.BorderSize = 0;
-            btnSelect.Click += (s, e) => ConfirmSelection();
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Padding   = new Padding(20, 0, 0, 0)
+            });
 
-            btnCancel = new Button
+            // ── Search bar (white, bottom border) ────────────────────────
+            var pnlSearch = new Panel
             {
-                Text      = "Cancel",
-                Size      = new Size(90, 34),
-                Anchor    = AnchorStyles.Right | AnchorStyles.Top,
-                FlatStyle = FlatStyle.Flat,
-                Font      = new Font("Segoe UI", 9.5f)
+                Dock      = DockStyle.Top,
+                Height    = 56,
+                BackColor = Color.White,
+                Padding   = new Padding(16, 10, 16, 10)
             };
-            btnCancel.Click += (s, e) => { DialogResult = DialogResult.Cancel; Close(); };
+            PaintBottomBorder(pnlSearch);
+            _txtSearch = new TextBox
+            {
+                Dock            = DockStyle.Fill,
+                Font            = new Font("Segoe UI", 12f),
+                BorderStyle     = BorderStyle.FixedSingle,
+                PlaceholderText = "Type to search Order ID or Customer..."
+            };
+            _txtSearch.TextChanged += (_, __) => Populate(_txtSearch.Text.Trim());
+            pnlSearch.Controls.Add(_txtSearch);
 
-            var btnFlow = new FlowLayoutPanel
+            // ── ListBox (fill) ───────────────────────────────────────────
+            _lst = new ListBox
             {
                 Dock          = DockStyle.Fill,
-                FlowDirection = FlowDirection.RightToLeft,
-                WrapContents  = false,
-                Padding       = new Padding(0)
+                Font          = new Font("Segoe UI", 12f),
+                BorderStyle   = BorderStyle.None,
+                ItemHeight    = 36,
+                BackColor     = Color.White,
+                SelectionMode = SelectionMode.One
             };
-            btnFlow.Controls.Add(btnCancel);
-            btnFlow.Controls.Add(btnSelect);
-            btnInner.Controls.Add(btnFlow);
+            _lst.DoubleClick += (_, __) => Confirm();
 
-            // ── grid card (fills remaining space) ────────────────────────────
-            var (gridOuter, gridInner) = CardPanel.CreateFill(
-                outerPadding: new Padding(12, 4, 12, 4));
-            layout.Controls.Add(gridOuter);
-
-            dgv = new DataGridView
+            // ── Footer (white, top border) ───────────────────────────────
+            var foot = new Panel
             {
-                Dock                = DockStyle.Fill,
-                ReadOnly            = true,
-                AllowUserToAddRows  = false,
-                SelectionMode       = DataGridViewSelectionMode.FullRowSelect,
-                MultiSelect         = false,
-                ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize,
-                BackgroundColor     = Color.White,
-                BorderStyle         = BorderStyle.None,
-                RowHeadersVisible   = false,
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
+                Dock      = DockStyle.Bottom,
+                Height    = 72,
+                BackColor = Color.White,
+                Padding   = new Padding(0, 12, 20, 12)
             };
-            dgv.DoubleClick += (s, e) => ConfirmSelection();
-            gridInner.Controls.Add(dgv);
+            foot.Paint += (s, pe) =>
+            {
+                using var pen = new System.Drawing.Pen(Color.FromArgb(221, 227, 236), 1);
+                pe.Graphics.DrawLine(pen, 0, 0, ((Panel)s).Width, 0);
+            };
 
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "OrderID",      HeaderText = "Order ID",    FillWeight = 20 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "CustomerName", HeaderText = "Customer",    FillWeight = 30 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "IssuedTime",   HeaderText = "Issued Date", FillWeight = 20 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "OrderStatus",  HeaderText = "Status",      FillWeight = 14 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "GrandTotal",   HeaderText = "Grand Total", FillWeight = 16 });
+            var btnSelect = new Button
+            {
+                Text      = "\u2714  Select",
+                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                BackColor = Color.FromArgb(47, 111, 237),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Width     = 160,
+                Height    = 48,
+                Cursor    = Cursors.Hand,
+                Margin    = new Padding(0, 0, 10, 0)
+            };
+            btnSelect.FlatAppearance.BorderSize = 0;
+            btnSelect.FlatAppearance.MouseOverBackColor = Color.FromArgb(29, 78, 216);
+
+            var btnClear = new Button
+            {
+                Text      = "Clear (Optional)",
+                Font      = new Font("Segoe UI", 12f),
+                BackColor = Color.White,
+                ForeColor = Color.FromArgb(15, 31, 53),
+                FlatStyle = FlatStyle.Flat,
+                Width     = 180,
+                Height    = 48,
+                Cursor    = Cursors.Hand,
+                Margin    = new Padding(0, 0, 10, 0)
+            };
+            btnClear.FlatAppearance.BorderColor = Color.FromArgb(221, 227, 236);
+            btnClear.FlatAppearance.BorderSize  = 1;
+            btnClear.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
+
+            var btnCancel = new Button
+            {
+                Text      = "Cancel",
+                Font      = new Font("Segoe UI", 12f),
+                BackColor = Color.White,
+                ForeColor = Color.FromArgb(15, 31, 53),
+                FlatStyle = FlatStyle.Flat,
+                Width     = 120,
+                Height    = 48,
+                Cursor    = Cursors.Hand
+            };
+            btnCancel.FlatAppearance.BorderColor = Color.FromArgb(221, 227, 236);
+            btnCancel.FlatAppearance.BorderSize  = 1;
+            btnCancel.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
+
+            btnSelect.Click += (_, __) =>
+            {
+                if (_lst.SelectedItem != null) Confirm();
+                else MessageBox.Show("Please select an Order ID.", "Validation",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            };
+            btnClear.Click  += (_, __) =>
+            {
+                SelectedOrderID    = string.Empty;
+                SelectedCustomer   = string.Empty;
+                SelectedGrandTotal = 0;
+                DialogResult = DialogResult.OK;
+            };
+            btnCancel.Click += (_, __) => Close();
+
+            var footFlow = new FlowLayoutPanel
+            {
+                Dock          = DockStyle.Right,
+                AutoSize      = true,
+                FlowDirection = FlowDirection.LeftToRight,
+                BackColor     = Color.Transparent
+            };
+            footFlow.Controls.Add(btnSelect);
+            footFlow.Controls.Add(btnClear);
+            footFlow.Controls.Add(btnCancel);
+            foot.Controls.Add(footFlow);
+
+            // ── Body ─────────────────────────────────────────────────────
+            var body = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
+            body.Controls.Add(_lst);
+
+            Controls.Add(body);
+            Controls.Add(foot);
+            Controls.Add(pnlSearch);
+            Controls.Add(hdr);
         }
 
-        private void PopulateGrid(IEnumerable<OrderEntity> source)
+        private void Populate(string kw)
         {
-            dgv.Rows.Clear();
-            foreach (var o in source)
-                dgv.Rows.Add(o.OrderID, o.CustomerName,
-                             o.IssuedTime.ToString("yyyy-MM-dd"),
-                             o.OrderStatus, o.GrandTotal.ToString("N2"));
+            _lst.BeginUpdate();
+            _lst.Items.Clear();
+            foreach (var o in _allOrders)
+            {
+                string display = $"{o.OrderID}  |  {o.CustomerName}  |  {o.OrderStatus}  |  HK${o.GrandTotal:N2}";
+                bool match = string.IsNullOrEmpty(kw)
+                    || o.OrderID.IndexOf(kw,      StringComparison.OrdinalIgnoreCase) >= 0
+                    || o.CustomerName.IndexOf(kw, StringComparison.OrdinalIgnoreCase) >= 0
+                    || o.OrderStatus.IndexOf(kw,  StringComparison.OrdinalIgnoreCase) >= 0;
+                if (match) _lst.Items.Add(new OrderListItem { OrderID = o.OrderID, Customer = o.CustomerName, GrandTotal = o.GrandTotal, Display = display });
+            }
+            _lst.EndUpdate();
         }
 
-        private void FilterGrid(string keyword)
+        private void Confirm()
         {
-            if (string.IsNullOrEmpty(keyword)) { PopulateGrid(_allOrders); return; }
-            var filtered = _allOrders.Where(o =>
-                o.OrderID.IndexOf(keyword,      StringComparison.OrdinalIgnoreCase) >= 0 ||
-                o.CustomerName.IndexOf(keyword, StringComparison.OrdinalIgnoreCase) >= 0 ||
-                o.OrderStatus.IndexOf(keyword,  StringComparison.OrdinalIgnoreCase) >= 0);
-            PopulateGrid(filtered);
+            if (_lst.SelectedItem is OrderListItem item)
+            {
+                SelectedOrderID    = item.OrderID;
+                SelectedCustomer   = item.Customer;
+                SelectedGrandTotal = item.GrandTotal;
+                DialogResult = DialogResult.OK;
+            }
         }
 
-        private void ConfirmSelection()
+        private static void PaintBottomBorder(Panel p)
         {
-            if (dgv.CurrentRow == null) return;
-            SelectedOrderID  = dgv.CurrentRow.Cells["OrderID"].Value?.ToString();
-            SelectedCustomer = dgv.CurrentRow.Cells["CustomerName"].Value?.ToString();
-            if (double.TryParse(
-                    dgv.CurrentRow.Cells["GrandTotal"].Value?.ToString(),
-                    System.Globalization.NumberStyles.Any,
-                    System.Globalization.CultureInfo.InvariantCulture,
-                    out double gt))
-                SelectedGrandTotal = gt;
-            DialogResult = DialogResult.OK;
-            Close();
+            p.Paint += (s, e) =>
+            {
+                using var pen = new System.Drawing.Pen(Color.FromArgb(221, 227, 236), 1);
+                e.Graphics.DrawLine(pen, 0, ((Panel)s).Height - 1, ((Panel)s).Width, ((Panel)s).Height - 1);
+            };
+        }
+
+        // ── Inner helper for ListBox items ───────────────────────────────
+        private class OrderListItem
+        {
+            public string OrderID    { get; set; }
+            public string Customer   { get; set; }
+            public double GrandTotal { get; set; }
+            public string Display    { get; set; }
+            public override string ToString() => Display;
         }
     }
 }

@@ -1,15 +1,14 @@
-using PremiumLivingOPS.Views.Shared;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
-using System.Linq;
 using System.Windows.Forms;
 
 namespace PremiumLivingOPS.Views.AfterService
 {
     /// <summary>
-    /// Popup picker for selecting a Staff member (Handed By) in Create Return Order.
-    /// Uses CardPanel.Create() / CardPanel.CreateFill() — CardPanel is a static class.
+    /// Popup staff picker — rendered to match ComplaintListForm.ShowStaffPicker baseline.
+    /// Structure: dark header (19,35,61) → white search bar (bottom-bordered)
+    ///            → DataGridView [StaffID | StaffName] (fill) → white footer with Select / Cancel.
     /// </summary>
     public class StaffPickerForm : Form
     {
@@ -17,159 +16,189 @@ namespace PremiumLivingOPS.Views.AfterService
         public string SelectedStaffName { get; private set; }
 
         private readonly List<(string StaffID, string StaffName, string Department, string StaffRole)> _allStaff;
+        private DataGridView _grid;
+        private TextBox      _txtSearch;
 
-        private TextBox      txtSearch;
-        private DataGridView dgv;
-        private Button       btnSelect;
-        private Button       btnCancel;
-
-        public StaffPickerForm(
-            List<(string StaffID, string StaffName, string Department, string StaffRole)> staffList)
+        public StaffPickerForm(List<(string StaffID, string StaffName, string Department, string StaffRole)> staffList)
         {
             _allStaff = staffList ?? new List<(string, string, string, string)>();
+            // Sort by StaffID ascending (mirrors ComplaintListForm)
+            _allStaff.Sort((a, b) => string.Compare(a.StaffID, b.StaffID, StringComparison.Ordinal));
             InitUI();
-            PopulateGrid(_allStaff);
+            Populate(string.Empty);
         }
 
         private void InitUI()
         {
-            Text            = "Select Staff (Handed By)";
-            Size            = new Size(760, 480);
-            MinimumSize     = new Size(640, 400);
+            Text            = "Select Staff Member";
+            Size            = new Size(700, 560);
+            MinimumSize     = new Size(500, 400);
             StartPosition   = FormStartPosition.CenterParent;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox     = false;
             MinimizeBox     = false;
             BackColor       = Color.FromArgb(240, 244, 249);
-            Font            = new Font("Segoe UI", 9.5f);
+            Font            = new Font("Segoe UI", 12f);
 
-            var layout = new Panel { Dock = DockStyle.Fill };
-            Controls.Add(layout);
-
-            // ── search bar card ──────────────────────────────────────────────
-            var (searchOuter, searchInner) = CardPanel.Create(outerHeight: 70,
-                outerPadding: new Padding(12, 8, 12, 4));
-            searchOuter.Dock = DockStyle.Top;
-            layout.Controls.Add(searchOuter);
-
-            var lblTitle = new Label
+            // ── Header ───────────────────────────────────────────────────
+            var hdr = new Panel { Dock = DockStyle.Top, Height = 60, BackColor = Color.FromArgb(19, 35, 61) };
+            hdr.Controls.Add(new Label
             {
-                Text      = "Select Handed By (Staff)",
-                Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(30, 30, 30),
-                AutoSize  = true,
-                Location  = new Point(10, 8)
+                Text      = "\uD83D\uDD0D  Select Handled By (Staff)",
+                Font      = new Font("Segoe UI", 15f, FontStyle.Bold),
+                ForeColor = Color.White,
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Padding   = new Padding(20, 0, 0, 0)
+            });
+
+            // ── Search bar ───────────────────────────────────────────────
+            var pnlSearch = new Panel
+            {
+                Dock      = DockStyle.Top,
+                Height    = 56,
+                BackColor = Color.White,
+                Padding   = new Padding(16, 10, 16, 10)
             };
-            searchInner.Controls.Add(lblTitle);
-
-            var lblSearch = new Label
+            PaintBottomBorder(pnlSearch);
+            _txtSearch = new TextBox
             {
-                Text      = "Search:",
-                AutoSize  = true,
-                Location  = new Point(10, 38),
-                ForeColor = Color.FromArgb(80, 80, 80)
+                Dock            = DockStyle.Fill,
+                Font            = new Font("Segoe UI", 12f),
+                BorderStyle     = BorderStyle.FixedSingle,
+                PlaceholderText = "Type staff name or ID..."
             };
-            searchInner.Controls.Add(lblSearch);
+            _txtSearch.TextChanged += (_, __) => Populate(_txtSearch.Text.Trim());
+            pnlSearch.Controls.Add(_txtSearch);
 
-            txtSearch = new TextBox
+            // ── DataGridView (fill) — mirrors ComplaintListForm grid ─────
+            _grid = new DataGridView
             {
-                Location        = new Point(66, 35),
-                Size            = new Size(300, 26),
-                PlaceholderText = "Staff ID, Name, Department..."
+                Dock                  = DockStyle.Fill,
+                ReadOnly              = true,
+                AllowUserToAddRows    = false,
+                AllowUserToDeleteRows = false,
+                SelectionMode         = DataGridViewSelectionMode.FullRowSelect,
+                MultiSelect           = false,
+                AutoSizeColumnsMode   = DataGridViewAutoSizeColumnsMode.Fill,
+                BorderStyle           = BorderStyle.None,
+                BackgroundColor       = Color.White,
+                RowHeadersVisible     = false,
+                Font                  = new Font("Segoe UI", 12f),
+                RowTemplate           = { Height = 40 }
             };
-            txtSearch.TextChanged += (s, e) => FilterGrid(txtSearch.Text.Trim());
-            searchInner.Controls.Add(txtSearch);
+            _grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "colID",   HeaderText = "Staff ID",   FillWeight = 40 });
+            _grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "colName", HeaderText = "Staff Name", FillWeight = 60 });
 
-            // ── button panel ─────────────────────────────────────────────────
-            var (btnOuter, btnInner) = CardPanel.Create(outerHeight: 56,
-                outerPadding: new Padding(12, 6, 12, 6));
-            btnOuter.Dock = DockStyle.Bottom;
-            layout.Controls.Add(btnOuter);
+            // Header style (mirrors ComplaintListForm exactly)
+            _grid.ColumnHeadersDefaultCellStyle.Font      = new Font("Segoe UI", 11f, FontStyle.Bold);
+            _grid.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(241, 245, 255);
+            _grid.ColumnHeadersDefaultCellStyle.ForeColor = Color.FromArgb(47, 111, 237);
+            _grid.EnableHeadersVisualStyles = false;
 
-            btnSelect = new Button
+            _grid.CellDoubleClick += (_, __) => Confirm();
+
+            // ── Footer ───────────────────────────────────────────────────
+            var foot = new Panel
             {
-                Text      = "Select",
-                Size      = new Size(90, 34),
-                BackColor = Color.FromArgb(37, 99, 235),
+                Dock      = DockStyle.Bottom,
+                Height    = 72,
+                BackColor = Color.White,
+                Padding   = new Padding(0, 12, 20, 12)
+            };
+            foot.Paint += (s, pe) =>
+            {
+                using var pen = new System.Drawing.Pen(Color.FromArgb(221, 227, 236), 1);
+                pe.Graphics.DrawLine(pen, 0, 0, ((Panel)s).Width, 0);
+            };
+
+            var btnSelect = new Button
+            {
+                Text      = "\u2714  Select",
+                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                BackColor = Color.FromArgb(47, 111, 237),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font      = new Font("Segoe UI", 9.5f, FontStyle.Bold)
+                Width     = 160,
+                Height    = 48,
+                Cursor    = Cursors.Hand,
+                Margin    = new Padding(0, 0, 10, 0)
             };
-            btnSelect.FlatAppearance.BorderSize = 0;
-            btnSelect.Click += (s, e) => ConfirmSelection();
+            btnSelect.FlatAppearance.BorderSize            = 0;
+            btnSelect.FlatAppearance.MouseOverBackColor    = Color.FromArgb(29, 78, 216);
 
-            btnCancel = new Button
+            var btnCancel = new Button
             {
                 Text      = "Cancel",
-                Size      = new Size(90, 34),
+                Font      = new Font("Segoe UI", 12f),
+                BackColor = Color.White,
+                ForeColor = Color.FromArgb(15, 31, 53),
                 FlatStyle = FlatStyle.Flat,
-                Font      = new Font("Segoe UI", 9.5f)
+                Width     = 120,
+                Height    = 48,
+                Cursor    = Cursors.Hand
             };
-            btnCancel.Click += (s, e) => { DialogResult = DialogResult.Cancel; Close(); };
+            btnCancel.FlatAppearance.BorderColor       = Color.FromArgb(221, 227, 236);
+            btnCancel.FlatAppearance.BorderSize        = 1;
+            btnCancel.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
 
-            var btnFlow = new FlowLayoutPanel
+            btnSelect.Click += (_, __) =>
             {
-                Dock          = DockStyle.Fill,
-                FlowDirection = FlowDirection.RightToLeft,
-                WrapContents  = false
+                if (_grid.SelectedRows.Count > 0) Confirm();
+                else MessageBox.Show("Please select a staff member.", "Validation",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
             };
-            btnFlow.Controls.Add(btnCancel);
-            btnFlow.Controls.Add(btnSelect);
-            btnInner.Controls.Add(btnFlow);
+            btnCancel.Click += (_, __) => Close();
 
-            // ── grid card ────────────────────────────────────────────────────
-            var (gridOuter, gridInner) = CardPanel.CreateFill(
-                outerPadding: new Padding(12, 4, 12, 4));
-            layout.Controls.Add(gridOuter);
-
-            dgv = new DataGridView
+            var footFlow = new FlowLayoutPanel
             {
-                Dock                = DockStyle.Fill,
-                ReadOnly            = true,
-                AllowUserToAddRows  = false,
-                SelectionMode       = DataGridViewSelectionMode.FullRowSelect,
-                MultiSelect         = false,
-                ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize,
-                BackgroundColor     = Color.White,
-                BorderStyle         = BorderStyle.None,
-                RowHeadersVisible   = false,
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
+                Dock          = DockStyle.Right,
+                AutoSize      = true,
+                FlowDirection = FlowDirection.LeftToRight,
+                BackColor     = Color.Transparent
             };
-            dgv.DoubleClick += (s, e) => ConfirmSelection();
-            gridInner.Controls.Add(dgv);
+            footFlow.Controls.Add(btnSelect);
+            footFlow.Controls.Add(btnCancel);
+            foot.Controls.Add(footFlow);
 
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "StaffID",    HeaderText = "Staff ID",   FillWeight = 22 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "StaffName",  HeaderText = "Name",       FillWeight = 32 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "Department", HeaderText = "Department", FillWeight = 28 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "StaffRole",  HeaderText = "Role",       FillWeight = 18 });
+            // ── Body ─────────────────────────────────────────────────────
+            var body = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
+            body.Controls.Add(_grid);
+
+            Controls.Add(body);
+            Controls.Add(foot);
+            Controls.Add(pnlSearch);
+            Controls.Add(hdr);
         }
 
-        private void PopulateGrid(
-            IEnumerable<(string StaffID, string StaffName, string Department, string StaffRole)> source)
+        private void Populate(string kw)
         {
-            dgv.Rows.Clear();
-            foreach (var st in source)
-                dgv.Rows.Add(st.StaffID, st.StaffName, st.Department, st.StaffRole);
+            _grid.Rows.Clear();
+            foreach (var s in _allStaff)
+            {
+                bool match = string.IsNullOrEmpty(kw)
+                    || s.StaffID.IndexOf(kw,   StringComparison.OrdinalIgnoreCase) >= 0
+                    || s.StaffName.IndexOf(kw, StringComparison.OrdinalIgnoreCase) >= 0;
+                if (match) _grid.Rows.Add(s.StaffID, s.StaffName);
+            }
         }
 
-        private void FilterGrid(string keyword)
+        private void Confirm()
         {
-            if (string.IsNullOrEmpty(keyword)) { PopulateGrid(_allStaff); return; }
-            var filtered = _allStaff.Where(st =>
-                st.StaffID.IndexOf(keyword,    StringComparison.OrdinalIgnoreCase) >= 0 ||
-                st.StaffName.IndexOf(keyword,  StringComparison.OrdinalIgnoreCase) >= 0 ||
-                st.Department.IndexOf(keyword, StringComparison.OrdinalIgnoreCase) >= 0 ||
-                st.StaffRole.IndexOf(keyword,  StringComparison.OrdinalIgnoreCase) >= 0);
-            PopulateGrid(filtered);
-        }
-
-        private void ConfirmSelection()
-        {
-            if (dgv.CurrentRow == null) return;
-            SelectedStaffID   = dgv.CurrentRow.Cells["StaffID"].Value?.ToString();
-            SelectedStaffName = dgv.CurrentRow.Cells["StaffName"].Value?.ToString();
+            if (_grid.SelectedRows.Count == 0) return;
+            var row = _grid.SelectedRows[0];
+            SelectedStaffID   = row.Cells["colID"].Value?.ToString();
+            SelectedStaffName = row.Cells["colName"].Value?.ToString();
             DialogResult = DialogResult.OK;
-            Close();
+        }
+
+        private static void PaintBottomBorder(Panel p)
+        {
+            p.Paint += (s, e) =>
+            {
+                using var pen = new System.Drawing.Pen(Color.FromArgb(221, 227, 236), 1);
+                e.Graphics.DrawLine(pen, 0, ((Panel)s).Height - 1, ((Panel)s).Width, ((Panel)s).Height - 1);
+            };
         }
     }
 }
