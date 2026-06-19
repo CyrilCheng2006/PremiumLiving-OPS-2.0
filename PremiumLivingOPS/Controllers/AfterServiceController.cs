@@ -14,7 +14,7 @@ namespace PremiumLivingOPS.Controllers
     {
         private readonly AfterServiceRepo _repo = new AfterServiceRepo();
 
-        // ── Helper: current user ────────────────────────────────────────────────────────────────────────
+        // ── Helper: current user ──────────────────────────────────────────────
         private static UserBarViewModel CurrentUserBar()
         {
             var u = SessionManager.CurrentUser;
@@ -28,14 +28,10 @@ namespace PremiumLivingOPS.Controllers
         private static string[] CurrentMenus()
             => NavAccessPolicy.GetAllowedMenus(SessionManager.CurrentUser?.Department ?? "");
 
-        // ══════════════════════════════════════════════════════════════════
+        // ════════════════════════════════════════════════════════════════════
         //  Create Invoice
-        // ══════════════════════════════════════════════════════════════════
+        // ════════════════════════════════════════════════════════════════════
 
-        /// <summary>
-        /// Returns ViewModel for the Create Invoice page.
-        /// Orders list contains only orders that have no Invoice yet.
-        /// </summary>
         public CreateInvoiceViewModel GetCreateInvoiceVM()
         {
             return new CreateInvoiceViewModel
@@ -46,10 +42,6 @@ namespace PremiumLivingOPS.Controllers
             };
         }
 
-        /// <summary>
-        /// Generates the next Invoice ID in the format INV-YYYYMMDD-NNNN.
-        /// Queries the DB for the highest sequence number used today and increments it.
-        /// </summary>
         public string GenerateInvoiceId()
         {
             string prefix   = "INV-" + DateTime.Today.ToString("yyyyMMdd") + "-";
@@ -60,40 +52,25 @@ namespace PremiumLivingOPS.Controllers
                 if (id.Length >= prefix.Length + 4 &&
                     int.TryParse(id.Substring(prefix.Length, 4), out int seq) &&
                     seq >= next)
-                {
                     next = seq + 1;
-                }
             }
             return $"{prefix}{next:D4}";
         }
 
-        /// <summary>
-        /// Saves a new invoice. Auto-generates InvoiceID if blank.
-        /// Returns true on success.
-        /// </summary>
         public bool SaveInvoice(InvoiceEntity inv)
         {
             if (string.IsNullOrWhiteSpace(inv.InvoiceID))
                 inv.InvoiceID = GenerateInvoiceId();
-
-            // Derive RemainingBalance and PaymentStatus from the amounts
             inv.RemainingBalance = Math.Max(0, inv.TotalAmount - inv.PaidAmount);
             inv.PaymentStatus    = inv.RemainingBalance <= 0 ? "Full" : "Partial";
-
             return _repo.CreateInvoice(inv);
         }
 
-        // ══════════════════════════════════════════════════════════════════
+        // ════════════════════════════════════════════════════════════════════
         //  Complaint List
-        // ══════════════════════════════════════════════════════════════════
+        // ════════════════════════════════════════════════════════════════════
 
-        /// <summary>
-        /// Returns ViewModel for the Complaint List page.
-        /// Supports optional status filter and keyword search.
-        /// </summary>
-        public ComplaintListViewModel GetComplaintListVM(
-            string status  = null,
-            string keyword = null)
+        public ComplaintListViewModel GetComplaintListVM(string status = null, string keyword = null)
         {
             return new ComplaintListViewModel
             {
@@ -103,44 +80,26 @@ namespace PremiumLivingOPS.Controllers
             };
         }
 
-        /// <summary>Updates the status of a single complaint.</summary>
         public bool UpdateComplaintStatus(string complaintId, string newStatus)
             => _repo.UpdateComplaintStatus(complaintId, newStatus);
 
-        /// <summary>
-        /// Returns a flat list of (StaffID, StaffName) for all staff.
-        /// Used to populate the Handled By ComboBox in the Create Complaint dialog.
-        /// </summary>
         public List<(string StaffID, string StaffName)> GetStaffList()
             => _repo.GetStaffList();
 
-        /// <summary>
-        /// Creates a new complaint record.
-        /// Auto-generates ComplaintID; sets ComplaintStatus to 'Pending' if blank.
-        /// Returns true on success.
-        /// </summary>
         public bool CreateComplaint(ComplaintEntity c)
         {
             if (string.IsNullOrWhiteSpace(c.ComplaintID))
                 c.ComplaintID = _repo.GenerateComplaintId();
-
             if (string.IsNullOrWhiteSpace(c.ComplaintStatus))
                 c.ComplaintStatus = "Pending";
-
             return _repo.CreateComplaint(c);
         }
 
-        // ══════════════════════════════════════════════════════════════════
+        // ════════════════════════════════════════════════════════════════════
         //  Return Order List
-        // ══════════════════════════════════════════════════════════════════
+        // ════════════════════════════════════════════════════════════════════
 
-        /// <summary>
-        /// Returns ViewModel for the Return Order List page.
-        /// Supports optional status filter and keyword search.
-        /// </summary>
-        public ReturnOrderListViewModel GetReturnOrderListVM(
-            string status  = null,
-            string keyword = null)
+        public ReturnOrderListViewModel GetReturnOrderListVM(string status = null, string keyword = null)
         {
             return new ReturnOrderListViewModel
             {
@@ -150,22 +109,14 @@ namespace PremiumLivingOPS.Controllers
             };
         }
 
-        /// <summary>Updates the status of a single return order.</summary>
         public bool UpdateReturnOrderStatus(string returnId, string newStatus)
             => _repo.UpdateReturnOrderStatus(returnId, newStatus);
 
-        // ══════════════════════════════════════════════════════════════════
+        // ════════════════════════════════════════════════════════════════════
         //  Account Receivable
-        // ══════════════════════════════════════════════════════════════════
+        // ════════════════════════════════════════════════════════════════════
 
-        /// <summary>
-        /// Returns ViewModel for the Accounts Receivable page.
-        /// status: null = All | 'Partial' | 'Full' | 'Overdue'
-        /// keyword: searches InvoiceID, OrderID, CustomerName
-        /// </summary>
-        public AccountReceivableViewModel GetAccountReceivableVM(
-            string status  = null,
-            string keyword = null)
+        public AccountReceivableViewModel GetAccountReceivableVM(string status = null, string keyword = null)
         {
             return new AccountReceivableViewModel
             {
@@ -175,18 +126,11 @@ namespace PremiumLivingOPS.Controllers
             };
         }
 
-        // ══════════════════════════════════════════════════════════════════
+        // ════════════════════════════════════════════════════════════════════
         //  Account Payable
-        // ══════════════════════════════════════════════════════════════════
+        // ════════════════════════════════════════════════════════════════════
 
-        /// <summary>
-        /// Returns ViewModel for the Accounts Payable page.
-        /// status: null = All | 'Partial' | 'Full' | 'Overdue'
-        /// keyword: searches PurInvoiceID, PurchaseID, SupplierName
-        /// </summary>
-        public AccountPayableViewModel GetAccountPayableVM(
-            string status  = null,
-            string keyword = null)
+        public AccountPayableViewModel GetAccountPayableVM(string status = null, string keyword = null)
         {
             return new AccountPayableViewModel
             {
