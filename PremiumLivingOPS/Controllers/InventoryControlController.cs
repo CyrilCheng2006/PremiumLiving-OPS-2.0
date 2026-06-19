@@ -4,10 +4,6 @@ using System.Collections.Generic;
 
 namespace PremiumLivingOPS.Controllers
 {
-    /// <summary>
-    /// Controller (middle layer) for Inventory Control module.
-    /// The View never touches the Repo or DB directly.
-    /// </summary>
     public class InventoryControlController
     {
         private readonly InventoryControlRepo _repo = new InventoryControlRepo();
@@ -67,22 +63,11 @@ namespace PremiumLivingOPS.Controllers
                                         string category, double salesPrice)
             => _repo.UpdateProduct(itemId, itemName, itemDesc, category, salesPrice);
 
-        public void DeleteProduct(string itemId)
-            => _repo.DeleteProduct(itemId);
+        public void DeleteProduct(string itemId) => _repo.DeleteProduct(itemId);
 
-        /// <summary>
-        /// Returns the next auto-generated Product Item ID (IID-P-XXXX).
-        /// Collision-safe: loops until a free slot is found in the Item table.
-        /// </summary>
-        public string GenerateNextProductItemId()
-            => _repo.GenerateNextProductItemId();
-
-        /// <summary>
-        /// Returns true if the given ItemID already exists in the Item table.
-        /// Checked by the View before submitting to give an early, friendly error.
-        /// </summary>
-        public bool IsItemIdExists(string itemId)
-            => _repo.IsItemIdExists(itemId);
+        public string GenerateNextProductItemId()     => _repo.GenerateNextProductItemId();
+        public string GenerateNextRawMaterialItemId() => _repo.GenerateNextRawMaterialItemId();
+        public bool   IsItemIdExists(string itemId)   => _repo.IsItemIdExists(itemId);
 
         // ════════════════════════════════════════════════════════════════
         //  RAW MATERIAL — read
@@ -139,8 +124,7 @@ namespace PremiumLivingOPS.Controllers
                                             string materialType, double purchasePrice)
             => _repo.UpdateRawMaterial(itemId, itemName, itemDesc, materialType, purchasePrice);
 
-        public void DeleteRawMaterial(string itemId)
-            => _repo.DeleteRawMaterial(itemId);
+        public void DeleteRawMaterial(string itemId) => _repo.DeleteRawMaterial(itemId);
 
         // ════════════════════════════════════════════════════════════════
         //  INWARD GOODS
@@ -182,9 +166,7 @@ namespace PremiumLivingOPS.Controllers
                                             string toWarehouseId, int qty)
             => _repo.RecordWarehouseTransfer(transferId, fromWarehouseItemId, toWarehouseId, qty);
 
-        public List<WarehouseEntity> GetAllWarehouses() => _repo.GetAllWarehouses();
-
-        public List<WarehouseItemEntity> GetWarehouseItemsByItem(string itemId)
-            => _repo.GetWarehouseItemsByItemId(itemId);
+        public List<WarehouseEntity>     GetAllWarehouses()                     => _repo.GetAllWarehouses();
+        public List<WarehouseItemEntity> GetWarehouseItemsByItem(string itemId) => _repo.GetWarehouseItemsByItemId(itemId);
     }
 }

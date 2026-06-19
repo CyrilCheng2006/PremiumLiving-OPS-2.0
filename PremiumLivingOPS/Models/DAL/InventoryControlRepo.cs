@@ -90,7 +90,6 @@ namespace PremiumLivingOPS.Models.DAL
         //  PRODUCT — write
         // ════════════════════════════════════════════════════════════════
 
-        /// <summary>Insert Item + Product rows and an initial WarehouseItem row.</summary>
         public void AddProduct(string itemId, string itemName, string itemDesc,
                                string category, double salesPrice,
                                string warehouseId, int initialQty, int reorderLevel)
@@ -102,35 +101,27 @@ namespace PremiumLivingOPS.Models.DAL
                 {
                     try
                     {
-                        // ── Last-line-of-defence duplicate check (inside transaction) ──
                         using (var chk = new MySqlCommand(
                             "SELECT COUNT(*) FROM Item WHERE ItemID = @id", conn, tx))
                         {
                             chk.Parameters.AddWithValue("@id", itemId);
-                            int exists = Convert.ToInt32(chk.ExecuteScalar());
-                            if (exists > 0)
+                            if (Convert.ToInt32(chk.ExecuteScalar()) > 0)
                                 throw new Exception(
-                                    $"Item ID '{itemId}' already exists in the database. " +
-                                    "Please close this dialog and try again to get a new ID.");
+                                    $"Item ID '{itemId}' already exists. Close this dialog and try again.");
                         }
 
-                        // 1. Item
                         Run(conn, tx,
                             "INSERT INTO Item (ItemID,ItemName,ItemDescription) VALUES (@id,@name,@desc)",
                             ("@id", itemId), ("@name", itemName), ("@desc", (object)itemDesc ?? DBNull.Value));
-
-                        // 2. Product
                         Run(conn, tx,
                             "INSERT INTO Product (ItemID,SalesPrice,Category) VALUES (@id,@price,@cat)",
                             ("@id", itemId), ("@price", salesPrice), ("@cat", category));
 
-                        // 3. WarehouseItem
                         string wiId = GenerateWarehouseItemId(conn, tx);
                         Run(conn, tx,
                             "INSERT INTO WarehouseItem (WarehouseItemID,ItemID,WarehouseID,WarehouseItemQuantity,ReorderLevel) VALUES (@wid,@iid,@whid,@qty,@rl)",
                             ("@wid", wiId), ("@iid", itemId), ("@whid", warehouseId),
                             ("@qty", initialQty), ("@rl", reorderLevel));
-
                         tx.Commit();
                     }
                     catch { tx.Rollback(); throw; }
@@ -138,7 +129,6 @@ namespace PremiumLivingOPS.Models.DAL
             }
         }
 
-        /// <summary>Update Item + Product master data.</summary>
         public void UpdateProduct(string itemId, string itemName, string itemDesc,
                                   string category, double salesPrice)
         {
@@ -162,7 +152,6 @@ namespace PremiumLivingOPS.Models.DAL
             }
         }
 
-        /// <summary>Delete Product + Item (cascade: WarehouseItem rows deleted first).</summary>
         public void DeleteProduct(string itemId)
         {
             using (var conn = DatabaseHelper.GetConnection())
@@ -274,15 +263,13 @@ namespace PremiumLivingOPS.Models.DAL
                 {
                     try
                     {
-                        // Duplicate check for Raw Material too
                         using (var chk = new MySqlCommand(
                             "SELECT COUNT(*) FROM Item WHERE ItemID = @id", conn, tx))
                         {
                             chk.Parameters.AddWithValue("@id", itemId);
-                            int exists = Convert.ToInt32(chk.ExecuteScalar());
-                            if (exists > 0)
+                            if (Convert.ToInt32(chk.ExecuteScalar()) > 0)
                                 throw new Exception(
-                                    $"Item ID '{itemId}' already exists in the database.");
+                                    $"Item ID '{itemId}' already exists. Close this dialog and try again.");
                         }
 
                         Run(conn, tx,
@@ -291,6 +278,7 @@ namespace PremiumLivingOPS.Models.DAL
                         Run(conn, tx,
                             "INSERT INTO RawMaterial (ItemID,purchasePrice,MaterialType) VALUES (@id,@price,@type)",
                             ("@id", itemId), ("@price", purchasePrice), ("@type", materialType));
+
                         string wiId = GenerateWarehouseItemId(conn, tx);
                         Run(conn, tx,
                             "INSERT INTO WarehouseItem (WarehouseItemID,ItemID,WarehouseID,WarehouseItemQuantity,ReorderLevel) VALUES (@wid,@iid,@whid,@qty,@rl)",
@@ -372,7 +360,7 @@ namespace PremiumLivingOPS.Models.DAL
         }
 
         // ════════════════════════════════════════════════════════════════
-        //  WAREHOUSE ITEM — per-warehouse breakdown
+        //  WAREHOUSE ITEM
         // ════════════════════════════════════════════════════════════════
 
         public List<WarehouseItemEntity> GetWarehouseItemsByItemId(string itemId)
@@ -444,13 +432,10 @@ namespace PremiumLivingOPS.Models.DAL
                             var obj = cmd.ExecuteScalar();
                             if (obj != null) wiId = obj.ToString();
                         }
-
                         if (wiId != null)
-                        {
                             Run(conn, tx,
-                                "UPDATE WarehouseItem SET WarehouseItemQuantity = WarehouseItemQuantity + @qty WHERE WarehouseItemID=@wid",
+                                "UPDATE WarehouseItem SET WarehouseItemQuantity=WarehouseItemQuantity+@qty WHERE WarehouseItemID=@wid",
                                 ("@qty", qtyReceived), ("@wid", wiId));
-                        }
                         else
                         {
                             wiId = GenerateWarehouseItemId(conn, tx);
@@ -469,11 +454,8 @@ namespace PremiumLivingOPS.Models.DAL
         //  WAREHOUSE TRANSFER
         // ════════════════════════════════════════════════════════════════
 
-        public void RecordWarehouseTransfer(
-            string transferId,
-            string fromWarehouseItemId,
-            string toWarehouseId,
-            int    transferQty)
+        public void RecordWarehouseTransfer(string transferId, string fromWarehouseItemId,
+                                            string toWarehouseId, int transferQty)
         {
             using (var conn = DatabaseHelper.GetConnection())
             {
@@ -482,16 +464,13 @@ namespace PremiumLivingOPS.Models.DAL
                 {
                     try
                     {
-                        string fromItemId = null;
-                        int    fromQty    = 0;
+                        string fromItemId = null; int fromQty = 0;
                         using (var cmd = new MySqlCommand(
                             "SELECT ItemID, WarehouseItemQuantity FROM WarehouseItem WHERE WarehouseItemID=@id", conn, tx))
                         {
                             cmd.Parameters.AddWithValue("@id", fromWarehouseItemId);
                             using (var r = cmd.ExecuteReader())
-                            {
                                 if (r.Read()) { fromItemId = r.GetString(0); fromQty = r.GetInt32(1); }
-                            }
                         }
                         if (fromItemId == null) throw new Exception("Source warehouse item not found.");
                         if (fromQty < transferQty) throw new Exception($"Insufficient stock. Available: {fromQty}");
@@ -519,17 +498,14 @@ namespace PremiumLivingOPS.Models.DAL
                         Run(conn, tx,
                             "UPDATE WarehouseItem SET WarehouseItemQuantity=WarehouseItemQuantity+@qty WHERE WarehouseItemID=@id",
                             ("@qty", transferQty), ("@id", toWarehouseItemId));
-
                         Run(conn, tx,
                             "INSERT INTO TransferForm (TransferID,TransferDate,TransferStatus) VALUES (@tid,@date,'Completed')",
                             ("@tid", transferId), ("@date", DateTime.Today.ToString("yyyy-MM-dd")));
-
                         string lineId = "TL-" + transferId.Substring(3);
                         Run(conn, tx,
                             "INSERT INTO TransferForm_WarehouseItem (TransferLineID,TransferID,FromWarehouseItemID,ToWarehouseItemID,TransferQuantity) VALUES (@lid,@tid,@from,@to,@qty)",
                             ("@lid", lineId), ("@tid", transferId),
                             ("@from", fromWarehouseItemId), ("@to", toWarehouseItemId), ("@qty", transferQty));
-
                         tx.Commit();
                     }
                     catch { tx.Rollback(); throw; }
@@ -577,64 +553,71 @@ namespace PremiumLivingOPS.Models.DAL
             {
                 conn.Open();
                 using (var cmd = new MySqlCommand("SELECT COUNT(*) FROM TransferForm", conn))
-                {
-                    int count = Convert.ToInt32(cmd.ExecuteScalar());
-                    return $"TRF-{(count + 1):D4}";
-                }
+                    return $"TRF-{(Convert.ToInt32(cmd.ExecuteScalar()) + 1):D4}";
             }
         }
 
         /// <summary>
-        /// Returns the next Product Item ID (IID-P-XXXX) that does NOT yet exist
-        /// anywhere in the Item table.  Starts at MAX+1 and loops until a free
-        /// slot is found — collision-safe even when two dialogs open simultaneously.
+        /// Returns the next free Product Item ID (IID-P-XXXX).
+        /// Loops from MAX+1 until a candidate not present in Item table is found.
         /// </summary>
         public string GenerateNextProductItemId()
+            => GenerateNextItemId("IID-P-", "Product", 7);
+
+        /// <summary>
+        /// Returns the next free Raw Material Item ID (IID-R-XXXX).
+        /// Loops from MAX+1 until a candidate not present in Item table is found.
+        /// </summary>
+        public string GenerateNextRawMaterialItemId()
+            => GenerateNextItemId("IID-R-", "RawMaterial", 7);
+
+        /// <summary>
+        /// Generic ID generator shared by Product and RawMaterial.
+        /// prefix        e.g. "IID-P-" or "IID-R-"
+        /// sourceTable   table to query MAX suffix from ("Product" or "RawMaterial")
+        /// suffixStart   1-based position of the numeric part in the ID string
+        /// </summary>
+        private string GenerateNextItemId(string prefix, string sourceTable, int suffixStart)
         {
             using (var conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
 
-                // Step 1: find the current highest numeric suffix.
+                // Find highest existing numeric suffix for this prefix.
+                string maxSql =
+                    $@"SELECT COALESCE(
+                           MAX(CAST(SUBSTRING(ItemID, {suffixStart}) AS UNSIGNED)),
+                           0
+                       )
+                       FROM {sourceTable}
+                       WHERE ItemID LIKE '{prefix}%'
+                         AND LENGTH(ItemID) = {prefix.Length + 4}
+                         AND SUBSTRING(ItemID, {suffixStart}) REGEXP '^[0-9]{{4}}$'";
+
                 int maxSeq;
-                const string maxSql =
-                    @"SELECT COALESCE(
-                          MAX(CAST(SUBSTRING(ItemID, 7) AS UNSIGNED)),
-                          0
-                      )
-                      FROM Product
-                      WHERE ItemID LIKE 'IID-P-%'
-                        AND LENGTH(ItemID) = 11
-                        AND SUBSTRING(ItemID, 7) REGEXP '^[0-9]{4}$'";
                 using (var cmd = new MySqlCommand(maxSql, conn))
                     maxSeq = Convert.ToInt32(cmd.ExecuteScalar());
 
-                // Step 2: walk forward until we find a candidate that is free
-                // in the Item table (covers both Product and RawMaterial IDs).
+                // Walk forward until a candidate is free in the Item table.
                 int candidate = maxSeq + 1;
-                const int safetyLimit = 10000;
-                for (int i = 0; i < safetyLimit; i++)
+                for (int i = 0; i < 10000; i++)
                 {
-                    string candidateId = $"IID-P-{candidate:D4}";
+                    string candidateId = $"{prefix}{candidate:D4}";
                     using (var chk = new MySqlCommand(
                         "SELECT COUNT(*) FROM Item WHERE ItemID = @id", conn))
                     {
                         chk.Parameters.AddWithValue("@id", candidateId);
-                        int exists = Convert.ToInt32(chk.ExecuteScalar());
-                        if (exists == 0)
-                            return candidateId;  // found a free slot
+                        if (Convert.ToInt32(chk.ExecuteScalar()) == 0)
+                            return candidateId;
                     }
                     candidate++;
                 }
 
-                throw new Exception("Unable to generate a unique Product Item ID after many attempts.");
+                throw new Exception($"Unable to generate a unique Item ID with prefix '{prefix}'.");
             }
         }
 
-        /// <summary>
-        /// Returns true if the given ItemID already exists in the Item table.
-        /// Used by the View layer for early duplicate detection before submission.
-        /// </summary>
+        /// <summary>Returns true if ItemID already exists in the Item table.</summary>
         public bool IsItemIdExists(string itemId)
         {
             using (var conn = DatabaseHelper.GetConnection())
@@ -652,10 +635,7 @@ namespace PremiumLivingOPS.Models.DAL
         private static string GenerateWarehouseItemId(MySqlConnection conn, MySqlTransaction tx)
         {
             using (var cmd = new MySqlCommand("SELECT COUNT(*) FROM WarehouseItem", conn, tx))
-            {
-                int count = Convert.ToInt32(cmd.ExecuteScalar());
-                return $"WI-{(count + 1):D4}";
-            }
+                return $"WI-{(Convert.ToInt32(cmd.ExecuteScalar()) + 1):D4}";
         }
 
         // ════════════════════════════════════════════════════════════════
