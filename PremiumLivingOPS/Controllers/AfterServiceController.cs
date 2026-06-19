@@ -112,60 +112,7 @@ namespace PremiumLivingOPS.Controllers
         public bool UpdateReturnOrderStatus(string returnId, string newStatus)
             => _repo.UpdateReturnOrderStatus(returnId, newStatus);
 
-        // ── Return Order: Create ─────────────────────────────────────────────
-
-        /// <summary>
-        /// Returns existing ReturnIDs that start with the given prefix.
-        /// Used by CreateReturnOrderDialog to compute the next daily sequence number
-        /// in the format RTN-YYYYMMDD-XXXX.
-        /// </summary>
-        public List<string> GetReturnIdsByPrefix(string prefix)
-            => _repo.GetReturnIdsByPrefix(prefix);
-
-        /// <summary>
-        /// Generates the next ReturnID in the format RTN-YYYYMMDD-XXXX.
-        /// </summary>
-        public string GenerateReturnId()
-        {
-            string prefix   = "RTN-" + DateTime.Today.ToString("yyyyMMdd") + "-";
-            var    existing = GetReturnIdsByPrefix(prefix);
-            int    next     = 1;
-            foreach (var id in existing)
-            {
-                if (id.Length >= prefix.Length + 4 &&
-                    int.TryParse(id.Substring(prefix.Length, 4), out int seq) &&
-                    seq >= next)
-                    next = seq + 1;
-            }
-            return $"{prefix}{next:D4}";
-        }
-
-        /// <summary>
-        /// Returns orders eligible for return (Delivered / Completed / Partially Delivered),
-        /// with optional keyword filter on OrderID or CustomerName.
-        /// Used to populate the Order ID Picker in Create Return Order.
-        /// </summary>
-        public List<OrderEntity> GetOrdersForReturnPicker(string keyword = null)
-            => _repo.GetOrdersForReturnPicker(keyword);
-
-        /// <summary>
-        /// Returns staff list with Department and Role columns.
-        /// Used to populate the Staff Picker in Create Return Order.
-        /// </summary>
-        public List<(string StaffID, string StaffName, string Department, string StaffRole)> GetStaffListForPicker()
-            => _repo.GetStaffListForPicker();
-
-        /// <summary>
-        /// Saves a new ReturnOrder. Generates ReturnID automatically if not supplied.
-        /// </summary>
-        public bool CreateReturnOrder(ReturnOrderEntity r)
-        {
-            if (string.IsNullOrWhiteSpace(r.ReturnID))
-                r.ReturnID = GenerateReturnId();
-            if (string.IsNullOrWhiteSpace(r.ReturnStatus))
-                r.ReturnStatus = "Pending";
-            return _repo.CreateReturnOrder(r);
-        }
+        // NOTE: Create / Picker / GenerateId methods live in AfterServiceController.ReturnOrder.cs
 
         // ════════════════════════════════════════════════════════════════════
         //  Account Receivable
