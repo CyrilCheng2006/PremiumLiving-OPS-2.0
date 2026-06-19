@@ -1,6 +1,6 @@
 using PremiumLivingOPS.Controllers;
 using PremiumLivingOPS.Models.Entities;
-using PremiumLivingOPS.Shared;
+using PremiumLivingOPS.Views.Shared;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -14,31 +14,27 @@ namespace PremiumLivingOPS.Views.AfterService
     /// </summary>
     public class CreateReturnOrderDialog : Form
     {
-        // ── controller ───────────────────────────────────────────────────
         private readonly AfterServiceController _ctrl;
 
-        // ── cached picker data ────────────────────────────────────────────
         private List<OrderEntity> _orderList;
         private List<(string StaffID, string StaffName, string Department, string StaffRole)> _staffList;
 
-        // ── selected values from pickers ──────────────────────────────────
         private string _selectedOrderID;
         private string _selectedStaffID;
         private string _selectedStaffName;
 
-        // ── controls ─────────────────────────────────────────────────────
-        private TextBox   txtReturnID;
-        private TextBox   txtOrderID;
-        private Button    btnPickOrder;
-        private TextBox   txtCustomer;
-        private TextBox   txtHandedBy;
-        private Button    btnPickStaff;
-        private TextBox   txtReason;
-        private TextBox   txtRefundAmount;
+        private TextBox       txtReturnID;
+        private TextBox       txtOrderID;
+        private Button        btnPickOrder;
+        private TextBox       txtCustomer;
+        private TextBox       txtHandedBy;
+        private Button        btnPickStaff;
+        private TextBox       txtReason;
+        private TextBox       txtRefundAmount;
         private DateTimePicker dtpReturnDate;
-        private ComboBox  cmbStatus;
-        private Button    btnSave;
-        private Button    btnCancel;
+        private ComboBox      cmbStatus;
+        private Button        btnSave;
+        private Button        btnCancel;
 
         public CreateReturnOrderDialog(AfterServiceController ctrl)
         {
@@ -47,18 +43,12 @@ namespace PremiumLivingOPS.Views.AfterService
             InitUI();
         }
 
-        // ─────────────────────────────────────────────────────────────────
-        //  Load data for pickers
-        // ─────────────────────────────────────────────────────────────────
         private void LoadPickerData()
         {
             _orderList = _ctrl.GetOrdersForReturnPicker();
-            _staffList  = _ctrl.GetStaffListForPicker();
+            _staffList = _ctrl.GetStaffListForPicker();
         }
 
-        // ─────────────────────────────────────────────────────────────────
-        //  UI Construction
-        // ─────────────────────────────────────────────────────────────────
         private void InitUI()
         {
             Text            = "Create Return Order";
@@ -71,11 +61,9 @@ namespace PremiumLivingOPS.Views.AfterService
             BackColor       = Color.FromArgb(243, 244, 246);
             Font            = new Font("Segoe UI", 9.5f);
 
-            // ── outer card ───────────────────────────────────────────────
             var outerCard = new CardPanel { Dock = DockStyle.Fill, Padding = new Padding(20) };
             Controls.Add(outerCard);
 
-            // ── title ────────────────────────────────────────────────────
             var lblTitle = new Label
             {
                 Text      = "Create Return Order",
@@ -86,7 +74,6 @@ namespace PremiumLivingOPS.Views.AfterService
             };
             outerCard.Controls.Add(lblTitle);
 
-            // ── inner card (form fields) ──────────────────────────────────
             var innerCard = new CardPanel
             {
                 Location = new Point(20, 52),
@@ -95,26 +82,22 @@ namespace PremiumLivingOPS.Views.AfterService
             };
             outerCard.Controls.Add(innerCard);
 
-            int labelX   = 10;
-            int fieldX   = 170;
-            int fieldW   = 260;
-            int btnW     = 90;
-            int rowH     = 42;
-            int y        = 12;
+            const int labelX = 10;
+            const int fieldX = 170;
+            const int fieldW = 260;
+            const int btnW   = 90;
+            const int rowH   = 42;
+            int y = 12;
 
-            // helper: adds a label
-            Label MakeLabel(string text, int top)
+            Label MakeLabel(string text, int top) => new Label
             {
-                return new Label
-                {
-                    Text      = text,
-                    AutoSize  = true,
-                    Location  = new Point(labelX, top + 4),
-                    ForeColor = Color.FromArgb(60, 60, 60)
-                };
-            }
+                Text      = text,
+                AutoSize  = true,
+                Location  = new Point(labelX, top + 4),
+                ForeColor = Color.FromArgb(60, 60, 60)
+            };
 
-            // ── Return ID (auto) ─────────────────────────────────────────
+            // ── Return ID (auto-generated, read-only) ──
             innerCard.Controls.Add(MakeLabel("Return ID:", y));
             txtReturnID = new TextBox
             {
@@ -127,7 +110,7 @@ namespace PremiumLivingOPS.Views.AfterService
             innerCard.Controls.Add(txtReturnID);
             y += rowH;
 
-            // ── Order ID (picker) ─────────────────────────────────────────
+            // ── Order ID (picker) ──
             innerCard.Controls.Add(MakeLabel("Order ID: *", y));
             txtOrderID = new TextBox
             {
@@ -154,7 +137,7 @@ namespace PremiumLivingOPS.Views.AfterService
             innerCard.Controls.Add(btnPickOrder);
             y += rowH;
 
-            // ── Customer (read-only, auto-filled after order pick) ─────────
+            // ── Customer (auto-filled) ──
             innerCard.Controls.Add(MakeLabel("Customer:", y));
             txtCustomer = new TextBox
             {
@@ -166,7 +149,7 @@ namespace PremiumLivingOPS.Views.AfterService
             innerCard.Controls.Add(txtCustomer);
             y += rowH;
 
-            // ── Handed By (picker) ────────────────────────────────────────
+            // ── Handed By (picker) ──
             innerCard.Controls.Add(MakeLabel("Handed By: *", y));
             txtHandedBy = new TextBox
             {
@@ -193,7 +176,7 @@ namespace PremiumLivingOPS.Views.AfterService
             innerCard.Controls.Add(btnPickStaff);
             y += rowH;
 
-            // ── Return Date ───────────────────────────────────────────────
+            // ── Return Date ──
             innerCard.Controls.Add(MakeLabel("Return Date: *", y));
             dtpReturnDate = new DateTimePicker
             {
@@ -205,7 +188,7 @@ namespace PremiumLivingOPS.Views.AfterService
             innerCard.Controls.Add(dtpReturnDate);
             y += rowH;
 
-            // ── Refund Amount ─────────────────────────────────────────────
+            // ── Refund Amount ──
             innerCard.Controls.Add(MakeLabel("Refund Amount: *", y));
             txtRefundAmount = new TextBox
             {
@@ -216,7 +199,7 @@ namespace PremiumLivingOPS.Views.AfterService
             innerCard.Controls.Add(txtRefundAmount);
             y += rowH;
 
-            // ── Status ────────────────────────────────────────────────────
+            // ── Status ──
             innerCard.Controls.Add(MakeLabel("Status: *", y));
             cmbStatus = new ComboBox
             {
@@ -229,18 +212,18 @@ namespace PremiumLivingOPS.Views.AfterService
             innerCard.Controls.Add(cmbStatus);
             y += rowH;
 
-            // ── Reason ───────────────────────────────────────────────────
+            // ── Reason ──
             innerCard.Controls.Add(MakeLabel("Reason:", y));
             txtReason = new TextBox
             {
-                Location    = new Point(fieldX, y),
-                Size        = new Size(fieldW + btnW + 4, 52),
-                Multiline   = true,
-                ScrollBars  = ScrollBars.Vertical
+                Location   = new Point(fieldX, y),
+                Size       = new Size(fieldW + btnW + 4, 52),
+                Multiline  = true,
+                ScrollBars = ScrollBars.Vertical
             };
             innerCard.Controls.Add(txtReason);
 
-            // ── action buttons ────────────────────────────────────────────
+            // ── action buttons ──
             btnSave = new Button
             {
                 Text      = "Save",
@@ -267,19 +250,15 @@ namespace PremiumLivingOPS.Views.AfterService
             outerCard.Controls.Add(btnCancel);
         }
 
-        // ─────────────────────────────────────────────────────────────────
-        //  Picker button handlers
-        // ─────────────────────────────────────────────────────────────────
         private void BtnPickOrder_Click(object sender, EventArgs e)
         {
             using (var picker = new OrderPickerForm(_orderList))
             {
                 if (picker.ShowDialog(this) == DialogResult.OK)
                 {
-                    _selectedOrderID      = picker.SelectedOrderID;
-                    txtOrderID.Text       = picker.SelectedOrderID;
-                    txtCustomer.Text      = picker.SelectedCustomer;
-                    // pre-fill refund amount with grand total
+                    _selectedOrderID = picker.SelectedOrderID;
+                    txtOrderID.Text  = picker.SelectedOrderID;
+                    txtCustomer.Text = picker.SelectedCustomer;
                     if (string.IsNullOrWhiteSpace(txtRefundAmount.Text))
                         txtRefundAmount.Text = picker.SelectedGrandTotal.ToString("N2");
                 }
@@ -299,12 +278,8 @@ namespace PremiumLivingOPS.Views.AfterService
             }
         }
 
-        // ─────────────────────────────────────────────────────────────────
-        //  Save handler
-        // ─────────────────────────────────────────────────────────────────
         private void BtnSave_Click(object sender, EventArgs e)
         {
-            // ── validation ───────────────────────────────────────────────
             if (string.IsNullOrWhiteSpace(_selectedOrderID))
             {
                 MessageBox.Show("Please select an Order ID.", "Validation",
@@ -324,7 +299,6 @@ namespace PremiumLivingOPS.Views.AfterService
                 return;
             }
 
-            // ── build entity ─────────────────────────────────────────────
             var entity = new ReturnOrderEntity
             {
                 ReturnID     = txtReturnID.Text,
@@ -335,7 +309,6 @@ namespace PremiumLivingOPS.Views.AfterService
                 ReturnStatus = cmbStatus.SelectedItem?.ToString() ?? "Pending"
             };
 
-            // ── persist ──────────────────────────────────────────────────
             bool ok = _ctrl.CreateReturnOrder(entity);
             if (ok)
             {

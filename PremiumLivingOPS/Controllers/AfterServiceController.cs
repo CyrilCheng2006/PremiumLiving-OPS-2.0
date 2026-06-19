@@ -10,11 +10,11 @@ namespace PremiumLivingOPS.Controllers
     /// Accepts requests from View layer, delegates to AfterServiceRepo,
     /// and returns ViewModels. Contains NO UI code.
     /// </summary>
-    public class AfterServiceController
+    public partial class AfterServiceController
     {
         private readonly AfterServiceRepo _repo = new AfterServiceRepo();
 
-        // ── Helper: current user ────────────────────────────────────────────────────────
+        // ── Helper: current user ────────────────────────────────────────────────────────────────────────
         private static UserBarViewModel CurrentUserBar()
         {
             var u = SessionManager.CurrentUser;
@@ -28,9 +28,9 @@ namespace PremiumLivingOPS.Controllers
         private static string[] CurrentMenus()
             => NavAccessPolicy.GetAllowedMenus(SessionManager.CurrentUser?.Department ?? "");
 
-        // ════════════════════════════════════════════════════════════════════
+        // ══════════════════════════════════════════════════════════════════
         //  Create Invoice
-        // ════════════════════════════════════════════════════════════════════
+        // ══════════════════════════════════════════════════════════════════
 
         /// <summary>
         /// Returns ViewModel for the Create Invoice page.
@@ -83,9 +83,9 @@ namespace PremiumLivingOPS.Controllers
             return _repo.CreateInvoice(inv);
         }
 
-        // ════════════════════════════════════════════════════════════════════
+        // ══════════════════════════════════════════════════════════════════
         //  Complaint List
-        // ════════════════════════════════════════════════════════════════════
+        // ══════════════════════════════════════════════════════════════════
 
         /// <summary>
         /// Returns ViewModel for the Complaint List page.
@@ -130,9 +130,9 @@ namespace PremiumLivingOPS.Controllers
             return _repo.CreateComplaint(c);
         }
 
-        // ════════════════════════════════════════════════════════════════════
+        // ══════════════════════════════════════════════════════════════════
         //  Return Order List
-        // ════════════════════════════════════════════════════════════════════
+        // ══════════════════════════════════════════════════════════════════
 
         /// <summary>
         /// Returns ViewModel for the Return Order List page.
@@ -154,9 +154,9 @@ namespace PremiumLivingOPS.Controllers
         public bool UpdateReturnOrderStatus(string returnId, string newStatus)
             => _repo.UpdateReturnOrderStatus(returnId, newStatus);
 
-        // ════════════════════════════════════════════════════════════════════
+        // ══════════════════════════════════════════════════════════════════
         //  Account Receivable
-        // ════════════════════════════════════════════════════════════════════
+        // ══════════════════════════════════════════════════════════════════
 
         /// <summary>
         /// Returns ViewModel for the Accounts Receivable page.
@@ -175,9 +175,9 @@ namespace PremiumLivingOPS.Controllers
             };
         }
 
-        // ════════════════════════════════════════════════════════════════════
+        // ══════════════════════════════════════════════════════════════════
         //  Account Payable
-        // ════════════════════════════════════════════════════════════════════
+        // ══════════════════════════════════════════════════════════════════
 
         /// <summary>
         /// Returns ViewModel for the Accounts Payable page.

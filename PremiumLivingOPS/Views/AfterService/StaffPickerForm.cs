@@ -1,4 +1,4 @@
-using PremiumLivingOPS.Shared;
+using PremiumLivingOPS.Views.Shared;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -9,7 +9,6 @@ namespace PremiumLivingOPS.Views.AfterService
 {
     /// <summary>
     /// Popup picker for selecting a Staff member (Handed By) in Create Return Order.
-    /// Displays a searchable DataGridView of all staff.
     /// </summary>
     public class StaffPickerForm : Form
     {
@@ -35,9 +34,6 @@ namespace PremiumLivingOPS.Views.AfterService
             PopulateGrid(_allStaff);
         }
 
-        // ─────────────────────────────────────────────────────────────────
-        //  UI Construction
-        // ─────────────────────────────────────────────────────────────────
         private void InitUI()
         {
             Text            = "Select Staff (Handed By)";
@@ -50,11 +46,9 @@ namespace PremiumLivingOPS.Views.AfterService
             BackColor       = Color.FromArgb(243, 244, 246);
             Font            = new Font("Segoe UI", 9.5f);
 
-            // ── outer card ───────────────────────────────────────────────
             card = new CardPanel { Dock = DockStyle.Fill, Padding = new Padding(16) };
             Controls.Add(card);
 
-            // ── title ────────────────────────────────────────────────────
             var lblTitle = new Label
             {
                 Text      = "Select Handed By (Staff)",
@@ -65,7 +59,6 @@ namespace PremiumLivingOPS.Views.AfterService
             };
             card.Controls.Add(lblTitle);
 
-            // ── search bar ───────────────────────────────────────────────
             var lblSearch = new Label
             {
                 Text      = "Search:",
@@ -84,31 +77,28 @@ namespace PremiumLivingOPS.Views.AfterService
             txtSearch.TextChanged += (s, e) => FilterGrid(txtSearch.Text.Trim());
             card.Controls.Add(txtSearch);
 
-            // ── grid ─────────────────────────────────────────────────────
             dgv = new DataGridView
             {
-                Location          = new Point(16, 84),
-                Size              = new Size(710, 310),
-                ReadOnly          = true,
-                AllowUserToAddRows    = false,
-                SelectionMode     = DataGridViewSelectionMode.FullRowSelect,
-                MultiSelect       = false,
+                Location            = new Point(16, 84),
+                Size                = new Size(710, 310),
+                ReadOnly            = true,
+                AllowUserToAddRows  = false,
+                SelectionMode       = DataGridViewSelectionMode.FullRowSelect,
+                MultiSelect         = false,
                 ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize,
-                BackgroundColor   = Color.White,
-                BorderStyle       = BorderStyle.None,
-                RowHeadersVisible = false,
+                BackgroundColor     = Color.White,
+                BorderStyle         = BorderStyle.None,
+                RowHeadersVisible   = false,
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
             };
             dgv.DoubleClick += (s, e) => ConfirmSelection();
             card.Controls.Add(dgv);
 
-            // ── columns ──────────────────────────────────────────────────
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "StaffID",    HeaderText = "Staff ID",   FillWeight = 22 });
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "StaffName",  HeaderText = "Name",       FillWeight = 30 });
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "Department", HeaderText = "Department", FillWeight = 28 });
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "StaffRole",  HeaderText = "Role",       FillWeight = 20 });
 
-            // ── buttons ──────────────────────────────────────────────────
             btnSelect = new Button
             {
                 Text      = "Select",
@@ -135,9 +125,6 @@ namespace PremiumLivingOPS.Views.AfterService
             card.Controls.Add(btnCancel);
         }
 
-        // ─────────────────────────────────────────────────────────────────
-        //  Data helpers
-        // ─────────────────────────────────────────────────────────────────
         private void PopulateGrid(
             IEnumerable<(string StaffID, string StaffName, string Department, string StaffRole)> source)
         {
@@ -148,11 +135,7 @@ namespace PremiumLivingOPS.Views.AfterService
 
         private void FilterGrid(string keyword)
         {
-            if (string.IsNullOrEmpty(keyword))
-            {
-                PopulateGrid(_allStaff);
-                return;
-            }
+            if (string.IsNullOrEmpty(keyword)) { PopulateGrid(_allStaff); return; }
             var filtered = _allStaff.Where(st =>
                 st.StaffID.IndexOf(keyword,    StringComparison.OrdinalIgnoreCase) >= 0 ||
                 st.StaffName.IndexOf(keyword,  StringComparison.OrdinalIgnoreCase) >= 0 ||
