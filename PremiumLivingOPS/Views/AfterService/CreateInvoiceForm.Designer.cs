@@ -119,66 +119,12 @@ namespace PremiumLivingOPS.Views.AfterService
             searchInner.Controls.Add(pnlSearchTitle);
 
             // ════════════════════════════════════════════════════════════════
-            // CARD 2 — Orders Without Invoice  (Fill — expands to consume all remaining space)
-            //   dgvOrders has Dock=Fill inside gridInner; DataGridView provides a native
-            //   vertical scrollbar automatically once rows exceed the visible area.
-            // ════════════════════════════════════════════════════════════════
-            var (gridOuter, gridInner) = CardPanel.CreateFill();
-
-            var pnlGridTitle = new Panel { Dock = DockStyle.Top, Height = 48, BackColor = Color.Transparent };
-            var lblGridTitle = new Label
-            {
-                Text = "Orders Without Invoice",
-                Font = new Font("Segoe UI", 13f, FontStyle.Bold),
-                ForeColor = Palette.TextMain, Dock = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(16, 0, 0, 0)
-            };
-            var divGrid = new Panel { Dock = DockStyle.Bottom, Height = 1, BackColor = Palette.BorderColor };
-            pnlGridTitle.Controls.Add(lblGridTitle);
-            pnlGridTitle.Controls.Add(divGrid);
-
-            dgvOrders = new DataGridView
-            {
-                ReadOnly = true, AllowUserToAddRows = false, AllowUserToDeleteRows = false,
-                RowHeadersVisible = false, SelectionMode = DataGridViewSelectionMode.FullRowSelect,
-                MultiSelect = false, BackgroundColor = Color.White, BorderStyle = BorderStyle.None,
-                GridColor = Palette.BorderColor, Font = new Font("Segoe UI", 13f),
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-                CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal,
-                RowTemplate = { Height = 48 }, Dock = DockStyle.Fill,
-                ColumnHeadersHeight = 46, EnableHeadersVisualStyles = false,
-                ScrollBars = ScrollBars.Vertical,
-                ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
-                {
-                    BackColor = Color.FromArgb(246, 249, 255), ForeColor = Palette.TextMuted,
-                    Font = new Font("Segoe UI", 11f, FontStyle.Bold),
-                    Padding = new Padding(12, 0, 0, 0), Alignment = DataGridViewContentAlignment.MiddleLeft
-                },
-                DefaultCellStyle = new DataGridViewCellStyle
-                {
-                    BackColor = Color.White, ForeColor = Palette.TextMain,
-                    SelectionBackColor = Color.FromArgb(219, 234, 254), SelectionForeColor = Palette.TextMain,
-                    Padding = new Padding(12, 6, 12, 6)
-                }
-            };
-            dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colOrderID",  HeaderText = "ORDER NO.",     FillWeight = 18 });
-            dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCustomer", HeaderText = "CUSTOMER",      FillWeight = 22 });
-            dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colContact",  HeaderText = "CONTACT NAME",  FillWeight = 18 });
-            dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colIssued",   HeaderText = "ISSUED DATE",   FillWeight = 14 });
-            dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDelivery", HeaderText = "DELIVERY DATE", FillWeight = 14 });
-            dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTotal",    HeaderText = "GRAND TOTAL",   FillWeight = 14 });
-            dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",   HeaderText = "ORDER STATUS",  FillWeight = 12 });
-            dgvOrders.SelectionChanged += dgvOrders_SelectionChanged;
-            dgvOrders.CellFormatting   += dgvOrders_CellFormatting;
-            dgvOrders.CellDoubleClick  += (s, e) => { if (e.RowIndex >= 0) FillFormFromGrid(); };
-
-            gridInner.Controls.Add(dgvOrders);
-            gridInner.Controls.Add(pnlGridTitle);
-
-            // ════════════════════════════════════════════════════════════════
-            // CARD 3 — Invoice Detail  (Top, fixed 280px — always fully visible at the bottom)
+            // CARD 3 — Invoice Detail  (Bottom, fixed 280px — anchored to bottom edge)
+            // Declared and added to pnlMain BEFORE gridOuter so DockStyle.Bottom
+            // claims its space first; gridOuter (Fill) then fills the remainder.
             // ════════════════════════════════════════════════════════════════
             var (formOuter, formInner) = CardPanel.Create(outerHeight: 280);
+            formOuter.Dock = DockStyle.Bottom;  // override to Bottom so it anchors at page foot
 
             var pnlFormTitle = new Panel { Dock = DockStyle.Top, Height = 52, BackColor = Color.Transparent };
             var lblFormTitle = new Label
@@ -305,13 +251,78 @@ namespace PremiumLivingOPS.Views.AfterService
             formInner.Controls.Add(pnlOrderSummary);
             formInner.Controls.Add(pnlFormTitle);
 
+            // ════════════════════════════════════════════════════════════════
+            // CARD 2 — Orders Without Invoice  (Fill — expands to all remaining vertical space)
+            // ════════════════════════════════════════════════════════════════
+            var (gridOuter, gridInner) = CardPanel.CreateFill();
+
+            var pnlGridTitle = new Panel { Dock = DockStyle.Top, Height = 48, BackColor = Color.Transparent };
+            var lblGridTitle = new Label
+            {
+                Text = "Orders Without Invoice",
+                Font = new Font("Segoe UI", 13f, FontStyle.Bold),
+                ForeColor = Palette.TextMain, Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(16, 0, 0, 0)
+            };
+            var divGrid = new Panel { Dock = DockStyle.Bottom, Height = 1, BackColor = Palette.BorderColor };
+            pnlGridTitle.Controls.Add(lblGridTitle);
+            pnlGridTitle.Controls.Add(divGrid);
+
+            dgvOrders = new DataGridView
+            {
+                ReadOnly = true, AllowUserToAddRows = false, AllowUserToDeleteRows = false,
+                RowHeadersVisible = false, SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                MultiSelect = false, BackgroundColor = Color.White, BorderStyle = BorderStyle.None,
+                GridColor = Palette.BorderColor, Font = new Font("Segoe UI", 13f),
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal,
+                RowTemplate = { Height = 48 }, Dock = DockStyle.Fill,
+                ColumnHeadersHeight = 46, EnableHeadersVisualStyles = false,
+                ScrollBars = ScrollBars.Vertical,
+                ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
+                {
+                    BackColor = Color.FromArgb(246, 249, 255), ForeColor = Palette.TextMuted,
+                    Font = new Font("Segoe UI", 11f, FontStyle.Bold),
+                    Padding = new Padding(12, 0, 0, 0), Alignment = DataGridViewContentAlignment.MiddleLeft
+                },
+                DefaultCellStyle = new DataGridViewCellStyle
+                {
+                    BackColor = Color.White, ForeColor = Palette.TextMain,
+                    SelectionBackColor = Color.FromArgb(219, 234, 254), SelectionForeColor = Palette.TextMain,
+                    Padding = new Padding(12, 6, 12, 6)
+                }
+            };
+            dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colOrderID",  HeaderText = "ORDER NO.",     FillWeight = 18 });
+            dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCustomer", HeaderText = "CUSTOMER",      FillWeight = 22 });
+            dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colContact",  HeaderText = "CONTACT NAME",  FillWeight = 18 });
+            dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colIssued",   HeaderText = "ISSUED DATE",   FillWeight = 14 });
+            dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDelivery", HeaderText = "DELIVERY DATE", FillWeight = 14 });
+            dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTotal",    HeaderText = "GRAND TOTAL",   FillWeight = 14 });
+            dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",   HeaderText = "ORDER STATUS",  FillWeight = 12 });
+            dgvOrders.SelectionChanged += dgvOrders_SelectionChanged;
+            dgvOrders.CellFormatting   += dgvOrders_CellFormatting;
+            dgvOrders.CellDoubleClick  += (s, e) => { if (e.RowIndex >= 0) FillFormFromGrid(); };
+
+            gridInner.Controls.Add(dgvOrders);
+            gridInner.Controls.Add(pnlGridTitle);
+
             // ── Assemble ──────────────────────────────────────────────────────────────────
-            // Visual order (top → bottom): AppShell | Search(210) | Orders Grid(Fill) | Invoice Detail(280)
-            // Controls.Add order — Fill first, then Top in reverse visual order, _shell last:
-            pnlMain.Controls.Add(gridOuter);   // Fill  — Orders Without Invoice expands to fill all middle space
-            pnlMain.Controls.Add(formOuter);   // Top   — Invoice Detail pinned at bottom (280px)
-            pnlMain.Controls.Add(searchOuter); // Top   — Search pinned below AppShell (210px)
-            pnlMain.Controls.Add(_shell);      // Top   — AppShell topmost
+            // Visual order (top → bottom): AppShell | Search | Orders Without Invoice | Invoice Detail
+            //
+            // WinForms DockStyle layout rules:
+            //   - Top controls stack downward in the order they are added (last-added Top = lowest Top slot).
+            //   - Bottom controls stack upward in the order they are added (last-added Bottom = highest Bottom slot).
+            //   - Fill takes whatever space remains after all Top/Bottom/Left/Right are resolved.
+            //
+            // Required Controls.Add sequence:
+            //   1. gridOuter  (Fill)   — added first; claims remaining space after Top+Bottom are resolved
+            //   2. formOuter  (Bottom) — anchors Invoice Detail at the page foot (280px)
+            //   3. searchOuter(Top)    — pins Search just below AppShell
+            //   4. _shell     (Top)    — AppShell topmost (added last per Canonical Rule)
+            pnlMain.Controls.Add(gridOuter);    // Fill
+            pnlMain.Controls.Add(formOuter);    // Bottom (280px) — Invoice Detail at foot
+            pnlMain.Controls.Add(searchOuter);  // Top   (210px) — Search below AppShell
+            pnlMain.Controls.Add(_shell);       // Top            — AppShell topmost
 
             this.Controls.Add(pnlMain);
             this.ResumeLayout(false);
