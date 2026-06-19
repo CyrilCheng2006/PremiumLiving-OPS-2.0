@@ -202,7 +202,7 @@ namespace PremiumLivingOPS.Views.AfterService
         }
 
         // ════════════════════════════════════════════════════════════════
-        //  Update Status Dialog  (mirrors ViewDetail pattern)
+        //  Update Status Dialog
         // ════════════════════════════════════════════════════════════════
         private void btnUpdateStatus_Click(object sender, EventArgs e)
         {
@@ -211,7 +211,6 @@ namespace PremiumLivingOPS.Views.AfterService
             var    ent = _currentComplaints.Find(x => x.ComplaintID == id);
             if (ent == null) return;
 
-            // ── Shared helpers (identical to ShowDetailDialog) ───────────────
             Label ReadLabel(string text) => new Label
             {
                 Text      = text ?? "\u2014",
@@ -269,7 +268,6 @@ namespace PremiumLivingOPS.Views.AfterService
                 return row;
             }
 
-            // ── New Status ComboBox ───────────────────────────────────────
             var cboNew = new ComboBox
             {
                 DropDownStyle = ComboBoxStyle.DropDownList,
@@ -281,13 +279,12 @@ namespace PremiumLivingOPS.Views.AfterService
             cboNew.Items.AddRange(new object[] { "Pending", "Processing", "Escalated", "Completed" });
             cboNew.SelectedItem = ent.ComplaintStatus;
 
-            // ── Card — 4 field rows ───────────────────────────────────────
             var rows = new Panel[]
             {
-                FieldRow("Complaint ID",    ReadLabel(ent.ComplaintID)),
-                FieldRow("Order No.",        ReadLabel(ent.OrderID ?? "\u2014")),
-                FieldRow("Current Status",   ReadLabel(ent.ComplaintStatus)),
-                FieldRow("New Status",       cboNew, lastRow: true)
+                FieldRow("Complaint ID",  ReadLabel(ent.ComplaintID)),
+                FieldRow("Order No.",      ReadLabel(ent.OrderID ?? "\u2014")),
+                FieldRow("Current Status", ReadLabel(ent.ComplaintStatus)),
+                FieldRow("New Status",     cboNew, lastRow: true)
             };
             var (cardOuter, cardInner) = CardPanel.Create(
                 outerHeight: rows.Length * D_RowH + 22,
@@ -295,12 +292,12 @@ namespace PremiumLivingOPS.Views.AfterService
             cardInner.Padding = new Padding(0);
             cardInner.Controls.Add(BuildStack(rows));
 
-            // ── Dialog shell ───────────────────────────────────────────────
+            // ── Dialog: 1800 × 700 ─────────────────────────────────────────
             using var dlg = new Form
             {
                 Text            = $"Update Complaint Status  \u2014  {ent.ComplaintID}",
-                Size            = new Size(900, 580),
-                MinimumSize     = new Size(900, 580),
+                Size            = new Size(1800, 700),
+                MinimumSize     = new Size(1800, 700),
                 StartPosition   = FormStartPosition.CenterParent,
                 FormBorderStyle = FormBorderStyle.FixedDialog,
                 MaximizeBox     = false,
@@ -309,7 +306,6 @@ namespace PremiumLivingOPS.Views.AfterService
                 Font            = new Font("Segoe UI", 12f)
             };
 
-            // ── Header: navy bar, 18f bold title + dynamic status pill
             Color pillBg = Color.FromArgb(229, 231, 235);
             Color pillFg = Color.FromArgb(55, 65, 81);
             if (StatusColors.TryGetValue(ent.ComplaintStatus ?? "", out var hsc))
@@ -367,7 +363,6 @@ namespace PremiumLivingOPS.Views.AfterService
             };
             pnlHeader.Controls.Add(headerTlp);
 
-            // ── Footer: Height 96, top border, Confirm (navy) + Cancel (outline)
             var pnlFoot = new Panel
             {
                 Dock      = DockStyle.Bottom,
@@ -429,7 +424,6 @@ namespace PremiumLivingOPS.Views.AfterService
             footFlow.Controls.Add(btnCancel);
             pnlFoot.Controls.Add(footFlow);
 
-            // ── Scrollable body
             var scroll = new Panel
             {
                 Dock       = DockStyle.Fill,
