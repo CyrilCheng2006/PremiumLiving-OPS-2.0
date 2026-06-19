@@ -222,6 +222,30 @@ namespace PremiumLivingOPS.Models.DAL
         }
 
         /// <summary>
+        /// Returns a list of (StaffID, StaffName, Department, StaffRole) tuples for all staff.
+        /// Used to populate the Handed By Picker in Create Return Order.
+        /// </summary>
+        public List<(string StaffID, string StaffName, string Department, string StaffRole)> GetStaffListForPicker()
+        {
+            var list = new List<(string, string, string, string)>();
+            using (var conn = DatabaseHelper.GetConnection())
+            {
+                conn.Open();
+                const string sql =
+                    "SELECT StaffID, StaffName, Department, StaffRole FROM Staff ORDER BY StaffName ASC";
+                using (var cmd = new MySqlCommand(sql, conn))
+                using (var rdr = cmd.ExecuteReader())
+                    while (rdr.Read())
+                        list.Add((
+                            rdr.GetString("StaffID"),
+                            rdr.GetString("StaffName"),
+                            rdr.GetString("Department"),
+                            rdr.GetString("StaffRole")));
+            }
+            return list;
+        }
+
+        /// <summary>
         /// Generates the next ComplaintID in the format CMP-YYYYMMDD-NNNN.
         /// </summary>
         public string GenerateComplaintId()
@@ -332,6 +356,103 @@ namespace PremiumLivingOPS.Models.DAL
                 {
                     cmd.Parameters.AddWithValue("@status", newStatus);
                     cmd.Parameters.AddWithValue("@id",     returnId);
+                    return cmd.ExecuteNonQuery() > 0;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Returns all completed/delivered orders that are available for return,
+        /// with CustomerName, OrderStatus, GrandTotal, IssuedTime.
+        /// Used to populate the Order ID Picker in Create Return Order.
+        /// </summary>
+        public List<OrderEntity> GetOrdersForReturnPicker(string keyword = null)
+        {
+            var list = new List<OrderEntity>();
+            using (var conn = DatabaseHelper.GetConnection())
+            {
+                conn.Open();
+                var sql =
+                    @"SELECT o.OrderID, o.CustomerID, c.CustomerName,
+                             o.IssuedTime, o.DeliveryDate, o.GrandTotal,
+                             o.OrderStatus, o.OrderContactName,
+                             o.SalesID, s.StaffName AS SalesName,
+                             o.QuotationID, o.AddressID,
+                             o.ShippingAddress, o.BillingAddress,
+                             o.SubTotal, o.DiscountType, o.DiscountValue, o.DiscountAmount
+                      FROM `Order` o
+                      JOIN Customer c ON o.CustomerID = c.CustomerID
+                      JOIN Staff    s ON o.SalesID    = s.StaffID
+                      WHERE o.OrderStatus IN ('Delivered','Completed','Partially Delivered')";
+
+                if (!string.IsNullOrEmpty(keyword))
+                    sql += @" AND (o.OrderID       LIKE @kw
+                               OR c.CustomerName  LIKE @kw
+                               OR o.OrderStatus   LIKE @kw)";
+
+                sql += " ORDER BY o.IssuedTime DESC";
+
+                using (var cmd = new MySqlCommand(sql, conn))
+                {
+                    if (!string.IsNullOrEmpty(keyword))
+                        cmd.Parameters.AddWithValue("@kw", "%" + keyword + "%");
+                    using (var rdr = cmd.ExecuteReader())
+                        while (rdr.Read()) list.Add(MapOrder(rdr));
+                }
+            }
+            return list;
+        }
+
+        /// <summary>
+        /// Generates the next ReturnID in the format RET-YYYYMMDD-NNNN.
+        /// </summary>
+        public string GenerateReturnId()
+        {
+            string prefix = "RET-" + DateTime.Today.ToString("yyyyMMdd") + "-";
+            var    list   = new List<string>();
+            using (var conn = DatabaseHelper.GetConnection())
+            {
+                conn.Open();
+                const string sql = "SELECT ReturnID FROM ReturnOrder WHERE ReturnID LIKE @prefix";
+                using (var cmd = new MySqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@prefix", prefix + "%");
+                    using (var rdr = cmd.ExecuteReader())
+                        while (rdr.Read()) list.Add(rdr.GetString(0));
+                }
+            }
+            int next = 1;
+            foreach (var id in list)
+            {
+                if (id.Length >= prefix.Length + 4 &&
+                    int.TryParse(id.Substring(prefix.Length, 4), out int seq) && seq >= next)
+                    next = seq + 1;
+            }
+            return $"{prefix}{next:D4}";
+        }
+
+        /// <summary>
+        /// Inserts a new ReturnOrder row. Returns true on success.
+        /// HandedByID is stored only at UI level (not persisted — schema has no HandedBy column).
+        /// </summary>
+        public bool CreateReturnOrder(ReturnOrderEntity r)
+        {
+            using (var conn = DatabaseHelper.GetConnection())
+            {
+                conn.Open();
+                const string sql =
+                    @"INSERT INTO ReturnOrder
+                        (ReturnID, OrderID, ReturnDate, Reason, RefundAmount, ReturnStatus)
+                      VALUES
+                        (@rid, @oid, @date, @reason, @amount, @status)";
+                using (var cmd = new MySqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@rid",    r.ReturnID);
+                    cmd.Parameters.AddWithValue("@oid",    r.OrderID);
+                    cmd.Parameters.AddWithValue("@date",   r.ReturnDate.ToString("yyyy-MM-dd"));
+                    cmd.Parameters.AddWithValue("@reason", string.IsNullOrWhiteSpace(r.Reason) ? (object)DBNull.Value : r.Reason);
+                    cmd.Parameters.AddWithValue("@amount", r.RefundAmount);
+                    cmd.Parameters.AddWithValue("@status", r.ReturnStatus ?? "Pending");
                     return cmd.ExecuteNonQuery() > 0;
                 }
             }
