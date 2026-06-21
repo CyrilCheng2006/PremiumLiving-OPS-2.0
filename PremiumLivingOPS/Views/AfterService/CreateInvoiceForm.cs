@@ -65,7 +65,7 @@ namespace PremiumLivingOPS.Views.AfterService
                     o.CustomerName,
                     o.OrderContactName,
                     o.IssuedTime.ToString("yyyy-MM-dd"),
-                    o.DeliveryDate.ToString("yyyy-MM-dd"),
+                    o.DeliveryDate?.ToString("yyyy-MM-dd") ?? "—",
                     $"HK$ {o.GrandTotal:N2}",
                     o.OrderStatus);
 

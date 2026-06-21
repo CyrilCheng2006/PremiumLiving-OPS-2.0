@@ -189,7 +189,11 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             txtBillingAddr.BackColor = same ? Color.FromArgb(235, 240, 250) : SystemColors.Window;
 
             txtContactName.Text = o.OrderContactName;
-            dtpDelivery.Value   = o.DeliveryDate > DateTime.MinValue ? o.DeliveryDate : DateTime.Today;
+
+            // DeliveryDate is DateTime? — use the value if set, otherwise fall back to today
+            dtpDelivery.Value = (o.DeliveryDate.HasValue && o.DeliveryDate.Value > DateTime.MinValue)
+                ? o.DeliveryDate.Value
+                : DateTime.Today;
 
             int statusIdx = cboStatus.FindStringExact(o.OrderStatus);
             cboStatus.SelectedIndex = statusIdx >= 0 ? statusIdx : 0;
@@ -332,6 +336,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 SalesID          = _currentOrder.SalesID,
                 IssuedTime       = _currentOrder.IssuedTime,
                 OrderStatus      = cboStatus.SelectedItem?.ToString() ?? _currentOrder.OrderStatus,
+                // dtpDelivery.Value is DateTime (non-nullable) — assign directly to DateTime?
                 DeliveryDate     = dtpDelivery.Value,
                 ShippingAddress  = txtShippingAddr.Text.Trim(),
                 BillingAddress   = txtBillingAddr.Text.Trim(),
