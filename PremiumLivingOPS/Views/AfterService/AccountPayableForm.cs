@@ -66,7 +66,7 @@ namespace PremiumLivingOPS.Views.AfterService
             RefreshGrid();
         }
 
-        // ── KPI Pills ────────────────────────────────────────────────────────
+        // ── KPI Pills + AP Verification button ──────────────────────────────────
         private void RefreshKpi()
         {
             pnlKpi.Controls.Clear();
@@ -96,6 +96,7 @@ namespace PremiumLivingOPS.Views.AfterService
                 ("Overdue",           overdueCount.ToString(), Color.FromArgb(185,  28,  28), Color.FromArgb(254, 226, 226)),
             };
 
+            // ── FlowLayoutPanel holding pills + AP Verification button ────────
             var flow = new FlowLayoutPanel
             {
                 Dock          = DockStyle.Fill,
@@ -168,10 +169,74 @@ namespace PremiumLivingOPS.Views.AfterService
                 flow.Controls.Add(pill);
             }
 
+            // ── AP Verification button (210×60) placed after the last pill ────
+            var btnVerify = new Button
+            {
+                Text      = "📊  AP Verification",
+                Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
+                ForeColor = Color.White,
+                BackColor = Color.FromArgb(19, 35, 61),
+                FlatStyle = FlatStyle.Flat,
+                Size      = new Size(210, 60),
+                Margin    = new Padding(16, 0, 0, 0),
+                Cursor    = Cursors.Hand,
+                TextAlign = ContentAlignment.MiddleCenter,
+            };
+            btnVerify.FlatAppearance.BorderSize         = 0;
+            btnVerify.FlatAppearance.MouseOverBackColor = Color.FromArgb(10, 22, 40);
+            btnVerify.Click += BtnVerify_Click;
+            flow.Controls.Add(btnVerify);
+
             pnlKpi.Controls.Add(flow);
         }
 
-        // ── CellFormatting — status badge + overdue row highlight ────────────
+        // ── AP Verification button handler ──────────────────────────────────
+        private void BtnVerify_Click(object sender, EventArgs e)
+        {
+            // Require a row selection
+            if (dgvAP.SelectedRows.Count == 0)
+            {
+                MessageBox.Show(
+                    "Please select a Purchase Invoice row first.",
+                    "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            string purInvoiceId = dgvAP.SelectedRows[0]
+                .Cells["colPurInvoiceID"].Value?.ToString();
+
+            if (string.IsNullOrEmpty(purInvoiceId))
+            {
+                MessageBox.Show("Could not read Invoice ID from the selected row.",
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            APVerificationDetailVM detail;
+            try
+            {
+                detail = _ctrl.GetAPVerificationDetail(purInvoiceId);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to load verification data:\n{ex.Message}",
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            if (detail == null)
+            {
+                MessageBox.Show(
+                    $"No verification record found for Invoice {purInvoiceId}.",
+                    "Not Found", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            using var dlg = new APVerificationDialog(detail);
+            dlg.ShowDialog(this);
+        }
+
+        // ── CellFormatting ─────────────────────────────────────────────────────
         private void dgvAP_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
             if (e.RowIndex < 0 || e.RowIndex >= _currentItems.Count) return;
