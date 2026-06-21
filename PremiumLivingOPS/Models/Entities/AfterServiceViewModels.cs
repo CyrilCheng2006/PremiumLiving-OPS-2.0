@@ -40,16 +40,21 @@ namespace PremiumLivingOPS.Models.Entities
         public string ComplaintStatus      { get; set; }   // Pending|Processing|Escalated|Completed
     }
 
-    /// <summary>Maps to ReturnOrder table (JOINed with Order + Customer).</summary>
+    /// <summary>
+    /// Maps to ReturnOrder table (JOINed with Order + Customer).
+    /// StaffID — FK, used on INSERT.
+    /// CustomerName — JOIN result, used on SELECT.
+    /// </summary>
     public class ReturnOrderEntity
     {
         public string   ReturnID     { get; set; }
         public string   OrderID      { get; set; }
-        public string   CustomerName { get; set; }
+        public string   StaffID      { get; set; }   // FK — required on INSERT, nullable in DB
+        public string   CustomerName { get; set; }   // JOIN result — used on SELECT
         public DateTime ReturnDate   { get; set; }
         public string   Reason       { get; set; }
         public double   RefundAmount { get; set; }
-        public string   ReturnStatus { get; set; }  // Pending|Approved|Processing|Rejected|Completed
+        public string   ReturnStatus { get; set; }   // Pending|Approved|Processing|Rejected|Completed
     }
 
     /// <summary>
@@ -61,6 +66,7 @@ namespace PremiumLivingOPS.Models.Entities
         public string   InvoiceID        { get; set; }
         public string   OrderID          { get; set; }
         public string   CustomerName     { get; set; }
+        public DateTime InvoiceDate      { get; set; }   // required by Mapper
         public double   TotalAmount      { get; set; }
         public double   PaidAmount       { get; set; }
         public double   RemainingBalance { get; set; }
@@ -70,18 +76,22 @@ namespace PremiumLivingOPS.Models.Entities
     }
 
     /// <summary>
-    /// Accounts Payable view: PurchaseInvoice JOIN PurchaseOrder + Supplier.
-    /// IsOverdue = PaymentStatus != 'Full' AND ExpectedDate &lt; TODAY.
+    /// Accounts Payable view: PurchaseInvoice JOIN Supplier.
+    /// IsOverdue = PaymentStatus != 'Full' AND DueDate &lt; TODAY.
     /// </summary>
     public class AccountPayableEntity
     {
-        public string   PurInvoiceID  { get; set; }
-        public string   PurchaseID    { get; set; }
-        public string   SupplierName  { get; set; }
-        public double   TotalAmount   { get; set; }
-        public string   PaymentStatus { get; set; }
-        public DateTime ExpectedDate  { get; set; }
-        public bool     IsOverdue     { get; set; }
+        public string   PurInvoiceID     { get; set; }
+        public string   PurchaseID       { get; set; }   // alias for PurInvoiceID display
+        public string   SupplierID       { get; set; }   // FK — used in Mapper
+        public string   SupplierName     { get; set; }
+        public DateTime PurInvoiceDate   { get; set; }   // invoice issue date
+        public double   TotalAmount      { get; set; }
+        public double   PaidAmount       { get; set; }
+        public double   RemainingBalance { get; set; }
+        public string   PaymentStatus    { get; set; }
+        public DateTime DueDate          { get; set; }
+        public bool     IsOverdue        { get; set; }
     }
 
     // ══════════════════════════════════════════════════════════════════════════════
@@ -93,10 +103,6 @@ namespace PremiumLivingOPS.Models.Entities
     {
         public string[]          AllowedMenus { get; set; }
         public UserBarViewModel  UserBar      { get; set; }
-        /// <summary>
-        /// Orders that do NOT yet have an Invoice row
-        /// (LEFT JOIN Invoice WHERE InvoiceID IS NULL).
-        /// </summary>
         public List<OrderEntity> Orders       { get; set; }
     }
 
