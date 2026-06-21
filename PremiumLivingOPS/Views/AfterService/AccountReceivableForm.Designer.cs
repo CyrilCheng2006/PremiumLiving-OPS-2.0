@@ -39,8 +39,10 @@ namespace PremiumLivingOPS.Views.AfterService
             var pnlMain = new Panel { Dock = DockStyle.Fill, BackColor = Palette.BgPage };
             _shell = new AppShell();
             _shell.SetPopupContainer(pnlMain);
-            _shell.MenuItemClicked += OnTopNavMenuItemClicked;
-            _shell.LogoutClicked   += btnLogout_Click;
+            // FIX CS0103: wire via lambda so the handler method in Form.cs is resolved at runtime,
+            //             not at Designer compile time where it was reported as missing.
+            _shell.MenuItemClicked += (menu, sub) => OnTopNavMenuItemClicked(menu, sub);
+            _shell.LogoutClicked   += (s, e)       => btnLogout_Click(s, e);
 
             // ════════════════════════════════════════════════════════════════
             // CARD 1 — Search  (Top, fixed 300px)
@@ -54,9 +56,6 @@ namespace PremiumLivingOPS.Views.AfterService
             };
             txtKeyword.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) RefreshGrid(); };
 
-            // cboStatus items: "All", "Partial", "Full", "Overdue"
-            // NOTE: "Overdue" is a derived UI state (not a DB ENUM value).
-            // The filter is applied in-memory via InvoiceDetailEntity.IsOverdue.
             cboStatus = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 12f) };
             cboStatus.Items.AddRange(new object[] { "All", "Partial", "Full", "Overdue" });
             cboStatus.SelectedIndex = 0;
@@ -174,16 +173,8 @@ namespace PremiumLivingOPS.Views.AfterService
 
             // ════════════════════════════════════════════════════════════════
             // CARD 3 — Invoice Grid  (Fill)
-            // Columns (9 total) — all sourced from Invoice / Order / Customer
-            //   colInvoiceID  → Invoice.InvoiceID
-            //   colOrderID    → Invoice.OrderID
-            //   colInvoiceDate→ Invoice.InvoiceDate   [FIX: previously missing]
-            //   colCustomer   → Customer.CustomerName (JOIN)
-            //   colTotal      → Invoice.TotalAmount
-            //   colPaid       → Invoice.PaidAmount
-            //   colBalance    → Invoice.RemainingBalance
-            //   colStatus     → Invoice.PaymentStatus + derived IsOverdue
-            //   colDueDate    → Invoice.DueDate
+            // Columns (9): InvoiceID | OrderID | InvoiceDate | Customer |
+            //              Total | Paid | Balance | Status | DueDate
             // ════════════════════════════════════════════════════════════════
             var (gridOuter, gridInner) = CardPanel.CreateFill();
 
@@ -211,10 +202,9 @@ namespace PremiumLivingOPS.Views.AfterService
                 }
             };
 
-            // 9 columns — fully aligned to schema.sql Invoice table
             dgvAR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colInvoiceID",   HeaderText = "INVOICE ID",     FillWeight = 14 });
             dgvAR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colOrderID",     HeaderText = "ORDER NO.",      FillWeight = 12 });
-            dgvAR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colInvoiceDate", HeaderText = "INVOICE DATE",   FillWeight = 12 }); // FIX: added
+            dgvAR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colInvoiceDate", HeaderText = "INVOICE DATE",   FillWeight = 12 });
             dgvAR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCustomer",    HeaderText = "CUSTOMER",       FillWeight = 16 });
             dgvAR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTotal",       HeaderText = "TOTAL (HK$)",    FillWeight = 11 });
             dgvAR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPaid",        HeaderText = "PAID (HK$)",     FillWeight = 11 });

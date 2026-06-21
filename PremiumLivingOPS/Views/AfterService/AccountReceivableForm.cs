@@ -32,46 +32,43 @@ namespace PremiumLivingOPS.Views.AfterService
 
         private void AccountReceivableForm_Load(object sender, EventArgs e) => RefreshGrid();
 
+        // ── Navigation / Logout handlers (referenced by Designer.cs lambda wires)
+        private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
+            => FormNavigator.NavigateTo(this, menuLabel, subItem);
+
+        private void btnLogout_Click(object sender, EventArgs e)
+        { SessionManager.Clear(); Application.Restart(); }
+
         // ── Grid refresh
         private void RefreshGrid()
         {
             string statusSel = cboStatus.SelectedItem?.ToString();
-            // "Overdue" is a derived UI state — NOT a valid Invoice.PaymentStatus ENUM value.
-            // Pass null to the repo so the SQL WHERE clause is not polluted with an invalid value.
-            // In-memory filtering by IsOverdue is applied below after the list is retrieved.
             bool filterOverdue = string.Equals(statusSel, "Overdue", StringComparison.OrdinalIgnoreCase);
             string statusFilter = (string.IsNullOrEmpty(statusSel) || statusSel == "All" || filterOverdue)
                 ? null
-                : statusSel; // only "Partial" or "Full" reach SQL
+                : statusSel;
 
             string keyword = txtKeyword.Text.Trim();
 
             var arVm = _ctrl.GetAccountReceivableVM(statusFilter, string.IsNullOrEmpty(keyword) ? null : keyword);
             _shell.SetUser(arVm.UserBar.DisplayName, arVm.UserBar.Department);
             _shell.SetVisibleMenus(arVm.AllowedMenus);
-            _shell.SetBreadcrumb("After-Service  \u203a  Account Receivable");
+            _shell.SetBreadcrumb("After-Service  ›  Account Receivable");
 
             _invoices = _ctrl.GetInvoiceListVM(string.IsNullOrEmpty(keyword) ? null : keyword).Invoices;
 
-            // Apply status filter in-memory
             if (filterOverdue)
-            {
-                // "Overdue": RemainingBalance > 0 AND DueDate < today
                 _invoices = _invoices.FindAll(i => i.IsOverdue);
-            }
             else if (!string.IsNullOrEmpty(statusFilter))
-            {
-                // "Partial" or "Full": match PaymentStatus, exclude overdue rows that aren't actually the selected status
                 _invoices = _invoices.FindAll(i =>
                     string.Equals(i.PaymentStatus, statusFilter, StringComparison.OrdinalIgnoreCase));
-            }
 
             dgvAR.Rows.Clear();
             foreach (var inv in _invoices)
                 dgvAR.Rows.Add(
                     inv.InvoiceID,
                     inv.OrderID,
-                    inv.InvoiceDate.ToString("yyyy-MM-dd"),   // FIX: InvoiceDate now populated
+                    inv.InvoiceDate.ToString("yyyy-MM-dd"),
                     inv.CustomerName,
                     $"HK$ {inv.TotalAmount:N2}",
                     $"HK$ {inv.PaidAmount:N2}",
@@ -233,7 +230,7 @@ namespace PremiumLivingOPS.Views.AfterService
                 FormBorderStyle = FormBorderStyle.FixedDialog, MaximizeBox = false, MinimizeBox = false
             };
 
-            // ══ HEADER — teal title bar
+            // ══ HEADER
             var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 70, BackColor = Color.FromArgb(1, 105, 111) };
             var tblHeader = new TableLayoutPanel
             {
@@ -244,22 +241,20 @@ namespace PremiumLivingOPS.Views.AfterService
             tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
             tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 640f));
             tblHeader.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-
             tblHeader.Controls.Add(new Label
             {
-                Text      = $"Record Payment  —  {inv.InvoiceID}",
-                Font      = new Font("Segoe UI", 17f, FontStyle.Bold), ForeColor = Color.White,
-                Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
+                Text = $"Record Payment  —  {inv.InvoiceID}",
+                Font = new Font("Segoe UI", 17f, FontStyle.Bold), ForeColor = Color.White,
+                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
             }, 0, 0);
-
             Color badgeBg = inv.IsOverdue ? Color.FromArgb(185, 28, 28) : Color.FromArgb(146, 64, 14);
             tblHeader.Controls.Add(new Label
             {
-                Text      = $"Balance: HK$ {inv.RemainingBalance:N2}",
-                Font      = new Font("Segoe UI", 14f, FontStyle.Bold), ForeColor = Color.White,
+                Text = $"Balance: HK$ {inv.RemainingBalance:N2}",
+                Font = new Font("Segoe UI", 14f, FontStyle.Bold), ForeColor = Color.White,
                 BackColor = badgeBg, Dock = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleCenter, AutoSize = false,
-                Margin    = new Padding(0, 8, 0, 8)
+                Margin = new Padding(0, 8, 0, 8)
             }, 1, 0);
             pnlHeader.Controls.Add(tblHeader);
 
@@ -276,15 +271,14 @@ namespace PremiumLivingOPS.Views.AfterService
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 14f));
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 36f));
             for (int r = 0; r < 4; r++) tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 25f));
-            AddInfoRow(tblInfo, 0, "Customer:",      inv.CustomerName,                            "Order No.:",    inv.OrderID);
-            AddInfoRow(tblInfo, 1, "Invoice Date:",  inv.InvoiceDate.ToString("yyyy-MM-dd"),      "Due Date:",     inv.DueDate.ToString("yyyy-MM-dd"));
-            AddInfoRow(tblInfo, 2, "Total Amount:",  $"HK$ {inv.TotalAmount:N2}",                 "Paid Amount:",  $"HK$ {inv.PaidAmount:N2}");
-            AddInfoRow(tblInfo, 3, "Balance:",       $"HK$ {inv.RemainingBalance:N2}",            "Status:",       inv.IsOverdue ? "Overdue" : inv.PaymentStatus);
+            AddInfoRow(tblInfo, 0, "Customer:",     inv.CustomerName,                       "Order No.:",  inv.OrderID);
+            AddInfoRow(tblInfo, 1, "Invoice Date:", inv.InvoiceDate.ToString("yyyy-MM-dd"), "Due Date:",   inv.DueDate.ToString("yyyy-MM-dd"));
+            AddInfoRow(tblInfo, 2, "Total Amount:", $"HK$ {inv.TotalAmount:N2}",            "Paid Amount:", $"HK$ {inv.PaidAmount:N2}");
+            AddInfoRow(tblInfo, 3, "Balance:",      $"HK$ {inv.RemainingBalance:N2}",       "Status:",     inv.IsOverdue ? "Overdue" : inv.PaymentStatus);
             infoInner.Controls.Add(tblInfo);
 
             // ══ CARD: Record New Payment
             var (inputOuter, inputInner) = CardPanel.Create(outerHeight: 370);
-
             var pnlInputTitle = new Panel
             {
                 Dock = DockStyle.Top, Height = 52,
@@ -294,8 +288,7 @@ namespace PremiumLivingOPS.Views.AfterService
             pnlInputTitle.Controls.Add(new Label
             {
                 Text = "💳  Record New Payment",
-                Font = new Font("Segoe UI", 12f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(1, 105, 111),
+                Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.FromArgb(1, 105, 111),
                 Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
             });
 
@@ -334,10 +327,9 @@ namespace PremiumLivingOPS.Views.AfterService
 
             var lblDate = new Label
             {
-                Text      = DateTime.Today.ToString("yyyy-MM-dd"),
-                Font      = new Font("Segoe UI", 13f),
-                ForeColor = Color.FromArgb(60, 60, 60),
-                Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
+                Text = DateTime.Today.ToString("yyyy-MM-dd"),
+                Font = new Font("Segoe UI", 13f), ForeColor = Color.FromArgb(60, 60, 60),
+                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
             };
             tblInput.Controls.Add(MakeInputLabel("Payment Date"), 0, 2);
             tblInput.Controls.Add(lblDate,                        1, 2);
@@ -347,7 +339,6 @@ namespace PremiumLivingOPS.Views.AfterService
 
             // ══ CARD: Transaction History
             var (histOuter, histInner) = CardPanel.CreateFill();
-
             var pnlHistTitle = new Panel
             {
                 Dock = DockStyle.Top, Height = 52,
@@ -357,8 +348,7 @@ namespace PremiumLivingOPS.Views.AfterService
             pnlHistTitle.Controls.Add(new Label
             {
                 Text = "📄  Transaction History",
-                Font = new Font("Segoe UI", 12f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(19, 35, 61),
+                Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.FromArgb(19, 35, 61),
                 Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
             });
 
@@ -385,23 +375,20 @@ namespace PremiumLivingOPS.Views.AfterService
                     Padding = new Padding(10, 4, 10, 4)
                 }
             };
-            // Transaction table columns sourced from Transaction schema
-            dgvTxn.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTxnID",   HeaderText = "TXN ID",   FillWeight = 30 });
-            dgvTxn.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTxnDate", HeaderText = "DATE",     FillWeight = 20 });
-            dgvTxn.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTxnType", HeaderText = "TYPE",     FillWeight = 20 });
-            dgvTxn.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTxnAmt",  HeaderText = "AMOUNT",   FillWeight = 30 });
-
+            dgvTxn.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTxnID",   HeaderText = "TXN ID",  FillWeight = 30 });
+            dgvTxn.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTxnDate", HeaderText = "DATE",    FillWeight = 20 });
+            dgvTxn.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTxnType", HeaderText = "TYPE",    FillWeight = 20 });
+            dgvTxn.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTxnAmt",  HeaderText = "AMOUNT",  FillWeight = 30 });
             foreach (var t in inv.Transactions)
                 dgvTxn.Rows.Add(
                     t.TransactionID,
                     t.TransactionDate.ToString("yyyy-MM-dd"),
                     t.TransactionType,
                     $"HK$ {t.Amount:N2}");
-
             histInner.Controls.Add(dgvTxn);
             histInner.Controls.Add(pnlHistTitle);
 
-            // ══ FOOTER — Confirm / Cancel
+            // ══ FOOTER
             var pnlFooter = new Panel { Dock = DockStyle.Bottom, Height = 80, BackColor = Color.White };
             pnlFooter.Paint += PaintTopBorder;
 
@@ -434,26 +421,18 @@ namespace PremiumLivingOPS.Views.AfterService
                 btnCancel.Location  = new Point(pnlFooter.Width - 180, (pnlFooter.Height - 52) / 2);
             };
 
+            // FIX CS7036: controller exposes RecordPayment(invoiceId, amount, txnType)
+            // Do NOT construct TransactionEntity here — the controller handles that internally.
             btnConfirm.Click += (s, e) =>
             {
                 double amount = (double)nudAmount.Value;
                 string type   = cboType.SelectedItem?.ToString() ?? "Installment";
 
-                string txnId = _ctrl.GenerateTransactionId();
-                var txn = new TransactionEntity
-                {
-                    TransactionID   = txnId,
-                    InvoiceID       = inv.InvoiceID,
-                    Amount          = amount,
-                    TransactionDate = DateTime.Today,
-                    TransactionType = type
-                };
-
-                bool ok = _ctrl.RecordPayment(txn);
+                bool ok = _ctrl.RecordPayment(inv.InvoiceID, amount, type);
                 if (ok)
                 {
                     MessageBox.Show(
-                        $"Payment of HK$ {amount:N2} recorded successfully.\nTransaction ID: {txnId}",
+                        $"Payment of HK$ {amount:N2} recorded successfully.",
                         "Payment Recorded", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     dlg.Close();
                 }
@@ -464,24 +443,23 @@ namespace PremiumLivingOPS.Views.AfterService
                 }
             };
 
-            // Assemble dialog
-            dlg.Controls.Add(histOuter);    // Fill
-            dlg.Controls.Add(inputOuter);   // Top
-            dlg.Controls.Add(infoOuter);    // Top
-            dlg.Controls.Add(pnlHeader);    // Top
-            dlg.Controls.Add(pnlFooter);    // Bottom
+            dlg.Controls.Add(histOuter);   // Fill
+            dlg.Controls.Add(inputOuter);  // Top
+            dlg.Controls.Add(infoOuter);   // Top
+            dlg.Controls.Add(pnlHeader);   // Top
+            dlg.Controls.Add(pnlFooter);   // Bottom
             dlg.ShowDialog(this);
         }
 
-        // ── Helpers
+        // ── Shared helpers
         private static GraphicsPath RoundedRect(Rectangle r, int radius)
         {
             var path = new GraphicsPath();
             int d = radius * 2;
-            path.AddArc(r.X, r.Y, d, d, 180, 90);
-            path.AddArc(r.Right - d, r.Y, d, d, 270, 90);
-            path.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90);
-            path.AddArc(r.X, r.Bottom - d, d, d, 90, 90);
+            path.AddArc(r.X,         r.Y,          d, d, 180, 90);
+            path.AddArc(r.Right - d, r.Y,          d, d, 270, 90);
+            path.AddArc(r.Right - d, r.Bottom - d, d, d,   0, 90);
+            path.AddArc(r.X,         r.Bottom - d, d, d,  90, 90);
             path.CloseFigure();
             return path;
         }
