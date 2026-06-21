@@ -92,11 +92,48 @@ namespace PremiumLivingOPS.Views.AfterService
             searchInner.Controls.Add(tblSearch);
 
             // ════════════════════════════════════════════════════════════════
-            // CARD 2 — KPI Summary  (outerHeight 90)
+            // CARD 2 — KPI Summary + Invoice List button  (outerHeight 90)
+            //   Left:  pnlKpi (KPI pills, Percent 100%)
+            //   Right: btnInvoiceList (210 × 60, Absolute 226 incl. padding)
             // ════════════════════════════════════════════════════════════════
             var (kpiOuter, kpiInner) = CardPanel.Create(outerHeight: 90);
-            pnlKpi = new Panel { Dock = DockStyle.Fill, BackColor = Color.White, Padding = new Padding(12, 10, 12, 10) };
-            kpiInner.Controls.Add(pnlKpi);
+
+            var tblKpi = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
+                BackColor = Color.White, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                Padding = new Padding(0)
+            };
+            tblKpi.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
+            tblKpi.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 226f));
+            tblKpi.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+
+            pnlKpi = new Panel { Dock = DockStyle.Fill, BackColor = Color.White, Padding = new Padding(12, 10, 0, 10) };
+
+            // Invoice List button  210×60  (right of KPI bar)
+            var btnInvoiceList = new Button
+            {
+                Text = "📋  Invoice List",
+                Font = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.White, BackColor = Palette.Primary,
+                FlatStyle = FlatStyle.Flat, Dock = DockStyle.Fill, Cursor = Cursors.Hand
+            };
+            btnInvoiceList.FlatAppearance.BorderSize = 0;
+            btnInvoiceList.FlatAppearance.MouseOverBackColor = Palette.PrimaryDark;
+            btnInvoiceList.Click += (s, e) =>
+            {
+                using var dlg = new InvoiceListDialog();
+                dlg.ShowDialog(this);
+                RefreshGrid();
+            };
+
+            var pnlBtnRight = new Panel { Dock = DockStyle.Fill, BackColor = Color.White, Padding = new Padding(0, 10, 16, 10) };
+            btnInvoiceList.Dock = DockStyle.Fill;
+            pnlBtnRight.Controls.Add(btnInvoiceList);
+
+            tblKpi.Controls.Add(pnlKpi,      0, 0);
+            tblKpi.Controls.Add(pnlBtnRight, 1, 0);
+            kpiInner.Controls.Add(tblKpi);
 
             // ════════════════════════════════════════════════════════════════
             // CARD 3 — AR Grid  (Fill)
@@ -126,14 +163,14 @@ namespace PremiumLivingOPS.Views.AfterService
                     Padding = new Padding(12, 6, 12, 6)
                 }
             };
-            dgvAR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colInvoiceID",  HeaderText = "INVOICE ID",       FillWeight = 16 });
-            dgvAR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colOrderID",    HeaderText = "ORDER NO.",        FillWeight = 15 });
-            dgvAR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCustomer",   HeaderText = "CUSTOMER",         FillWeight = 18 });
-            dgvAR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTotal",      HeaderText = "TOTAL (HK$)",      FillWeight = 12 });
-            dgvAR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPaid",       HeaderText = "PAID (HK$)",       FillWeight = 12 });
-            dgvAR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colBalance",    HeaderText = "BALANCE (HK$)",    FillWeight = 12 });
-            dgvAR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",     HeaderText = "STATUS",           FillWeight = 10 });
-            dgvAR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDueDate",    HeaderText = "DUE DATE",         FillWeight = 12 });
+            dgvAR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colInvoiceID", HeaderText = "INVOICE ID",    FillWeight = 16 });
+            dgvAR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colOrderID",   HeaderText = "ORDER NO.",     FillWeight = 15 });
+            dgvAR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCustomer",  HeaderText = "CUSTOMER",      FillWeight = 18 });
+            dgvAR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTotal",     HeaderText = "TOTAL (HK$)",   FillWeight = 12 });
+            dgvAR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPaid",      HeaderText = "PAID (HK$)",    FillWeight = 12 });
+            dgvAR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colBalance",   HeaderText = "BALANCE (HK$)", FillWeight = 12 });
+            dgvAR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",    HeaderText = "STATUS",        FillWeight = 10 });
+            dgvAR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDueDate",   HeaderText = "DUE DATE",      FillWeight = 12 });
             dgvAR.CellFormatting += dgvAR_CellFormatting;
 
             gridInner.Controls.Add(dgvAR);
