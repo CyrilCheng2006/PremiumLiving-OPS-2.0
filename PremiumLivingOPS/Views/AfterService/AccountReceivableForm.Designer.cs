@@ -16,7 +16,8 @@ namespace PremiumLivingOPS.Views.AfterService
         private Button       btnReset;
         private Panel        pnlKpi;
         private DataGridView dgvAR;
-        private Button       btnRecord;  // KPI Bar — Record Payment
+        private Button       btnRecord;       // KPI Bar — Record Payment (enabled on row select)
+        private Button       btnInvoiceList;  // KPI Bar — Invoice List popup (always enabled)
 
         protected override void Dispose(bool disposing)
         {
@@ -43,7 +44,7 @@ namespace PremiumLivingOPS.Views.AfterService
             _shell.LogoutClicked   += btnLogout_Click;
 
             // ════════════════════════════════════════════════════════════════
-            // CARD 1 — Search  (Top, fixed 300px) — mirrors ComplaintListForm
+            // CARD 1 — Search  (Top, fixed 300px)
             // ════════════════════════════════════════════════════════════════
             var (searchOuter, searchInner) = CardPanel.Create(outerHeight: 300);
 
@@ -58,7 +59,6 @@ namespace PremiumLivingOPS.Views.AfterService
             cboStatus.Items.AddRange(new object[] { "All", "Partial", "Full", "Overdue" });
             cboStatus.SelectedIndex = 0;
 
-            // ── MakeCell helper (identical pattern to ComplaintListForm)
             TableLayoutPanel MakeCell(string caption, Control ctrl, bool rightPad = true)
             {
                 var tlp = new TableLayoutPanel
@@ -82,7 +82,6 @@ namespace PremiumLivingOPS.Views.AfterService
                 return tlp;
             }
 
-            // ── 4-column fields row
             var tblFields = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 1,
@@ -95,9 +94,7 @@ namespace PremiumLivingOPS.Views.AfterService
             tblFields.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
             tblFields.Controls.Add(MakeCell("Keyword",        txtKeyword), 0, 0);
             tblFields.Controls.Add(MakeCell("Payment Status", cboStatus),  1, 0);
-            // col 2 & 3 intentionally empty (reserved for future filters)
 
-            // ── Button row
             var pnlBtns = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             btnSearch = MakePrimaryBtn("🔍  Search", new Point(0,   0), 210, 60);
             btnReset  = MakeOutlineBtn("↺  Reset",  new Point(218, 0), 210, 60);
@@ -106,7 +103,6 @@ namespace PremiumLivingOPS.Views.AfterService
             pnlBtns.Controls.Add(btnSearch);
             pnlBtns.Controls.Add(btnReset);
 
-            // ── 3-row card layout: Title | Fields | Buttons
             var tblCard = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill, RowCount = 3, ColumnCount = 1,
@@ -134,13 +130,13 @@ namespace PremiumLivingOPS.Views.AfterService
             searchInner.Controls.Add(tblCard);
 
             // ════════════════════════════════════════════════════════════════
-            // CARD 2 — KPI Bar + Action Buttons  (Top, fixed 90px)
+            // CARD 2 — KPI Bar  (Top, fixed 90px)
             //
-            // Layout (left → right):
-            //   pnlKpi         — DockStyle.Fill   — KPI pills
-            //   pnlActionBtns  — DockStyle.Right  — [Record Payment]
+            // Left  → pnlKpi        (Fill)         KPI pills
+            // Right → pnlActionBtns (Right)        [💳 Record Payment] [📋 Invoice List]
             //
-            // Mirrors ComplaintListForm: pills Fill, button panel Right
+            // btnRecord       — 290×60  enabled only when a grid row is selected
+            // btnInvoiceList  — 210×60  always enabled; opens InvoiceListDialog
             // ════════════════════════════════════════════════════════════════
             var (kpiOuter, kpiInner) = CardPanel.Create(outerHeight: 90);
 
@@ -151,18 +147,34 @@ namespace PremiumLivingOPS.Views.AfterService
                 Padding   = new Padding(12, 10, 12, 10)
             };
 
-            const int BtnW   = 290;
-            const int BtnH   = 60;
-            const int BtnPad = 12;
+            // Button sizes
+            const int RecordW       = 290;
+            const int InvoiceListW  = 210;
+            const int BtnH          = 60;
+            const int BtnPad        = 12;
+            const int BtnGap        = 10;
 
-            btnRecord = MakeTealBtn("💳  Record Payment", Point.Empty, BtnW, BtnH);
-            btnRecord.Enabled = false;  // enabled when a row is selected
+            btnRecord = MakeTealBtn("💳  Record Payment", Point.Empty, RecordW, BtnH);
+            btnRecord.Enabled = false;
             btnRecord.Click  += (s, e) => OpenRecordPayment();
+
+            // ── NEW: Invoice List button (210×60, always enabled) ──────────
+            btnInvoiceList = MakePrimaryBtn("📋  Invoice List", Point.Empty, InvoiceListW, BtnH);
+            btnInvoiceList.Click += (s, e) =>
+            {
+                using var dlg = new InvoiceListDialog();
+                dlg.ShowDialog(this);
+                RefreshGrid();   // refresh KPIs after dialog closes
+            };
+            // ───────────────────────────────────────────────────────────────
+
+            // Total action-panel width: pad | Record | gap | InvoiceList | pad
+            int actionPanelW = BtnPad + RecordW + BtnGap + InvoiceListW + BtnPad;
 
             var pnlActionBtns = new Panel
             {
                 Dock      = DockStyle.Right,
-                Width     = BtnPad + BtnW + BtnPad,
+                Width     = actionPanelW,
                 BackColor = Color.Transparent
             };
 
@@ -170,14 +182,17 @@ namespace PremiumLivingOPS.Views.AfterService
             {
                 int top = (pnlActionBtns.Height - BtnH) / 2;
                 if (top < 0) top = 0;
-                btnRecord.Location = new Point(BtnPad, top);
+                btnRecord.Location      = new Point(BtnPad, top);
+                btnInvoiceList.Location = new Point(BtnPad + RecordW + BtnGap, top);
             }
+
             pnlActionBtns.Controls.Add(btnRecord);
+            pnlActionBtns.Controls.Add(btnInvoiceList);
             pnlActionBtns.Resize += (s, e) => CentreActionBtns();
 
             var pnlKpiRow = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            pnlKpiRow.Controls.Add(pnlKpi);        // Fill  — pills
-            pnlKpiRow.Controls.Add(pnlActionBtns); // Right — button
+            pnlKpiRow.Controls.Add(pnlKpi);        // Fill — pills
+            pnlKpiRow.Controls.Add(pnlActionBtns); // Right — buttons
             kpiInner.Controls.Add(pnlKpiRow);
 
             // ════════════════════════════════════════════════════════════════
@@ -232,7 +247,7 @@ namespace PremiumLivingOPS.Views.AfterService
             this.ResumeLayout(false);
         }
 
-        // ── Button factories (same signatures as ComplaintListForm) ─────────────────
+        // ── Button factories ─────────────────────────────────────────────────
         private static Button MakePrimaryBtn(string text, Point loc, int w, int h)
         {
             var b = new Button { Text = text, Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.White, BackColor = Palette.Primary, FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand };
