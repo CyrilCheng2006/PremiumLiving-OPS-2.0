@@ -14,7 +14,7 @@ namespace PremiumLivingOPS.Controllers
     {
         private readonly AfterServiceRepo _repo = new AfterServiceRepo();
 
-        // ── Helper: current user ──────────────────────────────────────────────
+        // ── Helper: current user ─────────────────────────────────────────
         private static UserBarViewModel CurrentUserBar()
         {
             var u = SessionManager.CurrentUser;
@@ -126,6 +126,43 @@ namespace PremiumLivingOPS.Controllers
                 AllowedMenus = CurrentMenus(),
                 Items        = _repo.SearchAccountReceivables(status, keyword)
             };
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        //  Invoice List + Record Payment  (Account Receivable popup)
+        // ════════════════════════════════════════════════════════════════════
+
+        public InvoiceListViewModel GetInvoiceListVM(string keyword = null)
+        {
+            return new InvoiceListViewModel
+            {
+                UserBar      = CurrentUserBar(),
+                AllowedMenus = CurrentMenus(),
+                Invoices     = _repo.GetInvoiceDetails(keyword)
+            };
+        }
+
+        public string GenerateTransactionId()
+            => _repo.GenerateTransactionId();
+
+        /// <summary>
+        /// Records a payment transaction for an invoice.
+        /// Amount must be > 0 and ≤ invoice RemainingBalance.
+        /// </summary>
+        public bool RecordPayment(string invoiceId, double amount, string txnType)
+        {
+            if (amount <= 0)
+                throw new ArgumentException("Payment amount must be greater than zero.");
+
+            var txn = new TransactionEntity
+            {
+                TransactionID   = GenerateTransactionId(),
+                InvoiceID       = invoiceId,
+                Amount          = amount,
+                TransactionDate = DateTime.Today,
+                TransactionType = txnType
+            };
+            return _repo.RecordPayment(txn);
         }
 
         // ════════════════════════════════════════════════════════════════════
