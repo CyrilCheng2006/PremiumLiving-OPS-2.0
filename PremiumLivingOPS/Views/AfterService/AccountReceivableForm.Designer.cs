@@ -16,7 +16,7 @@ namespace PremiumLivingOPS.Views.AfterService
         private Button       btnReset;
         private Panel        pnlKpi;
         private DataGridView dgvAR;
-        private Button       btnRecord;  // KPI Bar — Record Payment (enabled on row select)
+        private Button       btnRecord;
 
         protected override void Dispose(bool disposing)
         {
@@ -54,6 +54,9 @@ namespace PremiumLivingOPS.Views.AfterService
             };
             txtKeyword.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) RefreshGrid(); };
 
+            // cboStatus items: "All", "Partial", "Full", "Overdue"
+            // NOTE: "Overdue" is a derived UI state (not a DB ENUM value).
+            // The filter is applied in-memory via InvoiceDetailEntity.IsOverdue.
             cboStatus = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 12f) };
             cboStatus.Items.AddRange(new object[] { "All", "Partial", "Full", "Overdue" });
             cboStatus.SelectedIndex = 0;
@@ -130,11 +133,6 @@ namespace PremiumLivingOPS.Views.AfterService
 
             // ════════════════════════════════════════════════════════════════
             // CARD 2 — KPI Bar  (Top, fixed 90px)
-            //
-            // Left  → pnlKpi        (Fill)   KPI pills
-            // Right → pnlActionBtns (Right)  [💳 Record Payment]  only
-            //
-            // Invoice List button removed — functionality integrated into page.
             // ════════════════════════════════════════════════════════════════
             var (kpiOuter, kpiInner) = CardPanel.Create(outerHeight: 90);
 
@@ -176,6 +174,16 @@ namespace PremiumLivingOPS.Views.AfterService
 
             // ════════════════════════════════════════════════════════════════
             // CARD 3 — Invoice Grid  (Fill)
+            // Columns (9 total) — all sourced from Invoice / Order / Customer
+            //   colInvoiceID  → Invoice.InvoiceID
+            //   colOrderID    → Invoice.OrderID
+            //   colInvoiceDate→ Invoice.InvoiceDate   [FIX: previously missing]
+            //   colCustomer   → Customer.CustomerName (JOIN)
+            //   colTotal      → Invoice.TotalAmount
+            //   colPaid       → Invoice.PaidAmount
+            //   colBalance    → Invoice.RemainingBalance
+            //   colStatus     → Invoice.PaymentStatus + derived IsOverdue
+            //   colDueDate    → Invoice.DueDate
             // ════════════════════════════════════════════════════════════════
             var (gridOuter, gridInner) = CardPanel.CreateFill();
 
@@ -202,14 +210,18 @@ namespace PremiumLivingOPS.Views.AfterService
                     Padding = new Padding(12, 6, 12, 6)
                 }
             };
-            dgvAR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colInvoiceID", HeaderText = "INVOICE ID",    FillWeight = 16 });
-            dgvAR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colOrderID",   HeaderText = "ORDER NO.",     FillWeight = 14 });
-            dgvAR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCustomer",  HeaderText = "CUSTOMER",      FillWeight = 18 });
-            dgvAR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTotal",     HeaderText = "TOTAL (HK$)",   FillWeight = 12 });
-            dgvAR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPaid",      HeaderText = "PAID (HK$)",    FillWeight = 12 });
-            dgvAR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colBalance",   HeaderText = "BALANCE (HK$)", FillWeight = 12 });
-            dgvAR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",    HeaderText = "STATUS",        FillWeight = 10 });
-            dgvAR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDueDate",   HeaderText = "DUE DATE",      FillWeight = 10 });
+
+            // 9 columns — fully aligned to schema.sql Invoice table
+            dgvAR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colInvoiceID",   HeaderText = "INVOICE ID",     FillWeight = 14 });
+            dgvAR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colOrderID",     HeaderText = "ORDER NO.",      FillWeight = 12 });
+            dgvAR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colInvoiceDate", HeaderText = "INVOICE DATE",   FillWeight = 12 }); // FIX: added
+            dgvAR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCustomer",    HeaderText = "CUSTOMER",       FillWeight = 16 });
+            dgvAR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTotal",       HeaderText = "TOTAL (HK$)",    FillWeight = 11 });
+            dgvAR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPaid",        HeaderText = "PAID (HK$)",     FillWeight = 11 });
+            dgvAR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colBalance",     HeaderText = "BALANCE (HK$)",  FillWeight = 11 });
+            dgvAR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",      HeaderText = "STATUS",         FillWeight =  9 });
+            dgvAR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDueDate",     HeaderText = "DUE DATE",       FillWeight =  9 });
+
             dgvAR.SelectionChanged += dgvAR_SelectionChanged;
             dgvAR.CellFormatting   += dgvAR_CellFormatting;
             dgvAR.CellDoubleClick  += (s, e) => { if (e.RowIndex >= 0) OpenRecordPayment(); };
