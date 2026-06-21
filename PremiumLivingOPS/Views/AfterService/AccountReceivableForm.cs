@@ -203,26 +203,21 @@ namespace PremiumLivingOPS.Views.AfterService
         }
 
         // ─────────────────────────────────────────────────────────────────────
-        // Record Payment Dialog  1800 × 800
+        // Record Payment Dialog  1800 × 1000
         // ─────────────────────────────────────────────────────────────────────
-        // Layout (top → bottom):
-        //   pnlHeader   — Top  70px  — teal title bar (title left + badge right, Absolute 360)
-        //   cardInfo    — Top 200px  — CardPanel: Invoice summary (6 fields, 2-col grid)
-        //   cardInput   — Top 370px  — CardPanel: Record New Payment (3 rows, 1 field per row)
-        //   cardHistory — Fill       — CardPanel: Payment History grid
-        //   pnlFooter   — Bottom 88px — Confirm (210×60) + Cancel (210×60)
         private void ShowRecordPaymentDialog(InvoiceDetailEntity inv)
         {
             using var dlg = new Form
             {
                 Text = $"Record Payment  —  {inv.InvoiceID}",
-                Size = new Size(1800, 800), StartPosition = FormStartPosition.CenterParent,
-                BackColor = Color.FromArgb(240, 244, 249),   // grey page bg
+                Size = new Size(1800, 1000),   // height: 800 → 1000
+                StartPosition = FormStartPosition.CenterParent,
+                BackColor = Color.FromArgb(240, 244, 249),
                 Font = new Font("Segoe UI", 13f),
                 FormBorderStyle = FormBorderStyle.FixedDialog, MaximizeBox = false, MinimizeBox = false
             };
 
-            // ══ HEADER — teal title bar =============================================
+            // ══ HEADER — teal title bar
             var pnlHeader = new Panel
             {
                 Dock = DockStyle.Top, Height = 70,
@@ -235,7 +230,7 @@ namespace PremiumLivingOPS.Views.AfterService
                 Padding = new Padding(28, 0, 24, 0)
             };
             tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
-            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 360f));   // wider badge
+            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 360f));
             tblHeader.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
             tblHeader.Controls.Add(new Label
             {
@@ -254,10 +249,8 @@ namespace PremiumLivingOPS.Views.AfterService
             }, 1, 0);
             pnlHeader.Controls.Add(tblHeader);
 
-            // ══ CARD: Invoice Info ================================================
-            // 6 fields arranged in 2-column, 3-row TableLayout inside a CardPanel (Top 200px)
+            // ══ CARD: Invoice Info
             var (infoOuter, infoInner) = CardPanel.Create(outerHeight: 200);
-
             var tblInfo = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 3,
@@ -274,12 +267,9 @@ namespace PremiumLivingOPS.Views.AfterService
             AddInfoRow(tblInfo, 2, "Balance:",      $"HK$ {inv.RemainingBalance:N2}", "Due Date:",    inv.DueDate.ToString("yyyy-MM-dd"));
             infoInner.Controls.Add(tblInfo);
 
-            // ══ CARD: Record New Payment ==========================================
-            // 3 rows × 1 field each:  Payment Amount | Payment Type | Transaction Date
-            // Each row: label (Top 36px) + control (Top 48px) inside a CardPanel (Top 370px)
+            // ══ CARD: Record New Payment
             var (inputOuter, inputInner) = CardPanel.Create(outerHeight: 370);
 
-            // Section title inside card
             var pnlInputTitle = new Panel
             {
                 Dock = DockStyle.Top, Height = 52,
@@ -295,20 +285,18 @@ namespace PremiumLivingOPS.Views.AfterService
                 Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
             });
 
-            // Field body — 1 field per row, uses TableLayoutPanel (3 rows)
             var tblInput = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 3,
                 BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
                 Padding = new Padding(24, 16, 24, 16)
             };
-            tblInput.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 260f));  // label
+            tblInput.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 700f));  // label: 260 → 700
             tblInput.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));  // control
             tblInput.RowStyles.Add(new RowStyle(SizeType.Percent, 33.3f));
             tblInput.RowStyles.Add(new RowStyle(SizeType.Percent, 33.3f));
             tblInput.RowStyles.Add(new RowStyle(SizeType.Percent, 33.3f));
 
-            // Row 0: Payment Amount
             var nudAmount = new NumericUpDown
             {
                 Font = new Font("Segoe UI", 13f),
@@ -320,7 +308,6 @@ namespace PremiumLivingOPS.Views.AfterService
             tblInput.Controls.Add(MakeInputLabel("Payment Amount (HK$) *"), 0, 0);
             tblInput.Controls.Add(nudAmount,                                 1, 0);
 
-            // Row 1: Payment Type
             var cboType = new ComboBox
             {
                 DropDownStyle = ComboBoxStyle.DropDownList,
@@ -331,7 +318,6 @@ namespace PremiumLivingOPS.Views.AfterService
             tblInput.Controls.Add(MakeInputLabel("Payment Type *"), 0, 1);
             tblInput.Controls.Add(cboType,                          1, 1);
 
-            // Row 2: Transaction Date (read-only, today)
             var lblDate = new Label
             {
                 Text = DateTime.Today.ToString("yyyy-MM-dd"),
@@ -343,12 +329,11 @@ namespace PremiumLivingOPS.Views.AfterService
             tblInput.Controls.Add(lblDate,                            1, 2);
 
             inputInner.Controls.Add(tblInput);
-            inputInner.Controls.Add(pnlInputTitle);  // Top — must add after Fill content
+            inputInner.Controls.Add(pnlInputTitle);
 
-            // ══ CARD: Payment History =============================================
+            // ══ CARD: Payment History
             var (histOuter, histInner) = CardPanel.CreateFill();
 
-            // Section title inside card
             var pnlHistTitle = new Panel
             {
                 Dock = DockStyle.Top, Height = 48,
@@ -403,9 +388,9 @@ namespace PremiumLivingOPS.Views.AfterService
                                     t.TransactionType, $"HK$ {t.Amount:N2}");
             }
             histInner.Controls.Add(dgvTxn);
-            histInner.Controls.Add(pnlHistTitle);   // Top — must add after Fill
+            histInner.Controls.Add(pnlHistTitle);
 
-            // ══ FOOTER — Confirm (210×60) + Cancel (210×60) ========================
+            // ══ FOOTER — Confirm (210×60) + Cancel (210×60)
             var pnlFooter = new Panel
             {
                 Dock = DockStyle.Bottom, Height = 88,
@@ -461,7 +446,7 @@ namespace PremiumLivingOPS.Views.AfterService
             pnlFooter.Controls.Add(btnConfirm);
             pnlFooter.Controls.Add(btnCancel);
 
-            // ══ Assemble (Fill first, then Top panels top-to-bottom, Bottom last) =====
+            // ══ Assemble
             dlg.Controls.Add(histOuter);    // Fill
             dlg.Controls.Add(inputOuter);   // Top
             dlg.Controls.Add(infoOuter);    // Top
