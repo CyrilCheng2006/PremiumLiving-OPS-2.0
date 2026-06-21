@@ -636,6 +636,19 @@ namespace PremiumLivingOPS.Models.DAL
 
         // ══════════════════════════════════════════════════════════════════
         //  ACCOUNT PAYABLE queries
+        //
+        //  PurchaseInvoice schema:
+        //    PurInvoiceID  VARCHAR(20) PK
+        //    PurchaseID    VARCHAR(20) FK → PurchaseOrder.PurchaseID
+        //    TotalAmount   DECIMAL
+        //    PaymentStatus ENUM('Partial','Full')
+        //    ExpectedDate  DATE   (= DueDate alias)
+        //
+        //  SupplierID / SupplierName are on PurchaseOrder, NOT PurchaseInvoice.
+        //  JOIN path: PurchaseInvoice → PurchaseOrder → Supplier
+        //
+        //  PaidAmount / RemainingBalance are NOT stored on PurchaseInvoice;
+        //  they are computed from Transaction rows (PurInvoiceID IS NOT NULL).
         // ══════════════════════════════════════════════════════════════════
 
         public List<AccountPayableEntity> SearchAccountPayables(string status = null, string keyword = null)
@@ -644,133 +657,31 @@ namespace PremiumLivingOPS.Models.DAL
             using (var conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
+
+                // PaidAmount  = SUM of Transaction.Amount where PurInvoiceID matches
+                // Balance     = TotalAmount - PaidAmount  (floor 0)
+                // DueDate     = PurchaseInvoice.ExpectedDate
                 var sql =
-                    @"SELECT p.PurInvoiceID, p.SupplierID, s.SupplierName,
-                             p.PurInvoiceDate, p.TotalAmount, p.PaidAmount,
-                             p.RemainingBalance, p.PaymentStatus, p.DueDate
+                    @"SELECT p.PurInvoiceID,
+                             po.PurchaseID,
+                             su.SupplierID,
+                             su.SupplierName,
+                             p.ExpectedDate                                        AS DueDate,
+                             p.TotalAmount,
+                             COALESCE(tx.PaidAmount, 0)                           AS PaidAmount,
+                             GREATEST(p.TotalAmount - COALESCE(tx.PaidAmount, 0), 0) AS RemainingBalance,
+                             p.PaymentStatus,
+                             p.ExpectedDate                                        AS PurInvoiceDate
                       FROM PurchaseInvoice p
-                      JOIN Supplier s ON p.SupplierID = s.SupplierID
-                      WHERE p.RemainingBalance > 0";
+                      JOIN PurchaseOrder   po ON p.PurchaseID  = po.PurchaseID
+                      JOIN Supplier        su ON po.SupplierID = su.SupplierID
+                      LEFT JOIN (
+                          SELECT PurInvoiceID, SUM(Amount) AS PaidAmount
+                          FROM `Transaction`
+                          WHERE PurInvoiceID IS NOT NULL
+                          GROUP BY PurInvoiceID
+                      ) tx ON tx.PurInvoiceID = p.PurInvoiceID
+                      WHERE GREATEST(p.TotalAmount - COALESCE(tx.PaidAmount, 0), 0) > 0";
 
                 if (!string.IsNullOrEmpty(status))
-                    sql += " AND p.PaymentStatus = @status";
-                if (!string.IsNullOrEmpty(keyword))
-                    sql += @" AND (p.PurInvoiceID LIKE @kw
-                               OR s.SupplierName  LIKE @kw
-                               OR p.SupplierID    LIKE @kw)";
-                sql += " ORDER BY p.DueDate ASC";
-
-                using (var cmd = new MySqlCommand(sql, conn))
-                {
-                    if (!string.IsNullOrEmpty(status))  cmd.Parameters.AddWithValue("@status", status);
-                    if (!string.IsNullOrEmpty(keyword)) cmd.Parameters.AddWithValue("@kw", "%" + keyword + "%");
-                    using (var rdr = cmd.ExecuteReader())
-                        while (rdr.Read()) list.Add(MapAccountPayable(rdr));
-                }
-            }
-            return list;
-        }
-
-        // ══════════════════════════════════════════════════════════════════
-        //  MAPPERS
-        // ══════════════════════════════════════════════════════════════════
-
-        private static InvoiceEntity MapInvoice(MySqlDataReader r) => new InvoiceEntity
-        {
-            InvoiceID        = r.GetString("InvoiceID"),
-            OrderID          = r.GetString("OrderID"),
-            CustomerName     = r.GetString("CustomerName"),
-            InvoiceDate      = r.GetDateTime("InvoiceDate"),
-            DepositAmount    = r.IsDBNull(r.GetOrdinal("DepositAmount")) ? 0 : r.GetDouble("DepositAmount"),
-            PaidAmount       = r.GetDouble("PaidAmount"),
-            RemainingBalance = r.GetDouble("RemainingBalance"),
-            TotalAmount      = r.GetDouble("TotalAmount"),
-            PaymentStatus    = r.GetString("PaymentStatus"),
-            DueDate          = r.GetDateTime("DueDate")
-        };
-
-        private static OrderEntity MapOrder(MySqlDataReader r) => new OrderEntity
-        {
-            OrderID          = r.GetString("OrderID"),
-            CustomerID       = r.GetString("CustomerID"),
-            CustomerName     = r.GetString("CustomerName"),
-            IssuedTime       = r.GetDateTime("IssuedTime"),
-            // DeliveryDate is nullable in DB — use explicit (DateTime?) cast to avoid CS0266
-            DeliveryDate     = r.IsDBNull(r.GetOrdinal("DeliveryDate"))     ? (DateTime?)null : (DateTime?)r.GetDateTime("DeliveryDate"),
-            GrandTotal       = r.IsDBNull(r.GetOrdinal("GrandTotal"))       ? 0 : r.GetDouble("GrandTotal"),
-            OrderStatus      = r.GetString("OrderStatus"),
-            OrderContactName = r.IsDBNull(r.GetOrdinal("OrderContactName")) ? null : r.GetString("OrderContactName"),
-            SalesID          = r.GetString("SalesID"),
-            SalesName        = r.GetString("SalesName"),
-            QuotationID      = r.IsDBNull(r.GetOrdinal("QuotationID"))      ? null : r.GetString("QuotationID"),
-            AddressID        = r.IsDBNull(r.GetOrdinal("AddressID"))        ? null : r.GetString("AddressID"),
-            ShippingAddress  = r.IsDBNull(r.GetOrdinal("ShippingAddress"))  ? null : r.GetString("ShippingAddress"),
-            BillingAddress   = r.IsDBNull(r.GetOrdinal("BillingAddress"))   ? null : r.GetString("BillingAddress"),
-            SubTotal         = r.IsDBNull(r.GetOrdinal("SubTotal"))         ? 0 : r.GetDouble("SubTotal"),
-            DiscountType     = r.IsDBNull(r.GetOrdinal("DiscountType"))     ? null : r.GetString("DiscountType"),
-            DiscountValue    = r.IsDBNull(r.GetOrdinal("DiscountValue"))    ? 0 : r.GetDouble("DiscountValue"),
-            DiscountAmount   = r.IsDBNull(r.GetOrdinal("DiscountAmount"))   ? 0 : r.GetDouble("DiscountAmount")
-        };
-
-        private static ComplaintEntity MapComplaint(MySqlDataReader r) => new ComplaintEntity
-        {
-            ComplaintID          = r.GetString("ComplaintID"),
-            OrderID              = r.IsDBNull(r.GetOrdinal("OrderID")) ? null : r.GetString("OrderID"),
-            StaffName            = r.GetString("StaffName"),
-            ComplaintDescription = r.IsDBNull(r.GetOrdinal("ComplaintDescription")) ? null : r.GetString("ComplaintDescription"),
-            ComplaintStatus      = r.GetString("ComplaintStatus")
-        };
-
-        private static ReturnOrderEntity MapReturnOrder(MySqlDataReader r) => new ReturnOrderEntity
-        {
-            ReturnID     = r.GetString("ReturnID"),
-            OrderID      = r.GetString("OrderID"),
-            CustomerName = r.GetString("CustomerName"),
-            ReturnDate   = r.GetDateTime("ReturnDate"),
-            Reason       = r.IsDBNull(r.GetOrdinal("Reason"))      ? null : r.GetString("Reason"),
-            RefundAmount = r.IsDBNull(r.GetOrdinal("RefundAmount")) ? 0    : r.GetDouble("RefundAmount"),
-            ReturnStatus = r.GetString("ReturnStatus")
-            // StaffID intentionally not mapped on SELECT (JOIN does not expose it)
-        };
-
-        private static AccountReceivableEntity MapAccountReceivable(MySqlDataReader r)
-        {
-            // IsOverdue: computed in C# to avoid DateTime? → DateTime implicit conversion (CS0266)
-            DateTime dueDate  = r.GetDateTime("DueDate");
-            double   balance  = r.GetDouble("RemainingBalance");
-            return new AccountReceivableEntity
-            {
-                InvoiceID        = r.GetString("InvoiceID"),
-                OrderID          = r.GetString("OrderID"),
-                CustomerName     = r.GetString("CustomerName"),
-                InvoiceDate      = r.GetDateTime("InvoiceDate"),
-                TotalAmount      = r.GetDouble("TotalAmount"),
-                PaidAmount       = r.GetDouble("PaidAmount"),
-                RemainingBalance = balance,
-                PaymentStatus    = r.GetString("PaymentStatus"),
-                DueDate          = dueDate,
-                IsOverdue        = balance > 0 && dueDate < DateTime.Today
-            };
-        }
-
-        private static AccountPayableEntity MapAccountPayable(MySqlDataReader r)
-        {
-            DateTime dueDate  = r.GetDateTime("DueDate");
-            string   status   = r.GetString("PaymentStatus");
-            return new AccountPayableEntity
-            {
-                PurInvoiceID     = r.GetString("PurInvoiceID"),
-                PurchaseID       = r.GetString("PurInvoiceID"),   // alias
-                SupplierID       = r.GetString("SupplierID"),
-                SupplierName     = r.GetString("SupplierName"),
-                PurInvoiceDate   = r.GetDateTime("PurInvoiceDate"),
-                TotalAmount      = r.GetDouble("TotalAmount"),
-                PaidAmount       = r.GetDouble("PaidAmount"),
-                RemainingBalance = r.GetDouble("RemainingBalance"),
-                PaymentStatus    = status,
-                DueDate          = dueDate,
-                IsOverdue        = status != "Full" && dueDate < DateTime.Today
-            };
-        }
-    }
-}
+                    sql += " AND p
