@@ -66,7 +66,7 @@ namespace PremiumLivingOPS.Models.Entities
         public string   InvoiceID        { get; set; }
         public string   OrderID          { get; set; }
         public string   CustomerName     { get; set; }
-        public DateTime InvoiceDate      { get; set; }   // required by Mapper
+        public DateTime InvoiceDate      { get; set; }
         public double   TotalAmount      { get; set; }
         public double   PaidAmount       { get; set; }
         public double   RemainingBalance { get; set; }
@@ -78,6 +78,8 @@ namespace PremiumLivingOPS.Models.Entities
     /// <summary>
     /// Accounts Payable view: PurchaseInvoice JOIN Supplier.
     /// IsOverdue = PaymentStatus != 'Full' AND DueDate &lt; TODAY.
+    /// DueDate is the canonical backing field.
+    /// ExpectedDate is a View-layer alias for DueDate (AccountPayableForm.cs).
     /// </summary>
     public class AccountPayableEntity
     {
@@ -90,7 +92,12 @@ namespace PremiumLivingOPS.Models.Entities
         public double   PaidAmount       { get; set; }
         public double   RemainingBalance { get; set; }
         public string   PaymentStatus    { get; set; }
-        public DateTime DueDate          { get; set; }
+        public DateTime DueDate          { get; set; }   // maps to DB DueDate column
+        /// <summary>
+        /// Alias for DueDate used by AccountPayableForm (View layer).
+        /// Both properties read/write the same backing value.
+        /// </summary>
+        public DateTime ExpectedDate     { get => DueDate; set => DueDate = value; }
         public bool     IsOverdue        { get; set; }
     }
 
