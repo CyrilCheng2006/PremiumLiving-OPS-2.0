@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace PremiumLivingOPS.Models.Entities
 {
     /// <summary>
-    /// Extends InvoiceEntity with a flat CustomerName (JOIN result)
+    /// Extends Invoice data with a flat CustomerName (JOIN result)
     /// and the list of Transaction rows linked to this Invoice.
     /// </summary>
     public class InvoiceDetailEntity

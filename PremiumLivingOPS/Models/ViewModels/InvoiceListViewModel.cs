@@ -4,8 +4,8 @@ using System.Collections.Generic;
 namespace PremiumLivingOPS.Models.ViewModels
 {
     /// <summary>
-    /// ViewModel for the Invoice List + Record Payment popup dialog.
-    /// Carries the full Invoice list (with Transaction history per invoice).
+    /// ViewModel for the Invoice List + Record Payment popup dialog
+    /// (Account Receivable module).
     /// </summary>
     public class InvoiceListViewModel
     {
