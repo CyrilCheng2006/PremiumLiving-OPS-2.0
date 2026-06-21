@@ -32,7 +32,6 @@ namespace PremiumLivingOPS.Views.AfterService
 
         private void AccountReceivableForm_Load(object sender, EventArgs e) => RefreshGrid();
 
-        // ── Navigation / Logout handlers (referenced by Designer.cs lambda wires)
         private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
             => FormNavigator.NavigateTo(this, menuLabel, subItem);
 
@@ -86,7 +85,6 @@ namespace PremiumLivingOPS.Views.AfterService
             RefreshGrid();
         }
 
-        // ── SelectionChanged — enable/disable Record button
         private void dgvAR_SelectionChanged(object sender, EventArgs e)
         {
             bool hasRow = dgvAR.SelectedRows.Count > 0 && dgvAR.SelectedRows[0].Index >= 0;
@@ -94,35 +92,33 @@ namespace PremiumLivingOPS.Views.AfterService
         }
 
         // ── KPI Pills
+        // 4 pills: Total Invoices | Partial | Full | Overdue
+        // (Outstanding monetary pill removed — KPI Bar shows counts by status only)
         private void RefreshKpi()
         {
             pnlKpi.Controls.Clear();
 
             var all = _ctrl.GetAccountReceivableVM().Items;
 
-            int    totalCount   = all.Count;
-            double outstanding  = 0;
-            int    overdueCount = 0;
-            int    partialCount = 0;
-            int    fullCount    = 0;
+            int totalCount   = all.Count;
+            int overdueCount = 0;
+            int partialCount = 0;
+            int fullCount    = 0;
 
             foreach (var i in all)
             {
-                outstanding += i.RemainingBalance;
                 if (i.IsOverdue)                 overdueCount++;
                 if (i.PaymentStatus == "Partial") partialCount++;
                 if (i.PaymentStatus == "Full")    fullCount++;
             }
 
-            // FIX 1: Outstanding value prefixed with "HK$ " for currency consistency
-            // FIX 2: "Partial" label renamed to "Partial Payment" for clarity
+            // KPI Bar: Total + 3 PaymentStatus (Partial / Full / Overdue)
             var pills = new[]
             {
-                ("Total Invoices",    totalCount.ToString(),          Color.FromArgb( 19,  35,  61), Color.FromArgb(219, 234, 254)),
-                ("Outstanding (HK$)", $"HK$ {outstanding:N0}",       Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199)),
-                ("Partial Payment",   partialCount.ToString(),        Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254)),
-                ("Fully Paid",        fullCount.ToString(),           Color.FromArgb( 22, 101,  52), Color.FromArgb(220, 252, 231)),
-                ("Overdue",           overdueCount.ToString(),        Color.FromArgb(185,  28,  28), Color.FromArgb(254, 226, 226)),
+                ("Total Invoices", totalCount.ToString(),   Color.FromArgb( 19,  35,  61), Color.FromArgb(219, 234, 254)),
+                ("Partial",        partialCount.ToString(), Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199)),
+                ("Full",           fullCount.ToString(),    Color.FromArgb( 22, 101,  52), Color.FromArgb(220, 252, 231)),
+                ("Overdue",        overdueCount.ToString(), Color.FromArgb(185,  28,  28), Color.FromArgb(254, 226, 226)),
             };
 
             var flow = new FlowLayoutPanel
@@ -139,7 +135,11 @@ namespace PremiumLivingOPS.Views.AfterService
 
             foreach (var (label, value, fg, bg) in pills)
             {
-                var pill = new Panel { BackColor = bg, Size = new Size(PillW, PillH), Margin = new Padding(0, 0, Gap, 0), Cursor = Cursors.Hand };
+                var pill = new Panel
+                {
+                    BackColor = bg, Size = new Size(PillW, PillH),
+                    Margin = new Padding(0, 0, Gap, 0), Cursor = Cursors.Hand
+                };
                 pill.Paint += (s, e) =>
                 {
                     e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
@@ -156,8 +156,18 @@ namespace PremiumLivingOPS.Views.AfterService
                 tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, NumColW));
                 tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
                 tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-                tlp.Controls.Add(new Label { Text = value, Font = new Font("Segoe UI", 14f, FontStyle.Bold), ForeColor = fg, BackColor = Color.Transparent, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, AutoSize = false }, 0, 0);
-                tlp.Controls.Add(new Label { Text = label, Font = new Font("Segoe UI", 11f),                ForeColor = fg, BackColor = Color.Transparent, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft,   AutoSize = false }, 1, 0);
+                tlp.Controls.Add(new Label
+                {
+                    Text = value, Font = new Font("Segoe UI", 14f, FontStyle.Bold),
+                    ForeColor = fg, BackColor = Color.Transparent,
+                    Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, AutoSize = false
+                }, 0, 0);
+                tlp.Controls.Add(new Label
+                {
+                    Text = label, Font = new Font("Segoe UI", 11f),
+                    ForeColor = fg, BackColor = Color.Transparent,
+                    Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
+                }, 1, 0);
                 pill.Controls.Add(tlp);
                 flow.Controls.Add(pill);
             }
@@ -261,7 +271,7 @@ namespace PremiumLivingOPS.Views.AfterService
             pnlHeader.Controls.Add(tblHeader);
 
             // ══ CARD: Invoice Info
-            // FIX 3: Info Panel expanded to 5 rows to include DepositAmount (Invoice.DepositAmount)
+            // 5 rows: Customer/Order | Dates | Amounts | Deposit | Status
             var (infoOuter, infoInner) = CardPanel.Create(outerHeight: 260);
             var tblInfo = new TableLayoutPanel
             {
@@ -277,7 +287,6 @@ namespace PremiumLivingOPS.Views.AfterService
             AddInfoRow(tblInfo, 0, "Customer:",      inv.CustomerName,                       "Order No.:",   inv.OrderID);
             AddInfoRow(tblInfo, 1, "Invoice Date:",  inv.InvoiceDate.ToString("yyyy-MM-dd"), "Due Date:",    inv.DueDate.ToString("yyyy-MM-dd"));
             AddInfoRow(tblInfo, 2, "Total Amount:",  $"HK$ {inv.TotalAmount:N2}",            "Paid Amount:", $"HK$ {inv.PaidAmount:N2}");
-            // Row 3: DepositAmount from Invoice.DepositAmount (schema: Invoice.DepositAmount DECIMAL(10,2))
             AddInfoRow(tblInfo, 3, "Deposit Paid:",  $"HK$ {inv.DepositAmount:N2}",          "Balance:",     $"HK$ {inv.RemainingBalance:N2}");
             AddInfoRow(tblInfo, 4, "Status:",        inv.IsOverdue ? "Overdue" : inv.PaymentStatus, "",      "");
             infoInner.Controls.Add(tblInfo);
@@ -430,7 +439,6 @@ namespace PremiumLivingOPS.Views.AfterService
             {
                 double amount = (double)nudAmount.Value;
                 string type   = cboType.SelectedItem?.ToString() ?? "Installment";
-
                 bool ok = _ctrl.RecordPayment(inv.InvoiceID, amount, type);
                 if (ok)
                 {
@@ -446,15 +454,15 @@ namespace PremiumLivingOPS.Views.AfterService
                 }
             };
 
-            dlg.Controls.Add(histOuter);   // Fill
-            dlg.Controls.Add(inputOuter);  // Top
-            dlg.Controls.Add(infoOuter);   // Top
-            dlg.Controls.Add(pnlHeader);   // Top
-            dlg.Controls.Add(pnlFooter);   // Bottom
+            dlg.Controls.Add(histOuter);
+            dlg.Controls.Add(inputOuter);
+            dlg.Controls.Add(infoOuter);
+            dlg.Controls.Add(pnlHeader);
+            dlg.Controls.Add(pnlFooter);
             dlg.ShowDialog(this);
         }
 
-        // ── Shared helpers
+        // ── Helpers
         private static GraphicsPath RoundedRect(Rectangle r, int radius)
         {
             var path = new GraphicsPath();
