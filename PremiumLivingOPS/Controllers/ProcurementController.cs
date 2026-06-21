@@ -1,6 +1,7 @@
 using PremiumLivingOPS.Models.DAL;
 using PremiumLivingOPS.Models.Entities;
 using PremiumLivingOPS.Models.ViewModels;
+using PremiumLivingOPS.Services;
 using System;
 using System.Collections.Generic;
 
@@ -9,6 +10,7 @@ namespace PremiumLivingOPS.Controllers
     /// <summary>
     /// Controller (middle layer) for Raw Material → Procurement module.
     /// The View never accesses ProcurementRepo or the DB directly.
+    /// All DB-write operations are audit-logged via AuditLogger.
     /// </summary>
     public class ProcurementController
     {
@@ -76,6 +78,10 @@ namespace PremiumLivingOPS.Controllers
             };
         }
 
+        /// <summary>
+        /// Validates inputs, creates the PurchaseOrder + PurchaseOrderLine in DB,
+        /// and writes a CREATE audit entry.
+        /// </summary>
         public void SubmitCreateProcurement(
             string purchaseId, string requestId, string supplierId,
             DateTime orderDate, string status,
@@ -96,13 +102,24 @@ namespace PremiumLivingOPS.Controllers
                 throw new ArgumentException("Unit Price must be greater than 0.");
 
             double poTotal = orderQty * unitPrice;
-
-            // ✔ Staff.StaffId (lowercase 'd') — matches Staff.cs property definition
             string staffId = SessionManager.CurrentUser?.StaffId ?? "SYSTEM";
 
             _repo.CreatePurchaseOrder(
                 purchaseId, requestId, supplierId, poTotal, orderDate, status,
                 rawMaterialItemId, warehouseId, orderQty, unitPrice, staffId);
+
+            // ── Audit log ──────────────────────────────────────────────
+            AuditLogger.Write(AuditLogger.TYPE_CREATE, "PurchaseOrder",
+                oldValue: null,
+                newValue: AuditLogger.Snapshot(
+                    ("ID",       purchaseId),
+                    ("Request",  requestId),
+                    ("Supplier", supplierId),
+                    ("Qty",      orderQty.ToString()),
+                    ("UnitPx",   unitPrice.ToString("F2")),
+                    ("Total",    poTotal.ToString("F2")),
+                    ("Status",   status),
+                    ("WH",       warehouseId)));
         }
 
         // ════════════════════════════════════════════════════════════════

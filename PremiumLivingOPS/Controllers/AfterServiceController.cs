@@ -1,182 +1,181 @@
 using PremiumLivingOPS.Models.DAL;
 using PremiumLivingOPS.Models.Entities;
+using PremiumLivingOPS.Models.ViewModels;
+using PremiumLivingOPS.Services;
 using System;
 using System.Collections.Generic;
 
 namespace PremiumLivingOPS.Controllers
 {
     /// <summary>
-    /// Controller (MVC middle layer) for the After-Service module.
-    /// Accepts requests from View layer, delegates to AfterServiceRepo,
-    /// and returns ViewModels. Contains NO UI code.
+    /// Controller (MVC middle layer) for After-Service module.
+    /// All DB-write operations (PurchaseInvoice, ReturnOrder, AccountPayable) are audit-logged.
+    /// Contains NO UI code.
     /// </summary>
     public partial class AfterServiceController
     {
         private readonly AfterServiceRepo _repo = new AfterServiceRepo();
 
-        // ── Helper: current user ─────────────────────────────────────────
-        private static UserBarViewModel CurrentUserBar()
+        // ── Purchase Invoice ───────────────────────────────────────────
+
+        public PurchaseInvoiceListViewModel GetPurchaseInvoiceListVM(
+            string keyword = null,
+            string status  = null)
         {
-            var u = SessionManager.CurrentUser;
-            return new UserBarViewModel
+            var user = SessionManager.CurrentUser;
+            return new PurchaseInvoiceListViewModel
             {
-                DisplayName = u?.StaffName  ?? "Unknown",
-                Department  = u?.Department ?? ""
+                UserBar      = new UserBarViewModel { DisplayName = user?.StaffName ?? "Unknown", Department = user?.Department ?? "" },
+                AllowedMenus = NavAccessPolicy.GetAllowedMenus(user?.Department ?? ""),
+                Invoices     = _repo.SearchPurchaseInvoices(keyword, status)
             };
         }
 
-        private static string[] CurrentMenus()
-            => NavAccessPolicy.GetAllowedMenus(SessionManager.CurrentUser?.Department ?? "");
-
-        // ════════════════════════════════════════════════════════════════════
-        //  Create Invoice
-        // ════════════════════════════════════════════════════════════════════
-
-        public CreateInvoiceViewModel GetCreateInvoiceVM()
+        public PurchaseInvoiceDetailViewModel GetPurchaseInvoiceDetailVM(string invoiceId)
         {
-            return new CreateInvoiceViewModel
+            var user = SessionManager.CurrentUser;
+            return new PurchaseInvoiceDetailViewModel
             {
-                UserBar      = CurrentUserBar(),
-                AllowedMenus = CurrentMenus(),
-                Orders       = _repo.GetOrdersWithoutInvoice()
+                UserBar      = new UserBarViewModel { DisplayName = user?.StaffName ?? "Unknown", Department = user?.Department ?? "" },
+                AllowedMenus = NavAccessPolicy.GetAllowedMenus(user?.Department ?? ""),
+                Invoice      = _repo.GetPurchaseInvoiceById(invoiceId)
             };
         }
 
-        public string GenerateInvoiceId()
+        public string GenerateNextInvoiceId() => _repo.GenerateNextInvoiceId();
+
+        /// <summary>Creates a Purchase Invoice and logs the CREATE.</summary>
+        public bool CreatePurchaseInvoice(PurchaseInvoiceEntity invoice)
         {
-            string prefix   = "INV-" + DateTime.Today.ToString("yyyyMMdd") + "-";
-            var    existing = _repo.GetInvoiceIdsByPrefix(prefix);
-            int    next     = 1;
-            foreach (var id in existing)
-            {
-                if (id.Length >= prefix.Length + 4 &&
-                    int.TryParse(id.Substring(prefix.Length, 4), out int seq) &&
-                    seq >= next)
-                    next = seq + 1;
-            }
-            return $"{prefix}{next:D4}";
+            bool ok = _repo.CreatePurchaseInvoice(invoice);
+            if (ok)
+                AuditLogger.Write(AuditLogger.TYPE_CREATE, "PurchaseInvoice",
+                    oldValue: null,
+                    newValue: AuditLogger.Snapshot(
+                        ("ID",       invoice.PurchaseInvoiceID),
+                        ("PO",       invoice.PurchaseOrderID ?? ""),
+                        ("Total",    invoice.TotalAmount.ToString("F2")),
+                        ("Status",   invoice.InvoiceStatus ?? ""),
+                        ("DueDate",  invoice.DueDate?.ToString("yyyy-MM-dd") ?? "")));
+            return ok;
         }
 
-        public bool SaveInvoice(InvoiceEntity inv)
+        /// <summary>Updates Invoice status and logs the EDIT.</summary>
+        public bool UpdateInvoiceStatus(string invoiceId, string newStatus)
         {
-            if (string.IsNullOrWhiteSpace(inv.InvoiceID))
-                inv.InvoiceID = GenerateInvoiceId();
-            inv.RemainingBalance = Math.Max(0, inv.TotalAmount - inv.PaidAmount);
-            inv.PaymentStatus    = inv.RemainingBalance <= 0 ? "Full" : "Partial";
-            return _repo.CreateInvoice(inv);
+            var old = _repo.GetPurchaseInvoiceById(invoiceId);
+            string oldSnap = old == null ? invoiceId
+                : AuditLogger.Snapshot(
+                    ("ID",     old.PurchaseInvoiceID),
+                    ("Status", old.InvoiceStatus ?? ""));
+
+            bool ok = _repo.UpdateInvoiceStatus(invoiceId, newStatus);
+            if (ok)
+                AuditLogger.Write(AuditLogger.TYPE_EDIT, "PurchaseInvoice",
+                    oldValue: oldSnap,
+                    newValue: AuditLogger.Snapshot(
+                        ("ID",     invoiceId),
+                        ("Status", newStatus)));
+            return ok;
         }
 
-        // ════════════════════════════════════════════════════════════════════
-        //  Complaint List
-        // ════════════════════════════════════════════════════════════════════
+        // ── Return Order ───────────────────────────────────────────────
 
-        public ComplaintListViewModel GetComplaintListVM(string status = null, string keyword = null)
+        public ReturnOrderListViewModel GetReturnOrderListVM(
+            string keyword = null,
+            string status  = null)
         {
-            return new ComplaintListViewModel
-            {
-                UserBar      = CurrentUserBar(),
-                AllowedMenus = CurrentMenus(),
-                Complaints   = _repo.SearchComplaints(status, keyword)
-            };
-        }
-
-        public bool UpdateComplaintStatus(string complaintId, string newStatus)
-            => _repo.UpdateComplaintStatus(complaintId, newStatus);
-
-        public List<(string StaffID, string StaffName)> GetStaffList()
-            => _repo.GetStaffList();
-
-        public bool CreateComplaint(ComplaintEntity c)
-        {
-            if (string.IsNullOrWhiteSpace(c.ComplaintID))
-                c.ComplaintID = _repo.GenerateComplaintId();
-            if (string.IsNullOrWhiteSpace(c.ComplaintStatus))
-                c.ComplaintStatus = "Pending";
-            return _repo.CreateComplaint(c);
-        }
-
-        // ════════════════════════════════════════════════════════════════════
-        //  Return Order List
-        // ════════════════════════════════════════════════════════════════════
-
-        public ReturnOrderListViewModel GetReturnOrderListVM(string status = null, string keyword = null)
-        {
+            var user = SessionManager.CurrentUser;
             return new ReturnOrderListViewModel
             {
-                UserBar      = CurrentUserBar(),
-                AllowedMenus = CurrentMenus(),
-                ReturnOrders = _repo.SearchReturnOrders(status, keyword)
+                UserBar      = new UserBarViewModel { DisplayName = user?.StaffName ?? "Unknown", Department = user?.Department ?? "" },
+                AllowedMenus = NavAccessPolicy.GetAllowedMenus(user?.Department ?? ""),
+                ReturnOrders = _repo.SearchReturnOrders(keyword, status)
             };
         }
 
+        public string GenerateNextReturnOrderId() => _repo.GenerateNextReturnOrderId();
+
+        /// <summary>Creates a Return Order and logs the CREATE.</summary>
+        public bool CreateReturnOrder(ReturnOrderEntity ro)
+        {
+            bool ok = _repo.CreateReturnOrder(ro);
+            if (ok)
+                AuditLogger.Write(AuditLogger.TYPE_CREATE, "ReturnOrder",
+                    oldValue: null,
+                    newValue: AuditLogger.Snapshot(
+                        ("ID",      ro.ReturnOrderID),
+                        ("Order",   ro.OrderID ?? ""),
+                        ("Reason",  ro.ReturnReason ?? ""),
+                        ("Status",  ro.ReturnStatus ?? ""),
+                        ("Total",   ro.TotalRefund.ToString("F2"))));
+            return ok;
+        }
+
+        /// <summary>Updates Return Order status and logs the EDIT.</summary>
         public bool UpdateReturnOrderStatus(string returnId, string newStatus)
-            => _repo.UpdateReturnOrderStatus(returnId, newStatus);
-
-        // NOTE: Create / Picker / GenerateId methods live in AfterServiceController.ReturnOrder.cs
-
-        // ════════════════════════════════════════════════════════════════════
-        //  Account Receivable
-        // ════════════════════════════════════════════════════════════════════
-
-        public AccountReceivableViewModel GetAccountReceivableVM(string status = null, string keyword = null)
         {
-            return new AccountReceivableViewModel
+            var old = _repo.GetReturnOrderById(returnId);
+            string oldSnap = old == null ? returnId
+                : AuditLogger.Snapshot(
+                    ("ID",     old.ReturnOrderID),
+                    ("Status", old.ReturnStatus ?? ""),
+                    ("Order",  old.OrderID ?? ""));
+
+            bool ok = _repo.UpdateReturnOrderStatus(returnId, newStatus);
+            if (ok)
+                AuditLogger.Write(AuditLogger.TYPE_EDIT, "ReturnOrder",
+                    oldValue: oldSnap,
+                    newValue: AuditLogger.Snapshot(
+                        ("ID",     returnId),
+                        ("Status", newStatus)));
+            return ok;
+        }
+
+        // ── Account Payable ────────────────────────────────────────────
+
+        public AccountPayableListViewModel GetAccountPayableListVM(
+            string keyword = null,
+            string status  = null)
+        {
+            var user = SessionManager.CurrentUser;
+            return new AccountPayableListViewModel
             {
-                UserBar      = CurrentUserBar(),
-                AllowedMenus = CurrentMenus(),
-                Items        = _repo.SearchAccountReceivables(status, keyword)
+                UserBar         = new UserBarViewModel { DisplayName = user?.StaffName ?? "Unknown", Department = user?.Department ?? "" },
+                AllowedMenus    = NavAccessPolicy.GetAllowedMenus(user?.Department ?? ""),
+                AccountPayables = _repo.SearchAccountPayables(keyword, status)
             };
         }
 
-        // ════════════════════════════════════════════════════════════════════
-        //  Invoice List + Record Payment  (Account Receivable popup)
-        // ════════════════════════════════════════════════════════════════════
+        // ── Supplier Receipt ───────────────────────────────────────────
 
-        public InvoiceListViewModel GetInvoiceListVM(string keyword = null)
+        public SupplierReceiptListViewModel GetSupplierReceiptListVM(string keyword = null)
         {
-            return new InvoiceListViewModel
+            var user = SessionManager.CurrentUser;
+            return new SupplierReceiptListViewModel
             {
-                UserBar      = CurrentUserBar(),
-                AllowedMenus = CurrentMenus(),
-                Invoices     = _repo.GetInvoiceDetails(keyword)
+                UserBar      = new UserBarViewModel { DisplayName = user?.StaffName ?? "Unknown", Department = user?.Department ?? "" },
+                AllowedMenus = NavAccessPolicy.GetAllowedMenus(user?.Department ?? ""),
+                Receipts     = _repo.SearchSupplierReceipts(keyword)
             };
         }
 
-        public string GenerateTransactionId()
-            => _repo.GenerateTransactionId();
+        public string GenerateNextReceiptId() => _repo.GenerateNextReceiptId();
 
-        /// <summary>
-        /// Records a payment transaction for an invoice.
-        /// Amount must be > 0 and ≤ invoice RemainingBalance.
-        /// </summary>
-        public bool RecordPayment(string invoiceId, double amount, string txnType)
+        /// <summary>Records a Supplier Receipt and logs the CREATE.</summary>
+        public bool CreateSupplierReceipt(SupplierReceiptEntity receipt)
         {
-            if (amount <= 0)
-                throw new ArgumentException("Payment amount must be greater than zero.");
-
-            var txn = new TransactionEntity
-            {
-                TransactionID   = GenerateTransactionId(),
-                InvoiceID       = invoiceId,
-                Amount          = amount,
-                TransactionDate = DateTime.Today,
-                TransactionType = txnType
-            };
-            return _repo.RecordPayment(txn);
-        }
-
-        // ════════════════════════════════════════════════════════════════════
-        //  Account Payable
-        // ════════════════════════════════════════════════════════════════════
-
-        public AccountPayableViewModel GetAccountPayableVM(string status = null, string keyword = null)
-        {
-            return new AccountPayableViewModel
-            {
-                UserBar      = CurrentUserBar(),
-                AllowedMenus = CurrentMenus(),
-                Items        = _repo.SearchAccountPayables(status, keyword)
-            };
+            bool ok = _repo.CreateSupplierReceipt(receipt);
+            if (ok)
+                AuditLogger.Write(AuditLogger.TYPE_CREATE, "SupplierReceipt",
+                    oldValue: null,
+                    newValue: AuditLogger.Snapshot(
+                        ("ID",       receipt.SupplierReceiptID),
+                        ("PO",       receipt.PurchaseOrderID ?? ""),
+                        ("Supplier", receipt.SupplierID ?? ""),
+                        ("Total",    receipt.TotalAmount.ToString("F2")),
+                        ("Date",     receipt.ReceiptDate.ToString("yyyy-MM-dd"))));
+            return ok;
         }
     }
 }

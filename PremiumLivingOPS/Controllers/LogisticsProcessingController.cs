@@ -1,302 +1,129 @@
 using PremiumLivingOPS.Models.DAL;
 using PremiumLivingOPS.Models.Entities;
 using PremiumLivingOPS.Models.ViewModels;
+using PremiumLivingOPS.Services;
 using System;
 using System.Collections.Generic;
-using System.IO;
 
 namespace PremiumLivingOPS.Controllers
 {
     /// <summary>
     /// Controller (MVC middle layer) for Logistics Processing.
-    /// Accepts requests from View layer, delegates to LogisticsProcessingRepo, returns ViewModels.
-    /// Contains NO UI code and NO direct SQL.
+    /// All DB-write operations (Shipment create / status update) are audit-logged.
+    /// Contains NO UI code.
     /// </summary>
     public class LogisticsProcessingController
     {
         private readonly LogisticsProcessingRepo _repo = new LogisticsProcessingRepo();
 
-        // ── View Shipment ────────────────────────────────────────────
-        public ViewShipmentVM GetViewShipmentVM(
-            string statusFilter = null,
-            string keyword      = null,
-            DateTime? dateFrom  = null)
+        // ── View Shipment ──────────────────────────────────────────────
+
+        public ViewShipmentViewModel GetViewShipmentVM(
+            string    status   = null,
+            string    keyword  = null,
+            DateTime? dateFrom = null,
+            DateTime? dateTo   = null)
         {
             var user = SessionManager.CurrentUser;
-            return new ViewShipmentVM
+            return new ViewShipmentViewModel
             {
-                UserBar = new UserBarViewModel
-                {
-                    DisplayName = user?.StaffName   ?? "Unknown",
-                    Department  = user?.Department  ?? ""
-                },
+                UserBar      = new UserBarViewModel { DisplayName = user?.StaffName ?? "Unknown", Department = user?.Department ?? "" },
                 AllowedMenus = NavAccessPolicy.GetAllowedMenus(user?.Department ?? ""),
-                Shipments    = _repo.SearchShipments(statusFilter, keyword, dateFrom)
+                Shipments    = _repo.SearchShipments(status, keyword, dateFrom, dateTo)
             };
         }
 
-        public ShipmentDetailVM GetShipmentDetail(string shipmentId)
-        {
-            var dn = _repo.GetDeliveryNoteByShipment(shipmentId);
-            return new ShipmentDetailVM
-            {
-                Shipment     = _repo.GetShipmentById(shipmentId),
-                Lines        = _repo.GetShipmentLines(shipmentId),
-                DeliveryNote = dn,
-                ReplySlip    = dn != null ? _repo.GetReplySlipByDelivery(dn.DeliveryID) : null
-            };
-        }
-
-        // ── Edit Shipment ───────────────────────────────────────────
-        public void UpdateShipment(string shipmentId,
-                                   string newStatus,
-                                   string actualRecipient,
-                                   string remark)
-        {
-            if (string.IsNullOrWhiteSpace(shipmentId))
-                throw new ArgumentException("Shipment ID is required.");
-
-            var validStatuses = new[] { "Pending", "In Transit", "Completed" };
-            if (System.Array.IndexOf(validStatuses, newStatus) < 0)
-                throw new ArgumentException($"Invalid status '{newStatus}'.");
-
-            _repo.UpdateShipment(shipmentId, newStatus);
-
-            if (!string.IsNullOrWhiteSpace(actualRecipient))
-            {
-                var dn = _repo.GetDeliveryNoteByShipment(shipmentId);
-                if (dn != null)
-                    _repo.UpsertReplySlip(dn.DeliveryID, actualRecipient, remark);
-            }
-        }
-
-        // ── Delete Shipment ───────────────────────────────────────────
-        public void DeleteShipment(string shipmentId)
-        {
-            if (string.IsNullOrWhiteSpace(shipmentId))
-                throw new ArgumentException("Shipment ID is required.");
-            _repo.DeleteShipment(shipmentId);
-        }
-
-        // ── Generate Delivery Note ──────────────────────────────────
-        public string GenerateDeliveryNote(string shipmentId)
-        {
-            if (string.IsNullOrWhiteSpace(shipmentId))
-                throw new ArgumentException("Shipment ID is required.");
-
-            var existing = _repo.GetDeliveryNoteByShipment(shipmentId);
-            if (existing != null)
-                throw new InvalidOperationException(
-                    $"A Delivery Note ({existing.DeliveryID}) already exists for shipment {shipmentId}.");
-
-            var shipment = _repo.GetShipmentById(shipmentId);
-            if (shipment == null)
-                throw new InvalidOperationException($"Shipment {shipmentId} not found.");
-
-            var lines = _repo.GetShipmentLines(shipmentId);
-            int outstandingQty = 0;
-            foreach (var line in lines)
-                outstandingQty += line.QtyOutstanding ?? 0;
-
-            return _repo.InsertDeliveryNote(
-                shipmentId,
-                shipment.ShipDate,
-                outstandingQty,
-                shipment.ShippingAddress,
-                shipment.CustomerName);
-        }
-
-        // ── Generate Reply Slip ────────────────────────────────────
-        public string GenerateReplySlip(string shipmentId,
-                                        string actualRecipient,
-                                        string remark)
-        {
-            if (string.IsNullOrWhiteSpace(shipmentId))
-                throw new ArgumentException("Shipment ID is required.");
-            if (string.IsNullOrWhiteSpace(actualRecipient))
-                throw new ArgumentException("Actual Recipient is required.");
-
-            var dn = _repo.GetDeliveryNoteByShipment(shipmentId);
-            if (dn == null)
-                throw new InvalidOperationException(
-                    $"No Delivery Note found for shipment {shipmentId}. Please generate one first.");
-
-            var existing = _repo.GetReplySlipByDelivery(dn.DeliveryID);
-            if (existing != null)
-                throw new InvalidOperationException(
-                    $"A Reply Slip ({existing.SlipID}) already exists for Delivery Note {dn.DeliveryID}.");
-
-            return _repo.InsertReplySlip(dn.DeliveryID, actualRecipient, remark, DateTime.Today);
-        }
-
-        // ── Handling Goods Received ──────────────────────────────────
-        public HandlingGoodsReceivedVM GetHandlingGoodsReceivedVM(
-            string statusFilter = null,
-            string keyword      = null,
-            DateTime? dateFrom  = null)
+        public ShipmentDetailViewModel GetShipmentDetailVM(string shipmentId)
         {
             var user = SessionManager.CurrentUser;
-            return new HandlingGoodsReceivedVM
+            return new ShipmentDetailViewModel
             {
-                UserBar = new UserBarViewModel
-                {
-                    DisplayName = user?.StaffName  ?? "Unknown",
-                    Department  = user?.Department ?? ""
-                },
+                UserBar      = new UserBarViewModel { DisplayName = user?.StaffName ?? "Unknown", Department = user?.Department ?? "" },
+                AllowedMenus = NavAccessPolicy.GetAllowedMenus(user?.Department ?? ""),
+                Shipment     = _repo.GetShipmentById(shipmentId),
+                Items        = _repo.GetShipmentItems(shipmentId)
+            };
+        }
+
+        // ── Create Shipment ────────────────────────────────────────────
+
+        public CreateShipmentViewModel GetCreateShipmentVM()
+        {
+            var user = SessionManager.CurrentUser;
+            return new CreateShipmentViewModel
+            {
+                UserBar        = new UserBarViewModel { DisplayName = user?.StaffName ?? "Unknown", Department = user?.Department ?? "" },
                 AllowedMenus   = NavAccessPolicy.GetAllowedMenus(user?.Department ?? ""),
-                Receipts       = _repo.SearchReceipts(statusFilter, keyword, dateFrom),
-                PurchaseOrders = _repo.GetAllPurchaseOrders(),
-                Invoices       = _repo.GetAllPurchaseInvoices()
+                PendingOrders  = _repo.GetUnshippedOrders(),
+                NextShipmentId = _repo.GenerateNextShipmentId()
             };
         }
 
-        /// <summary>
-        /// Builds the full PODetailVM for PODetailDialog:
-        /// header with supplier contact + invoice status + RequestID,
-        /// lines with WarehouseID / WarehouseLocation.
-        /// </summary>
-        public PODetailVM GetPODetailVM(string purchaseId)
+        public string GenerateNextShipmentId() => _repo.GenerateNextShipmentId();
+
+        /// <summary>Creates a new shipment record and logs the CREATE.</summary>
+        public bool CreateShipment(ShipmentEntity shipment, List<ShipmentItemEntity> items)
         {
-            var (po, phone, address, invoiceStatus) = _repo.GetPOHeaderFull(purchaseId);
-            return new PODetailVM
-            {
-                PurchaseOrder   = po,
-                Lines           = _repo.GetPODetailLines(purchaseId),
-                SupplierPhone   = phone,
-                SupplierAddress = address,
-                InvoiceStatus   = invoiceStatus
-            };
+            bool ok = _repo.CreateShipment(shipment, items);
+            if (ok)
+                AuditLogger.Write(AuditLogger.TYPE_CREATE, "Shipment",
+                    oldValue: null,
+                    newValue: AuditLogger.Snapshot(
+                        ("ID",      shipment.ShipmentID),
+                        ("Order",   shipment.OrderID ?? ""),
+                        ("Status",  shipment.ShipmentStatus ?? ""),
+                        ("Carrier", shipment.Carrier ?? ""),
+                        ("Items",   (items?.Count ?? 0).ToString())));
+            return ok;
         }
 
-        /// <summary>
-        /// Builds ReceiptDetailVM for ReceiptDetailDialog:
-        /// the clicked receipt row as header + all receipts for the same PurchaseID as lines.
-        /// </summary>
-        public ReceiptDetailVM GetReceiptDetailVM(GoodsReceivedEntity selectedReceipt)
+        // ── Update Shipment Status ─────────────────────────────────────
+
+        /// <summary>Updates shipment status and logs the EDIT.</summary>
+        public bool UpdateShipmentStatus(string shipmentId, string newStatus)
         {
-            if (selectedReceipt == null) throw new ArgumentNullException(nameof(selectedReceipt));
-            return new ReceiptDetailVM
-            {
-                Receipt     = selectedReceipt,
-                AllReceipts = _repo.GetReceiptsByPurchaseID(selectedReceipt.PurchaseID)
-            };
+            var old = _repo.GetShipmentById(shipmentId);
+            string oldSnap = old == null ? shipmentId
+                : AuditLogger.Snapshot(
+                    ("ID",     old.ShipmentID),
+                    ("Status", old.ShipmentStatus ?? ""),
+                    ("Order",  old.OrderID ?? ""));
+
+            bool ok = _repo.UpdateShipmentStatus(shipmentId, newStatus);
+            if (ok)
+                AuditLogger.Write(AuditLogger.TYPE_EDIT, "Shipment",
+                    oldValue: oldSnap,
+                    newValue: AuditLogger.Snapshot(
+                        ("ID",     shipmentId),
+                        ("Status", newStatus)));
+            return ok;
         }
 
-        public RecordPurchaseInvoiceVM GetRecordPurchaseInvoiceVM(PurchaseOrderEntity po)
+        // ── Update Delivery Date ───────────────────────────────────────
+
+        /// <summary>Updates the actual delivery date and logs the EDIT.</summary>
+        public bool UpdateDeliveryDate(string shipmentId, DateTime deliveryDate)
         {
-            var existing = _repo.GetPurchaseInvoiceByPO(po?.PurchaseID);
-            return new RecordPurchaseInvoiceVM
-            {
-                PurchaseID      = po?.PurchaseID    ?? "",
-                SupplierName    = po?.SupplierName  ?? "",
-                TotalAmount     = po?.POTotalAmount ?? 0,
-                PaymentStatus   = "Full",
-                ExpectedDate    = DateTime.Today.AddDays(30),
-                ExistingInvoice = existing
-            };
+            var old = _repo.GetShipmentById(shipmentId);
+            string oldSnap = old == null ? shipmentId
+                : AuditLogger.Snapshot(
+                    ("ID",          old.ShipmentID),
+                    ("DeliveryDate", old.DeliveryDate?.ToString("yyyy-MM-dd") ?? "-"));
+
+            bool ok = _repo.UpdateDeliveryDate(shipmentId, deliveryDate);
+            if (ok)
+                AuditLogger.Write(AuditLogger.TYPE_EDIT, "Shipment",
+                    oldValue: oldSnap,
+                    newValue: AuditLogger.Snapshot(
+                        ("ID",          shipmentId),
+                        ("DeliveryDate", deliveryDate.ToString("yyyy-MM-dd"))));
+            return ok;
         }
 
-        public string SavePurchaseInvoice(RecordPurchaseInvoiceVM vm)
-        {
-            if (string.IsNullOrWhiteSpace(vm.PurchaseID))
-                throw new ArgumentException("PurchaseID is required.");
-            if (vm.TotalAmount <= 0)
-                throw new ArgumentException("Total Amount must be greater than zero.");
-            return _repo.InsertPurchaseInvoice(vm);
-        }
+        // ── Read helpers ───────────────────────────────────────────────
 
-        // ── CSV Import: Receipt ───────────────────────────────────────────
-        public ReceiptImportResult ImportReceiptsFromCsv(string filePath)
-        {
-            var result    = new ReceiptImportResult();
-            var validRows = new List<ReceiptImportRow>();
-
-            if (!File.Exists(filePath))
-            { result.Errors.Add("File not found: " + filePath); return result; }
-
-            string[] lines;
-            try   { lines = File.ReadAllLines(filePath); }
-            catch (Exception ex)
-            { result.Errors.Add("Cannot read file: " + ex.Message); return result; }
-
-            if (lines.Length < 2)
-            { result.Errors.Add("CSV file has no data rows."); return result; }
-
-            var header = lines[0].Split(',');
-            int idxPurchaseID  = FindCol(header, "PurchaseID");
-            int idxPOLineID    = FindCol(header, "POLineID");
-            int idxQtyReceived = FindCol(header, "QtyReceived");
-            int idxReceiptDate = FindCol(header, "ReceiptDate");
-            int idxOutstanding = FindCol(header, "Outstanding_QTY");
-
-            if (idxPurchaseID < 0 || idxPOLineID < 0 ||
-                idxQtyReceived < 0 || idxReceiptDate < 0)
-            {
-                result.Errors.Add("CSV header must contain: PurchaseID, POLineID, QtyReceived, ReceiptDate");
-                return result;
-            }
-
-            for (int i = 1; i < lines.Length; i++)
-            {
-                string line = lines[i].Trim();
-                if (string.IsNullOrEmpty(line)) continue;
-                int rowNum = i;
-                var cols = line.Split(',');
-
-                string purchaseId = GetCol(cols, idxPurchaseID);
-                string poLineId   = GetCol(cols, idxPOLineID);
-                string qtyStr     = GetCol(cols, idxQtyReceived);
-                string dateStr    = GetCol(cols, idxReceiptDate);
-                string outStr     = idxOutstanding >= 0 ? GetCol(cols, idxOutstanding) : "";
-
-                if (string.IsNullOrEmpty(purchaseId))
-                { result.Errors.Add($"Row {rowNum}: PurchaseID is empty."); continue; }
-                if (string.IsNullOrEmpty(poLineId))
-                { result.Errors.Add($"Row {rowNum}: POLineID is empty."); continue; }
-                if (!int.TryParse(qtyStr, out int qty) || qty <= 0)
-                { result.Errors.Add($"Row {rowNum}: QtyReceived '{qtyStr}' must be a positive integer."); continue; }
-                if (!DateTime.TryParse(dateStr, out DateTime receiptDate))
-                { result.Errors.Add($"Row {rowNum}: ReceiptDate '{dateStr}' is not a valid date."); continue; }
-
-                int? outstanding = null;
-                if (!string.IsNullOrEmpty(outStr))
-                {
-                    if (!int.TryParse(outStr, out int outVal) || outVal < 0)
-                    { result.Errors.Add($"Row {rowNum}: Outstanding_QTY '{outStr}' must be non-negative or blank."); continue; }
-                    outstanding = outVal;
-                }
-
-                if (!_repo.PurchaseOrderExists(purchaseId))
-                { result.Errors.Add($"Row {rowNum}: PurchaseID '{purchaseId}' not found."); continue; }
-                if (!_repo.POLineExists(poLineId, purchaseId))
-                { result.Errors.Add($"Row {rowNum}: POLineID '{poLineId}' does not belong to '{purchaseId}'."); continue; }
-
-                validRows.Add(new ReceiptImportRow
-                {
-                    RowNumber      = rowNum,
-                    PurchaseID     = purchaseId,
-                    POLineID       = poLineId,
-                    QtyReceived    = qty,
-                    ReceiptDate    = receiptDate,
-                    OutstandingQty = outstanding
-                });
-            }
-
-            if (validRows.Count > 0)
-            {
-                try   { result.SuccessCount = _repo.BulkInsertReceipts(validRows); }
-                catch (Exception ex) { result.Errors.Add("Database error: " + ex.Message); }
-            }
-            return result;
-        }
-
-        private static int FindCol(string[] header, string name)
-        {
-            for (int i = 0; i < header.Length; i++)
-                if (header[i].Trim().Equals(name, StringComparison.OrdinalIgnoreCase)) return i;
-            return -1;
-        }
-        private static string GetCol(string[] cols, int idx)
-            => idx < cols.Length ? cols[idx].Trim() : string.Empty;
+        public List<ShipmentEntity> GetUnshippedOrders()                     => _repo.GetUnshippedOrders();
+        public ShipmentEntity       GetShipmentById(string id)               => _repo.GetShipmentById(id);
+        public List<ShipmentItemEntity> GetShipmentItems(string shipmentId)  => _repo.GetShipmentItems(shipmentId);
     }
 }
