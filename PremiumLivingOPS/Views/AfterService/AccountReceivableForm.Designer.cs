@@ -17,6 +17,11 @@ namespace PremiumLivingOPS.Views.AfterService
         private Panel        pnlKpi;
         private DataGridView dgvAR;
 
+        // Invoice List section (embedded)
+        private TextBox      txtInvSearch;
+        private DataGridView dgvInvoice;
+        private Label        _lblOutstanding;
+
         protected override void Dispose(bool disposing)
         {
             if (disposing && components != null) components.Dispose();
@@ -92,9 +97,9 @@ namespace PremiumLivingOPS.Views.AfterService
             searchInner.Controls.Add(tblSearch);
 
             // ════════════════════════════════════════════════════════════════
-            // CARD 2 — KPI Summary + Invoice List button  (outerHeight 90)
-            //   Left:  pnlKpi (KPI pills, Percent 100%)
-            //   Right: btnInvoiceList (210 × 60, Absolute 226 incl. padding)
+            // CARD 2 — KPI Summary + Record Payment button  (outerHeight 90)
+            //   Left:  pnlKpi  (KPI pills, Percent 100%)
+            //   Right: btnRecord (220 × fill, Absolute 240 incl. padding)
             // ════════════════════════════════════════════════════════════════
             var (kpiOuter, kpiInner) = CardPanel.Create(outerHeight: 90);
 
@@ -105,40 +110,35 @@ namespace PremiumLivingOPS.Views.AfterService
                 Padding = new Padding(0)
             };
             tblKpi.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
-            tblKpi.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 226f));
+            tblKpi.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 256f));
             tblKpi.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
             pnlKpi = new Panel { Dock = DockStyle.Fill, BackColor = Color.White, Padding = new Padding(12, 10, 0, 10) };
 
-            // Invoice List button  210×60  (right of KPI bar)
-            var btnInvoiceList = new Button
+            // Record Payment button in KPI bar (right side)
+            var btnRecord = new Button
             {
-                Text = "📋  Invoice List",
+                Text = "💳  Record Payment",
                 Font = new Font("Segoe UI", 12f, FontStyle.Bold),
-                ForeColor = Color.White, BackColor = Palette.Primary,
+                ForeColor = Color.White, BackColor = Color.FromArgb(1, 105, 111),
                 FlatStyle = FlatStyle.Flat, Dock = DockStyle.Fill, Cursor = Cursors.Hand
             };
-            btnInvoiceList.FlatAppearance.BorderSize = 0;
-            btnInvoiceList.FlatAppearance.MouseOverBackColor = Palette.PrimaryDark;
-            btnInvoiceList.Click += (s, e) =>
-            {
-                using var dlg = new InvoiceListDialog();
-                dlg.ShowDialog(this);
-                RefreshGrid();
-            };
+            btnRecord.FlatAppearance.BorderSize = 0;
+            btnRecord.FlatAppearance.MouseOverBackColor = Color.FromArgb(12, 78, 84);
+            btnRecord.Click += (s, e) => OpenRecordPayment();
 
             var pnlBtnRight = new Panel { Dock = DockStyle.Fill, BackColor = Color.White, Padding = new Padding(0, 10, 16, 10) };
-            btnInvoiceList.Dock = DockStyle.Fill;
-            pnlBtnRight.Controls.Add(btnInvoiceList);
+            btnRecord.Dock = DockStyle.Fill;
+            pnlBtnRight.Controls.Add(btnRecord);
 
             tblKpi.Controls.Add(pnlKpi,      0, 0);
             tblKpi.Controls.Add(pnlBtnRight, 1, 0);
             kpiInner.Controls.Add(tblKpi);
 
             // ════════════════════════════════════════════════════════════════
-            // CARD 3 — AR Grid  (Fill)
+            // CARD 3 — AR Grid  (outerHeight 380)
             // ════════════════════════════════════════════════════════════════
-            var (gridOuter, gridInner) = CardPanel.CreateFill();
+            var (gridOuter, gridInner) = CardPanel.Create(outerHeight: 380);
 
             dgvAR = new DataGridView
             {
@@ -175,8 +175,111 @@ namespace PremiumLivingOPS.Views.AfterService
 
             gridInner.Controls.Add(dgvAR);
 
-            // ── Assemble
-            pnlMain.Controls.Add(gridOuter);   // Fill
+            // ════════════════════════════════════════════════════════════════
+            // CARD 4 — Invoice List (embedded, Fill)
+            // ════════════════════════════════════════════════════════════════
+            var (invOuter, invInner) = CardPanel.CreateFill();
+
+            // Section header bar inside card
+            var pnlInvHeader = new Panel
+            {
+                Dock = DockStyle.Top, Height = 56,
+                BackColor = Color.FromArgb(15, 31, 53), Padding = new Padding(20, 0, 24, 0)
+            };
+            var tblInvHeader = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
+                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                Padding = new Padding(0)
+            };
+            tblInvHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
+            tblInvHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 320f));
+            tblInvHeader.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+            tblInvHeader.Controls.Add(new Label
+            {
+                Text = "📋  Invoice List",
+                Font = new Font("Segoe UI", 14f, FontStyle.Bold), ForeColor = Color.White,
+                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
+            }, 0, 0);
+            _lblOutstanding = new Label
+            {
+                Text = "Outstanding: HK$ —",
+                Font = new Font("Segoe UI", 11f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(254, 243, 199), BackColor = Color.Transparent,
+                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleRight, AutoSize = false
+            };
+            tblInvHeader.Controls.Add(_lblOutstanding, 1, 0);
+            pnlInvHeader.Controls.Add(tblInvHeader);
+
+            // Invoice search bar
+            var pnlInvSearch = new Panel
+            {
+                Dock = DockStyle.Top, Height = 62,
+                BackColor = Color.FromArgb(246, 249, 255), Padding = new Padding(20, 12, 20, 10)
+            };
+
+            txtInvSearch = new TextBox
+            {
+                Font = new Font("Segoe UI", 12f), BorderStyle = BorderStyle.FixedSingle,
+                PlaceholderText = "Invoice ID / Order No. / Customer",
+                Location = new Point(0, 0), Size = new Size(400, 36)
+            };
+            txtInvSearch.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) RefreshInvoiceGrid(); };
+
+            var btnInvSearch = MakeTealBtn("🔍  Search", new Point(412, 0), 160, 36);
+            var btnInvReset  = MakeOutlineBtn("↺  Reset",  new Point(580, 0), 120, 36);
+            btnInvSearch.Click += (s, e) => RefreshInvoiceGrid();
+            btnInvReset.Click  += (s, e) => { txtInvSearch.Text = string.Empty; RefreshInvoiceGrid(); };
+
+            pnlInvSearch.Controls.Add(txtInvSearch);
+            pnlInvSearch.Controls.Add(btnInvSearch);
+            pnlInvSearch.Controls.Add(btnInvReset);
+
+            // Invoice DataGridView
+            dgvInvoice = new DataGridView
+            {
+                ReadOnly = true, AllowUserToAddRows = false, RowHeadersVisible = false,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect, MultiSelect = false,
+                BackgroundColor = Color.White, BorderStyle = BorderStyle.None,
+                GridColor = Color.FromArgb(221, 227, 236), Font = new Font("Segoe UI", 12f),
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal,
+                RowTemplate = { Height = 48 }, Dock = DockStyle.Fill,
+                ColumnHeadersHeight = 44, EnableHeadersVisualStyles = false,
+                ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
+                {
+                    BackColor = Color.FromArgb(246, 249, 255), ForeColor = Color.FromArgb(98, 112, 135),
+                    Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+                    Padding = new Padding(12, 0, 0, 0), Alignment = DataGridViewContentAlignment.MiddleLeft
+                },
+                DefaultCellStyle = new DataGridViewCellStyle
+                {
+                    BackColor = Color.White, ForeColor = Color.FromArgb(15, 31, 53),
+                    SelectionBackColor = Color.FromArgb(219, 234, 254), SelectionForeColor = Color.FromArgb(15, 31, 53),
+                    Padding = new Padding(12, 6, 12, 6)
+                }
+            };
+            dgvInvoice.Columns.Add(new DataGridViewTextBoxColumn { Name = "invColInvoiceID", HeaderText = "INVOICE ID",    FillWeight = 16 });
+            dgvInvoice.Columns.Add(new DataGridViewTextBoxColumn { Name = "invColOrderID",   HeaderText = "ORDER NO.",     FillWeight = 14 });
+            dgvInvoice.Columns.Add(new DataGridViewTextBoxColumn { Name = "invColCustomer",  HeaderText = "CUSTOMER",      FillWeight = 18 });
+            dgvInvoice.Columns.Add(new DataGridViewTextBoxColumn { Name = "invColTotal",     HeaderText = "TOTAL (HK$)",   FillWeight = 12 });
+            dgvInvoice.Columns.Add(new DataGridViewTextBoxColumn { Name = "invColPaid",      HeaderText = "PAID (HK$)",    FillWeight = 12 });
+            dgvInvoice.Columns.Add(new DataGridViewTextBoxColumn { Name = "invColBalance",   HeaderText = "BALANCE (HK$)", FillWeight = 12 });
+            dgvInvoice.Columns.Add(new DataGridViewTextBoxColumn { Name = "invColStatus",    HeaderText = "STATUS",        FillWeight = 10 });
+            dgvInvoice.Columns.Add(new DataGridViewTextBoxColumn { Name = "invColDueDate",   HeaderText = "DUE DATE",      FillWeight = 10 });
+            dgvInvoice.CellFormatting  += dgvInvoice_CellFormatting;
+            dgvInvoice.CellDoubleClick += (s, e) => { if (e.RowIndex >= 0) OpenRecordPayment(); };
+
+            var pnlInvGrid = new Panel { Dock = DockStyle.Fill, Padding = new Padding(20, 8, 20, 8), BackColor = Color.White };
+            pnlInvGrid.Controls.Add(dgvInvoice);
+
+            invInner.Controls.Add(pnlInvGrid);    // Fill
+            invInner.Controls.Add(pnlInvSearch);  // Top
+            invInner.Controls.Add(pnlInvHeader);  // Top — topmost
+
+            // ── Assemble (Fill last, then Top panels top-to-bottom)
+            pnlMain.Controls.Add(invOuter);    // Fill
+            pnlMain.Controls.Add(gridOuter);   // Top (fixed 380)
             pnlMain.Controls.Add(kpiOuter);    // Top
             pnlMain.Controls.Add(searchOuter); // Top
             pnlMain.Controls.Add(_shell);      // Top — topmost
@@ -189,6 +292,11 @@ namespace PremiumLivingOPS.Views.AfterService
         {
             var b = new Button { Text = text, Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.White, BackColor = Palette.Primary, FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand };
             b.FlatAppearance.BorderSize = 0; b.FlatAppearance.MouseOverBackColor = Palette.PrimaryDark; return b;
+        }
+        private static Button MakeTealBtn(string text, Point loc, int w, int h)
+        {
+            var b = new Button { Text = text, Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.White, BackColor = Color.FromArgb(1, 105, 111), FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand };
+            b.FlatAppearance.BorderSize = 0; b.FlatAppearance.MouseOverBackColor = Color.FromArgb(12, 78, 84); return b;
         }
         private static Button MakeOutlineBtn(string text, Point loc, int w, int h)
         {
