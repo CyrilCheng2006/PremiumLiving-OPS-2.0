@@ -11,11 +11,11 @@ namespace PremiumLivingOPS.Views.MasterData
 {
     /// <summary>
     /// View \u2014 Customer List page (Master Data Maintenance module).
-    /// Search block and KPI Bar are rewritten to match SupplierListForm baseline:
-    ///   \u2022 Search: 4-field keyword grid (ID / Name / Email / Phone), section-title bar,
-    ///     blue Search btn + outline Reset btn
-    ///   \u2022 KPI: rounded pills (340\u00d760, SmoothingMode.AntiAlias, 14pt/12pt, NumColW=90),
-    ///     action buttons (Add New green + Modify amber, 210\u00d760) docked Right
+    /// Search block and KPI Bar are rewritten to match ViewOrderForm (Order Processing) baseline:
+    ///   \u2022 Search : MakeCell() helper, 4-col TLP (ID/Name/Email/Phone),
+    ///               section-title + bottom divider, Search (blue 210\u00d760) + Reset (outline 210\u00d760)
+    ///   \u2022 KPI    : pills FlowLayout (Fill) + pnlActionBtns (Docked Right, 290\u00d760 each)
+    ///               Add New (green) | Modify (amber), vertically centred via Resize event
     /// MVC role: pure View. All data access delegated to MasterDataController.
     /// </summary>
     public partial class CustomerListForm : Form
@@ -34,13 +34,11 @@ namespace PremiumLivingOPS.Views.MasterData
         // ── Data refresh ─────────────────────────────────────────────────────
         private void RefreshGrid()
         {
-            // Collect non-empty keywords from the 4 search fields
             string idKw    = txtSearchID.Text.Trim();
             string nameKw  = txtSearchName.Text.Trim();
             string emailKw = txtSearchEmail.Text.Trim();
             string phoneKw = txtSearchPhone.Text.Trim();
 
-            // Priority: first non-empty field wins (single-keyword API same as Supplier)
             string keyword = !string.IsNullOrEmpty(idKw)    ? idKw
                            : !string.IsNullOrEmpty(nameKw)  ? nameKw
                            : !string.IsNullOrEmpty(emailKw) ? emailKw
@@ -72,10 +70,9 @@ namespace PremiumLivingOPS.Views.MasterData
         }
 
         // ════════════════════════════════════════════════════════════════
-        //  KPI Bar  \u2014 mirrors SupplierListForm.RefreshKpi() spec exactly
-        //  Pills: 340\u00d760, SmoothingMode.AntiAlias, RoundedRect r=8, Gap=8
-        //  Number col 90px, 14pt Bold; Label col fill, 12pt
-        //  Buttons: Add New (green #16A34A, 210\u00d760) | Modify (amber #EAB308, 210\u00d760)
+        //  KPI Bar  \u2014 mirrors ViewOrderForm.RefreshKpi() structure:
+        //    pills in pnlKpi (DockStyle.Fill FlowLayout)
+        //    action buttons in pnlActionBtns (DockStyle.Right, vertically centred)
         // ════════════════════════════════════════════════════════════════
         private void RefreshKpi()
         {
@@ -88,12 +85,11 @@ namespace PremiumLivingOPS.Views.MasterData
             var pills = new[]
             {
                 ("Total Customers", total.ToString(),
-                 Color.FromArgb(19,  35,  61), Color.FromArgb(219, 234, 254)),
+                 Color.FromArgb(47, 111, 237), Color.FromArgb(219, 234, 254)),
                 ("Showing",         shown.ToString(),
-                 Color.FromArgb( 6,  95,  70), Color.FromArgb(209, 250, 229)),
+                 Color.FromArgb(6,  95,  70),  Color.FromArgb(209, 250, 229)),
             };
 
-            // Left-side pill flow
             var flow = new FlowLayoutPanel
             {
                 Dock          = DockStyle.Fill,
@@ -104,18 +100,19 @@ namespace PremiumLivingOPS.Views.MasterData
                 AutoScroll    = false
             };
 
-            const int PillW   = 340;
+            const int PillW   = 290;
             const int PillH   = 60;
             const int Gap     = 8;
-            const int NumColW = 90;
+            const int NumColW = 80;
 
-            foreach (var (label, value, fg, bg) in pills)
+            foreach (var (label, count, fg, bg) in pills)
             {
                 var pill = new Panel
                 {
                     BackColor = bg,
                     Size      = new Size(PillW, PillH),
-                    Margin    = new Padding(0, 0, Gap, 0)
+                    Margin    = new Padding(0, 0, Gap, 0),
+                    Cursor    = Cursors.Default
                 };
                 pill.Paint += (s, e) =>
                 {
@@ -140,7 +137,7 @@ namespace PremiumLivingOPS.Views.MasterData
 
                 tlp.Controls.Add(new Label
                 {
-                    Text      = value,
+                    Text      = count,
                     Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
                     ForeColor = fg, BackColor = Color.Transparent,
                     Dock      = DockStyle.Fill,
@@ -162,68 +159,9 @@ namespace PremiumLivingOPS.Views.MasterData
             }
 
             pnlKpi.Controls.Add(flow);
-
-            // ── Action buttons (docked Right, FlowDirection LTR)
-            //    mirrors SupplierListForm: Add New green, Modify amber, each 210\u00d760
-            Button btnModify = null;
-
-            var btnAdd = MakeKpiButton("\u2795  Add New Customer",
-                Color.White, Color.FromArgb(22, 163, 74), Color.FromArgb(21, 128, 61));
-            btnAdd.Click += (s, e) => ShowAddDialog();
-
-            btnModify = MakeKpiButton("\u270F\uFE0F  Modify",
-                Color.FromArgb(92, 60, 0), Color.FromArgb(234, 179, 8), Color.FromArgb(202, 152, 0));
-            btnModify.Enabled = dgvCustomers.CurrentRow != null;
-            btnModify.Click += (s, e) =>
-            {
-                int idx = dgvCustomers.CurrentRow?.Index ?? -1;
-                if (idx >= 0 && idx < _currentCustomers.Count)
-                    ShowModifyDialog(idx);
-            };
-
-            var pnlBtns = new FlowLayoutPanel
-            {
-                Dock          = DockStyle.Right,
-                AutoSize      = true,
-                FlowDirection = FlowDirection.LeftToRight,
-                BackColor     = Color.Transparent,
-                Padding       = new Padding(0, 0, 0, 0),
-                WrapContents  = false
-            };
-            pnlBtns.Controls.Add(btnAdd);
-            pnlBtns.Controls.Add(btnModify);
-            pnlKpi.Controls.Add(pnlBtns);
-
-            // Update Modify enabled state when grid selection changes
-            dgvCustomers.SelectionChanged += (s, e) =>
-            {
-                if (btnModify != null)
-                    btnModify.Enabled = dgvCustomers.CurrentRow != null;
-            };
-        }
-
-        // ── KPI action-button factory (210\u00d760, mirrors SupplierListForm MakeBtn) ──
-        private static Button MakeKpiButton(string text, Color fg, Color bg, Color hover)
-        {
-            var b = new Button
-            {
-                Text      = text,
-                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
-                ForeColor = fg,
-                BackColor = bg,
-                FlatStyle = FlatStyle.Flat,
-                Size      = new Size(210, 60),
-                Margin    = new Padding(8, 0, 0, 0),
-                Cursor    = Cursors.Hand
-            };
-            b.FlatAppearance.BorderSize         = 0;
-            b.FlatAppearance.MouseOverBackColor = hover;
-            return b;
         }
 
         // ── Grid events ───────────────────────────────────────────────────────
-        private void dgvCustomers_SelectionChanged(object sender, EventArgs e) { /* handled in RefreshKpi */ }
-
         private void dgvCustomers_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
         {
             if (e.RowIndex < 0) return;
@@ -231,7 +169,7 @@ namespace PremiumLivingOPS.Views.MasterData
         }
 
         // ════════════════════════════════════════════════════════════════
-        //  Add New dialog (styled to SupplierListForm ShowAddDialog spec)
+        //  Add New dialog
         // ════════════════════════════════════════════════════════════════
         private void ShowAddDialog()
         {
@@ -250,17 +188,16 @@ namespace PremiumLivingOPS.Views.MasterData
                 Font            = new Font("Segoe UI", 13f)
             };
 
-            var pnlHeader = BuildHeader("\u2795  Add New Customer");
+            var pnlHeader  = BuildHeader("\u2795  Add New Customer");
             var pnlSection = BuildSectionTitle("\uD83D\uDCCB  Customer Information");
 
             var txtId = new TextBox
             {
-                Text        = nextId,
-                ReadOnly    = true,
-                Font        = new Font("Segoe UI", 12f, FontStyle.Bold),
+                Text = nextId, ReadOnly = true,
+                Font = new Font("Segoe UI", 12f, FontStyle.Bold),
                 BorderStyle = BorderStyle.FixedSingle,
-                BackColor   = Color.FromArgb(240, 244, 249),
-                ForeColor   = Color.FromArgb(47, 111, 237)
+                BackColor = Color.FromArgb(240, 244, 249),
+                ForeColor = Color.FromArgb(47, 111, 237)
             };
             var txtName  = MakeDlgInput();
             var txtEmail = MakeDlgInput();
@@ -273,10 +210,8 @@ namespace PremiumLivingOPS.Views.MasterData
                 DlgFieldRow("Email Address *",      txtEmail),
                 DlgFieldRow("Phone Number *",        txtPhone, lastRow: true)
             };
-
             var cardOuter = BuildCardOuter(rows);
-
-            var pnlFoot  = BuildFooter();
+            var pnlFoot   = BuildFooter();
             bool confirmed = false;
 
             var btnCreate = MakeDlgBtn("\u2714  Add Customer",
@@ -290,10 +225,8 @@ namespace PremiumLivingOPS.Views.MasterData
                 confirmed = true;
                 dlg.Close();
             };
-
             var btnCancel = MakeDlgOutlineBtn("Cancel");
             btnCancel.Click += (s, ev) => dlg.Close();
-
             AttachFooterBtns(pnlFoot, btnCreate, btnCancel);
 
             var pnlFill = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(240, 244, 249) };
@@ -340,22 +273,19 @@ namespace PremiumLivingOPS.Views.MasterData
                 MinimumSize     = new Size(1100, 800),
                 StartPosition   = FormStartPosition.CenterParent,
                 FormBorderStyle = FormBorderStyle.FixedDialog,
-                MaximizeBox     = false,
-                MinimizeBox     = false,
+                MaximizeBox     = false, MinimizeBox = false,
                 BackColor       = Color.FromArgb(240, 244, 249),
                 Font            = new Font("Segoe UI", 13f)
             };
 
-            // Header with amber CustomerID badge (same as SupplierListForm Modify)
             var badgeFont = new Font("Segoe UI", 13f, FontStyle.Bold);
             int badgeW    = TextRenderer.MeasureText(c.CustomerID, badgeFont).Width + 80;
             var badgeLbl  = new Label
             {
-                Text      = c.CustomerID,
-                Font      = badgeFont,
+                Text = c.CustomerID, Font = badgeFont,
                 ForeColor = Color.FromArgb(92, 60, 0),
                 BackColor = Color.FromArgb(254, 243, 199),
-                Dock      = DockStyle.Fill, AutoSize = false,
+                Dock = DockStyle.Fill, AutoSize = false,
                 TextAlign = ContentAlignment.MiddleCenter
             };
             badgeLbl.Paint += (s, pe) =>
@@ -375,12 +305,10 @@ namespace PremiumLivingOPS.Views.MasterData
             headerTlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
             headerTlp.Controls.Add(new Label
             {
-                Text      = $"\u270F\uFE0F  Modify Customer \u2014 {c.CustomerID}",
-                Font      = new Font("Segoe UI", 18f, FontStyle.Bold),
-                ForeColor = Color.White, BackColor = Color.Transparent,
-                Dock      = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleLeft,
-                Padding   = new Padding(32, 0, 0, 0)
+                Text = $"\u270F\uFE0F  Modify Customer \u2014 {c.CustomerID}",
+                Font = new Font("Segoe UI", 18f, FontStyle.Bold), ForeColor = Color.White,
+                BackColor = Color.Transparent, Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(32, 0, 0, 0)
             }, 0, 0);
             headerTlp.Controls.Add(badgeLbl, 1, 0);
 
@@ -391,12 +319,11 @@ namespace PremiumLivingOPS.Views.MasterData
 
             var txtId = new TextBox
             {
-                Text        = c.CustomerID,
-                ReadOnly    = true,
-                Font        = new Font("Segoe UI", 12f, FontStyle.Bold),
+                Text = c.CustomerID, ReadOnly = true,
+                Font = new Font("Segoe UI", 12f, FontStyle.Bold),
                 BorderStyle = BorderStyle.FixedSingle,
-                BackColor   = Color.FromArgb(240, 244, 249),
-                ForeColor   = Color.FromArgb(47, 111, 237)
+                BackColor = Color.FromArgb(240, 244, 249),
+                ForeColor = Color.FromArgb(47, 111, 237)
             };
             var txtName  = MakeDlgInput(c.CustomerName);
             var txtEmail = MakeDlgInput(c.EmailAddress);
@@ -410,8 +337,7 @@ namespace PremiumLivingOPS.Views.MasterData
                 DlgFieldRow("Phone Number *",             txtPhone, lastRow: true)
             };
             var cardOuter = BuildCardOuter(rows);
-
-            var pnlFoot  = BuildFooter();
+            var pnlFoot   = BuildFooter();
             bool confirmed = false;
 
             var btnSave   = MakeDlgBtn("\u2714  Save Changes",
@@ -473,14 +399,15 @@ namespace PremiumLivingOPS.Views.MasterData
                 Font            = new Font("Segoe UI", 13f)
             };
 
-            // Header with blue badge
             var badgeFont = new Font("Segoe UI", 13f, FontStyle.Bold);
             int badgeW    = TextRenderer.MeasureText(c.CustomerID, badgeFont).Width + 80;
             var badgeLbl  = new Label
             {
                 Text = c.CustomerID, Font = badgeFont,
-                ForeColor = Color.FromArgb(19, 35, 61), BackColor = Color.FromArgb(219, 234, 254),
-                Dock = DockStyle.Fill, AutoSize = false, TextAlign = ContentAlignment.MiddleCenter
+                ForeColor = Color.FromArgb(19, 35, 61),
+                BackColor = Color.FromArgb(219, 234, 254),
+                Dock = DockStyle.Fill, AutoSize = false,
+                TextAlign = ContentAlignment.MiddleCenter
             };
             badgeLbl.Paint += (s, pe) =>
             {
@@ -488,6 +415,7 @@ namespace PremiumLivingOPS.Views.MasterData
                 using var pen = new Pen(Color.FromArgb(120, 47, 111, 237), 1);
                 pe.Graphics.DrawRectangle(pen, 0, 0, lb.Width - 1, lb.Height - 1);
             };
+
             var headerTlp = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
@@ -500,10 +428,11 @@ namespace PremiumLivingOPS.Views.MasterData
             {
                 Text = $"Customer Details \u2014 {c.CustomerID}",
                 Font = new Font("Segoe UI", 18f, FontStyle.Bold), ForeColor = Color.White,
-                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft,
-                BackColor = Color.Transparent, Padding = new Padding(32, 0, 0, 0)
+                BackColor = Color.Transparent, Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(32, 0, 0, 0)
             }, 0, 0);
             headerTlp.Controls.Add(badgeLbl, 1, 0);
+
             var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 80, BackColor = Color.FromArgb(19, 35, 61) };
             pnlHeader.Controls.Add(headerTlp);
 
@@ -524,9 +453,8 @@ namespace PremiumLivingOPS.Views.MasterData
                 DlgFieldRow("Phone Number",  ReadOnly(c.PhoneNumber), lastRow: true)
             };
             var cardOuter = BuildCardOuter(rows);
-
-            var pnlFoot  = BuildFooter();
-            var btnClose = MakeDlgOutlineBtn("Close");
+            var pnlFoot   = BuildFooter();
+            var btnClose  = MakeDlgOutlineBtn("Close");
             btnClose.Click += (s, ev) => dlg.Close();
             AttachFooterBtns(pnlFoot, btnClose);
 
@@ -540,9 +468,8 @@ namespace PremiumLivingOPS.Views.MasterData
         }
 
         // ════════════════════════════════════════════════════════════════
-        //  Shared dialog builders (identical spec to SupplierListForm)
+        //  Shared dialog builders
         // ════════════════════════════════════════════════════════════════
-
         private const int DLG_LabelW = 340;
         private const int DLG_RowH   = 80;
         private const int DLG_BtnW   = 210;
@@ -604,8 +531,7 @@ namespace PremiumLivingOPS.Views.MasterData
 
             tlp.Controls.Add(new Label
             {
-                Text = labelText,
-                Font = new Font("Segoe UI", 12f, FontStyle.Bold),
+                Text = labelText, Font = new Font("Segoe UI", 12f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(70, 85, 110),
                 BackColor = Color.FromArgb(248, 250, 252),
                 Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft,
