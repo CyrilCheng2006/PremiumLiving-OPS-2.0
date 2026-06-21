@@ -4,25 +4,26 @@ using PremiumLivingOPS.Views.Shared;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 
 namespace PremiumLivingOPS.Views.MasterData
 {
     /// <summary>
     /// View — Supplier List page (Master Data Maintenance module).
-    ///
-    /// MVC role: pure View. Delegates all data access to MasterDataController.
-    /// UI structure follows CardPanel three-layer nested card standard:
-    ///   • Card 1 — Search bar
-    ///   • Card 2 — Summary KPI strip (total supplier count) + Add New / Modify buttons
-    ///   • Card 3 — DataGridView listing all suppliers
+    /// UI structure mirrors ViewOrderForm exactly:
+    ///   Card 1 — Search (4-column MakeCell TLP)
+    ///   Card 2 — KPI Bar (pills Fill-left, action buttons Right-docked)
+    ///   Card 3 — DataGridView
     /// </summary>
     public partial class SupplierListForm : Form
     {
         private readonly MasterDataController _ctrl = new MasterDataController();
         private List<SupplierEntity> _currentSuppliers = new List<SupplierEntity>();
 
-        private Panel pnlKpi;
+        // Action buttons declared as fields so RefreshKpi can toggle Enabled
+        private Button _btnAddNew;
+        private Button _btnModify;
 
         public SupplierListForm()
         {
@@ -30,18 +31,29 @@ namespace PremiumLivingOPS.Views.MasterData
             this.Load += SupplierListForm_Load;
         }
 
-        // ── Load ──────────────────────────────────────────────────────────────
         private void SupplierListForm_Load(object sender, EventArgs e) => RefreshGrid();
 
-        // ── Data refresh ──────────────────────────────────────────────────────
+        // ── Data refresh
         private void RefreshGrid()
         {
-            string keyword = txtSearch.Text.Trim();
-            var vm = _ctrl.GetSupplierListVM(string.IsNullOrEmpty(keyword) ? null : keyword);
+            // Build a compound keyword from whichever search fields are filled
+            string idKw      = txtSearchID.Text.Trim();
+            string nameKw    = txtSearchName.Text.Trim();
+            string phoneKw   = txtSearchPhone.Text.Trim();
+            string addrKw    = txtSearchAddress.Text.Trim();
+
+            // Pass the first non-empty keyword; controller handles partial-match
+            string keyword = !string.IsNullOrEmpty(idKw)    ? idKw
+                           : !string.IsNullOrEmpty(nameKw)  ? nameKw
+                           : !string.IsNullOrEmpty(phoneKw) ? phoneKw
+                           : !string.IsNullOrEmpty(addrKw)  ? addrKw
+                           : null;
+
+            var vm = _ctrl.GetSupplierListVM(keyword);
 
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
-            _shell.SetBreadcrumb("Master Data Maintenance  ›  Supplier List");
+            _shell.SetBreadcrumb("Master Data Maintenance  \u203a  Supplier List");
 
             _currentSuppliers = vm.Suppliers;
 
@@ -54,20 +66,35 @@ namespace PremiumLivingOPS.Views.MasterData
 
         private void ResetFilters()
         {
-            txtSearch.Text = string.Empty;
+            txtSearchID.Text      = string.Empty;
+            txtSearchName.Text    = string.Empty;
+            txtSearchPhone.Text   = string.Empty;
+            txtSearchAddress.Text = string.Empty;
             RefreshGrid();
         }
 
-        // ── KPI strip ─────────────────────────────────────────────────────────
+        // ────────────────────────────────────────────────────────────────
+        // KPI Bar — pills rendered to match ViewOrderForm’s AccountPayableForm pill style:
+        //   340×60 pill, RoundedRect Paint override, 14pt bold number, 12pt label
+        // ────────────────────────────────────────────────────────────────
         private void RefreshKpi()
         {
             pnlKpi.Controls.Clear();
 
-            var allVm = _ctrl.GetSupplierListVM();
-            int total = allVm.Suppliers.Count;
-            int shown = _currentSuppliers.Count;
+            var allVm  = _ctrl.GetSupplierListVM();
+            int total  = allVm.Suppliers.Count;
+            int shown  = _currentSuppliers.Count;
 
-            var outerFlow = new FlowLayoutPanel
+            // Pill spec: (label, value, fg, bg) — same palette tokens as AccountPayableForm
+            var pills = new[]
+            {
+                ("Total Suppliers", total.ToString(),
+                 Color.FromArgb( 19,  35,  61), Color.FromArgb(219, 234, 254)),
+                ("Showing",         shown.ToString(),
+                 Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229)),
+            };
+
+            var flow = new FlowLayoutPanel
             {
                 Dock          = DockStyle.Fill,
                 FlowDirection = FlowDirection.LeftToRight,
@@ -77,17 +104,30 @@ namespace PremiumLivingOPS.Views.MasterData
                 AutoScroll    = false
             };
 
-            var pills = new[]
-            {
-                ("Total Suppliers", total.ToString(),
-                 Color.FromArgb(47, 111, 237), Color.FromArgb(219, 234, 254)),
-                ("Showing", shown.ToString(),
-                 Color.FromArgb(6, 95, 70), Color.FromArgb(209, 250, 229)),
-            };
+            const int PillW   = 340;
+            const int PillH   = 60;
+            const int Gap     = 8;
+            const int NumColW = 90;
 
-            foreach (var (label, count, fg, bg) in pills)
+            foreach (var (label, value, fg, bg) in pills)
             {
-                var pill = new Panel { BackColor = bg, Size = new Size(220, 50), Margin = new Padding(0, 0, 10, 0) };
+                var pill = new Panel
+                {
+                    BackColor = bg,
+                    Size      = new Size(PillW, PillH),
+                    Margin    = new Padding(0, 0, Gap, 0),
+                    Cursor    = Cursors.Default
+                };
+
+                // Rounded paint — same RoundedRect helper as AccountPayableForm
+                pill.Paint += (s, e) =>
+                {
+                    e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                    using var path  = RoundedRect(((Panel)s).ClientRectangle, 8);
+                    using var brush = new SolidBrush(((Panel)s).BackColor);
+                    e.Graphics.FillPath(brush, path);
+                };
+
                 var tlp = new TableLayoutPanel
                 {
                     Dock            = DockStyle.Fill,
@@ -97,88 +137,57 @@ namespace PremiumLivingOPS.Views.MasterData
                     CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
                     Padding         = new Padding(10, 0, 8, 0)
                 };
-                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 60f));
-                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, NumColW));
+                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
                 tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
                 tlp.Controls.Add(new Label
                 {
-                    Text = count, Font = new Font("Segoe UI", 13f, FontStyle.Bold),
-                    ForeColor = fg, BackColor = Color.Transparent,
-                    Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, AutoSize = false
+                    Text      = value,
+                    Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
+                    ForeColor = fg,
+                    BackColor = Color.Transparent,
+                    Dock      = DockStyle.Fill,
+                    TextAlign = ContentAlignment.MiddleCenter,
+                    AutoSize  = false
                 }, 0, 0);
+
                 tlp.Controls.Add(new Label
                 {
-                    Text = label, Font = new Font("Segoe UI", 11f),
-                    ForeColor = fg, BackColor = Color.Transparent,
-                    Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
+                    Text      = label,
+                    Font      = new Font("Segoe UI", 12f),
+                    ForeColor = fg,
+                    BackColor = Color.Transparent,
+                    Dock      = DockStyle.Fill,
+                    TextAlign = ContentAlignment.MiddleLeft,
+                    AutoSize  = false
                 }, 1, 0);
 
                 pill.Controls.Add(tlp);
-                outerFlow.Controls.Add(pill);
+                flow.Controls.Add(pill);
             }
 
-            outerFlow.Controls.Add(new Panel { BackColor = Color.Transparent, Size = new Size(10, 50), Margin = new Padding(0) });
-            pnlKpi.Controls.Add(outerFlow);
+            pnlKpi.Controls.Add(flow);
 
-            // ── Action buttons: Add New (left, green) | Modify (right, yellow) ──
-            var pnlBtns = new FlowLayoutPanel
-            {
-                FlowDirection = FlowDirection.LeftToRight,
-                WrapContents  = false,
-                BackColor     = Color.Transparent,
-                Dock          = DockStyle.Right,
-                AutoSize      = true,
-                Padding       = new Padding(0, 5, 8, 5)
-            };
-
-            // Add New — green solid (left)
-            var btnAdd = MakeKpiButton("+ Add New",
-                Color.White,
-                Color.FromArgb(22, 163, 74));   // green-600
-            btnAdd.Click += (s, e) => ShowAddDialog();
-
-            // Modify — yellow solid (right), disabled until row selected
-            var btnModify = MakeKpiButton("Modify",
-                Color.FromArgb(92, 60, 0),
-                Color.FromArgb(234, 179, 8));   // yellow-500
-            btnModify.Enabled = false;
-            btnModify.Click += (s, e) =>
-            {
-                int idx = dgvSuppliers.CurrentRow?.Index ?? -1;
-                if (idx < 0 || idx >= _currentSuppliers.Count) return;
-                ShowModifyDialog(idx);
-            };
-
-            pnlBtns.Controls.Add(btnAdd);
-            pnlBtns.Controls.Add(btnModify);
-            pnlKpi.Controls.Add(pnlBtns);
-
-            dgvSuppliers.SelectionChanged += (s, e) =>
-                btnModify.Enabled = dgvSuppliers.CurrentRow != null;
+            // Sync Modify button state with current grid selection
+            if (_btnModify != null)
+                _btnModify.Enabled = dgvSuppliers.CurrentRow != null;
         }
 
-        // ── KPI button factory  (290 × 60) ────────────────────────────────────
-        private static Button MakeKpiButton(string text, Color fg, Color bg)
+        // ── Grid events
+        private void dgvSuppliers_SelectionChanged(object sender, EventArgs e)
         {
-            var btn = new Button
-            {
-                Text      = text,
-                Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
-                ForeColor = fg,
-                BackColor = bg,
-                FlatStyle = FlatStyle.Flat,
-                Size      = new Size(290, 60),
-                Margin    = new Padding(0, 0, 8, 0),
-                Cursor    = Cursors.Hand
-            };
-            btn.FlatAppearance.BorderSize  = 0;
-            btn.FlatAppearance.MouseOverBackColor =
-                ControlPaint.Dark(bg, 0.1f);
-            return btn;
+            if (_btnModify != null)
+                _btnModify.Enabled = dgvSuppliers.CurrentRow != null;
         }
 
-        // ── Add New dialog  (1200 × 600) ──────────────────────────────────────
+        private void dgvSuppliers_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex < 0) return;
+            ShowDetailDialog(e.RowIndex);
+        }
+
+        // ── Add New dialog (1200 × 600)
         private void ShowAddDialog()
         {
             string nextId = _ctrl.GetNextSupplierID();
@@ -195,8 +204,8 @@ namespace PremiumLivingOPS.Views.MasterData
                 MinimizeBox     = false
             };
 
-            var pnlHdr          = BuildDialogHeader("Add New Supplier");
-            var (pnlBody, tbl)  = BuildDialogBody(4);
+            var pnlHdr         = BuildDialogHeader("Add New Supplier");
+            var (pnlBody, tbl) = BuildDialogBody(4);
 
             var txtId = new TextBox
             {
@@ -251,7 +260,7 @@ namespace PremiumLivingOPS.Views.MasterData
                 RefreshGrid();
         }
 
-        // ── Modify dialog  (1200 × 600) ───────────────────────────────────────
+        // ── Modify dialog (1200 × 600)
         private void ShowModifyDialog(int rowIndex)
         {
             if (rowIndex < 0 || rowIndex >= _currentSuppliers.Count) return;
@@ -259,7 +268,7 @@ namespace PremiumLivingOPS.Views.MasterData
 
             using var dlg = new Form
             {
-                Text            = $"Modify Supplier — {s.SupplierID}",
+                Text            = $"Modify Supplier \u2014 {s.SupplierID}",
                 Size            = new Size(1200, 600),
                 StartPosition   = FormStartPosition.CenterParent,
                 BackColor       = Color.White,
@@ -269,7 +278,7 @@ namespace PremiumLivingOPS.Views.MasterData
                 MinimizeBox     = false
             };
 
-            var pnlHdr         = BuildDialogHeader($"Modify Supplier  —  {s.SupplierID}");
+            var pnlHdr         = BuildDialogHeader($"Modify Supplier  \u2014  {s.SupplierID}");
             var (pnlBody, tbl) = BuildDialogBody(4);
 
             var txtId = new TextBox
@@ -320,16 +329,7 @@ namespace PremiumLivingOPS.Views.MasterData
                 RefreshGrid();
         }
 
-        // ── Grid events ───────────────────────────────────────────────────────
-        private void dgvSuppliers_SelectionChanged(object sender, EventArgs e) { /* handled in RefreshKpi */ }
-
-        private void dgvSuppliers_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
-        {
-            if (e.RowIndex < 0) return;
-            ShowDetailDialog(e.RowIndex);
-        }
-
-        // ── Detail dialog ─────────────────────────────────────────────────────
+        // ── Detail dialog
         private void ShowDetailDialog(int rowIndex)
         {
             if (rowIndex < 0 || rowIndex >= _currentSuppliers.Count) return;
@@ -337,7 +337,7 @@ namespace PremiumLivingOPS.Views.MasterData
 
             using var dlg = new Form
             {
-                Text            = $"Supplier — {s.SupplierID}",
+                Text            = $"Supplier \u2014 {s.SupplierID}",
                 Size            = new Size(640, 360),
                 StartPosition   = FormStartPosition.CenterParent,
                 BackColor       = Color.White,
@@ -347,7 +347,7 @@ namespace PremiumLivingOPS.Views.MasterData
                 MinimizeBox     = false
             };
 
-            var pnlHdr  = BuildDialogHeader($"Supplier Details  —  {s.SupplierID}");
+            var pnlHdr  = BuildDialogHeader($"Supplier Details  \u2014  {s.SupplierID}");
             var pnlBody = new Panel { Dock = DockStyle.Fill, Padding = new Padding(24, 16, 24, 8), BackColor = Color.White };
             var tbl = new TableLayoutPanel
             {
@@ -394,7 +394,7 @@ namespace PremiumLivingOPS.Views.MasterData
             dlg.ShowDialog(this);
         }
 
-        // ── Dialog builders ───────────────────────────────────────────────────
+        // ── Dialog builders
         private static Panel BuildDialogHeader(string title)
         {
             var pnl = new Panel { Dock = DockStyle.Top, Height = 60, BackColor = Color.FromArgb(19, 35, 61) };
@@ -407,29 +407,14 @@ namespace PremiumLivingOPS.Views.MasterData
             return pnl;
         }
 
-        /// <summary>
-        /// Body panel with a two-column TableLayoutPanel.
-        /// Column 0 (label) = 1.5× the input column minimum width → Absolute 225px.
-        /// Column 1 (input) = remaining space (Percent 100%).
-        /// Each row height = 72px to give comfortable label/input vertical spacing.
-        /// </summary>
         private static (Panel body, TableLayoutPanel tbl) BuildDialogBody(int rowCount)
         {
-            var pnlBody = new Panel
-            {
-                Dock      = DockStyle.Fill,
-                Padding   = new Padding(32, 20, 32, 8),
-                BackColor = Color.White
-            };
+            var pnlBody = new Panel { Dock = DockStyle.Fill, Padding = new Padding(32, 20, 32, 8), BackColor = Color.White };
             var tbl = new TableLayoutPanel
             {
-                Dock            = DockStyle.Fill,
-                ColumnCount     = 2,
-                RowCount        = rowCount,
-                BackColor       = Color.Transparent,
-                CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+                Dock = DockStyle.Fill, ColumnCount = 2, RowCount = rowCount,
+                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
-            // Label column: 225px  (≈ 1.5× a typical 150px input label)
             tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 225f));
             tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
             for (int r = 0; r < rowCount; r++)
@@ -438,102 +423,80 @@ namespace PremiumLivingOPS.Views.MasterData
             return (pnlBody, tbl);
         }
 
-        /// <summary>
-        /// Footer with Cancel (red) and Save (green) buttons, each 210 × 60.
-        /// </summary>
         private static Panel BuildDialogFooter(Form dlg, Func<bool> onSave)
         {
-            var pnl = new Panel
-            {
-                Dock      = DockStyle.Bottom,
-                Height    = 76,
-                BackColor = Color.White,
-                Padding   = new Padding(0, 8, 24, 8)
-            };
+            var pnl = new Panel { Dock = DockStyle.Bottom, Height = 76, BackColor = Color.White, Padding = new Padding(0, 8, 24, 8) };
             pnl.Paint += (s, e) =>
             {
                 using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
                 e.Graphics.DrawLine(pen, 0, 0, ((Panel)s).Width, 0);
             };
 
-            // Cancel — red
             var btnCancel = new Button
             {
-                Text      = "Cancel",
-                Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
-                ForeColor = Color.White,
-                BackColor = Color.FromArgb(220, 38, 38),   // red-600
-                FlatStyle = FlatStyle.Flat,
-                Size      = new Size(210, 60),
-                Dock      = DockStyle.Right,
-                Cursor    = Cursors.Hand
+                Text = "Cancel", Font = new Font("Segoe UI", 11f, FontStyle.Bold),
+                ForeColor = Color.White, BackColor = Color.FromArgb(220, 38, 38),
+                FlatStyle = FlatStyle.Flat, Size = new Size(210, 60), Dock = DockStyle.Right, Cursor = Cursors.Hand
             };
-            btnCancel.FlatAppearance.BorderSize          = 0;
-            btnCancel.FlatAppearance.MouseOverBackColor  = Color.FromArgb(185, 28, 28);
+            btnCancel.FlatAppearance.BorderSize         = 0;
+            btnCancel.FlatAppearance.MouseOverBackColor = Color.FromArgb(185, 28, 28);
             btnCancel.Click += (s, e) => dlg.Close();
 
-            // Save — green
             var btnSave = new Button
             {
-                Text      = "Save",
-                Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
-                ForeColor = Color.White,
-                BackColor = Color.FromArgb(22, 163, 74),   // green-600
-                FlatStyle = FlatStyle.Flat,
-                Size      = new Size(210, 60),
-                Dock      = DockStyle.Right,
-                Cursor    = Cursors.Hand
+                Text = "Save", Font = new Font("Segoe UI", 11f, FontStyle.Bold),
+                ForeColor = Color.White, BackColor = Color.FromArgb(22, 163, 74),
+                FlatStyle = FlatStyle.Flat, Size = new Size(210, 60), Dock = DockStyle.Right, Cursor = Cursors.Hand
             };
             btnSave.FlatAppearance.BorderSize         = 0;
             btnSave.FlatAppearance.MouseOverBackColor = Color.FromArgb(21, 128, 61);
-            btnSave.Click += (s, e) =>
-            {
-                if (onSave()) dlg.DialogResult = DialogResult.OK;
-            };
+            btnSave.Click += (s, e) => { if (onSave()) dlg.DialogResult = DialogResult.OK; };
 
-            // Save renders to the right of Cancel in right-dock order:
-            // add Save first so it sits rightmost, then Cancel to its left.
             pnl.Controls.Add(btnSave);
             pnl.Controls.Add(btnCancel);
             return pnl;
         }
 
-        // ── Label / input helpers ─────────────────────────────────────────────
+        // ── Label / input helpers
         private static Label MakeLblKey(string text) => new Label
         {
-            Text      = text,
-            Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
-            ForeColor = Color.FromArgb(98, 112, 135),
-            Dock      = DockStyle.Fill,
-            TextAlign = ContentAlignment.MiddleLeft,
-            Padding   = new Padding(0, 0, 8, 0)
+            Text = text, Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+            ForeColor = Color.FromArgb(98, 112, 135), Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(0, 0, 8, 0)
         };
 
         private static Label MakeLblVal(string text) => new Label
         {
-            Text         = text ?? "—",
-            Font         = new Font("Segoe UI", 12f),
-            ForeColor    = Color.FromArgb(15, 31, 53),
-            Dock         = DockStyle.Fill,
-            TextAlign    = ContentAlignment.MiddleLeft,
-            AutoEllipsis = true
+            Text = text ?? "\u2014", Font = new Font("Segoe UI", 12f),
+            ForeColor = Color.FromArgb(15, 31, 53), Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleLeft, AutoEllipsis = true
         };
 
         private static TextBox MakeTextInput(string initial = "")
         {
             var tb = new TextBox
             {
-                Text        = initial,
-                Font        = new Font("Segoe UI", 11f),
-                Dock        = DockStyle.Fill,
-                BackColor   = Color.White,
-                BorderStyle = BorderStyle.FixedSingle
+                Text = initial, Font = new Font("Segoe UI", 11f),
+                Dock = DockStyle.Fill, BackColor = Color.White, BorderStyle = BorderStyle.FixedSingle
             };
             tb.Margin = new Padding(0, 10, 0, 10);
             return tb;
         }
 
-        // ── Navigation & Logout ───────────────────────────────────────────────
+        // ── RoundedRect helper — same as AccountPayableForm
+        private static GraphicsPath RoundedRect(Rectangle r, int radius)
+        {
+            var path = new GraphicsPath();
+            int d = radius * 2;
+            path.AddArc(r.X,         r.Y,          d, d, 180, 90);
+            path.AddArc(r.Right - d, r.Y,          d, d, 270, 90);
+            path.AddArc(r.Right - d, r.Bottom - d, d, d,   0, 90);
+            path.AddArc(r.X,         r.Bottom - d, d, d,  90, 90);
+            path.CloseFigure();
+            return path;
+        }
+
+        // ── Navigation & Logout
         private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
             => FormNavigator.NavigateTo(this, menuLabel, subItem);
 
