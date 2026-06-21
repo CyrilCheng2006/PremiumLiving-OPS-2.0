@@ -117,7 +117,7 @@ namespace PremiumLivingOPS.Views.AfterService
                 Padding = new Padding(0), AutoScroll = false,
             };
 
-            const int PillW   = 340;  // updated: 270 → 340
+            const int PillW   = 340;
             const int PillH   =  60;
             const int Gap     =   8;
             const int NumColW =  90;
@@ -202,48 +202,168 @@ namespace PremiumLivingOPS.Views.AfterService
             RefreshGrid();
         }
 
-        // ── Record Payment Dialog  1800 × 800
+        // ─────────────────────────────────────────────────────────────────────
+        // Record Payment Dialog  1800 × 800
+        // ─────────────────────────────────────────────────────────────────────
+        // Layout (top → bottom):
+        //   pnlHeader   — Top  70px  — teal title bar (title left + badge right, Absolute 360)
+        //   cardInfo    — Top 200px  — CardPanel: Invoice summary (6 fields, 2-col grid)
+        //   cardInput   — Top 370px  — CardPanel: Record New Payment (3 rows, 1 field per row)
+        //   cardHistory — Fill       — CardPanel: Payment History grid
+        //   pnlFooter   — Bottom 88px — Confirm (210×60) + Cancel (210×60)
         private void ShowRecordPaymentDialog(InvoiceDetailEntity inv)
         {
             using var dlg = new Form
             {
                 Text = $"Record Payment  —  {inv.InvoiceID}",
                 Size = new Size(1800, 800), StartPosition = FormStartPosition.CenterParent,
-                BackColor = Color.White, Font = new Font("Segoe UI", 13f),
+                BackColor = Color.FromArgb(240, 244, 249),   // grey page bg
+                Font = new Font("Segoe UI", 13f),
                 FormBorderStyle = FormBorderStyle.FixedDialog, MaximizeBox = false, MinimizeBox = false
             };
 
-            // Header
-            var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 70, BackColor = Color.FromArgb(1, 105, 111) };
-            var tblHeader = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None, Padding = new Padding(28, 0, 24, 0) };
+            // ══ HEADER — teal title bar =============================================
+            var pnlHeader = new Panel
+            {
+                Dock = DockStyle.Top, Height = 70,
+                BackColor = Color.FromArgb(1, 105, 111)
+            };
+            var tblHeader = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
+                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                Padding = new Padding(28, 0, 24, 0)
+            };
             tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
-            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 280f));
+            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 360f));   // wider badge
             tblHeader.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-            tblHeader.Controls.Add(new Label { Text = $"Record Payment  —  {inv.InvoiceID}", Font = new Font("Segoe UI", 17f, FontStyle.Bold), ForeColor = Color.White, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false }, 0, 0);
+            tblHeader.Controls.Add(new Label
+            {
+                Text = $"Record Payment  —  {inv.InvoiceID}",
+                Font = new Font("Segoe UI", 17f, FontStyle.Bold), ForeColor = Color.White,
+                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
+            }, 0, 0);
             Color badgeBg = inv.IsOverdue ? Color.FromArgb(185, 28, 28) : Color.FromArgb(146, 64, 14);
-            tblHeader.Controls.Add(new Label { Text = $"Balance: HK$ {inv.RemainingBalance:N2}", Font = new Font("Segoe UI", 11f, FontStyle.Bold), ForeColor = Color.White, BackColor = badgeBg, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, AutoSize = false, Padding = new Padding(8, 4, 8, 4) }, 1, 0);
+            tblHeader.Controls.Add(new Label
+            {
+                Text = $"Balance: HK$ {inv.RemainingBalance:N2}",
+                Font = new Font("Segoe UI", 13f, FontStyle.Bold), ForeColor = Color.White,
+                BackColor = badgeBg, Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleCenter, AutoSize = false,
+                Margin = new Padding(0, 10, 0, 10)
+            }, 1, 0);
             pnlHeader.Controls.Add(tblHeader);
 
-            // Info panel
-            var pnlInfo = new Panel { Dock = DockStyle.Top, Height = 140, Padding = new Padding(28, 16, 28, 8), BackColor = Color.White };
-            pnlInfo.Paint += PaintBottomBorder;
-            var tblInfo = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 3, BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None };
-            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
-            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
-            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
-            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
+            // ══ CARD: Invoice Info ================================================
+            // 6 fields arranged in 2-column, 3-row TableLayout inside a CardPanel (Top 200px)
+            var (infoOuter, infoInner) = CardPanel.Create(outerHeight: 200);
+
+            var tblInfo = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 3,
+                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                Padding = new Padding(24, 16, 24, 16)
+            };
+            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 14f));
+            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 36f));
+            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 14f));
+            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 36f));
             for (int r = 0; r < 3; r++) tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 33.3f));
             AddInfoRow(tblInfo, 0, "Customer:",     inv.CustomerName,                 "Order No.:",   inv.OrderID);
             AddInfoRow(tblInfo, 1, "Total Amount:", $"HK$ {inv.TotalAmount:N2}",      "Paid Amount:", $"HK$ {inv.PaidAmount:N2}");
             AddInfoRow(tblInfo, 2, "Balance:",      $"HK$ {inv.RemainingBalance:N2}", "Due Date:",    inv.DueDate.ToString("yyyy-MM-dd"));
-            pnlInfo.Controls.Add(tblInfo);
+            infoInner.Controls.Add(tblInfo);
 
-            // Payment History label
-            var pnlTxnLabel = new Panel { Dock = DockStyle.Top, Height = 40, BackColor = Color.FromArgb(246, 249, 255), Padding = new Padding(28, 0, 0, 0) };
-            pnlTxnLabel.Controls.Add(new Label { Text = "PAYMENT HISTORY", Font = new Font("Segoe UI", 10f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft });
-            pnlTxnLabel.Paint += PaintBottomBorder;
+            // ══ CARD: Record New Payment ==========================================
+            // 3 rows × 1 field each:  Payment Amount | Payment Type | Transaction Date
+            // Each row: label (Top 36px) + control (Top 48px) inside a CardPanel (Top 370px)
+            var (inputOuter, inputInner) = CardPanel.Create(outerHeight: 370);
 
-            // Txn grid
+            // Section title inside card
+            var pnlInputTitle = new Panel
+            {
+                Dock = DockStyle.Top, Height = 52,
+                BackColor = Color.FromArgb(240, 253, 250),
+                Padding = new Padding(24, 0, 0, 0)
+            };
+            pnlInputTitle.Paint += PaintBottomBorder;
+            pnlInputTitle.Controls.Add(new Label
+            {
+                Text = "💳  Record New Payment",
+                Font = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(1, 105, 111),
+                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
+            });
+
+            // Field body — 1 field per row, uses TableLayoutPanel (3 rows)
+            var tblInput = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 3,
+                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                Padding = new Padding(24, 16, 24, 16)
+            };
+            tblInput.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 260f));  // label
+            tblInput.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));  // control
+            tblInput.RowStyles.Add(new RowStyle(SizeType.Percent, 33.3f));
+            tblInput.RowStyles.Add(new RowStyle(SizeType.Percent, 33.3f));
+            tblInput.RowStyles.Add(new RowStyle(SizeType.Percent, 33.3f));
+
+            // Row 0: Payment Amount
+            var nudAmount = new NumericUpDown
+            {
+                Font = new Font("Segoe UI", 13f),
+                Minimum = 0.01m, Maximum = (decimal)Math.Max(inv.RemainingBalance, 0.01),
+                DecimalPlaces = 2,
+                Value = (decimal)(inv.RemainingBalance > 0 ? inv.RemainingBalance : 0.01),
+                ThousandsSeparator = true, Dock = DockStyle.Fill
+            };
+            tblInput.Controls.Add(MakeInputLabel("Payment Amount (HK$) *"), 0, 0);
+            tblInput.Controls.Add(nudAmount,                                 1, 0);
+
+            // Row 1: Payment Type
+            var cboType = new ComboBox
+            {
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Font = new Font("Segoe UI", 13f), Dock = DockStyle.Fill
+            };
+            cboType.Items.AddRange(new object[] { "Installment", "Full", "Deposit" });
+            cboType.SelectedIndex = inv.RemainingBalance <= inv.TotalAmount * 0.5 ? 1 : 0;
+            tblInput.Controls.Add(MakeInputLabel("Payment Type *"), 0, 1);
+            tblInput.Controls.Add(cboType,                          1, 1);
+
+            // Row 2: Transaction Date (read-only, today)
+            var lblDate = new Label
+            {
+                Text = DateTime.Today.ToString("yyyy-MM-dd"),
+                Font = new Font("Segoe UI", 13f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(1, 105, 111),
+                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft
+            };
+            tblInput.Controls.Add(MakeInputLabel("Transaction Date"), 0, 2);
+            tblInput.Controls.Add(lblDate,                            1, 2);
+
+            inputInner.Controls.Add(tblInput);
+            inputInner.Controls.Add(pnlInputTitle);  // Top — must add after Fill content
+
+            // ══ CARD: Payment History =============================================
+            var (histOuter, histInner) = CardPanel.CreateFill();
+
+            // Section title inside card
+            var pnlHistTitle = new Panel
+            {
+                Dock = DockStyle.Top, Height = 48,
+                BackColor = Color.FromArgb(246, 249, 255),
+                Padding = new Padding(24, 0, 0, 0)
+            };
+            pnlHistTitle.Paint += PaintBottomBorder;
+            pnlHistTitle.Controls.Add(new Label
+            {
+                Text = "📄  Payment History",
+                Font = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(98, 112, 135),
+                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
+            });
+
             var dgvTxn = new DataGridView
             {
                 ReadOnly = true, AllowUserToAddRows = false, RowHeadersVisible = false,
@@ -253,9 +373,18 @@ namespace PremiumLivingOPS.Views.AfterService
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
                 CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal,
                 RowTemplate = { Height = 44 }, Dock = DockStyle.Fill,
-                ColumnHeadersHeight = 40, EnableHeadersVisualStyles = false,
-                ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle { BackColor = Color.FromArgb(246, 249, 255), ForeColor = Color.FromArgb(98, 112, 135), Font = new Font("Segoe UI", 10f, FontStyle.Bold), Padding = new Padding(12, 0, 0, 0) },
-                DefaultCellStyle = new DataGridViewCellStyle { BackColor = Color.White, ForeColor = Color.FromArgb(15, 31, 53), SelectionBackColor = Color.FromArgb(219, 234, 254), SelectionForeColor = Color.FromArgb(15, 31, 53), Padding = new Padding(12, 6, 12, 6) }
+                ColumnHeadersHeight = 42, EnableHeadersVisualStyles = false,
+                ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
+                {
+                    BackColor = Color.FromArgb(246, 249, 255), ForeColor = Color.FromArgb(98, 112, 135),
+                    Font = new Font("Segoe UI", 10f, FontStyle.Bold), Padding = new Padding(12, 0, 0, 0)
+                },
+                DefaultCellStyle = new DataGridViewCellStyle
+                {
+                    BackColor = Color.White, ForeColor = Color.FromArgb(15, 31, 53),
+                    SelectionBackColor = Color.FromArgb(219, 234, 254), SelectionForeColor = Color.FromArgb(15, 31, 53),
+                    Padding = new Padding(12, 6, 12, 6)
+                }
             };
             dgvTxn.Columns.Add(new DataGridViewTextBoxColumn { Name = "cTxnID",  HeaderText = "TRANSACTION ID", FillWeight = 28 });
             dgvTxn.Columns.Add(new DataGridViewTextBoxColumn { Name = "cDate",   HeaderText = "DATE",           FillWeight = 18 });
@@ -270,61 +399,74 @@ namespace PremiumLivingOPS.Views.AfterService
             else
             {
                 foreach (var t in inv.Transactions)
-                    dgvTxn.Rows.Add(t.TransactionID, t.TransactionDate.ToString("yyyy-MM-dd"), t.TransactionType, $"HK$ {t.Amount:N2}");
+                    dgvTxn.Rows.Add(t.TransactionID, t.TransactionDate.ToString("yyyy-MM-dd"),
+                                    t.TransactionType, $"HK$ {t.Amount:N2}");
             }
+            histInner.Controls.Add(dgvTxn);
+            histInner.Controls.Add(pnlHistTitle);   // Top — must add after Fill
 
-            // Input label
-            var pnlInputLabel = new Panel { Dock = DockStyle.Top, Height = 44, BackColor = Color.FromArgb(240, 253, 250), Padding = new Padding(28, 0, 16, 0) };
-            pnlInputLabel.Paint += PaintBottomBorder;
-            pnlInputLabel.Controls.Add(new Label { Text = "💳  Record New Payment", Font = new Font("Segoe UI", 11f, FontStyle.Bold), ForeColor = Color.FromArgb(1, 105, 111), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false });
-
-            // Input body
-            var pnlInputBody = new Panel { Dock = DockStyle.Top, Height = 130, BackColor = Color.FromArgb(249, 254, 253), Padding = new Padding(28, 16, 28, 12) };
-            pnlInputBody.Paint += PaintBottomBorder;
-            var nudAmount = new NumericUpDown { Font = new Font("Segoe UI", 12f), Minimum = 0.01m, Maximum = (decimal)Math.Max(inv.RemainingBalance, 0.01), DecimalPlaces = 2, Value = (decimal)Math.Min(inv.RemainingBalance, inv.RemainingBalance > 0 ? inv.RemainingBalance : 0.01), Location = new Point(200, 10), Size = new Size(200, 36), ThousandsSeparator = true };
-            var cboType   = new ComboBox    { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 12f), Location = new Point(610, 10), Size = new Size(200, 36) };
-            cboType.Items.AddRange(new object[] { "Installment", "Full", "Deposit" });
-            cboType.SelectedIndex = inv.RemainingBalance <= inv.TotalAmount * 0.5 ? 1 : 0;
-            pnlInputBody.Controls.Add(new Label { Text = "Payment Amount *", Font = new Font("Segoe UI", 10f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), AutoSize = true, Location = new Point(0, 14) });
-            pnlInputBody.Controls.Add(nudAmount);
-            pnlInputBody.Controls.Add(new Label { Text = "Payment Type *",   Font = new Font("Segoe UI", 10f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), AutoSize = true, Location = new Point(430, 14) });
-            pnlInputBody.Controls.Add(cboType);
-            pnlInputBody.Controls.Add(new Label { Text = "Transaction Date", Font = new Font("Segoe UI", 10f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), AutoSize = true, Location = new Point(0, 72) });
-            pnlInputBody.Controls.Add(new Label { Text = DateTime.Today.ToString("yyyy-MM-dd"), Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.FromArgb(1, 105, 111), Location = new Point(200, 68), Size = new Size(200, 36), TextAlign = ContentAlignment.MiddleLeft });
-
-            // Footer
-            var pnlFooter = new Panel { Dock = DockStyle.Bottom, Height = 70, BackColor = Color.White, Padding = new Padding(0, 12, 28, 12) };
+            // ══ FOOTER — Confirm (210×60) + Cancel (210×60) ========================
+            var pnlFooter = new Panel
+            {
+                Dock = DockStyle.Bottom, Height = 88,
+                BackColor = Color.White, Padding = new Padding(0, 14, 28, 14)
+            };
             pnlFooter.Paint += PaintTopBorder;
-            var btnConfirm = new Button { Text = "✔  Confirm Payment", Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.White, BackColor = Color.FromArgb(5, 150, 105), FlatStyle = FlatStyle.Flat, Dock = DockStyle.Right, Width = 220, Cursor = Cursors.Hand };
-            btnConfirm.FlatAppearance.BorderSize = 0; btnConfirm.FlatAppearance.MouseOverBackColor = Color.FromArgb(4, 120, 87);
-            var btnCancel = new Button { Text = "Cancel", Font = new Font("Segoe UI", 12f), ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White, FlatStyle = FlatStyle.Flat, Dock = DockStyle.Right, Width = 140, Cursor = Cursors.Hand };
-            btnCancel.FlatAppearance.BorderColor = Color.FromArgb(221, 227, 236); btnCancel.FlatAppearance.BorderSize = 1; btnCancel.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
+
+            var btnConfirm = new Button
+            {
+                Text = "✔  Confirm Payment",
+                Font = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.White, BackColor = Color.FromArgb(5, 150, 105),
+                FlatStyle = FlatStyle.Flat,
+                Size = new Size(210, 60), Dock = DockStyle.Right, Cursor = Cursors.Hand
+            };
+            btnConfirm.FlatAppearance.BorderSize = 0;
+            btnConfirm.FlatAppearance.MouseOverBackColor = Color.FromArgb(4, 120, 87);
+            btnConfirm.FlatAppearance.MouseDownBackColor = Color.FromArgb(3, 90, 68);
+
+            var btnCancel = new Button
+            {
+                Text = "Cancel",
+                Font = new Font("Segoe UI", 12f),
+                ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Size = new Size(210, 60), Dock = DockStyle.Right, Cursor = Cursors.Hand
+            };
+            btnCancel.FlatAppearance.BorderColor = Color.FromArgb(221, 227, 236);
+            btnCancel.FlatAppearance.BorderSize  = 1;
+            btnCancel.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
             btnCancel.Click += (o, ev) => dlg.Close();
+
             btnConfirm.Click += (o, ev) =>
             {
                 double amount = (double)nudAmount.Value;
-                if (amount <= 0) { MessageBox.Show("Payment amount must be greater than zero.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning); nudAmount.Focus(); return; }
-                if (amount > inv.RemainingBalance + 0.005) { MessageBox.Show($"Payment amount (HK$ {amount:N2}) exceeds the remaining balance (HK$ {inv.RemainingBalance:N2}).", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning); nudAmount.Focus(); return; }
-                if (cboType.SelectedIndex < 0) { MessageBox.Show("Please select a payment type.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning); cboType.Focus(); return; }
+                if (amount <= 0)
+                { MessageBox.Show("Payment amount must be greater than zero.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning); nudAmount.Focus(); return; }
+                if (amount > inv.RemainingBalance + 0.005)
+                { MessageBox.Show($"Payment amount (HK$ {amount:N2}) exceeds the remaining balance (HK$ {inv.RemainingBalance:N2}).", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning); nudAmount.Focus(); return; }
+                if (cboType.SelectedIndex < 0)
+                { MessageBox.Show("Please select a payment type.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning); cboType.Focus(); return; }
                 try
                 {
                     _ctrl.RecordPayment(inv.InvoiceID, amount, cboType.SelectedItem.ToString());
-                    MessageBox.Show($"Payment of HK$ {amount:N2} recorded successfully for {inv.InvoiceID}.", "Payment Recorded", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    MessageBox.Show($"Payment of HK$ {amount:N2} recorded successfully for {inv.InvoiceID}.",
+                        "Payment Recorded", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     dlg.Close();
                 }
-                catch (Exception ex) { MessageBox.Show($"Failed to record payment:\n{ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+                catch (Exception ex)
+                { MessageBox.Show($"Failed to record payment:\n{ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error); }
             };
+
             pnlFooter.Controls.Add(btnConfirm);
             pnlFooter.Controls.Add(btnCancel);
 
-            // Assemble
-            dlg.Controls.Add(dgvTxn);
-            dlg.Controls.Add(pnlTxnLabel);
-            dlg.Controls.Add(pnlInputBody);
-            dlg.Controls.Add(pnlInputLabel);
-            dlg.Controls.Add(pnlInfo);
-            dlg.Controls.Add(pnlHeader);
-            dlg.Controls.Add(pnlFooter);
+            // ══ Assemble (Fill first, then Top panels top-to-bottom, Bottom last) =====
+            dlg.Controls.Add(histOuter);    // Fill
+            dlg.Controls.Add(inputOuter);   // Top
+            dlg.Controls.Add(infoOuter);    // Top
+            dlg.Controls.Add(pnlHeader);    // Top — topmost
+            dlg.Controls.Add(pnlFooter);    // Bottom
             dlg.ShowDialog(this);
         }
 
@@ -340,14 +482,30 @@ namespace PremiumLivingOPS.Views.AfterService
         private static void PaintTopBorder(object s, PaintEventArgs e)
         { using var pen = new Pen(Color.FromArgb(221, 227, 236)); e.Graphics.DrawLine(pen, 0, 0, ((Control)s).Width, 0); }
 
-        // ── Info row helpers
+        // ── Info / Input label helpers
         private static void AddInfoRow(TableLayoutPanel tbl, int row, string lbl1, string val1, string lbl2, string val2)
         {
             tbl.Controls.Add(MakeLabelKey(lbl1), 0, row); tbl.Controls.Add(MakeLabelVal(val1), 1, row);
             tbl.Controls.Add(MakeLabelKey(lbl2), 2, row); tbl.Controls.Add(MakeLabelVal(val2), 3, row);
         }
-        private static Label MakeLabelKey(string text) => new Label { Text = text, Font = new Font("Segoe UI", 10f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false };
-        private static Label MakeLabelVal(string text) => new Label { Text = text, Font = new Font("Segoe UI", 12f), ForeColor = Color.FromArgb(15, 31, 53), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false };
+        private static Label MakeLabelKey(string text) => new Label
+        {
+            Text = text, Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+            ForeColor = Color.FromArgb(98, 112, 135), Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
+        };
+        private static Label MakeLabelVal(string text) => new Label
+        {
+            Text = text, Font = new Font("Segoe UI", 12f),
+            ForeColor = Color.FromArgb(15, 31, 53), Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
+        };
+        private static Label MakeInputLabel(string text) => new Label
+        {
+            Text = text, Font = new Font("Segoe UI", 11f, FontStyle.Bold),
+            ForeColor = Color.FromArgb(98, 112, 135), Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
+        };
 
         private static GraphicsPath RoundedRect(Rectangle r, int radius)
         {
