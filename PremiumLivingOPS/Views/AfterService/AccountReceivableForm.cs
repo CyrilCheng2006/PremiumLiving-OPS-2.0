@@ -204,15 +204,17 @@ namespace PremiumLivingOPS.Views.AfterService
 
         // ─────────────────────────────────────────────────────────────────────
         // Record Payment Dialog
-        //   Size          : 1800 × 1200  (+200 from previous 1000)
-        //   Header badge  : tblHeader col 1 = 520f  (was 360f — too narrow)
+        //   Size          : 1800 × 1400  (height +200 vs previous 1200)
+        //   Header badge  : tblHeader col 1 = 640f  (was 520f — still clipped)
+        //                   Provides ~640px for "Balance: HK$ 999,999.99"
+        //                   at font 14pt Bold — fully readable with margin.
         // ─────────────────────────────────────────────────────────────────────
         private void ShowRecordPaymentDialog(InvoiceDetailEntity inv)
         {
             using var dlg = new Form
             {
                 Text            = $"Record Payment  —  {inv.InvoiceID}",
-                Size            = new Size(1800, 1200),  // height +200 → 1200
+                Size            = new Size(1800, 1400),   // ← height 1200 → 1400 (+200)
                 StartPosition   = FormStartPosition.CenterParent,
                 BackColor       = Color.FromArgb(240, 244, 249),
                 Font            = new Font("Segoe UI", 13f),
@@ -228,8 +230,8 @@ namespace PremiumLivingOPS.Views.AfterService
                 Padding = new Padding(28, 0, 0, 0)   // no right pad — badge flush to edge
             };
             tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
-            // Badge column widened 360 → 520 so "Balance: HK$ XX,XXX.XX" fits comfortably
-            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 520f));
+            // Badge column: widened 520 → 640 so "Balance: HK$ XX,XXX.XX" fits at 14pt Bold
+            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 640f));
             tblHeader.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
             tblHeader.Controls.Add(new Label
