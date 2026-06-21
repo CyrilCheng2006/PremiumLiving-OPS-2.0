@@ -30,15 +30,29 @@ namespace PremiumLivingOPS.Views.AfterService
             this.Load += AccountPayableForm_Load;
         }
 
-        private void AccountPayableForm_Load(object sender, EventArgs e) => RefreshGrid();
+        private void AccountPayableForm_Load(object sender, EventArgs e)
+        {
+            _shell.MenuItemClicked += OnTopNavMenuItemClicked;
+            _shell.LogoutClicked   += btnLogout_Click;
+            RefreshGrid();
+        }
 
+        // ── Data refresh ────────────────────────────────────────────────────
         private void RefreshGrid()
         {
+            string invoiceNo    = txtSearchInvoiceNo.Text.Trim();
+            string supplier     = txtSearchSupplier.Text.Trim();
             string statusSel    = cboStatus.SelectedItem?.ToString();
-            string statusFilter = (statusSel == "All" || string.IsNullOrEmpty(statusSel)) ? null : statusSel;
-            string keyword      = txtKeyword.Text.Trim();
+            string statusFilter = (statusSel == "All" || string.IsNullOrEmpty(statusSel))
+                                  ? null : statusSel;
+            DateTime? dateFrom  = chkDateFrom.Checked ? (DateTime?)dtpDateFrom.Value.Date : null;
 
-            var vm = _ctrl.GetAccountPayableVM(statusFilter, string.IsNullOrEmpty(keyword) ? null : keyword);
+            // Keyword: invoice no takes priority, then supplier name
+            string keyword = !string.IsNullOrEmpty(invoiceNo) ? invoiceNo
+                           : !string.IsNullOrEmpty(supplier)  ? supplier
+                           : null;
+
+            var vm = _ctrl.GetAccountPayableVM(statusFilter, keyword, dateFrom);
 
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
@@ -59,14 +73,18 @@ namespace PremiumLivingOPS.Views.AfterService
             RefreshKpi();
         }
 
-        private void ResetSearch()
+        private void ResetFilters()
         {
-            txtKeyword.Text         = string.Empty;
-            cboStatus.SelectedIndex = 0;
+            txtSearchInvoiceNo.Text  = string.Empty;
+            txtSearchSupplier.Text   = string.Empty;
+            cboStatus.SelectedIndex  = 0;
+            chkDateFrom.Checked      = false;
+            dtpDateFrom.Value        = DateTime.Today.AddMonths(-1);
+            dtpDateFrom.Enabled      = false;
             RefreshGrid();
         }
 
-        // ── KPI Pills + AP Verification button ────────────────────────────────────────
+        // ── KPI Pills (same rendering pattern as ViewOrderForm.RefreshKpi) ──────
         private void RefreshKpi()
         {
             pnlKpi.Controls.Clear();
@@ -82,21 +100,21 @@ namespace PremiumLivingOPS.Views.AfterService
             foreach (var i in all)
             {
                 if (i.PaymentStatus != "Full") outstanding += i.TotalAmount;
-                if (i.IsOverdue)                 overdueCount++;
-                if (i.PaymentStatus == "Partial") partialCount++;
-                if (i.PaymentStatus == "Full")    fullCount++;
+                if (i.IsOverdue)                  overdueCount++;
+                if (i.PaymentStatus == "Partial")  partialCount++;
+                if (i.PaymentStatus == "Full")     fullCount++;
             }
 
+            // (label, value, fgColor, bgColor, filterStatus)
             var pills = new[]
             {
-                ("Total PO Invoices", totalCount.ToString(),   Color.FromArgb( 19,  35,  61), Color.FromArgb(219, 234, 254)),
-                ("Outstanding (HK$)", $"{outstanding:N0}",     Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199)),
-                ("Partial",           partialCount.ToString(), Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254)),
-                ("Fully Paid",        fullCount.ToString(),    Color.FromArgb( 22, 101,  52), Color.FromArgb(220, 252, 231)),
-                ("Overdue",           overdueCount.ToString(), Color.FromArgb(185,  28,  28), Color.FromArgb(254, 226, 226)),
+                ("Total Invoices",  totalCount.ToString(),   Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254), "All"),
+                ("Outstanding HK$", $"{outstanding:N0}",     Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), "All"),
+                ("Partial",         partialCount.ToString(), Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254), "Partial"),
+                ("Fully Paid",      fullCount.ToString(),    Color.FromArgb( 22, 101,  52), Color.FromArgb(220, 252, 231), "Full"),
+                ("Overdue",         overdueCount.ToString(), Color.FromArgb(185,  28,  28), Color.FromArgb(254, 226, 226), "Overdue"),
             };
 
-            // ── FlowLayoutPanel holding pills + AP Verification button ────────────
             var flow = new FlowLayoutPanel
             {
                 Dock          = DockStyle.Fill,
@@ -107,12 +125,12 @@ namespace PremiumLivingOPS.Views.AfterService
                 AutoScroll    = false,
             };
 
-            const int PillW   = 340;
+            const int PillW   = 290;
             const int PillH   = 60;
             const int Gap     = 8;
             const int NumColW = 90;
 
-            foreach (var (label, value, fg, bg) in pills)
+            foreach (var (label, value, fg, bg, filterItem) in pills)
             {
                 var pill = new Panel
                 {
@@ -122,6 +140,7 @@ namespace PremiumLivingOPS.Views.AfterService
                     Cursor    = Cursors.Hand,
                 };
 
+                // Rounded rectangle — identical to ViewOrderForm
                 pill.Paint += (s, e) =>
                 {
                     e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
@@ -165,35 +184,28 @@ namespace PremiumLivingOPS.Views.AfterService
                     AutoSize  = false,
                 }, 1, 0);
 
+                // Click: filter grid by pill's status
+                string localFilter = filterItem;
+                EventHandler clickHandler = (s, e) =>
+                {
+                    int idx = cboStatus.FindStringExact(localFilter);
+                    if (idx >= 0) cboStatus.SelectedIndex = idx;
+                    RefreshGrid();
+                };
+                pill.Click += clickHandler;
+                tlp.Click  += clickHandler;
+                foreach (Control c in tlp.Controls) c.Click += clickHandler;
+
                 pill.Controls.Add(tlp);
                 flow.Controls.Add(pill);
             }
 
-            // ── AP Verification button (210×60) placed after the last pill ────
-            var btnVerify = new Button
-            {
-                Text      = "\U0001f4ca  AP Verification",
-                Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
-                ForeColor = Color.White,
-                BackColor = Color.FromArgb(19, 35, 61),
-                FlatStyle = FlatStyle.Flat,
-                Size      = new Size(210, 60),
-                Margin    = new Padding(16, 0, 0, 0),
-                Cursor    = Cursors.Hand,
-                TextAlign = ContentAlignment.MiddleCenter,
-            };
-            btnVerify.FlatAppearance.BorderSize         = 0;
-            btnVerify.FlatAppearance.MouseOverBackColor = Color.FromArgb(10, 22, 40);
-            btnVerify.Click += BtnVerify_Click;
-            flow.Controls.Add(btnVerify);
-
             pnlKpi.Controls.Add(flow);
         }
 
-        // ── AP Verification button handler ───────────────────────────────────
+        // ── AP Verification button handler ──────────────────────────────
         private void BtnVerify_Click(object sender, EventArgs e)
         {
-            // Require a row selection
             if (dgvAP.SelectedRows.Count == 0)
             {
                 MessageBox.Show(
@@ -202,8 +214,7 @@ namespace PremiumLivingOPS.Views.AfterService
                 return;
             }
 
-            // Read PurInvoiceID by column index 0 (first column added in Rows.Add)
-            // to avoid dependency on designer-side column Name strings.
+            // Index 0 = colPurInvID (first column in dgvAP.Rows.Add)
             string purInvoiceId = dgvAP.SelectedRows[0].Cells[0].Value?.ToString();
 
             if (string.IsNullOrEmpty(purInvoiceId))
@@ -214,10 +225,7 @@ namespace PremiumLivingOPS.Views.AfterService
             }
 
             APVerificationDetailVM detail;
-            try
-            {
-                detail = _ctrl.GetAPVerificationDetail(purInvoiceId);
-            }
+            try   { detail = _ctrl.GetAPVerificationDetail(purInvoiceId); }
             catch (Exception ex)
             {
                 MessageBox.Show($"Failed to load verification data:\n{ex.Message}",
@@ -227,8 +235,7 @@ namespace PremiumLivingOPS.Views.AfterService
 
             if (detail == null)
             {
-                MessageBox.Show(
-                    $"No verification record found for Invoice {purInvoiceId}.",
+                MessageBox.Show($"No verification record found for Invoice {purInvoiceId}.",
                     "Not Found", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
@@ -237,7 +244,7 @@ namespace PremiumLivingOPS.Views.AfterService
             dlg.ShowDialog(this);
         }
 
-        // ── CellFormatting ──────────────────────────────────────────────────
+        // ── CellFormatting ─────────────────────────────────────────────
         private void dgvAP_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
             if (e.RowIndex < 0 || e.RowIndex >= _currentItems.Count) return;
@@ -271,6 +278,7 @@ namespace PremiumLivingOPS.Views.AfterService
         private void btnLogout_Click(object sender, EventArgs e)
         { SessionManager.Clear(); Application.Restart(); }
 
+        // ── Helpers ──────────────────────────────────────────────────────
         private static GraphicsPath RoundedRect(Rectangle r, int radius)
         {
             var path = new GraphicsPath();
