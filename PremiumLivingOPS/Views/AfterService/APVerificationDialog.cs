@@ -12,7 +12,7 @@ namespace PremiumLivingOPS.Views.AfterService
     /// Rendering pattern mirrors AccountReceivableForm.ShowRecordPaymentDialog:
     ///   ─ Header (navy bar)
     ///   ─ CardPanel: Invoice / PO / Supplier Info  (outerHeight 210)
-    ///   ─ CardPanel: 3-Way Match Summary           (outerHeight 130)
+    ///   ─ CardPanel: 3-Way Match Summary           (outerHeight 163)  ← 130 × 1.25
     ///   ─ CardPanel: Line Items grid               (Fill)
     ///   ─ Footer (Close button, right-docked)
     /// </summary>
@@ -45,8 +45,8 @@ namespace PremiumLivingOPS.Views.AfterService
             var (infoOuter, infoInner) = CardPanel.Create(outerHeight: 210);
             infoInner.Controls.Add(BuildInfoTable());
 
-            // ══ CARD 2 — 3-Way Match Amount Summary
-            var (matchOuter, matchInner) = CardPanel.Create(outerHeight: 130);
+            // ══ CARD 2 — 3-Way Match Amount Summary  (130 × 1.25 = 163)
+            var (matchOuter, matchInner) = CardPanel.Create(outerHeight: 163);
             matchInner.Controls.Add(BuildMatchBanner());
 
             // ══ CARD 3 — Line Items DataGridView (Fill)
@@ -131,13 +131,10 @@ namespace PremiumLivingOPS.Views.AfterService
             for (int r = 0; r < 3; r++)
                 tbl.RowStyles.Add(new RowStyle(SizeType.Percent, 33.3f));
 
-            // Row 0: Invoice ID  |  Purchase Order
             AddInfoRow(tbl, 0, "Purchase Invoice:", _vm.PurInvoiceID,
                                "Purchase Order:",   _vm.PurchaseID);
-            // Row 1: Supplier  |  Order Date   (OrderDate is the PO issue date)
             AddInfoRow(tbl, 1, "Supplier:",    _vm.SupplierName,
                                "Order Date:",  _vm.OrderDate.ToString("yyyy-MM-dd"));
-            // Row 2: Expected Date  |  Payment Status  (InvPayStatus from PurchaseInvoice)
             AddInfoRow(tbl, 2, "Expected Date:",   _vm.ExpectedDate.ToString("yyyy-MM-dd"),
                                "Payment Status:",  _vm.InvPayStatus);
 
@@ -157,7 +154,7 @@ namespace PremiumLivingOPS.Views.AfterService
                 RowCount        = 1,
                 BackColor       = Color.Transparent,
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                Padding         = new Padding(24, 10, 24, 10)
+                Padding         = new Padding(24, 12, 24, 12)   // slightly more vertical breathing room
             };
             tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  30f));
             tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 50f));
@@ -166,12 +163,11 @@ namespace PremiumLivingOPS.Views.AfterService
             tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  30f));
             tbl.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
-            // InvTotalAmount is the correct property for PurchaseInvoice.TotalAmount
-            tbl.Controls.Add(MakeAmountBlock("Purchase Order Total",     $"HK$ {_vm.POTotalAmount:N2}",       accentFg, accentBg), 0, 0);
-            tbl.Controls.Add(MakeArrow(),                                                                                           1, 0);
-            tbl.Controls.Add(MakeAmountBlock("Supplier Receipt Total",   $"HK$ {_vm.SupplierReceiptTotal:N2}", accentFg, accentBg), 2, 0);
-            tbl.Controls.Add(MakeArrow(),                                                                                           3, 0);
-            tbl.Controls.Add(MakeAmountBlock("Purchase Invoice Total",   $"HK$ {_vm.InvTotalAmount:N2}",      accentFg, accentBg), 4, 0);
+            tbl.Controls.Add(MakeAmountBlock("Purchase Order Total",   $"HK$ {_vm.POTotalAmount:N2}",        accentFg, accentBg), 0, 0);
+            tbl.Controls.Add(MakeArrow(),                                                                                          1, 0);
+            tbl.Controls.Add(MakeAmountBlock("Supplier Receipt Total", $"HK$ {_vm.SupplierReceiptTotal:N2}", accentFg, accentBg), 2, 0);
+            tbl.Controls.Add(MakeArrow(),                                                                                          3, 0);
+            tbl.Controls.Add(MakeAmountBlock("Purchase Invoice Total", $"HK$ {_vm.InvTotalAmount:N2}",       accentFg, accentBg), 4, 0);
 
             return tbl;
         }
@@ -193,10 +189,10 @@ namespace PremiumLivingOPS.Views.AfterService
                 RowCount    = 2,
                 ColumnCount = 1,
                 BackColor   = Color.Transparent,
-                Padding     = new Padding(12, 6, 12, 6)
+                Padding     = new Padding(12, 8, 12, 8)
             };
-            inner.RowStyles.Add(new RowStyle(SizeType.Percent, 50f));
-            inner.RowStyles.Add(new RowStyle(SizeType.Percent, 50f));
+            inner.RowStyles.Add(new RowStyle(SizeType.Percent, 45f));
+            inner.RowStyles.Add(new RowStyle(SizeType.Percent, 55f));
             inner.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
 
             inner.Controls.Add(new Label
@@ -294,12 +290,12 @@ namespace PremiumLivingOPS.Views.AfterService
                 }
             };
 
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cItem",     HeaderText = "ITEM ID",           FillWeight = 16 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cName",     HeaderText = "ITEM NAME",         FillWeight = 28 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cQtyOrd",   HeaderText = "QTY ORDERED",       FillWeight = 12 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cQtyRcv",   HeaderText = "QTY RECEIVED",      FillWeight = 12 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cUnit",     HeaderText = "UNIT PRICE (HK$)",  FillWeight = 16 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cLineTotal",HeaderText = "LINE TOTAL (HK$)",  FillWeight = 16 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cItem",      HeaderText = "ITEM ID",           FillWeight = 16 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cName",      HeaderText = "ITEM NAME",         FillWeight = 28 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cQtyOrd",    HeaderText = "QTY ORDERED",       FillWeight = 12 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cQtyRcv",    HeaderText = "QTY RECEIVED",      FillWeight = 12 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cUnit",      HeaderText = "UNIT PRICE (HK$)",  FillWeight = 16 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cLineTotal", HeaderText = "LINE TOTAL (HK$)",  FillWeight = 16 });
 
             dgv.Columns["cQtyOrd"].DefaultCellStyle.Alignment    = DataGridViewContentAlignment.MiddleRight;
             dgv.Columns["cQtyRcv"].DefaultCellStyle.Alignment    = DataGridViewContentAlignment.MiddleRight;
@@ -318,7 +314,6 @@ namespace PremiumLivingOPS.Views.AfterService
             {
                 foreach (var ln in _vm.Lines)
                 {
-                    // RawMaterialItemID is the correct property (not ItemID)
                     int idx = dgv.Rows.Add(
                         ln.RawMaterialItemID,
                         ln.ItemName,
@@ -327,7 +322,6 @@ namespace PremiumLivingOPS.Views.AfterService
                         $"{ln.UnitPrice:N2}",
                         $"{ln.LineTotal:N2}"
                     );
-                    // Amber highlight for under-received rows
                     if (ln.QtyReceived < ln.OrderQty)
                     {
                         dgv.Rows[idx].DefaultCellStyle.BackColor          = warnBg;
