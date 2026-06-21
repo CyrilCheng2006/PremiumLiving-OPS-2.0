@@ -1,5 +1,6 @@
 using System;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 using PremiumLivingOPS.Views.Shared;
 
@@ -9,11 +10,20 @@ namespace PremiumLivingOPS.Views.MasterData
     {
         private System.ComponentModel.IContainer components = null;
 
+        // ── AppShell + shared controls ───────────────────────────────────────
         private AppShell     _shell;
-        private TextBox      txtSearch;
-        private Button       btnSearch;
-        private Button       btnRefresh;
         private DataGridView dgvCustomers;
+
+        // ── Search controls (mirrors SupplierListForm field names) ───────────
+        private TextBox txtSearchID;    // Customer ID keyword
+        private TextBox txtSearchName;  // Customer Name keyword
+        private TextBox txtSearchEmail; // Email keyword
+        private TextBox txtSearchPhone; // Phone keyword
+        private Button  btnSearch;
+        private Button  btnRefresh;
+
+        // ── KPI host panel (populated by RefreshKpi) ─────────────────────────
+        private Panel pnlKpi;
 
         protected override void Dispose(bool disposing)
         {
@@ -33,87 +43,136 @@ namespace PremiumLivingOPS.Views.MasterData
             this.WindowState   = FormWindowState.Maximized;
             this.Font          = new Font("Segoe UI", 13f);
 
-            // \u2500\u2500 Root panel
+            // ── Root panel
             var pnlMain = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(240, 244, 249) };
 
-            // \u2500\u2500 AppShell  (same wiring as ViewOrderForm)
+            // ── AppShell
             _shell = new AppShell();
             _shell.SetPopupContainer(pnlMain);
             _shell.MenuItemClicked += OnTopNavMenuItemClicked;
             _shell.LogoutClicked   += btnLogout_Click;
 
-            // \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
-            //  CARD 1 \u2014 Search bar
-            // \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
-            txtSearch = new TextBox
-            {
-                Font            = new Font("Segoe UI", 12f),
-                BorderStyle     = BorderStyle.FixedSingle,
-                Dock            = DockStyle.Fill,
-                PlaceholderText = "Search by Customer ID, Name, or Email\u2026"
-            };
-            txtSearch.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) RefreshGrid(); };
+            // ════════════════════════════════════════════════════════════════
+            //  CARD 1 ── Search bar  (mirrors SupplierListForm spec)
+            //  4 keyword TextBoxes arranged in a 2-column TLP, same row height
+            //  and section-title bar as SupplierListForm.Designer.cs
+            // ════════════════════════════════════════════════════════════════
 
+            // Section title bar (44px, #F1F5FF, blue label, 1px bottom border)
+            var pnlSearchTitle = new Panel
+            {
+                Dock      = DockStyle.Top,
+                Height    = 44,
+                BackColor = Color.FromArgb(241, 245, 255),
+                Padding   = new Padding(20, 0, 16, 0)
+            };
+            pnlSearchTitle.Paint += (s, e) =>
+            {
+                using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
+                e.Graphics.DrawLine(pen, 0, ((Panel)s).Height - 1, ((Panel)s).Width, ((Panel)s).Height - 1);
+            };
+            pnlSearchTitle.Controls.Add(new Label
+            {
+                Text      = "\uD83D\uDD0D  Customer Search",
+                Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(47, 111, 237),
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft,
+                AutoSize  = false
+            });
+
+            // Input fields
+            txtSearchID = MakeSearchInput("Customer ID");
+            txtSearchName  = MakeSearchInput("Customer Name");
+            txtSearchEmail = MakeSearchInput("Email Address");
+            txtSearchPhone = MakeSearchInput("Phone Number");
+
+            // Enter key on any field triggers search
+            foreach (var tb in new[] { txtSearchID, txtSearchName, txtSearchEmail, txtSearchPhone })
+                tb.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) RefreshGrid(); };
+
+            // 2-column field grid
+            var tblFields = new TableLayoutPanel
+            {
+                Dock        = DockStyle.Top,
+                Height      = 120,
+                ColumnCount = 4,
+                RowCount    = 2,
+                BackColor   = Color.White,
+                CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                Padding     = new Padding(16, 10, 16, 4)
+            };
+            // 4 equal columns
+            for (int i = 0; i < 4; i++)
+                tblFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
+            tblFields.RowStyles.Add(new RowStyle(SizeType.Absolute, 28f)); // labels
+            tblFields.RowStyles.Add(new RowStyle(SizeType.Absolute, 52f)); // inputs
+
+            var fieldDefs = new[]
+            {
+                ("Customer ID",   txtSearchID),
+                ("Customer Name", txtSearchName),
+                ("Email Address", txtSearchEmail),
+                ("Phone Number",  txtSearchPhone),
+            };
+            for (int i = 0; i < fieldDefs.Length; i++)
+            {
+                tblFields.Controls.Add(new Label
+                {
+                    Text      = fieldDefs[i].Item1,
+                    Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
+                    ForeColor = Color.FromArgb(70, 85, 110),
+                    BackColor = Color.White,
+                    Dock      = DockStyle.Fill,
+                    TextAlign = ContentAlignment.BottomLeft,
+                    AutoSize  = false,
+                    Padding   = new Padding(4, 0, 8, 2)
+                }, i, 0);
+                tblFields.Controls.Add(fieldDefs[i].Item2, i, 1);
+                tblFields.SetColumn(fieldDefs[i].Item2, i);
+            }
+
+            // Button row (Search primary blue, Reset outline — exact SupplierListForm sizes)
             btnSearch  = MakePrimaryBtn("\uD83D\uDD0D  Search", Point.Empty, 210, 60);
-            btnRefresh = MakeOutlineBtn("\u21BA  Reset",        Point.Empty, 160, 60);
+            btnRefresh = MakeOutlineBtn("\u21BA  Reset",       Point.Empty, 160, 60);
             btnSearch.Click  += (s, e) => RefreshGrid();
             btnRefresh.Click += (s, e) => ResetFilters();
 
-            // Row 1: title + divider
-            var pnlTitle = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            var lblTitle = new Label
+            var pnlBtnRow = new Panel
             {
-                Text      = "Customer Directory",
-                Font      = new Font("Segoe UI", 13f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(15, 31, 53),
-                Dock      = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleLeft
+                Dock      = DockStyle.Top,
+                Height    = 72,
+                BackColor = Color.White,
+                Padding   = new Padding(16, 8, 16, 8)
             };
-            var divider = new Panel { Dock = DockStyle.Bottom, Height = 1, BackColor = Color.FromArgb(221, 227, 236) };
-            pnlTitle.Controls.Add(lblTitle);
-            pnlTitle.Controls.Add(divider);
-
-            // Row 3: buttons
-            var pnlBtns = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             btnSearch.Location  = new Point(0,   0);
             btnRefresh.Location = new Point(218, 0);
-            pnlBtns.Controls.Add(btnSearch);
-            pnlBtns.Controls.Add(btnRefresh);
+            pnlBtnRow.Controls.Add(btnSearch);
+            pnlBtnRow.Controls.Add(btnRefresh);
 
-            // Search card TLP: title / field / buttons
-            var tblSearchCard = new TableLayoutPanel
-            {
-                Dock            = DockStyle.Fill,
-                RowCount        = 3,
-                ColumnCount     = 1,
-                BackColor       = Color.Transparent,
-                CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                Padding         = new Padding(18, 14, 18, 14)
-            };
-            tblSearchCard.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-            tblSearchCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  60f));  // title
-            tblSearchCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  80f));  // field
-            tblSearchCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  65f));  // buttons
-            tblSearchCard.Controls.Add(pnlTitle,  0, 0);
-            tblSearchCard.Controls.Add(txtSearch, 0, 1);
-            tblSearchCard.Controls.Add(pnlBtns,   0, 2);
-
-            var pnlSearchWhite = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
-            pnlSearchWhite.Paint += PaintCardBorder;
-            pnlSearchWhite.Controls.Add(tblSearchCard);
+            // Compose Card 1 (title + fields + buttons, DockStyle.Top)
+            var pnlSearchInner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
+            pnlSearchInner.Paint += PaintCardBorder;
+            pnlSearchInner.Controls.Add(pnlBtnRow);    // last added = bottom (DockStyle.Top stacks)
+            pnlSearchInner.Controls.Add(tblFields);
+            pnlSearchInner.Controls.Add(pnlSearchTitle);
 
             var pnlSearchOuter = new Panel
             {
                 Dock      = DockStyle.Top,
-                Height    = 270,
+                Height    = 260,
                 BackColor = Color.FromArgb(240, 244, 249),
                 Padding   = new Padding(20, 14, 20, 8)
             };
-            pnlSearchOuter.Controls.Add(pnlSearchWhite);
+            pnlSearchOuter.Controls.Add(pnlSearchInner);
 
-            // \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
-            //  CARD 2 \u2014 KPI strip
-            // \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+            // ════════════════════════════════════════════════════════════════
+            //  CARD 2 ── KPI Bar  (mirrors SupplierListForm spec)
+            //  Rounded pills 340×60, SmoothingMode.AntiAlias RoundedRect,
+            //  NumColW=90, Font size 14pt bold / 12pt, Gap=8
+            //  Action buttons (Add New green, Modify amber) docked Right,
+            //  each 210×60, no border, FlowDirection LeftToRight
+            // ════════════════════════════════════════════════════════════════
             pnlKpi = new Panel
             {
                 Dock      = DockStyle.Fill,
@@ -134,9 +193,9 @@ namespace PremiumLivingOPS.Views.MasterData
             };
             pnlKpiOuter.Controls.Add(pnlKpiWhite);
 
-            // \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
-            //  CARD 3 \u2014 DataGridView
-            // \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+            // ════════════════════════════════════════════════════════════════
+            //  CARD 3 ── DataGridView
+            // ════════════════════════════════════════════════════════════════
             dgvCustomers = new DataGridView
             {
                 ReadOnly               = true,
@@ -191,17 +250,33 @@ namespace PremiumLivingOPS.Views.MasterData
             };
             pnlGridOuter.Controls.Add(pnlGridInner);
 
-            // \u2500\u2500 Assemble pnlMain (Fill first, then Top in reverse order, AppShell last)
-            pnlMain.Controls.Add(pnlGridOuter);    // Fill  \u2014 grid card
-            pnlMain.Controls.Add(pnlKpiOuter);     // Top   \u2014 KPI strip
-            pnlMain.Controls.Add(pnlSearchOuter);  // Top   \u2014 Search card
-            pnlMain.Controls.Add(_shell);          // Top   \u2014 AppShell nav chrome
+            // ── Assemble pnlMain (Fill first, Top in reverse order, AppShell last)
+            pnlMain.Controls.Add(pnlGridOuter);   // Fill
+            pnlMain.Controls.Add(pnlKpiOuter);    // Top
+            pnlMain.Controls.Add(pnlSearchOuter); // Top
+            pnlMain.Controls.Add(_shell);          // Top (AppShell)
 
             this.Controls.Add(pnlMain);
             this.ResumeLayout(false);
         }
 
-        // \u2500\u2500 Button factories (identical to ViewOrderForm)
+        // ── Search TextBox factory (mirrors SupplierListForm) ────────────────
+        private static TextBox MakeSearchInput(string placeholder)
+        {
+            var tb = new TextBox
+            {
+                Font            = new Font("Segoe UI", 12f),
+                BorderStyle     = BorderStyle.FixedSingle,
+                Dock            = DockStyle.Fill,
+                BackColor       = Color.White,
+                ForeColor       = Color.FromArgb(15, 31, 53),
+                PlaceholderText = placeholder,
+                Margin          = new Padding(4, 0, 8, 0)
+            };
+            return tb;
+        }
+
+        // ── Button factories (identical to SupplierListForm) ─────────────────
         private static Button MakePrimaryBtn(string text, Point loc, int w, int h)
         {
             var b = new Button
@@ -238,7 +313,7 @@ namespace PremiumLivingOPS.Views.MasterData
             return b;
         }
 
-        // \u2500\u2500 Border painter (identical to ViewOrderForm)
+        // ── Card border painter ──────────────────────────────────────────────
         private static void PaintCardBorder(object s, PaintEventArgs e)
         {
             var p = (Panel)s;
