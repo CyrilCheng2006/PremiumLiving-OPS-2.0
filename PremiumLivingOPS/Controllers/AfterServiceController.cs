@@ -14,7 +14,7 @@ namespace PremiumLivingOPS.Controllers
     {
         private readonly AfterServiceRepo _repo = new AfterServiceRepo();
 
-        // ── Helper: current user ───────────────────────────────────────
+        // ── Helper: current user ─────────────────────────────────────────
         private static UserBarViewModel CurrentUserBar()
         {
             var u = SessionManager.CurrentUser;
@@ -169,20 +169,13 @@ namespace PremiumLivingOPS.Controllers
         //  Account Payable
         // ════════════════════════════════════════════════════════════════════
 
-        /// <summary>
-        /// Returns the Account Payable view model.
-        /// All parameters are optional — omit them to get unfiltered data (used by RefreshKpi).
-        /// </summary>
-        public AccountPayableViewModel GetAccountPayableVM(
-            string    status   = null,
-            string    keyword  = null,
-            DateTime? dateFrom = null)
+        public AccountPayableViewModel GetAccountPayableVM(string status = null, string keyword = null)
         {
             return new AccountPayableViewModel
             {
                 UserBar      = CurrentUserBar(),
                 AllowedMenus = CurrentMenus(),
-                Items        = _repo.SearchAccountPayables(status, keyword, dateFrom)
+                Items        = _repo.SearchAccountPayables(status, keyword)
             };
         }
     }
