@@ -10,7 +10,7 @@ namespace PremiumLivingOPS.Views.AfterService
     /// <summary>
     /// AP 3-Way Match Verification Dialog.
     /// Rendering pattern mirrors AccountReceivableForm.ShowRecordPaymentDialog:
-    ///   ─ Header (teal / navy bar)
+    ///   ─ Header (navy bar)
     ///   ─ CardPanel: Invoice / PO / Supplier Info  (outerHeight 210)
     ///   ─ CardPanel: 3-Way Match Summary           (outerHeight 130)
     ///   ─ CardPanel: Line Items grid               (Fill)
@@ -38,7 +38,7 @@ namespace PremiumLivingOPS.Views.AfterService
             MaximizeBox     = false;
             MinimizeBox     = false;
 
-            // ══ HEADER — navy title bar (same structure as RecordPayment teal bar)
+            // ══ HEADER
             var pnlHeader = BuildHeader();
 
             // ══ CARD 1 — Invoice / PO / Supplier Info
@@ -65,15 +65,10 @@ namespace PremiumLivingOPS.Views.AfterService
             Controls.Add(pnlFooter);   // Bottom
         }
 
-        // ───────────────────────────────────────────────────────────────────────────
-        // HEADER
-        // ───────────────────────────────────────────────────────────────────────────
+        // ── HEADER ─────────────────────────────────────────────────────────────────────
         private Panel BuildHeader()
         {
-            // Navy bar (AP uses dark navy; AR uses teal)
-            Color headerBg = Color.FromArgb(19, 35, 61);
-
-            var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 70, BackColor = headerBg };
+            var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 70, BackColor = Color.FromArgb(19, 35, 61) };
 
             var tblHeader = new TableLayoutPanel
             {
@@ -85,7 +80,7 @@ namespace PremiumLivingOPS.Views.AfterService
                 Padding         = new Padding(28, 0, 0, 0)
             };
             tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
-            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 320f)); // badge column
+            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 320f));
             tblHeader.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
             tblHeader.Controls.Add(new Label
@@ -98,13 +93,8 @@ namespace PremiumLivingOPS.Views.AfterService
                 AutoSize  = false
             }, 0, 0);
 
-            // Match status badge (green = matched, red = mismatch)
-            Color badgeBg = _vm.IsMatched
-                ? Color.FromArgb(22, 101, 52)
-                : Color.FromArgb(185, 28, 28);
-            string badgeText = _vm.IsMatched
-                ? "✔  3-WAY MATCHED"
-                : "⚠  MISMATCH";
+            Color badgeBg = _vm.IsMatched ? Color.FromArgb(22, 101, 52) : Color.FromArgb(185, 28, 28);
+            string badgeText = _vm.IsMatched ? "✔  3-WAY MATCHED" : "⚠  MISMATCH";
 
             tblHeader.Controls.Add(new Label
             {
@@ -122,9 +112,7 @@ namespace PremiumLivingOPS.Views.AfterService
             return pnlHeader;
         }
 
-        // ───────────────────────────────────────────────────────────────────────────
-        // CARD 1: Info rows  (mirrors AddInfoRow pattern in RecordPayment)
-        // ───────────────────────────────────────────────────────────────────────────
+        // ── CARD 1: Info rows ──────────────────────────────────────────────────────────────
         private TableLayoutPanel BuildInfoTable()
         {
             var tbl = new TableLayoutPanel
@@ -143,45 +131,47 @@ namespace PremiumLivingOPS.Views.AfterService
             for (int r = 0; r < 3; r++)
                 tbl.RowStyles.Add(new RowStyle(SizeType.Percent, 33.3f));
 
-            AddInfoRow(tbl, 0, "Purchase Invoice:", _vm.PurInvoiceID,  "Purchase Order:",  _vm.PurchaseID);
-            AddInfoRow(tbl, 1, "Supplier:",         _vm.SupplierName,  "Invoice Date:",    _vm.InvoiceDate.ToString("yyyy-MM-dd"));
-            AddInfoRow(tbl, 2, "Expected Date:",    _vm.ExpectedDate.ToString("yyyy-MM-dd"), "Payment Status:", _vm.PaymentStatus);
+            // Row 0: Invoice ID  |  Purchase Order
+            AddInfoRow(tbl, 0, "Purchase Invoice:", _vm.PurInvoiceID,
+                               "Purchase Order:",   _vm.PurchaseID);
+            // Row 1: Supplier  |  Order Date   (OrderDate is the PO issue date)
+            AddInfoRow(tbl, 1, "Supplier:",    _vm.SupplierName,
+                               "Order Date:",  _vm.OrderDate.ToString("yyyy-MM-dd"));
+            // Row 2: Expected Date  |  Payment Status  (InvPayStatus from PurchaseInvoice)
+            AddInfoRow(tbl, 2, "Expected Date:",   _vm.ExpectedDate.ToString("yyyy-MM-dd"),
+                               "Payment Status:",  _vm.InvPayStatus);
 
             return tbl;
         }
 
-        // ───────────────────────────────────────────────────────────────────────────
-        // CARD 2: 3-Way Match banner
-        //   Three columns: PO Total | Supplier Receipt Total | Invoice Total
-        //   Accent colour follows match result
-        // ───────────────────────────────────────────────────────────────────────────
+        // ── CARD 2: 3-Way Match Banner ───────────────────────────────────────────────────────
         private Panel BuildMatchBanner()
         {
-            Color accentFg  = _vm.IsMatched ? Color.FromArgb(22, 101, 52)  : Color.FromArgb(185, 28, 28);
-            Color accentBg  = _vm.IsMatched ? Color.FromArgb(220, 252, 231): Color.FromArgb(254, 226, 226);
+            Color accentFg = _vm.IsMatched ? Color.FromArgb(22, 101, 52)   : Color.FromArgb(185, 28, 28);
+            Color accentBg = _vm.IsMatched ? Color.FromArgb(220, 252, 231) : Color.FromArgb(254, 226, 226);
 
             var tbl = new TableLayoutPanel
             {
                 Dock            = DockStyle.Fill,
-                ColumnCount     = 5,   // label | amt | sep | amt | sep | amt
+                ColumnCount     = 5,
                 RowCount        = 1,
                 BackColor       = Color.Transparent,
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
                 Padding         = new Padding(24, 10, 24, 10)
             };
-            // 3 amount blocks + 2 arrow separators
-            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30f)); // PO
-            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 50f));// arrow
-            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30f)); // Receipt
-            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 50f));// arrow
-            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30f)); // Invoice
+            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  30f));
+            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 50f));
+            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  30f));
+            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 50f));
+            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  30f));
             tbl.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
-            tbl.Controls.Add(MakeAmountBlock("Purchase Order Total",       $"HK$ {_vm.POTotalAmount:N2}",           accentFg, accentBg), 0, 0);
-            tbl.Controls.Add(MakeArrow(),                                                                                                  1, 0);
-            tbl.Controls.Add(MakeAmountBlock("Supplier Receipt Total",     $"HK$ {_vm.SupplierReceiptTotal:N2}",    accentFg, accentBg), 2, 0);
-            tbl.Controls.Add(MakeArrow(),                                                                                                  3, 0);
-            tbl.Controls.Add(MakeAmountBlock("Purchase Invoice Total",     $"HK$ {_vm.InvoiceTotalAmount:N2}",      accentFg, accentBg), 4, 0);
+            // InvTotalAmount is the correct property for PurchaseInvoice.TotalAmount
+            tbl.Controls.Add(MakeAmountBlock("Purchase Order Total",     $"HK$ {_vm.POTotalAmount:N2}",       accentFg, accentBg), 0, 0);
+            tbl.Controls.Add(MakeArrow(),                                                                                           1, 0);
+            tbl.Controls.Add(MakeAmountBlock("Supplier Receipt Total",   $"HK$ {_vm.SupplierReceiptTotal:N2}", accentFg, accentBg), 2, 0);
+            tbl.Controls.Add(MakeArrow(),                                                                                           3, 0);
+            tbl.Controls.Add(MakeAmountBlock("Purchase Invoice Total",   $"HK$ {_vm.InvTotalAmount:N2}",      accentFg, accentBg), 4, 0);
 
             return tbl;
         }
@@ -244,9 +234,7 @@ namespace PremiumLivingOPS.Views.AfterService
             AutoSize  = false
         };
 
-        // ───────────────────────────────────────────────────────────────────────────
-        // CARD 3: Line Items title panel (mirrors Payment History title pattern)
-        // ───────────────────────────────────────────────────────────────────────────
+        // ── CARD 3: Title panel ──────────────────────────────────────────────────────────────────
         private static Panel BuildLineItemsTitle()
         {
             var pnl = new Panel
@@ -269,9 +257,7 @@ namespace PremiumLivingOPS.Views.AfterService
             return pnl;
         }
 
-        // ───────────────────────────────────────────────────────────────────────────
-        // CARD 3: Line Items DataGridView (exact same style as dgvTxn in RecordPayment)
-        // ───────────────────────────────────────────────────────────────────────────
+        // ── CARD 3: Line Items DataGridView ──────────────────────────────────────────────────────
         private DataGridView BuildLineGrid()
         {
             var dgv = new DataGridView
@@ -315,13 +301,12 @@ namespace PremiumLivingOPS.Views.AfterService
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cUnit",     HeaderText = "UNIT PRICE (HK$)",  FillWeight = 16 });
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cLineTotal",HeaderText = "LINE TOTAL (HK$)",  FillWeight = 16 });
 
-            // Right-align numeric columns
             dgv.Columns["cQtyOrd"].DefaultCellStyle.Alignment    = DataGridViewContentAlignment.MiddleRight;
             dgv.Columns["cQtyRcv"].DefaultCellStyle.Alignment    = DataGridViewContentAlignment.MiddleRight;
             dgv.Columns["cUnit"].DefaultCellStyle.Alignment      = DataGridViewContentAlignment.MiddleRight;
             dgv.Columns["cLineTotal"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
 
-            Color warnBg = Color.FromArgb(254, 249, 195); // amber — under-received rows
+            Color warnBg = Color.FromArgb(254, 249, 195);
 
             if (_vm.Lines == null || _vm.Lines.Count == 0)
             {
@@ -333,15 +318,16 @@ namespace PremiumLivingOPS.Views.AfterService
             {
                 foreach (var ln in _vm.Lines)
                 {
+                    // RawMaterialItemID is the correct property (not ItemID)
                     int idx = dgv.Rows.Add(
-                        ln.ItemID,
+                        ln.RawMaterialItemID,
                         ln.ItemName,
                         ln.OrderQty,
                         ln.QtyReceived,
                         $"{ln.UnitPrice:N2}",
                         $"{ln.LineTotal:N2}"
                     );
-                    // Highlight rows where received < ordered
+                    // Amber highlight for under-received rows
                     if (ln.QtyReceived < ln.OrderQty)
                     {
                         dgv.Rows[idx].DefaultCellStyle.BackColor          = warnBg;
@@ -353,9 +339,7 @@ namespace PremiumLivingOPS.Views.AfterService
             return dgv;
         }
 
-        // ───────────────────────────────────────────────────────────────────────────
-        // FOOTER  (mirrors RecordPayment footer exactly)
-        // ───────────────────────────────────────────────────────────────────────────
+        // ── FOOTER ──────────────────────────────────────────────────────────────────────────
         private Panel BuildFooter()
         {
             var pnlFooter = new Panel
@@ -367,7 +351,6 @@ namespace PremiumLivingOPS.Views.AfterService
             };
             pnlFooter.Paint += PaintTopBorder;
 
-            // Result text (left side)
             string resultText = _vm.IsMatched
                 ? "✔  All three amounts match. This invoice qualifies as an Account Payable."
                 : "⚠  Amounts do not match. Please review before recording as Account Payable.";
@@ -403,13 +386,11 @@ namespace PremiumLivingOPS.Views.AfterService
             btnClose.Click += (o, ev) => Close();
 
             pnlFooter.Controls.Add(btnClose);
-            pnlFooter.Controls.Add(lblResult); // Fill — added after Right so it fills remainder
+            pnlFooter.Controls.Add(lblResult);
             return pnlFooter;
         }
 
-        // ───────────────────────────────────────────────────────────────────────────
-        // Shared helpers  (identical signatures to those in AccountReceivableForm)
-        // ───────────────────────────────────────────────────────────────────────────
+        // ── Shared helpers ─────────────────────────────────────────────────────────────────────
         private static void AddInfoRow(TableLayoutPanel tbl, int row,
             string lbl1, string val1, string lbl2, string val2)
         {
