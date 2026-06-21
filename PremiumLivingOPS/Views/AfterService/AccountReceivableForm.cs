@@ -12,8 +12,6 @@ namespace PremiumLivingOPS.Views.AfterService
     public partial class AccountReceivableForm : Form
     {
         private readonly AfterServiceController _ctrl = new AfterServiceController();
-
-        // Single source of truth: InvoiceDetailEntity (full list incl. Full-paid)
         private List<InvoiceDetailEntity> _invoices = new List<InvoiceDetailEntity>();
 
         private static readonly Dictionary<string, (Color bg, Color fg)> StatusColors =
@@ -34,33 +32,27 @@ namespace PremiumLivingOPS.Views.AfterService
 
         private void AccountReceivableForm_Load(object sender, EventArgs e) => RefreshGrid();
 
-        // ── Main grid refresh (uses InvoiceListVM + status/keyword filter from CARD 1)
+        // ── Grid refresh
         private void RefreshGrid()
         {
             string statusSel    = cboStatus.SelectedItem?.ToString();
             string statusFilter = (statusSel == "All" || string.IsNullOrEmpty(statusSel)) ? null : statusSel;
             string keyword      = txtKeyword.Text.Trim();
 
-            // Shell breadcrumb / user bar driven by AR VM
             var arVm = _ctrl.GetAccountReceivableVM(statusFilter, string.IsNullOrEmpty(keyword) ? null : keyword);
             _shell.SetUser(arVm.UserBar.DisplayName, arVm.UserBar.Department);
             _shell.SetVisibleMenus(arVm.AllowedMenus);
             _shell.SetBreadcrumb("After-Service  ›  Account Receivable");
 
-            // Grid data: full Invoice list (same as former Invoice List dialog)
             _invoices = _ctrl.GetInvoiceListVM(string.IsNullOrEmpty(keyword) ? null : keyword).Invoices;
 
-            // Apply status filter client-side when set
             if (!string.IsNullOrEmpty(statusFilter))
                 _invoices = _invoices.FindAll(i =>
                     string.Equals(i.IsOverdue ? "Overdue" : i.PaymentStatus,
                                   statusFilter, StringComparison.OrdinalIgnoreCase));
 
             dgvAR.Rows.Clear();
-            double outstanding = 0;
             foreach (var inv in _invoices)
-            {
-                outstanding += inv.RemainingBalance;
                 dgvAR.Rows.Add(
                     inv.InvoiceID,
                     inv.OrderID,
@@ -70,7 +62,6 @@ namespace PremiumLivingOPS.Views.AfterService
                     $"HK$ {inv.RemainingBalance:N2}",
                     inv.IsOverdue ? "Overdue" : inv.PaymentStatus,
                     inv.DueDate.ToString("yyyy-MM-dd"));
-            }
 
             RefreshKpi();
         }
@@ -82,7 +73,14 @@ namespace PremiumLivingOPS.Views.AfterService
             RefreshGrid();
         }
 
-        // ── KPI Pills
+        // ── SelectionChanged — enable/disable Record button (mirrors ComplaintListForm pattern)
+        private void dgvAR_SelectionChanged(object sender, EventArgs e)
+        {
+            bool hasRow = dgvAR.SelectedRows.Count > 0 && dgvAR.SelectedRows[0].Index >= 0;
+            btnRecord.Enabled = hasRow;
+        }
+
+        // ── KPI Pills (mirrors ComplaintListForm RefreshKpi)
         private void RefreshKpi()
         {
             pnlKpi.Controls.Clear();
@@ -119,7 +117,7 @@ namespace PremiumLivingOPS.Views.AfterService
                 Padding = new Padding(0), AutoScroll = false,
             };
 
-            const int PillW   = 300;
+            const int PillW   = 270;
             const int PillH   = 60;
             const int Gap     = 8;
             const int NumColW = 90;
@@ -151,7 +149,7 @@ namespace PremiumLivingOPS.Views.AfterService
             pnlKpi.Controls.Add(flow);
         }
 
-        // ── CellFormatting — status badge + overdue row highlight
+        // ── CellFormatting
         private void dgvAR_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
             if (e.RowIndex < 0 || e.RowIndex >= _invoices.Count) return;
@@ -178,7 +176,7 @@ namespace PremiumLivingOPS.Views.AfterService
             }
         }
 
-        // ── Record Payment (KPI bar button + double-click on dgvAR)
+        // ── Record Payment
         private void OpenRecordPayment()
         {
             if (dgvAR.SelectedRows.Count == 0)
@@ -299,7 +297,7 @@ namespace PremiumLivingOPS.Views.AfterService
             pnlFooter.Paint += PaintTopBorder;
             var btnConfirm = new Button { Text = "✔  Confirm Payment", Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.White, BackColor = Color.FromArgb(5, 150, 105), FlatStyle = FlatStyle.Flat, Dock = DockStyle.Right, Width = 220, Cursor = Cursors.Hand };
             btnConfirm.FlatAppearance.BorderSize = 0; btnConfirm.FlatAppearance.MouseOverBackColor = Color.FromArgb(4, 120, 87);
-            var btnCancel  = new Button { Text = "Cancel", Font = new Font("Segoe UI", 12f), ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White, FlatStyle = FlatStyle.Flat, Dock = DockStyle.Right, Width = 140, Cursor = Cursors.Hand };
+            var btnCancel = new Button { Text = "Cancel", Font = new Font("Segoe UI", 12f), ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White, FlatStyle = FlatStyle.Flat, Dock = DockStyle.Right, Width = 140, Cursor = Cursors.Hand };
             btnCancel.FlatAppearance.BorderColor = Color.FromArgb(221, 227, 236); btnCancel.FlatAppearance.BorderSize = 1; btnCancel.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
             btnCancel.Click += (o, ev) => dlg.Close();
             btnConfirm.Click += (o, ev) =>
@@ -320,13 +318,13 @@ namespace PremiumLivingOPS.Views.AfterService
             pnlFooter.Controls.Add(btnCancel);
 
             // Assemble
-            dlg.Controls.Add(dgvTxn);        // Fill
-            dlg.Controls.Add(pnlTxnLabel);   // Top
-            dlg.Controls.Add(pnlInputBody);  // Top
-            dlg.Controls.Add(pnlInputLabel); // Top
-            dlg.Controls.Add(pnlInfo);       // Top
-            dlg.Controls.Add(pnlHeader);     // Top — topmost
-            dlg.Controls.Add(pnlFooter);     // Bottom
+            dlg.Controls.Add(dgvTxn);
+            dlg.Controls.Add(pnlTxnLabel);
+            dlg.Controls.Add(pnlInputBody);
+            dlg.Controls.Add(pnlInputLabel);
+            dlg.Controls.Add(pnlInfo);
+            dlg.Controls.Add(pnlHeader);
+            dlg.Controls.Add(pnlFooter);
             dlg.ShowDialog(this);
         }
 
