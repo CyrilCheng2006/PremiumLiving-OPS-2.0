@@ -114,13 +114,15 @@ namespace PremiumLivingOPS.Views.AfterService
                 if (i.PaymentStatus == "Full")    fullCount++;
             }
 
+            // FIX 1: Outstanding value prefixed with "HK$ " for currency consistency
+            // FIX 2: "Partial" label renamed to "Partial Payment" for clarity
             var pills = new[]
             {
-                ("Total Invoices",    totalCount.ToString(),   Color.FromArgb( 19,  35,  61), Color.FromArgb(219, 234, 254)),
-                ("Outstanding (HK$)", $"{outstanding:N0}",     Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199)),
-                ("Partial",           partialCount.ToString(), Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254)),
-                ("Fully Paid",        fullCount.ToString(),    Color.FromArgb( 22, 101,  52), Color.FromArgb(220, 252, 231)),
-                ("Overdue",           overdueCount.ToString(), Color.FromArgb(185,  28,  28), Color.FromArgb(254, 226, 226)),
+                ("Total Invoices",    totalCount.ToString(),          Color.FromArgb( 19,  35,  61), Color.FromArgb(219, 234, 254)),
+                ("Outstanding (HK$)", $"HK$ {outstanding:N0}",       Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199)),
+                ("Partial Payment",   partialCount.ToString(),        Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254)),
+                ("Fully Paid",        fullCount.ToString(),           Color.FromArgb( 22, 101,  52), Color.FromArgb(220, 252, 231)),
+                ("Overdue",           overdueCount.ToString(),        Color.FromArgb(185,  28,  28), Color.FromArgb(254, 226, 226)),
             };
 
             var flow = new FlowLayoutPanel
@@ -259,10 +261,11 @@ namespace PremiumLivingOPS.Views.AfterService
             pnlHeader.Controls.Add(tblHeader);
 
             // ══ CARD: Invoice Info
-            var (infoOuter, infoInner) = CardPanel.Create(outerHeight: 220);
+            // FIX 3: Info Panel expanded to 5 rows to include DepositAmount (Invoice.DepositAmount)
+            var (infoOuter, infoInner) = CardPanel.Create(outerHeight: 260);
             var tblInfo = new TableLayoutPanel
             {
-                Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 4,
+                Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 5,
                 BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
                 Padding = new Padding(24, 16, 24, 16)
             };
@@ -270,11 +273,13 @@ namespace PremiumLivingOPS.Views.AfterService
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 36f));
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 14f));
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 36f));
-            for (int r = 0; r < 4; r++) tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 25f));
-            AddInfoRow(tblInfo, 0, "Customer:",     inv.CustomerName,                       "Order No.:",  inv.OrderID);
-            AddInfoRow(tblInfo, 1, "Invoice Date:", inv.InvoiceDate.ToString("yyyy-MM-dd"), "Due Date:",   inv.DueDate.ToString("yyyy-MM-dd"));
-            AddInfoRow(tblInfo, 2, "Total Amount:", $"HK$ {inv.TotalAmount:N2}",            "Paid Amount:", $"HK$ {inv.PaidAmount:N2}");
-            AddInfoRow(tblInfo, 3, "Balance:",      $"HK$ {inv.RemainingBalance:N2}",       "Status:",     inv.IsOverdue ? "Overdue" : inv.PaymentStatus);
+            for (int r = 0; r < 5; r++) tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 20f));
+            AddInfoRow(tblInfo, 0, "Customer:",      inv.CustomerName,                       "Order No.:",   inv.OrderID);
+            AddInfoRow(tblInfo, 1, "Invoice Date:",  inv.InvoiceDate.ToString("yyyy-MM-dd"), "Due Date:",    inv.DueDate.ToString("yyyy-MM-dd"));
+            AddInfoRow(tblInfo, 2, "Total Amount:",  $"HK$ {inv.TotalAmount:N2}",            "Paid Amount:", $"HK$ {inv.PaidAmount:N2}");
+            // Row 3: DepositAmount from Invoice.DepositAmount (schema: Invoice.DepositAmount DECIMAL(10,2))
+            AddInfoRow(tblInfo, 3, "Deposit Paid:",  $"HK$ {inv.DepositAmount:N2}",          "Balance:",     $"HK$ {inv.RemainingBalance:N2}");
+            AddInfoRow(tblInfo, 4, "Status:",        inv.IsOverdue ? "Overdue" : inv.PaymentStatus, "",      "");
             infoInner.Controls.Add(tblInfo);
 
             // ══ CARD: Record New Payment
@@ -421,8 +426,6 @@ namespace PremiumLivingOPS.Views.AfterService
                 btnCancel.Location  = new Point(pnlFooter.Width - 180, (pnlFooter.Height - 52) / 2);
             };
 
-            // FIX CS7036: controller exposes RecordPayment(invoiceId, amount, txnType)
-            // Do NOT construct TransactionEntity here — the controller handles that internally.
             btnConfirm.Click += (s, e) =>
             {
                 double amount = (double)nudAmount.Value;
