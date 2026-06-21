@@ -10,7 +10,7 @@ namespace PremiumLivingOPS.Models.DAL
     /// All methods use parameterised queries via DatabaseHelper.
     /// Contains NO business logic and NO UI code.
     /// </summary>
-    public class AfterServiceRepo
+    public partial class AfterServiceRepo
     {
         // ══════════════════════════════════════════════════════════════════
         //  INVOICE queries
