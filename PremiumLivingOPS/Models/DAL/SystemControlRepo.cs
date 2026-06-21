@@ -1,267 +1,111 @@
-using MySql.Data.MySqlClient;
-using PremiumLivingOPS.Models.Entities;
 using System;
 using System.Collections.Generic;
+using MySql.Data.MySqlClient;
+using PremiumLivingOPS.Models.Entities;
+using PremiumLivingOPS.Services;
 
 namespace PremiumLivingOPS.Models.DAL
 {
     /// <summary>
-    /// Repository for the System Control module.
-    /// Covers: Staff table and Log table (schema.sql).
+    /// Data Access Layer for System Control module.
+    /// Staff CRUD -> MySQL `Staff` table.
+    /// Log search  -> AuditLogger.LoadAllLogs() (reads TXT files, no DB needed).
     /// </summary>
     public class SystemControlRepo
     {
-        // ═══════════════════════════════════════════════════════════════
-        //  STAFF — READ
-        // ═══════════════════════════════════════════════════════════════
+        // ── Connection helper ─────────────────────────────────────────────────────
+        private MySqlConnection GetConn() => new MySqlConnection(DBConnection.ConnectionString);
 
-        /// <summary>
-        /// Returns all staff members, ordered by StaffID.
-        /// Supports optional keyword search on StaffID, StaffName, StaffRole,
-        /// Department, or Email.
-        /// </summary>
-        public List<Staff> SearchStaff(string keyword = null)
+        // ═════════════════════════════════════════════════════════════════════════
+        // STAFF
+        // ═════════════════════════════════════════════════════════════════════════
+
+        public List<StaffEntity> SearchStaff(string keyword = null)
         {
-            var list = new List<Staff>();
+            var list = new List<StaffEntity>();
+            string sql = @"
+                SELECT StaffID, StaffName, StaffRole, Department, Email, Password
+                FROM   Staff
+                WHERE  (@kw IS NULL OR @kw = ''
+                        OR StaffID   LIKE CONCAT('%',@kw,'%')
+                        OR StaffName LIKE CONCAT('%',@kw,'%')
+                        OR Department LIKE CONCAT('%',@kw,'%'))
+                ORDER  BY StaffID";
 
-            using (MySqlConnection conn = DatabaseHelper.GetConnection())
-            {
-                conn.Open();
-
-                string sql;
-                MySqlCommand cmd;
-
-                if (string.IsNullOrWhiteSpace(keyword))
+            using var conn = GetConn(); conn.Open();
+            using var cmd  = new MySqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("@kw", keyword ?? "");
+            using var rdr = cmd.ExecuteReader();
+            while (rdr.Read())
+                list.Add(new StaffEntity
                 {
-                    sql = "SELECT StaffID, StaffName, StaffRole, Department, Email, StaffPassword " +
-                          "FROM Staff ORDER BY StaffID";
-                    cmd = new MySqlCommand(sql, conn);
-                }
-                else
-                {
-                    sql = "SELECT StaffID, StaffName, StaffRole, Department, Email, StaffPassword " +
-                          "FROM Staff " +
-                          "WHERE StaffID    LIKE @kw " +
-                          "   OR StaffName  LIKE @kw " +
-                          "   OR StaffRole  LIKE @kw " +
-                          "   OR Department LIKE @kw " +
-                          "   OR Email      LIKE @kw " +
-                          "ORDER BY StaffID";
-                    cmd = new MySqlCommand(sql, conn);
-                    cmd.Parameters.AddWithValue("@kw", $"%{keyword}%");
-                }
-
-                using (cmd)
-                using (MySqlDataReader r = cmd.ExecuteReader())
-                {
-                    while (r.Read())
-                    {
-                        list.Add(new Staff
-                        {
-                            StaffId    = r.GetString("StaffID"),
-                            StaffName  = r.GetString("StaffName"),
-                            Role       = r.GetString("StaffRole"),
-                            Department = r.GetString("Department"),
-                            Email      = r.GetString("Email"),
-                            Password   = r.GetString("StaffPassword")
-                        });
-                    }
-                }
-            }
+                    StaffID    = rdr.GetString("StaffID"),
+                    StaffName  = rdr.GetString("StaffName"),
+                    StaffRole  = rdr.GetString("StaffRole"),
+                    Department = rdr.GetString("Department"),
+                    Email      = rdr.IsDBNull(rdr.GetOrdinal("Email")) ? "" : rdr.GetString("Email"),
+                    Password   = rdr.GetString("Password")
+                });
             return list;
         }
 
-        /// <summary>
-        /// Generates the next available StaffID in the format S-XXX.
-        /// Finds all existing IDs matching S-\d+, picks the lowest unused number,
-        /// and returns it zero-padded to 3 digits (e.g. S-011).
-        /// If no matching IDs exist, returns S-001.
-        /// 
-        /// FIX: use Substring(3) to skip the full "S-" prefix (indices 0-1 = 'S','-')
-        ///      so "S-007" → "007" → 7, not "-007" → -7 (negative) as Substring(2) produced.
-        /// </summary>
-        public string GetNextStaffId()
+        public string GetNextStaffID()
         {
-            using (MySqlConnection conn = DatabaseHelper.GetConnection())
-            {
-                conn.Open();
-                const string sql =
-                    "SELECT StaffID FROM Staff " +
-                    "WHERE StaffID REGEXP '^S-[0-9]+$' " +
-                    "ORDER BY CAST(SUBSTRING(StaffID, 3) AS UNSIGNED)";
-
-                var usedNumbers = new HashSet<int>();
-                using (var cmd = new MySqlCommand(sql, conn))
-                using (var reader = cmd.ExecuteReader())
-                {
-                    while (reader.Read())
-                    {
-                        string id = reader.GetString(0);           // e.g. "S-007"
-                        // Substring(3): skip 'S'(0), '-'(1), '0'... → "007"
-                        if (int.TryParse(id.Substring(3), out int n))
-                            usedNumbers.Add(n);
-                    }
-                }
-
-                int next = 1;
-                while (usedNumbers.Contains(next))
-                    next++;
-
-                return $"S-{next:D3}";
-            }
+            const string sql = "SELECT MAX(CAST(SUBSTRING(StaffID,2) AS UNSIGNED)) FROM Staff WHERE StaffID LIKE 'S%'";
+            using var conn = GetConn(); conn.Open();
+            using var cmd  = new MySqlCommand(sql, conn);
+            var val = cmd.ExecuteScalar();
+            int next = (val == DBNull.Value || val == null) ? 1 : Convert.ToInt32(val) + 1;
+            return $"S{next:D3}";
         }
 
-        // ═══════════════════════════════════════════════════════════════
-        //  STAFF — WRITE
-        // ═══════════════════════════════════════════════════════════════
-
-        /// <summary>
-        /// Inserts a new staff member into the Staff table.
-        /// StaffPassword defaults to "changeme" if not supplied.
-        /// Returns true if exactly one row was inserted.
-        /// </summary>
-        public bool InsertStaff(Staff staff)
+        public bool InsertStaff(StaffEntity s)
         {
-            using (MySqlConnection conn = DatabaseHelper.GetConnection())
-            {
-                conn.Open();
-                const string sql =
-                    "INSERT INTO Staff (StaffID, StaffName, StaffRole, Department, Email, StaffPassword) " +
-                    "VALUES (@id, @name, @role, @dept, @email, @pwd)";
-                using (var cmd = new MySqlCommand(sql, conn))
-                {
-                    cmd.Parameters.AddWithValue("@id",   staff.StaffId);
-                    cmd.Parameters.AddWithValue("@name", staff.StaffName);
-                    cmd.Parameters.AddWithValue("@role", staff.Role);
-                    cmd.Parameters.AddWithValue("@dept", staff.Department);
-                    cmd.Parameters.AddWithValue("@email",staff.Email);
-                    cmd.Parameters.AddWithValue("@pwd",
-                        string.IsNullOrWhiteSpace(staff.Password) ? "changeme" : staff.Password);
-                    return cmd.ExecuteNonQuery() == 1;
-                }
-            }
+            const string sql = @"
+                INSERT INTO Staff (StaffID, StaffName, StaffRole, Department, Email, Password)
+                VALUES (@id, @name, @role, @dept, @email, @pwd)";
+            using var conn = GetConn(); conn.Open();
+            using var cmd  = new MySqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("@id",    s.StaffID);
+            cmd.Parameters.AddWithValue("@name",  s.StaffName);
+            cmd.Parameters.AddWithValue("@role",  s.StaffRole);
+            cmd.Parameters.AddWithValue("@dept",  s.Department);
+            cmd.Parameters.AddWithValue("@email", s.Email);
+            cmd.Parameters.AddWithValue("@pwd",   s.Password);
+            return cmd.ExecuteNonQuery() > 0;
         }
 
-        /// <summary>
-        /// Updates the StaffPassword for the given staffId.
-        /// Returns true if exactly one row was affected.
-        /// </summary>
-        public bool UpdateStaffPassword(string staffId, string newPassword)
+        public bool UpdateStaff(string staffId, string name, string role,
+                                string email, string dept, string password = null)
         {
-            using (MySqlConnection conn = DatabaseHelper.GetConnection())
-            {
-                conn.Open();
-                const string sql =
-                    "UPDATE Staff SET StaffPassword = @pwd WHERE StaffID = @id";
-                using (var cmd = new MySqlCommand(sql, conn))
-                {
-                    cmd.Parameters.AddWithValue("@pwd", newPassword);
-                    cmd.Parameters.AddWithValue("@id",  staffId);
-                    return cmd.ExecuteNonQuery() == 1;
-                }
-            }
+            string sql = password == null
+                ? "UPDATE Staff SET StaffName=@name, StaffRole=@role, Email=@email, Department=@dept WHERE StaffID=@id"
+                : "UPDATE Staff SET StaffName=@name, StaffRole=@role, Email=@email, Department=@dept, Password=@pwd WHERE StaffID=@id";
+            using var conn = GetConn(); conn.Open();
+            using var cmd  = new MySqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("@id",   staffId);
+            cmd.Parameters.AddWithValue("@name", name);
+            cmd.Parameters.AddWithValue("@role", role);
+            cmd.Parameters.AddWithValue("@email",email);
+            cmd.Parameters.AddWithValue("@dept", dept);
+            if (password != null) cmd.Parameters.AddWithValue("@pwd", password);
+            return cmd.ExecuteNonQuery() > 0;
         }
 
-        /// <summary>
-        /// Updates the Department for the given staffId.
-        /// Returns true if exactly one row was affected.
-        /// </summary>
-        public bool UpdateStaffDepartment(string staffId, string newDepartment)
+        public bool DeleteStaff(string staffId)
         {
-            using (MySqlConnection conn = DatabaseHelper.GetConnection())
-            {
-                conn.Open();
-                const string sql =
-                    "UPDATE Staff SET Department = @dept WHERE StaffID = @id";
-                using (var cmd = new MySqlCommand(sql, conn))
-                {
-                    cmd.Parameters.AddWithValue("@dept", newDepartment);
-                    cmd.Parameters.AddWithValue("@id",   staffId);
-                    return cmd.ExecuteNonQuery() == 1;
-                }
-            }
+            const string sql = "DELETE FROM Staff WHERE StaffID=@id";
+            using var conn = GetConn(); conn.Open();
+            using var cmd  = new MySqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("@id", staffId);
+            return cmd.ExecuteNonQuery() > 0;
         }
 
-        /// <summary>
-        /// Updates the StaffRole for the given staffId.
-        /// Returns true if exactly one row was affected.
-        /// </summary>
-        public bool UpdateStaffRole(string staffId, string newRole)
-        {
-            using (MySqlConnection conn = DatabaseHelper.GetConnection())
-            {
-                conn.Open();
-                const string sql =
-                    "UPDATE Staff SET StaffRole = @role WHERE StaffID = @id";
-                using (var cmd = new MySqlCommand(sql, conn))
-                {
-                    cmd.Parameters.AddWithValue("@role", newRole);
-                    cmd.Parameters.AddWithValue("@id",   staffId);
-                    return cmd.ExecuteNonQuery() == 1;
-                }
-            }
-        }
+        // ═════════════════════════════════════════════════════════════════════════
+        // LOG  (reads TXT files via AuditLogger -- no MySQL table needed)
+        // ═════════════════════════════════════════════════════════════════════════
 
-        // ═══════════════════════════════════════════════════════════════
-        //  LOG
-        // ═══════════════════════════════════════════════════════════════
-
-        /// <summary>
-        /// Returns all log entries, newest first.
-        /// Supports optional keyword search on StaffID, LogType, or TargetTable.
-        /// </summary>
-        public List<LogEntry> SearchLogs(string keyword = null)
-        {
-            var list = new List<LogEntry>();
-
-            using (MySqlConnection conn = DatabaseHelper.GetConnection())
-            {
-                conn.Open();
-
-                string sql;
-                MySqlCommand cmd;
-
-                if (string.IsNullOrWhiteSpace(keyword))
-                {
-                    sql = "SELECT LogID, StaffID, LogType, TargetTable, " +
-                          "       DATE_FORMAT(LogTimeStamp,'%Y-%m-%d %H:%i:%s') AS LogTimeStamp, " +
-                          "       OldValue, NewValue " +
-                          "FROM Log ORDER BY LogTimeStamp DESC";
-                    cmd = new MySqlCommand(sql, conn);
-                }
-                else
-                {
-                    sql = "SELECT LogID, StaffID, LogType, TargetTable, " +
-                          "       DATE_FORMAT(LogTimeStamp,'%Y-%m-%d %H:%i:%s') AS LogTimeStamp, " +
-                          "       OldValue, NewValue " +
-                          "FROM Log " +
-                          "WHERE StaffID     LIKE @kw " +
-                          "   OR LogType     LIKE @kw " +
-                          "   OR TargetTable LIKE @kw " +
-                          "ORDER BY LogTimeStamp DESC";
-                    cmd = new MySqlCommand(sql, conn);
-                    cmd.Parameters.AddWithValue("@kw", $"%{keyword}%");
-                }
-
-                using (cmd)
-                using (MySqlDataReader r = cmd.ExecuteReader())
-                {
-                    while (r.Read())
-                    {
-                        list.Add(new LogEntry
-                        {
-                            LogId       = r.GetString("LogID"),
-                            StaffId     = r.IsDBNull(r.GetOrdinal("StaffID"))     ? "—" : r.GetString("StaffID"),
-                            LogType     = r.GetString("LogType"),
-                            TargetTable = r.IsDBNull(r.GetOrdinal("TargetTable")) ? "—" : r.GetString("TargetTable"),
-                            TimeStamp   = r.GetString("LogTimeStamp"),
-                            OldValue    = r.IsDBNull(r.GetOrdinal("OldValue"))    ? "" : r.GetString("OldValue"),
-                            NewValue    = r.IsDBNull(r.GetOrdinal("NewValue"))    ? "" : r.GetString("NewValue")
-                        });
-                    }
-                }
-            }
-            return list;
-        }
+        public List<AuditLogEntity> SearchLogs(string keyword = null)
+            => AuditLogger.LoadAllLogs(keyword);
     }
 }

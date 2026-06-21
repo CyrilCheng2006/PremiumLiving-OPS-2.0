@@ -1,128 +1,176 @@
-using PremiumLivingOPS.Models;
-using MySql.Data.MySqlClient;
-using PremiumLivingOPS.Views.Shared;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using PremiumLivingOPS.Controllers;
+using PremiumLivingOPS.Models.Entities;
 
 namespace PremiumLivingOPS.Services
 {
     /// <summary>
-    /// Thread-safe audit logging service.
-    /// Writes every Add / Modify / Delete operation to:
-    ///   1. MySQL Log table  (schema: LogID, StaffID, LogType, TargetTable, LogTimeStamp, OldValue, NewValue)
-    ///   2. TXT file         (logs/audit_YYYY-MM-DD.txt — one line per entry)
-    ///
-    /// Usage (in any Controller after a successful DB operation):
-    ///   AuditLogger.Write("Create", "Supplier", null, "S-0042 | Premium Co. | +852 1234 5678");
-    ///   AuditLogger.Write("Edit",   "Customer", oldSnapshot, newSnapshot);
-    ///   AuditLogger.Write("Delete", "Staff",    oldSnapshot, null);
+    /// Thread-safe audit logger.
+    /// Writes one append-only TXT log file per calendar day.
+    ///   Path: ./Logs/audit_YYYY-MM-DD.txt
+    ///   Line: [2026-06-22 04:30:00] [CREATE] [S001|Alice] [Supplier] | OLD: - | NEW: ID=SUP010; Name=ABC Ltd; ...
     /// </summary>
     public static class AuditLogger
     {
-        // ── Log folder: <AppBase>/logs/
-        private static readonly string _logDir =
-            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
+        // ── Public operation-type constants ───────────────────────────────────────
+        public const string TYPE_CREATE = "CREATE";
+        public const string TYPE_EDIT   = "EDIT";
+        public const string TYPE_DELETE = "DELETE";
+        public const string TYPE_LOGIN  = "LOGIN";
 
-        private static readonly object _fileLock = new object();
+        private static readonly object _lock = new object();
+        private static readonly string _logDir;
 
-        // ── Log types matching schema ENUM('Login','Create','Edit','Delete')
-        public const string TYPE_LOGIN  = "Login";
-        public const string TYPE_CREATE = "Create";
-        public const string TYPE_EDIT   = "Edit";
-        public const string TYPE_DELETE = "Delete";
+        static AuditLogger()
+        {
+            // Resolve ./Logs/ relative to the executable directory
+            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            _logDir = Path.Combine(baseDir, "Logs");
+            Directory.CreateDirectory(_logDir);
+        }
+
+        // ── Core write method ─────────────────────────────────────────────────────
 
         /// <summary>
-        /// Write one audit entry.  StaffID is read from SessionManager.CurrentStaffID.
+        /// Appends one audit line to today's log file.
         /// </summary>
-        /// <param name="logType">"Create" | "Edit" | "Delete" | "Login"</param>
-        /// <param name="targetTable">Affected table name, e.g. "Supplier"</param>
-        /// <param name="oldValue">Snapshot before change (null for Create)</param>
-        /// <param name="newValue">Snapshot after change  (null for Delete)</param>
-        public static void Write(
-            string logType,
-            string targetTable,
-            string oldValue = null,
-            string newValue = null)
+        /// <param name="logType">TYPE_CREATE | TYPE_EDIT | TYPE_DELETE | TYPE_LOGIN</param>
+        /// <param name="targetTable">e.g. "Supplier", "Customer", "Staff"</param>
+        /// <param name="oldValue">Snapshot string of before-state (null for Create/Login)</param>
+        /// <param name="newValue">Snapshot string of after-state (null for Delete)</param>
+        public static void Write(string logType, string targetTable,
+                                 string oldValue, string newValue)
         {
-            string logId    = Guid.NewGuid().ToString();
-            string staffId  = SessionManager.CurrentStaffID ?? "SYSTEM";
-            DateTime stamp  = DateTime.Now;
-
-            // 1. Write to MySQL
-            try { WriteToDb(logId, staffId, logType, targetTable, stamp, oldValue, newValue); }
-            catch { /* DB failure must not crash the UI operation */ }
-
-            // 2. Write to TXT
-            try { WriteToFile(logId, staffId, logType, targetTable, stamp, oldValue, newValue); }
-            catch { /* File failure must not crash the UI operation */ }
-        }
-
-        // ── MySQL insert ──────────────────────────────────────────────────────
-        private static void WriteToDb(
-            string logId, string staffId, string logType,
-            string targetTable, DateTime stamp,
-            string oldValue, string newValue)
-        {
-            using var conn = new MySqlConnection(DbConfig.ConnectionString);
-            conn.Open();
-            const string sql =
-                @"INSERT INTO Log (LogID, StaffID, LogType, TargetTable, LogTimeStamp, OldValue, NewValue)
-                  VALUES (@logId, @staffId, @logType, @targetTable, @stamp, @old, @new)";
-            using var cmd = new MySqlCommand(sql, conn);
-            cmd.Parameters.AddWithValue("@logId",       logId);
-            cmd.Parameters.AddWithValue("@staffId",     staffId);
-            cmd.Parameters.AddWithValue("@logType",     logType);
-            cmd.Parameters.AddWithValue("@targetTable", targetTable);
-            cmd.Parameters.AddWithValue("@stamp",       stamp);
-            cmd.Parameters.AddWithValue("@old",         (object)oldValue ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("@new",         (object)newValue ?? DBNull.Value);
-            cmd.ExecuteNonQuery();
-        }
-
-        // ── TXT append ────────────────────────────────────────────────────────
-        private static void WriteToFile(
-            string logId, string staffId, string logType,
-            string targetTable, DateTime stamp,
-            string oldValue, string newValue)
-        {
-            if (!Directory.Exists(_logDir))
-                Directory.CreateDirectory(_logDir);
-
-            string fileName = Path.Combine(_logDir,
-                $"audit_{stamp:yyyy-MM-dd}.txt");
-
-            // Format:
-            // [2026-06-22 04:39:00] [Create] Staff=S001 Table=Supplier
-            //   NEW: S-0042 | Premium Co. | +852 1234 5678
-            var sb = new StringBuilder();
-            sb.AppendLine($"[{stamp:yyyy-MM-dd HH:mm:ss}] [{logType.ToUpper()}] " +
-                          $"LogID={logId} Staff={staffId} Table={targetTable}");
-            if (!string.IsNullOrWhiteSpace(oldValue))
-                sb.AppendLine($"  OLD: {oldValue}");
-            if (!string.IsNullOrWhiteSpace(newValue))
-                sb.AppendLine($"  NEW: {newValue}");
-            sb.AppendLine(new string('-', 80));
-
-            lock (_fileLock)
-                File.AppendAllText(fileName, sb.ToString(), Encoding.UTF8);
-        }
-
-        // ── Convenience: build a snapshot string from key=value pairs ─────────
-        /// <summary>
-        /// Build a human-readable snapshot string.
-        /// Example: Snapshot(("Name","Premium Co."),("Phone","+852 1234 5678"))
-        ///          => "Name=Premium Co. | Phone=+852 1234 5678"
-        /// </summary>
-        public static string Snapshot(params (string key, string value)[] fields)
-        {
-            var sb = new StringBuilder();
-            foreach (var (k, v) in fields)
+            try
             {
-                if (sb.Length > 0) sb.Append(" | ");
-                sb.Append($"{k}={v ?? "null"}");
+                var    user      = SessionManager.CurrentUser;
+                string staffTag  = user != null
+                                   ? $"{user.StaffID}|{user.StaffName}"
+                                   : "SYSTEM";
+                string timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                string old       = string.IsNullOrWhiteSpace(oldValue) ? "-" : oldValue;
+                string @new      = string.IsNullOrWhiteSpace(newValue) ? "-" : newValue;
+
+                string line = $"[{timestamp}] [{logType}] [{staffTag}] [{targetTable}] | OLD: {old} | NEW: {@new}";
+
+                string filePath = Path.Combine(_logDir, $"audit_{DateTime.Today:yyyy-MM-dd}.txt");
+
+                lock (_lock)
+                {
+                    File.AppendAllText(filePath, line + Environment.NewLine, Encoding.UTF8);
+                }
+            }
+            catch
+            {
+                // Logging must never crash the application.
+            }
+        }
+
+        // ── Snapshot helper ───────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Builds a compact, semicolon-separated field snapshot string.
+        /// Example: Snapshot(("ID","S001"),("Name","Alice")) -> "ID=S001; Name=Alice"
+        /// </summary>
+        public static string Snapshot(params (string Field, string Value)[] fields)
+        {
+            var sb = new StringBuilder();
+            foreach (var (f, v) in fields)
+            {
+                if (sb.Length > 0) sb.Append("; ");
+                sb.Append(f).Append('=').Append(v ?? "(null)");
             }
             return sb.ToString();
+        }
+
+        // ── Load helpers (used by LogListForm / SystemControlRepo) ────────────────
+
+        /// <summary>Loads and parses every *.txt file in ./Logs/, filtered by keyword.</summary>
+        public static List<AuditLogEntity> LoadAllLogs(string keyword = null)
+        {
+            var result = new List<AuditLogEntity>();
+            if (!Directory.Exists(_logDir)) return result;
+
+            string kw = keyword?.ToLowerInvariant();
+
+            foreach (string file in Directory.GetFiles(_logDir, "audit_*.txt"))
+            {
+                string[] lines;
+                lock (_lock) { lines = File.ReadAllLines(file, Encoding.UTF8); }
+
+                foreach (string raw in lines)
+                {
+                    var entity = ParseLine(raw);
+                    if (entity == null) continue;
+                    if (!string.IsNullOrEmpty(kw) &&
+                        !raw.ToLowerInvariant().Contains(kw)) continue;
+                    result.Add(entity);
+                }
+            }
+
+            result.Sort((a, b) => b.Timestamp.CompareTo(a.Timestamp)); // newest first
+            return result;
+        }
+
+        // ── Private parser ────────────────────────────────────────────────────────
+
+        // Expected format:
+        // [2026-06-22 04:30:00] [CREATE] [S001|Alice] [Supplier] | OLD: - | NEW: ID=SUP010; Name=ABC
+        private static AuditLogEntity ParseLine(string raw)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(raw)) return null;
+
+                // Split on "] [" brackets
+                int p0 = raw.IndexOf('[');                    // start of timestamp block
+                int p1 = raw.IndexOf(']', p0 + 1);           // end   of timestamp
+                int p2 = raw.IndexOf('[', p1 + 1);
+                int p3 = raw.IndexOf(']', p2 + 1);           // end of logType
+                int p4 = raw.IndexOf('[', p3 + 1);
+                int p5 = raw.IndexOf(']', p4 + 1);           // end of staffTag
+                int p6 = raw.IndexOf('[', p5 + 1);
+                int p7 = raw.IndexOf(']', p6 + 1);           // end of targetTable
+
+                if (p0 < 0 || p7 < 0) return null;
+
+                string ts          = raw.Substring(p0 + 1, p1 - p0 - 1).Trim();
+                string logType     = raw.Substring(p2 + 1, p3 - p2 - 1).Trim();
+                string staffTag    = raw.Substring(p4 + 1, p5 - p4 - 1).Trim();
+                string targetTable = raw.Substring(p6 + 1, p7 - p6 - 1).Trim();
+
+                // OLD / NEW
+                string remainder = raw.Substring(p7 + 1);
+                string oldVal = ""; string newVal = "";
+                int oidx = remainder.IndexOf("OLD:", StringComparison.Ordinal);
+                int nidx = remainder.IndexOf("NEW:", StringComparison.Ordinal);
+                if (oidx >= 0 && nidx > oidx)
+                {
+                    oldVal = remainder.Substring(oidx + 4, nidx - oidx - 4).Trim().TrimEnd('|').Trim();
+                    newVal = remainder.Substring(nidx + 4).Trim();
+                }
+
+                // Staff ID / Name from tag  "S001|Alice"
+                string staffId = staffTag; string staffName = "";
+                int pipe = staffTag.IndexOf('|');
+                if (pipe >= 0) { staffId = staffTag.Substring(0, pipe); staffName = staffTag.Substring(pipe + 1); }
+
+                return new AuditLogEntity
+                {
+                    Timestamp   = DateTime.TryParse(ts, out var dt) ? dt : DateTime.MinValue,
+                    LogType     = logType,
+                    StaffID     = staffId,
+                    StaffName   = staffName,
+                    TargetTable = targetTable,
+                    OldValue    = oldVal == "-" ? "" : oldVal,
+                    NewValue    = newVal == "-" ? "" : newVal,
+                    RawLine     = raw
+                };
+            }
+            catch { return null; }
         }
     }
 }
