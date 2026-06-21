@@ -17,7 +17,7 @@ namespace PremiumLivingOPS.Views.SystemControl
 {
     public partial class LogListForm : Form
     {
-        // ── KPI label refs (populated in RefreshGrid) ─────────────────────────
+        // ── KPI label refs (populated in RefreshGrid) ────────────────────────────────
         private Label _lblTotal;
         private Label _lblToday;
         private Label _lblCreate;
@@ -25,7 +25,7 @@ namespace PremiumLivingOPS.Views.SystemControl
         private Label _lblDelete;
         private Label _lblLogin;
 
-        // ── Data ──────────────────────────────────────────────────────────────
+        // ── Data ──────────────────────────────────────────────────────────────────
         private List<AuditLogEntity> _allLogs = new List<AuditLogEntity>();
         private readonly SystemControlController _ctrl = new SystemControlController();
 
@@ -80,12 +80,15 @@ namespace PremiumLivingOPS.Views.SystemControl
             dgvLogs.Rows.Clear();
             foreach (var l in logs)
             {
+                // AuditLogEntity has no LogID — use timestamp+staffID as a display key
+                string logKey = $"{l.Timestamp:yyyyMMdd-HHmmss} {l.StaffID ?? ""}".Trim();
+
                 int ri  = dgvLogs.Rows.Add();
                 var row = dgvLogs.Rows[ri];
-                row.Cells["colLogID"      ].Value = l.LogID      ?? "";
-                row.Cells["colStaffID"    ].Value = l.StaffID    ?? "";
-                row.Cells["colLogType"    ].Value = l.LogType    ?? "";
-                row.Cells["colTargetTable"].Value = l.TargetTable?? "";
+                row.Cells["colLogID"      ].Value = logKey;
+                row.Cells["colStaffID"    ].Value = l.StaffID     ?? "";
+                row.Cells["colLogType"    ].Value = l.LogType     ?? "";
+                row.Cells["colTargetTable"].Value = l.TargetTable ?? "";
                 row.Cells["colTimestamp"  ].Value = l.Timestamp.ToString("yyyy-MM-dd HH:mm:ss");
             }
         }
@@ -202,9 +205,12 @@ namespace PremiumLivingOPS.Views.SystemControl
 
         private void ShowDetailDialog(AuditLogEntity log)
         {
+            // Derive a display key from timestamp + staffID (AuditLogEntity has no LogID field)
+            string logKey = $"{log.Timestamp:yyyyMMdd-HHmmss} {log.StaffID ?? ""}".Trim();
+
             using var dlg = new Form
             {
-                Text            = $"Log Detail  \u2014  {log.LogID}",
+                Text            = $"Log Detail  \u2014  {logKey}",
                 Size            = new System.Drawing.Size(740, 460),
                 StartPosition   = FormStartPosition.CenterParent,
                 BackColor       = System.Drawing.Color.White,
@@ -240,7 +246,7 @@ namespace PremiumLivingOPS.Views.SystemControl
 
             var fields = new[]
             {
-                ("Log ID",       log.LogID       ?? ""),
+                ("Log Key",      logKey),
                 ("Staff ID",     log.StaffID     ?? ""),
                 ("Staff Name",   log.StaffName   ?? ""),
                 ("Log Type",     log.LogType     ?? ""),

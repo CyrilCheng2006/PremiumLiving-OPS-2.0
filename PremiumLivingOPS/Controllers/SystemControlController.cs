@@ -1,7 +1,6 @@
 using PremiumLivingOPS.Models.DAL;
 using PremiumLivingOPS.Models.Entities;
 using PremiumLivingOPS.Services;
-using System.Collections.Generic;
 
 namespace PremiumLivingOPS.Controllers
 {
@@ -10,6 +9,7 @@ namespace PremiumLivingOPS.Controllers
     /// Covers: Staff List, Log List.
     /// All Add / Update / Delete staff operations are audit-logged.
     /// Contains NO UI code. Uses the canonical Staff entity (Staff.cs).
+    /// AllowedMenus is string[] to match NavAccessPolicy.GetAllowedMenus() return type.
     /// </summary>
     public class SystemControlController
     {
@@ -61,7 +61,6 @@ namespace PremiumLivingOPS.Controllers
 
         /// <summary>
         /// AddStaffWithException — called by StaffListForm which expects exceptions to bubble up.
-        /// Delegates to AddStaff; caller wraps in try/catch.
         /// </summary>
         public bool AddStaffWithException(Staff staff) => AddStaff(staff);
 

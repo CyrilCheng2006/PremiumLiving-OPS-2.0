@@ -8,13 +8,14 @@ namespace PremiumLivingOPS.Models.DAL
 {
     /// <summary>
     /// Data Access Layer for System Control module.
-    /// Staff CRUD -> MySQL 'Staff' table.
+    /// Staff CRUD -> MySQL 'Staff' table (via DatabaseHelper.GetConnection).
     /// Log search  -> AuditLogger.LoadAllLogs() (reads TXT files, no DB needed).
     /// Uses the canonical Staff entity (Staff.cs).
     /// </summary>
     public class SystemControlRepo
     {
-        private MySqlConnection GetConn() => new MySqlConnection(DBConnection.ConnectionString);
+        // Matches pattern used across the project (DatabaseHelper.GetConnection)
+        private MySqlConnection GetConn() => DatabaseHelper.GetConnection();
 
         // ════════════════════════════════════════════════════════════════
         // STAFF  (StaffID, StaffName, StaffRole, Department, Email, StaffPassword)
