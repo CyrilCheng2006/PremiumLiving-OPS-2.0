@@ -73,14 +73,14 @@ namespace PremiumLivingOPS.Views.AfterService
             RefreshGrid();
         }
 
-        // ── SelectionChanged — enable/disable Record button (mirrors ComplaintListForm pattern)
+        // ── SelectionChanged — enable/disable Record button
         private void dgvAR_SelectionChanged(object sender, EventArgs e)
         {
             bool hasRow = dgvAR.SelectedRows.Count > 0 && dgvAR.SelectedRows[0].Index >= 0;
             btnRecord.Enabled = hasRow;
         }
 
-        // ── KPI Pills (mirrors ComplaintListForm RefreshKpi)
+        // ── KPI Pills
         private void RefreshKpi()
         {
             pnlKpi.Controls.Clear();
@@ -117,10 +117,10 @@ namespace PremiumLivingOPS.Views.AfterService
                 Padding = new Padding(0), AutoScroll = false,
             };
 
-            const int PillW   = 270;
-            const int PillH   = 60;
-            const int Gap     = 8;
-            const int NumColW = 90;
+            const int PillW   = 340;  // updated: 270 → 340
+            const int PillH   =  60;
+            const int Gap     =   8;
+            const int NumColW =  90;
 
             foreach (var (label, value, fg, bg) in pills)
             {
