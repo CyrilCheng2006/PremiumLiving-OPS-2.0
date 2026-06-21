@@ -42,7 +42,7 @@ namespace PremiumLivingOPS.Views.AfterService
 
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
-            _shell.SetBreadcrumb("After-Service  ›  Account Payable");
+            _shell.SetBreadcrumb("After-Service  \u203a  Account Payable");
 
             _currentItems = vm.Items;
 
@@ -66,7 +66,7 @@ namespace PremiumLivingOPS.Views.AfterService
             RefreshGrid();
         }
 
-        // ── KPI Pills + AP Verification button ──────────────────────────────────
+        // ── KPI Pills + AP Verification button ────────────────────────────────────────
         private void RefreshKpi()
         {
             pnlKpi.Controls.Clear();
@@ -96,7 +96,7 @@ namespace PremiumLivingOPS.Views.AfterService
                 ("Overdue",           overdueCount.ToString(), Color.FromArgb(185,  28,  28), Color.FromArgb(254, 226, 226)),
             };
 
-            // ── FlowLayoutPanel holding pills + AP Verification button ────────
+            // ── FlowLayoutPanel holding pills + AP Verification button ────────────
             var flow = new FlowLayoutPanel
             {
                 Dock          = DockStyle.Fill,
@@ -172,7 +172,7 @@ namespace PremiumLivingOPS.Views.AfterService
             // ── AP Verification button (210×60) placed after the last pill ────
             var btnVerify = new Button
             {
-                Text      = "📊  AP Verification",
+                Text      = "\U0001f4ca  AP Verification",
                 Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
                 ForeColor = Color.White,
                 BackColor = Color.FromArgb(19, 35, 61),
@@ -190,7 +190,7 @@ namespace PremiumLivingOPS.Views.AfterService
             pnlKpi.Controls.Add(flow);
         }
 
-        // ── AP Verification button handler ──────────────────────────────────
+        // ── AP Verification button handler ───────────────────────────────────
         private void BtnVerify_Click(object sender, EventArgs e)
         {
             // Require a row selection
@@ -202,8 +202,9 @@ namespace PremiumLivingOPS.Views.AfterService
                 return;
             }
 
-            string purInvoiceId = dgvAP.SelectedRows[0]
-                .Cells["colPurInvoiceID"].Value?.ToString();
+            // Read PurInvoiceID by column index 0 (first column added in Rows.Add)
+            // to avoid dependency on designer-side column Name strings.
+            string purInvoiceId = dgvAP.SelectedRows[0].Cells[0].Value?.ToString();
 
             if (string.IsNullOrEmpty(purInvoiceId))
             {
@@ -236,7 +237,7 @@ namespace PremiumLivingOPS.Views.AfterService
             dlg.ShowDialog(this);
         }
 
-        // ── CellFormatting ─────────────────────────────────────────────────────
+        // ── CellFormatting ──────────────────────────────────────────────────
         private void dgvAP_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
             if (e.RowIndex < 0 || e.RowIndex >= _currentItems.Count) return;
