@@ -18,7 +18,7 @@ namespace PremiumLivingOPS.Views.AfterService
     ///   pnlFooter  Bottom 70— [Record Payment] [Close]
     ///
     /// Record Payment sub-dialog opened by ShowRecordPaymentDialog():
-    ///   Header   (Top 70)  — teal header, Invoice ID + balance badge
+    ///   Header   (Top 70)  — teal header, Invoice ID + balance badge (col 420f)
     ///   Info     (Top 140) — 4-col TLP: Customer / OrderID / Total / Paid / Balance / DueDate
     ///   TxnLabel (Top 40)  — "PAYMENT HISTORY" bar
     ///   dgvTxn   (Fill)    — Transaction history grid (read-only)
@@ -289,13 +289,20 @@ namespace PremiumLivingOPS.Views.AfterService
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         //  RECORD PAYMENT DIALOG  (inline Form, shown via ShowDialog)
+        //
+        //  Changes vs previous commit:
+        //    • dlg.Size height: 820 → 1020  (+200)
+        //    • tblHeader Balance badge ColumnStyle Absolute: 280f → 420f
+        //      (ensures "Balance: HK$ xx,xxx.xx" never clips)
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void ShowRecordPaymentDialog(InvoiceDetailEntity inv)
         {
             using var dlg = new Form
             {
                 Text = $"Record Payment  —  {inv.InvoiceID}",
-                Size = new Size(1200, 820), StartPosition = FormStartPosition.CenterParent,
+                // height increased by 200 (820 → 1020)
+                Size = new Size(1200, 1020),
+                StartPosition = FormStartPosition.CenterParent,
                 BackColor = Color.White, Font = new Font("Segoe UI", 13f),
                 FormBorderStyle = FormBorderStyle.FixedDialog, MaximizeBox = false, MinimizeBox = false
             };
@@ -309,7 +316,8 @@ namespace PremiumLivingOPS.Views.AfterService
                 Padding = new Padding(28, 0, 24, 0)
             };
             tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
-            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 280f));
+            // widened from 280f → 420f so "Balance: HK$ xx,xxx.xx" renders without clipping
+            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 420f));
             tblHeader.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
             tblHeader.Controls.Add(new Label
@@ -323,10 +331,10 @@ namespace PremiumLivingOPS.Views.AfterService
             tblHeader.Controls.Add(new Label
             {
                 Text = $"Balance: HK$ {inv.RemainingBalance:N2}",
-                Font = new Font("Segoe UI", 11f, FontStyle.Bold), ForeColor = Color.White,
+                Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.White,
                 BackColor = badgeBg, Dock = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleCenter, AutoSize = false,
-                Padding = new Padding(8, 4, 8, 4)
+                Padding = new Padding(12, 4, 12, 4)
             }, 1, 0);
             pnlHeader.Controls.Add(tblHeader);
 
@@ -412,36 +420,73 @@ namespace PremiumLivingOPS.Views.AfterService
             });
 
             // ── Input Card body ─────────────────────────────────────────────────────
+            // label column ColumnStyle Absolute restored to 260f
             var pnlInputBody = new Panel { Dock = DockStyle.Top, Height = 130, BackColor = Color.FromArgb(249, 254, 253), Padding = new Padding(28, 16, 28, 12) };
             pnlInputBody.Paint += PaintBottomBorderStatic;
 
-            var lblAmount = new Label { Text = "Payment Amount *", Font = new Font("Segoe UI", 10f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), AutoSize = true, Location = new Point(0, 14) };
+            var tblInput = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 2,
+                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+            };
+            // label col restored to 260f (was 700f in previous commit)
+            tblInput.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 260f));
+            tblInput.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  50f));
+            tblInput.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 260f));
+            tblInput.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  50f));
+            tblInput.RowStyles.Add(new RowStyle(SizeType.Percent, 50f));
+            tblInput.RowStyles.Add(new RowStyle(SizeType.Percent, 50f));
+
+            // Row 0 — Amount + Type
+            tblInput.Controls.Add(new Label
+            {
+                Text = "Payment Amount *", Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(98, 112, 135), Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft
+            }, 0, 0);
+
             var nudAmount = new NumericUpDown
             {
-                Font = new Font("Segoe UI", 12f),
+                Font = new Font("Segoe UI", 12f), Dock = DockStyle.Fill,
                 Minimum = 0.01m, Maximum = (decimal)Math.Max(inv.RemainingBalance, 0.01),
-                DecimalPlaces = 2, Value = (decimal)Math.Min(inv.RemainingBalance, inv.RemainingBalance > 0 ? inv.RemainingBalance : 0.01),
-                Location = new Point(200, 10), Size = new Size(200, 36), ThousandsSeparator = true
+                DecimalPlaces = 2,
+                Value = (decimal)Math.Min(inv.RemainingBalance, inv.RemainingBalance > 0 ? inv.RemainingBalance : 0.01),
+                ThousandsSeparator = true, Margin = new Padding(0, 6, 16, 6)
             };
+            tblInput.Controls.Add(nudAmount, 1, 0);
 
-            var lblType = new Label { Text = "Payment Type *", Font = new Font("Segoe UI", 10f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), AutoSize = true, Location = new Point(430, 14) };
+            tblInput.Controls.Add(new Label
+            {
+                Text = "Payment Type *", Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(98, 112, 135), Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft
+            }, 2, 0);
+
             var cboType = new ComboBox
             {
                 DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 12f),
-                Location = new Point(610, 10), Size = new Size(200, 36)
+                Dock = DockStyle.Fill, Margin = new Padding(0, 6, 0, 6)
             };
             cboType.Items.AddRange(new object[] { "Installment", "Full", "Deposit" });
             cboType.SelectedIndex = inv.RemainingBalance <= inv.TotalAmount * 0.5 ? 1 : 0;
+            tblInput.Controls.Add(cboType, 3, 0);
 
-            var lblDate    = new Label { Text = "Transaction Date", Font = new Font("Segoe UI", 10f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), AutoSize = true, Location = new Point(0, 72) };
-            var lblDateVal = new Label { Text = DateTime.Today.ToString("yyyy-MM-dd"), Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.FromArgb(1, 105, 111), Location = new Point(200, 68), Size = new Size(200, 36), TextAlign = ContentAlignment.MiddleLeft };
+            // Row 1 — Transaction Date (read-only)
+            tblInput.Controls.Add(new Label
+            {
+                Text = "Transaction Date", Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(98, 112, 135), Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft
+            }, 0, 1);
 
-            pnlInputBody.Controls.Add(lblAmount);
-            pnlInputBody.Controls.Add(nudAmount);
-            pnlInputBody.Controls.Add(lblType);
-            pnlInputBody.Controls.Add(cboType);
-            pnlInputBody.Controls.Add(lblDate);
-            pnlInputBody.Controls.Add(lblDateVal);
+            tblInput.Controls.Add(new Label
+            {
+                Text = DateTime.Today.ToString("yyyy-MM-dd"),
+                Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.FromArgb(1, 105, 111),
+                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft
+            }, 1, 1);
+
+            pnlInputBody.Controls.Add(tblInput);
 
             // ── Footer ─────────────────────────────────────────────────────────
             var pnlFooter = new Panel { Dock = DockStyle.Bottom, Height = 70, BackColor = Color.White, Padding = new Padding(0, 12, 28, 12) };
