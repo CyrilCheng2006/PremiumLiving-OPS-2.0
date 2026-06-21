@@ -203,49 +203,50 @@ namespace PremiumLivingOPS.Views.AfterService
         }
 
         // ─────────────────────────────────────────────────────────────────────
-        // Record Payment Dialog  1800 × 1000
+        // Record Payment Dialog
+        //   Size          : 1800 × 1200  (+200 from previous 1000)
+        //   Header badge  : tblHeader col 1 = 520f  (was 360f — too narrow)
         // ─────────────────────────────────────────────────────────────────────
         private void ShowRecordPaymentDialog(InvoiceDetailEntity inv)
         {
             using var dlg = new Form
             {
-                Text = $"Record Payment  —  {inv.InvoiceID}",
-                Size = new Size(1800, 1000),   // height: 800 → 1000
-                StartPosition = FormStartPosition.CenterParent,
-                BackColor = Color.FromArgb(240, 244, 249),
-                Font = new Font("Segoe UI", 13f),
+                Text            = $"Record Payment  —  {inv.InvoiceID}",
+                Size            = new Size(1800, 1200),  // height +200 → 1200
+                StartPosition   = FormStartPosition.CenterParent,
+                BackColor       = Color.FromArgb(240, 244, 249),
+                Font            = new Font("Segoe UI", 13f),
                 FormBorderStyle = FormBorderStyle.FixedDialog, MaximizeBox = false, MinimizeBox = false
             };
 
             // ══ HEADER — teal title bar
-            var pnlHeader = new Panel
-            {
-                Dock = DockStyle.Top, Height = 70,
-                BackColor = Color.FromArgb(1, 105, 111)
-            };
+            var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 70, BackColor = Color.FromArgb(1, 105, 111) };
             var tblHeader = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
                 BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                Padding = new Padding(28, 0, 24, 0)
+                Padding = new Padding(28, 0, 0, 0)   // no right pad — badge flush to edge
             };
             tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
-            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 360f));
+            // Badge column widened 360 → 520 so "Balance: HK$ XX,XXX.XX" fits comfortably
+            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 520f));
             tblHeader.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+
             tblHeader.Controls.Add(new Label
             {
-                Text = $"Record Payment  —  {inv.InvoiceID}",
-                Font = new Font("Segoe UI", 17f, FontStyle.Bold), ForeColor = Color.White,
-                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
+                Text      = $"Record Payment  —  {inv.InvoiceID}",
+                Font      = new Font("Segoe UI", 17f, FontStyle.Bold), ForeColor = Color.White,
+                Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
             }, 0, 0);
+
             Color badgeBg = inv.IsOverdue ? Color.FromArgb(185, 28, 28) : Color.FromArgb(146, 64, 14);
             tblHeader.Controls.Add(new Label
             {
-                Text = $"Balance: HK$ {inv.RemainingBalance:N2}",
-                Font = new Font("Segoe UI", 13f, FontStyle.Bold), ForeColor = Color.White,
+                Text      = $"Balance: HK$ {inv.RemainingBalance:N2}",
+                Font      = new Font("Segoe UI", 14f, FontStyle.Bold), ForeColor = Color.White,
                 BackColor = badgeBg, Dock = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleCenter, AutoSize = false,
-                Margin = new Padding(0, 10, 0, 10)
+                Margin    = new Padding(0, 8, 0, 8)   // top/bottom breathing room
             }, 1, 0);
             pnlHeader.Controls.Add(tblHeader);
 
@@ -273,8 +274,7 @@ namespace PremiumLivingOPS.Views.AfterService
             var pnlInputTitle = new Panel
             {
                 Dock = DockStyle.Top, Height = 52,
-                BackColor = Color.FromArgb(240, 253, 250),
-                Padding = new Padding(24, 0, 0, 0)
+                BackColor = Color.FromArgb(240, 253, 250), Padding = new Padding(24, 0, 0, 0)
             };
             pnlInputTitle.Paint += PaintBottomBorder;
             pnlInputTitle.Controls.Add(new Label
@@ -291,8 +291,8 @@ namespace PremiumLivingOPS.Views.AfterService
                 BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
                 Padding = new Padding(24, 16, 24, 16)
             };
-            tblInput.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 700f));  // label: 260 → 700
-            tblInput.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));  // control
+            tblInput.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 700f));
+            tblInput.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
             tblInput.RowStyles.Add(new RowStyle(SizeType.Percent, 33.3f));
             tblInput.RowStyles.Add(new RowStyle(SizeType.Percent, 33.3f));
             tblInput.RowStyles.Add(new RowStyle(SizeType.Percent, 33.3f));
@@ -337,8 +337,7 @@ namespace PremiumLivingOPS.Views.AfterService
             var pnlHistTitle = new Panel
             {
                 Dock = DockStyle.Top, Height = 48,
-                BackColor = Color.FromArgb(246, 249, 255),
-                Padding = new Padding(24, 0, 0, 0)
+                BackColor = Color.FromArgb(246, 249, 255), Padding = new Padding(24, 0, 0, 0)
             };
             pnlHistTitle.Paint += PaintBottomBorder;
             pnlHistTitle.Controls.Add(new Label
@@ -390,7 +389,7 @@ namespace PremiumLivingOPS.Views.AfterService
             histInner.Controls.Add(dgvTxn);
             histInner.Controls.Add(pnlHistTitle);
 
-            // ══ FOOTER — Confirm (210×60) + Cancel (210×60)
+            // ══ FOOTER
             var pnlFooter = new Panel
             {
                 Dock = DockStyle.Bottom, Height = 88,
@@ -406,7 +405,7 @@ namespace PremiumLivingOPS.Views.AfterService
                 FlatStyle = FlatStyle.Flat,
                 Size = new Size(210, 60), Dock = DockStyle.Right, Cursor = Cursors.Hand
             };
-            btnConfirm.FlatAppearance.BorderSize = 0;
+            btnConfirm.FlatAppearance.BorderSize         = 0;
             btnConfirm.FlatAppearance.MouseOverBackColor = Color.FromArgb(4, 120, 87);
             btnConfirm.FlatAppearance.MouseDownBackColor = Color.FromArgb(3, 90, 68);
 
@@ -418,8 +417,8 @@ namespace PremiumLivingOPS.Views.AfterService
                 FlatStyle = FlatStyle.Flat,
                 Size = new Size(210, 60), Dock = DockStyle.Right, Cursor = Cursors.Hand
             };
-            btnCancel.FlatAppearance.BorderColor = Color.FromArgb(221, 227, 236);
-            btnCancel.FlatAppearance.BorderSize  = 1;
+            btnCancel.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
+            btnCancel.FlatAppearance.BorderSize         = 1;
             btnCancel.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
             btnCancel.Click += (o, ev) => dlg.Close();
 

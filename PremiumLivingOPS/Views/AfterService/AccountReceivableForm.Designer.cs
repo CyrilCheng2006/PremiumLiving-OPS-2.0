@@ -16,8 +16,7 @@ namespace PremiumLivingOPS.Views.AfterService
         private Button       btnReset;
         private Panel        pnlKpi;
         private DataGridView dgvAR;
-        private Button       btnRecord;       // KPI Bar — Record Payment (enabled on row select)
-        private Button       btnInvoiceList;  // KPI Bar — Invoice List popup (always enabled)
+        private Button       btnRecord;  // KPI Bar — Record Payment (enabled on row select)
 
         protected override void Dispose(bool disposing)
         {
@@ -132,11 +131,10 @@ namespace PremiumLivingOPS.Views.AfterService
             // ════════════════════════════════════════════════════════════════
             // CARD 2 — KPI Bar  (Top, fixed 90px)
             //
-            // Left  → pnlKpi        (Fill)         KPI pills
-            // Right → pnlActionBtns (Right)        [💳 Record Payment] [📋 Invoice List]
+            // Left  → pnlKpi        (Fill)   KPI pills
+            // Right → pnlActionBtns (Right)  [💳 Record Payment]  only
             //
-            // btnRecord       — 290×60  enabled only when a grid row is selected
-            // btnInvoiceList  — 210×60  always enabled; opens InvoiceListDialog
+            // Invoice List button removed — functionality integrated into page.
             // ════════════════════════════════════════════════════════════════
             var (kpiOuter, kpiInner) = CardPanel.Create(outerHeight: 90);
 
@@ -147,34 +145,18 @@ namespace PremiumLivingOPS.Views.AfterService
                 Padding   = new Padding(12, 10, 12, 10)
             };
 
-            // Button sizes
-            const int RecordW       = 290;
-            const int InvoiceListW  = 210;
-            const int BtnH          = 60;
-            const int BtnPad        = 12;
-            const int BtnGap        = 10;
+            const int BtnW   = 290;
+            const int BtnH   =  60;
+            const int BtnPad =  12;
 
-            btnRecord = MakeTealBtn("💳  Record Payment", Point.Empty, RecordW, BtnH);
+            btnRecord = MakeTealBtn("💳  Record Payment", Point.Empty, BtnW, BtnH);
             btnRecord.Enabled = false;
             btnRecord.Click  += (s, e) => OpenRecordPayment();
-
-            // ── NEW: Invoice List button (210×60, always enabled) ──────────
-            btnInvoiceList = MakePrimaryBtn("📋  Invoice List", Point.Empty, InvoiceListW, BtnH);
-            btnInvoiceList.Click += (s, e) =>
-            {
-                using var dlg = new InvoiceListDialog();
-                dlg.ShowDialog(this);
-                RefreshGrid();   // refresh KPIs after dialog closes
-            };
-            // ───────────────────────────────────────────────────────────────
-
-            // Total action-panel width: pad | Record | gap | InvoiceList | pad
-            int actionPanelW = BtnPad + RecordW + BtnGap + InvoiceListW + BtnPad;
 
             var pnlActionBtns = new Panel
             {
                 Dock      = DockStyle.Right,
-                Width     = actionPanelW,
+                Width     = BtnPad + BtnW + BtnPad,
                 BackColor = Color.Transparent
             };
 
@@ -182,17 +164,14 @@ namespace PremiumLivingOPS.Views.AfterService
             {
                 int top = (pnlActionBtns.Height - BtnH) / 2;
                 if (top < 0) top = 0;
-                btnRecord.Location      = new Point(BtnPad, top);
-                btnInvoiceList.Location = new Point(BtnPad + RecordW + BtnGap, top);
+                btnRecord.Location = new Point(BtnPad, top);
             }
-
             pnlActionBtns.Controls.Add(btnRecord);
-            pnlActionBtns.Controls.Add(btnInvoiceList);
             pnlActionBtns.Resize += (s, e) => CentreActionBtns();
 
             var pnlKpiRow = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             pnlKpiRow.Controls.Add(pnlKpi);        // Fill — pills
-            pnlKpiRow.Controls.Add(pnlActionBtns); // Right — buttons
+            pnlKpiRow.Controls.Add(pnlActionBtns); // Right — button
             kpiInner.Controls.Add(pnlKpiRow);
 
             // ════════════════════════════════════════════════════════════════
@@ -237,7 +216,7 @@ namespace PremiumLivingOPS.Views.AfterService
 
             gridInner.Controls.Add(dgvAR);
 
-            // ── Assemble
+            // — Assemble
             pnlMain.Controls.Add(gridOuter);   // Fill
             pnlMain.Controls.Add(kpiOuter);    // Top
             pnlMain.Controls.Add(searchOuter); // Top
@@ -247,7 +226,7 @@ namespace PremiumLivingOPS.Views.AfterService
             this.ResumeLayout(false);
         }
 
-        // ── Button factories ─────────────────────────────────────────────────
+        // — Button factories
         private static Button MakePrimaryBtn(string text, Point loc, int w, int h)
         {
             var b = new Button { Text = text, Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.White, BackColor = Palette.Primary, FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand };
