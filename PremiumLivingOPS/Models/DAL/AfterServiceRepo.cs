@@ -35,9 +35,7 @@ namespace PremiumLivingOPS.Models.DAL
                 if (!string.IsNullOrEmpty(status))
                     sql += " AND i.PaymentStatus = @status";
                 if (!string.IsNullOrEmpty(keyword))
-                    sql += @" AND (i.InvoiceID   LIKE @kw
-                               OR c.CustomerName LIKE @kw
-                               OR i.OrderID      LIKE @kw)";
+                    sql += " AND (i.InvoiceID LIKE @kw OR c.CustomerName LIKE @kw OR i.OrderID LIKE @kw)";
                 sql += " ORDER BY i.InvoiceDate DESC";
 
                 using (var cmd = new MySqlCommand(sql, conn))
@@ -147,9 +145,7 @@ namespace PremiumLivingOPS.Models.DAL
                       WHERE 1=1";
 
                 if (!string.IsNullOrEmpty(keyword))
-                    sql += @" AND (i.InvoiceID   LIKE @kw
-                               OR i.OrderID      LIKE @kw
-                               OR c.CustomerName LIKE @kw)";
+                    sql += " AND (i.InvoiceID LIKE @kw OR i.OrderID LIKE @kw OR c.CustomerName LIKE @kw)";
                 sql += " ORDER BY i.DueDate ASC";
 
                 using (var cmd = new MySqlCommand(sql, conn))
@@ -241,7 +237,7 @@ namespace PremiumLivingOPS.Models.DAL
                     int.TryParse(id.Substring(prefix.Length, 4), out int seq) && seq >= next)
                     next = seq + 1;
             }
-            return $"{prefix}{next:D4}";
+            return string.Format("{0}{1:D4}", prefix, next);
         }
 
         public bool RecordPayment(TransactionEntity txn)
@@ -328,8 +324,7 @@ namespace PremiumLivingOPS.Models.DAL
                 if (!string.IsNullOrEmpty(status))
                     sql += " AND c.ComplaintStatus = @status";
                 if (!string.IsNullOrEmpty(keyword))
-                    sql += @" AND (c.ComplaintID LIKE @kw OR c.OrderID LIKE @kw
-                               OR s.StaffName LIKE @kw OR c.ComplaintDescription LIKE @kw)";
+                    sql += " AND (c.ComplaintID LIKE @kw OR c.OrderID LIKE @kw OR s.StaffName LIKE @kw OR c.ComplaintDescription LIKE @kw)";
                 sql += " ORDER BY c.ComplaintID DESC";
 
                 using (var cmd = new MySqlCommand(sql, conn))
@@ -413,7 +408,7 @@ namespace PremiumLivingOPS.Models.DAL
                     int.TryParse(id.Substring(prefix.Length, 4), out int seq) && seq >= next)
                     next = seq + 1;
             }
-            return $"{prefix}{next:D4}";
+            return string.Format("{0}{1:D4}", prefix, next);
         }
 
         public bool CreateComplaint(ComplaintEntity c)
@@ -458,8 +453,7 @@ namespace PremiumLivingOPS.Models.DAL
                 if (!string.IsNullOrEmpty(status))
                     sql += " AND r.ReturnStatus = @status";
                 if (!string.IsNullOrEmpty(keyword))
-                    sql += @" AND (r.ReturnID LIKE @kw OR r.OrderID LIKE @kw
-                               OR c.CustomerName LIKE @kw OR r.Reason LIKE @kw)";
+                    sql += " AND (r.ReturnID LIKE @kw OR r.OrderID LIKE @kw OR c.CustomerName LIKE @kw OR r.Reason LIKE @kw)";
                 sql += " ORDER BY r.ReturnDate DESC";
 
                 using (var cmd = new MySqlCommand(sql, conn))
@@ -533,11 +527,6 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
-        /// <summary>
-        /// Returns orders eligible for return (Delivered / Completed / Partially Delivered),
-        /// with optional keyword filter on OrderID or CustomerName.
-        /// Used by Create Return Order picker dialog.
-        /// </summary>
         public List<OrderEntity> GetOrdersForReturnPicker(string keyword = null)
         {
             var list = new List<OrderEntity>();
@@ -559,7 +548,6 @@ namespace PremiumLivingOPS.Models.DAL
 
                 if (!string.IsNullOrEmpty(keyword))
                     sql += " AND (o.OrderID LIKE @kw OR c.CustomerName LIKE @kw)";
-
                 sql += " ORDER BY o.IssuedTime DESC";
 
                 using (var cmd = new MySqlCommand(sql, conn))
@@ -618,9 +606,7 @@ namespace PremiumLivingOPS.Models.DAL
                 if (!string.IsNullOrEmpty(status))
                     sql += " AND i.PaymentStatus = @status";
                 if (!string.IsNullOrEmpty(keyword))
-                    sql += @" AND (i.InvoiceID   LIKE @kw
-                               OR c.CustomerName LIKE @kw
-                               OR i.OrderID      LIKE @kw)";
+                    sql += " AND (i.InvoiceID LIKE @kw OR c.CustomerName LIKE @kw OR i.OrderID LIKE @kw)";
                 sql += " ORDER BY i.DueDate ASC";
 
                 using (var cmd = new MySqlCommand(sql, conn))
@@ -639,16 +625,12 @@ namespace PremiumLivingOPS.Models.DAL
         //
         //  PurchaseInvoice schema:
         //    PurInvoiceID  VARCHAR(20) PK
-        //    PurchaseID    VARCHAR(20) FK → PurchaseOrder.PurchaseID
+        //    PurchaseID    VARCHAR(20) FK -> PurchaseOrder.PurchaseID
         //    TotalAmount   DECIMAL
         //    PaymentStatus ENUM('Partial','Full')
-        //    ExpectedDate  DATE   (= DueDate alias)
+        //    ExpectedDate  DATE
         //
-        //  SupplierID / SupplierName are on PurchaseOrder, NOT PurchaseInvoice.
-        //  JOIN path: PurchaseInvoice → PurchaseOrder → Supplier
-        //
-        //  PaidAmount / RemainingBalance are NOT stored on PurchaseInvoice;
-        //  they are computed from Transaction rows (PurInvoiceID IS NOT NULL).
+        //  PaidAmount / RemainingBalance computed from Transaction rows.
         // ══════════════════════════════════════════════════════════════════
 
         public List<AccountPayableEntity> SearchAccountPayables(string status = null, string keyword = null)
@@ -657,21 +639,17 @@ namespace PremiumLivingOPS.Models.DAL
             using (var conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
-
-                // PaidAmount  = SUM of Transaction.Amount where PurInvoiceID matches
-                // Balance     = TotalAmount - PaidAmount  (floor 0)
-                // DueDate     = PurchaseInvoice.ExpectedDate
                 var sql =
                     @"SELECT p.PurInvoiceID,
                              po.PurchaseID,
                              su.SupplierID,
                              su.SupplierName,
-                             p.ExpectedDate                                        AS DueDate,
+                             p.ExpectedDate                                           AS DueDate,
                              p.TotalAmount,
-                             COALESCE(tx.PaidAmount, 0)                           AS PaidAmount,
+                             COALESCE(tx.PaidAmount, 0)                              AS PaidAmount,
                              GREATEST(p.TotalAmount - COALESCE(tx.PaidAmount, 0), 0) AS RemainingBalance,
                              p.PaymentStatus,
-                             p.ExpectedDate                                        AS PurInvoiceDate
+                             p.ExpectedDate                                           AS PurInvoiceDate
                       FROM PurchaseInvoice p
                       JOIN PurchaseOrder   po ON p.PurchaseID  = po.PurchaseID
                       JOIN Supplier        su ON po.SupplierID = su.SupplierID
@@ -684,4 +662,127 @@ namespace PremiumLivingOPS.Models.DAL
                       WHERE GREATEST(p.TotalAmount - COALESCE(tx.PaidAmount, 0), 0) > 0";
 
                 if (!string.IsNullOrEmpty(status))
-                    sql += " AND p
+                    sql += " AND p.PaymentStatus = @status";
+                if (!string.IsNullOrEmpty(keyword))
+                    sql += " AND (p.PurInvoiceID LIKE @kw OR su.SupplierName LIKE @kw OR po.PurchaseID LIKE @kw)";
+                sql += " ORDER BY p.ExpectedDate ASC";
+
+                using (var cmd = new MySqlCommand(sql, conn))
+                {
+                    if (!string.IsNullOrEmpty(status))  cmd.Parameters.AddWithValue("@status", status);
+                    if (!string.IsNullOrEmpty(keyword)) cmd.Parameters.AddWithValue("@kw", "%" + keyword + "%");
+                    using (var rdr = cmd.ExecuteReader())
+                        while (rdr.Read()) list.Add(MapAccountPayable(rdr));
+                }
+            }
+            return list;
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        //  PRIVATE MAP HELPERS
+        //  One static method per entity — reads an open MySqlDataReader row.
+        //  Keeps all Search/Get methods clean and DRY.
+        // ══════════════════════════════════════════════════════════════════
+
+        private static InvoiceEntity MapInvoice(MySqlDataReader r)
+        {
+            return new InvoiceEntity
+            {
+                InvoiceID        = r.GetString("InvoiceID"),
+                OrderID          = r.GetString("OrderID"),
+                CustomerName     = r.IsDBNull(r.GetOrdinal("CustomerName"))     ? null : r.GetString("CustomerName"),
+                InvoiceDate      = r.GetDateTime("InvoiceDate"),
+                DepositAmount    = r.IsDBNull(r.GetOrdinal("DepositAmount"))    ? 0    : r.GetDouble("DepositAmount"),
+                PaidAmount       = r.GetDouble("PaidAmount"),
+                RemainingBalance = r.GetDouble("RemainingBalance"),
+                TotalAmount      = r.GetDouble("TotalAmount"),
+                PaymentStatus    = r.GetString("PaymentStatus"),
+                DueDate          = r.GetDateTime("DueDate")
+            };
+        }
+
+        private static OrderEntity MapOrder(MySqlDataReader r)
+        {
+            return new OrderEntity
+            {
+                OrderID          = r.GetString("OrderID"),
+                CustomerID       = r.GetString("CustomerID"),
+                CustomerName     = r.IsDBNull(r.GetOrdinal("CustomerName"))      ? null : r.GetString("CustomerName"),
+                IssuedTime       = r.GetDateTime("IssuedTime"),
+                DeliveryDate     = r.IsDBNull(r.GetOrdinal("DeliveryDate"))      ? (DateTime?)null : r.GetDateTime("DeliveryDate"),
+                GrandTotal       = r.IsDBNull(r.GetOrdinal("GrandTotal"))        ? 0    : r.GetDouble("GrandTotal"),
+                OrderStatus      = r.GetString("OrderStatus"),
+                OrderContactName = r.IsDBNull(r.GetOrdinal("OrderContactName"))  ? null : r.GetString("OrderContactName"),
+                SalesID          = r.GetString("SalesID"),
+                SalesName        = r.IsDBNull(r.GetOrdinal("SalesName"))         ? null : r.GetString("SalesName"),
+                QuotationID      = r.IsDBNull(r.GetOrdinal("QuotationID"))       ? null : r.GetString("QuotationID"),
+                AddressID        = r.IsDBNull(r.GetOrdinal("AddressID"))         ? null : r.GetString("AddressID"),
+                ShippingAddress  = r.IsDBNull(r.GetOrdinal("ShippingAddress"))   ? null : r.GetString("ShippingAddress"),
+                BillingAddress   = r.IsDBNull(r.GetOrdinal("BillingAddress"))    ? null : r.GetString("BillingAddress"),
+                SubTotal         = r.IsDBNull(r.GetOrdinal("SubTotal"))          ? 0    : r.GetDouble("SubTotal"),
+                DiscountType     = r.IsDBNull(r.GetOrdinal("DiscountType"))      ? null : r.GetString("DiscountType"),
+                DiscountValue    = r.IsDBNull(r.GetOrdinal("DiscountValue"))     ? 0    : r.GetDouble("DiscountValue"),
+                DiscountAmount   = r.IsDBNull(r.GetOrdinal("DiscountAmount"))    ? 0    : r.GetDouble("DiscountAmount")
+            };
+        }
+
+        private static ComplaintEntity MapComplaint(MySqlDataReader r)
+        {
+            return new ComplaintEntity
+            {
+                ComplaintID          = r.GetString("ComplaintID"),
+                OrderID              = r.IsDBNull(r.GetOrdinal("OrderID"))              ? null : r.GetString("OrderID"),
+                StaffName            = r.IsDBNull(r.GetOrdinal("StaffName"))            ? null : r.GetString("StaffName"),
+                ComplaintDescription = r.IsDBNull(r.GetOrdinal("ComplaintDescription")) ? null : r.GetString("ComplaintDescription"),
+                ComplaintStatus      = r.GetString("ComplaintStatus")
+            };
+        }
+
+        private static ReturnOrderEntity MapReturnOrder(MySqlDataReader r)
+        {
+            return new ReturnOrderEntity
+            {
+                ReturnID      = r.GetString("ReturnID"),
+                OrderID       = r.GetString("OrderID"),
+                CustomerName  = r.IsDBNull(r.GetOrdinal("CustomerName")) ? null : r.GetString("CustomerName"),
+                ReturnDate    = r.GetDateTime("ReturnDate"),
+                Reason        = r.IsDBNull(r.GetOrdinal("Reason"))       ? null : r.GetString("Reason"),
+                RefundAmount  = r.IsDBNull(r.GetOrdinal("RefundAmount")) ? 0    : r.GetDouble("RefundAmount"),
+                ReturnStatus  = r.GetString("ReturnStatus")
+            };
+        }
+
+        private static AccountReceivableEntity MapAccountReceivable(MySqlDataReader r)
+        {
+            return new AccountReceivableEntity
+            {
+                InvoiceID        = r.GetString("InvoiceID"),
+                OrderID          = r.GetString("OrderID"),
+                CustomerName     = r.IsDBNull(r.GetOrdinal("CustomerName"))  ? null : r.GetString("CustomerName"),
+                InvoiceDate      = r.GetDateTime("InvoiceDate"),
+                TotalAmount      = r.GetDouble("TotalAmount"),
+                PaidAmount       = r.GetDouble("PaidAmount"),
+                RemainingBalance = r.GetDouble("RemainingBalance"),
+                PaymentStatus    = r.GetString("PaymentStatus"),
+                DueDate          = r.GetDateTime("DueDate")
+            };
+        }
+
+        private static AccountPayableEntity MapAccountPayable(MySqlDataReader r)
+        {
+            return new AccountPayableEntity
+            {
+                PurInvoiceID     = r.GetString("PurInvoiceID"),
+                PurchaseID       = r.GetString("PurchaseID"),
+                SupplierID       = r.GetString("SupplierID"),
+                SupplierName     = r.IsDBNull(r.GetOrdinal("SupplierName"))  ? null : r.GetString("SupplierName"),
+                DueDate          = r.GetDateTime("DueDate"),
+                TotalAmount      = r.GetDouble("TotalAmount"),
+                PaidAmount       = r.GetDouble("PaidAmount"),
+                RemainingBalance = r.GetDouble("RemainingBalance"),
+                PaymentStatus    = r.GetString("PaymentStatus"),
+                PurInvoiceDate   = r.GetDateTime("PurInvoiceDate")
+            };
+        }
+    }
+}
