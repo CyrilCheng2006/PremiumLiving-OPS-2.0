@@ -131,4 +131,15 @@ namespace PremiumLivingOPS.Models.Entities
         public UserBarViewModel            UserBar      { get; set; }
         public List<AccountPayableEntity>  Items        { get; set; }
     }
+
+    /// <summary>
+    /// ViewModel for the Invoice List + Record Payment popup dialog
+    /// (Account Receivable → [📋 Invoice List] button).
+    /// </summary>
+    public class InvoiceListViewModel
+    {
+        public string[]                  AllowedMenus { get; set; }
+        public UserBarViewModel          UserBar      { get; set; }
+        public List<InvoiceDetailEntity> Invoices     { get; set; } = new List<InvoiceDetailEntity>();
+    }
 }
