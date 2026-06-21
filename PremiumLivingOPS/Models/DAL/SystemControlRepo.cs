@@ -8,28 +8,28 @@ namespace PremiumLivingOPS.Models.DAL
 {
     /// <summary>
     /// Data Access Layer for System Control module.
-    /// Staff CRUD -> MySQL `Staff` table.
+    /// Staff CRUD -> MySQL 'Staff' table.
     /// Log search  -> AuditLogger.LoadAllLogs() (reads TXT files, no DB needed).
+    /// Uses the canonical Staff entity (Staff.cs).
     /// </summary>
     public class SystemControlRepo
     {
-        // ── Connection helper ─────────────────────────────────────────────────────
         private MySqlConnection GetConn() => new MySqlConnection(DBConnection.ConnectionString);
 
-        // ═════════════════════════════════════════════════════════════════════════
-        // STAFF
-        // ═════════════════════════════════════════════════════════════════════════
+        // ════════════════════════════════════════════════════════════════
+        // STAFF  (StaffID, StaffName, StaffRole, Department, Email, StaffPassword)
+        // ════════════════════════════════════════════════════════════════
 
-        public List<StaffEntity> SearchStaff(string keyword = null)
+        public List<Staff> SearchStaff(string keyword = null)
         {
-            var list = new List<StaffEntity>();
-            string sql = @"
-                SELECT StaffID, StaffName, StaffRole, Department, Email, Password
+            var list = new List<Staff>();
+            const string sql = @"
+                SELECT StaffID, StaffName, StaffRole, Department, Email, StaffPassword
                 FROM   Staff
                 WHERE  (@kw IS NULL OR @kw = ''
-                        OR StaffID   LIKE CONCAT('%',@kw,'%')
-                        OR StaffName LIKE CONCAT('%',@kw,'%')
-                        OR Department LIKE CONCAT('%',@kw,'%'))
+                        OR StaffID     LIKE CONCAT('%',@kw,'%')
+                        OR StaffName   LIKE CONCAT('%',@kw,'%')
+                        OR Department  LIKE CONCAT('%',@kw,'%'))
                 ORDER  BY StaffID";
 
             using var conn = GetConn(); conn.Open();
@@ -37,41 +37,41 @@ namespace PremiumLivingOPS.Models.DAL
             cmd.Parameters.AddWithValue("@kw", keyword ?? "");
             using var rdr = cmd.ExecuteReader();
             while (rdr.Read())
-                list.Add(new StaffEntity
+                list.Add(new Staff
                 {
                     StaffID    = rdr.GetString("StaffID"),
                     StaffName  = rdr.GetString("StaffName"),
-                    StaffRole  = rdr.GetString("StaffRole"),
+                    Role       = rdr.GetString("StaffRole"),
                     Department = rdr.GetString("Department"),
                     Email      = rdr.IsDBNull(rdr.GetOrdinal("Email")) ? "" : rdr.GetString("Email"),
-                    Password   = rdr.GetString("Password")
+                    Password   = rdr.IsDBNull(rdr.GetOrdinal("StaffPassword")) ? "" : rdr.GetString("StaffPassword")
                 });
             return list;
         }
 
-        public string GetNextStaffID()
+        public string GetNextStaffId()
         {
             const string sql = "SELECT MAX(CAST(SUBSTRING(StaffID,2) AS UNSIGNED)) FROM Staff WHERE StaffID LIKE 'S%'";
             using var conn = GetConn(); conn.Open();
             using var cmd  = new MySqlCommand(sql, conn);
-            var val = cmd.ExecuteScalar();
+            var val  = cmd.ExecuteScalar();
             int next = (val == DBNull.Value || val == null) ? 1 : Convert.ToInt32(val) + 1;
             return $"S{next:D3}";
         }
 
-        public bool InsertStaff(StaffEntity s)
+        public bool InsertStaff(Staff s)
         {
             const string sql = @"
-                INSERT INTO Staff (StaffID, StaffName, StaffRole, Department, Email, Password)
+                INSERT INTO Staff (StaffID, StaffName, StaffRole, Department, Email, StaffPassword)
                 VALUES (@id, @name, @role, @dept, @email, @pwd)";
             using var conn = GetConn(); conn.Open();
             using var cmd  = new MySqlCommand(sql, conn);
-            cmd.Parameters.AddWithValue("@id",    s.StaffID);
-            cmd.Parameters.AddWithValue("@name",  s.StaffName);
-            cmd.Parameters.AddWithValue("@role",  s.StaffRole);
-            cmd.Parameters.AddWithValue("@dept",  s.Department);
-            cmd.Parameters.AddWithValue("@email", s.Email);
-            cmd.Parameters.AddWithValue("@pwd",   s.Password);
+            cmd.Parameters.AddWithValue("@id",   s.StaffID);
+            cmd.Parameters.AddWithValue("@name", s.StaffName);
+            cmd.Parameters.AddWithValue("@role", s.Role);
+            cmd.Parameters.AddWithValue("@dept", s.Department);
+            cmd.Parameters.AddWithValue("@email",s.Email   ?? "");
+            cmd.Parameters.AddWithValue("@pwd",  s.Password ?? "");
             return cmd.ExecuteNonQuery() > 0;
         }
 
@@ -80,13 +80,13 @@ namespace PremiumLivingOPS.Models.DAL
         {
             string sql = password == null
                 ? "UPDATE Staff SET StaffName=@name, StaffRole=@role, Email=@email, Department=@dept WHERE StaffID=@id"
-                : "UPDATE Staff SET StaffName=@name, StaffRole=@role, Email=@email, Department=@dept, Password=@pwd WHERE StaffID=@id";
+                : "UPDATE Staff SET StaffName=@name, StaffRole=@role, Email=@email, Department=@dept, StaffPassword=@pwd WHERE StaffID=@id";
             using var conn = GetConn(); conn.Open();
             using var cmd  = new MySqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("@id",   staffId);
             cmd.Parameters.AddWithValue("@name", name);
             cmd.Parameters.AddWithValue("@role", role);
-            cmd.Parameters.AddWithValue("@email",email);
+            cmd.Parameters.AddWithValue("@email",email ?? "");
             cmd.Parameters.AddWithValue("@dept", dept);
             if (password != null) cmd.Parameters.AddWithValue("@pwd", password);
             return cmd.ExecuteNonQuery() > 0;
@@ -101,9 +101,9 @@ namespace PremiumLivingOPS.Models.DAL
             return cmd.ExecuteNonQuery() > 0;
         }
 
-        // ═════════════════════════════════════════════════════════════════════════
+        // ════════════════════════════════════════════════════════════════
         // LOG  (reads TXT files via AuditLogger -- no MySQL table needed)
-        // ═════════════════════════════════════════════════════════════════════════
+        // ════════════════════════════════════════════════════════════════
 
         public List<AuditLogEntity> SearchLogs(string keyword = null)
             => AuditLogger.LoadAllLogs(keyword);

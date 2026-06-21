@@ -13,12 +13,9 @@ namespace PremiumLivingOPS.Models.Entities
     // ── Staff List ────────────────────────────────────────────────────────────────
     public class StaffListViewModel
     {
-        public UserBarViewModel    UserBar      { get; set; }
-        public List<string>        AllowedMenus { get; set; }
-        /// <summary>
-        /// Uses StaffEntity (SystemControl MVC stack), which maps to the DB Staff table
-        /// with columns StaffID, StaffName, StaffRole, Department, Email, Password.
-        /// </summary>
-        public List<StaffEntity>   Staffs       { get; set; } = new List<StaffEntity>();
+        public UserBarViewModel UserBar      { get; set; }
+        public List<string>     AllowedMenus { get; set; }
+        /// <summary>Uses the canonical Staff entity (Staff.cs).</summary>
+        public List<Staff>      Staffs       { get; set; } = new List<Staff>();
     }
 }
