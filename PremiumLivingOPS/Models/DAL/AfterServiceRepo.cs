@@ -16,10 +16,7 @@ namespace PremiumLivingOPS.Models.DAL
         //  INVOICE queries
         // ══════════════════════════════════════════════════════════════════
 
-        /// <summary>Returns all invoices, with optional status / keyword filter.</summary>
-        public List<InvoiceEntity> SearchInvoices(
-            string status  = null,
-            string keyword = null)
+        public List<InvoiceEntity> SearchInvoices(string status = null, string keyword = null)
         {
             var list = new List<InvoiceEntity>();
             using (var conn = DatabaseHelper.GetConnection())
@@ -38,17 +35,15 @@ namespace PremiumLivingOPS.Models.DAL
                 if (!string.IsNullOrEmpty(status))
                     sql += " AND i.PaymentStatus = @status";
                 if (!string.IsNullOrEmpty(keyword))
-                    sql += @" AND (i.InvoiceID    LIKE @kw
-                               OR c.CustomerName  LIKE @kw
-                               OR i.OrderID       LIKE @kw)";
-
+                    sql += @" AND (i.InvoiceID   LIKE @kw
+                               OR c.CustomerName LIKE @kw
+                               OR i.OrderID      LIKE @kw)";
                 sql += " ORDER BY i.InvoiceDate DESC";
 
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
                     if (!string.IsNullOrEmpty(status))  cmd.Parameters.AddWithValue("@status", status);
                     if (!string.IsNullOrEmpty(keyword)) cmd.Parameters.AddWithValue("@kw", "%" + keyword + "%");
-
                     using (var rdr = cmd.ExecuteReader())
                         while (rdr.Read()) list.Add(MapInvoice(rdr));
                 }
@@ -56,13 +51,8 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
-        /// <summary>Returns all invoices (no filter).</summary>
         public List<InvoiceEntity> GetAllInvoices() => SearchInvoices();
 
-        /// <summary>
-        /// Returns orders that have NO Invoice row yet (LEFT JOIN WHERE InvoiceID IS NULL),
-        /// ordered by IssuedTime DESC.
-        /// </summary>
         public List<OrderEntity> GetOrdersWithoutInvoice()
         {
             var list = new List<OrderEntity>();
@@ -83,7 +73,6 @@ namespace PremiumLivingOPS.Models.DAL
                       LEFT JOIN Invoice i ON o.OrderID = i.OrderID
                       WHERE i.InvoiceID IS NULL
                       ORDER BY o.IssuedTime DESC";
-
                 using (var cmd = new MySqlCommand(sql, conn))
                 using (var rdr = cmd.ExecuteReader())
                     while (rdr.Read()) list.Add(MapOrder(rdr));
@@ -91,7 +80,6 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
-        /// <summary>Inserts a new Invoice row. Returns true on success.</summary>
         public bool CreateInvoice(InvoiceEntity inv)
         {
             using (var conn = DatabaseHelper.GetConnection())
@@ -104,7 +92,6 @@ namespace PremiumLivingOPS.Models.DAL
                       VALUES
                         (@id, @orderID, @date, @deposit,
                          @paid, @remaining, @total, @status, @due)";
-
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
                     cmd.Parameters.AddWithValue("@id",        inv.InvoiceID);
@@ -121,7 +108,6 @@ namespace PremiumLivingOPS.Models.DAL
             }
         }
 
-        /// <summary>Returns existing InvoiceIDs that start with the given date prefix.</summary>
         public List<string> GetInvoiceIdsByPrefix(string prefix)
         {
             var list = new List<string>();
@@ -143,10 +129,6 @@ namespace PremiumLivingOPS.Models.DAL
         //  INVOICE DETAIL queries  (Invoice List + Record Payment dialog)
         // ══════════════════════════════════════════════════════════════════
 
-        /// <summary>
-        /// Returns all invoices with JOIN CustomerName,
-        /// each enriched with its Transaction history.
-        /// </summary>
         public List<InvoiceDetailEntity> GetInvoiceDetails(string keyword = null)
         {
             var list = new List<InvoiceDetailEntity>();
@@ -168,14 +150,12 @@ namespace PremiumLivingOPS.Models.DAL
                     sql += @" AND (i.InvoiceID   LIKE @kw
                                OR i.OrderID      LIKE @kw
                                OR c.CustomerName LIKE @kw)";
-
                 sql += " ORDER BY i.DueDate ASC";
 
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
                     if (!string.IsNullOrEmpty(keyword))
                         cmd.Parameters.AddWithValue("@kw", "%" + keyword + "%");
-
                     using (var rdr = cmd.ExecuteReader())
                     {
                         while (rdr.Read())
@@ -198,14 +178,11 @@ namespace PremiumLivingOPS.Models.DAL
                     }
                 }
             }
-
             foreach (var inv in list)
                 inv.Transactions = GetTransactionsByInvoice(inv.InvoiceID);
-
             return list;
         }
 
-        /// <summary>Returns all Transaction rows linked to a given InvoiceID.</summary>
         public List<TransactionEntity> GetTransactionsByInvoice(string invoiceId)
         {
             var list = new List<TransactionEntity>();
@@ -218,7 +195,6 @@ namespace PremiumLivingOPS.Models.DAL
                       FROM `Transaction`
                       WHERE InvoiceID = @id
                       ORDER BY TransactionDate ASC";
-
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
                     cmd.Parameters.AddWithValue("@id", invoiceId);
@@ -243,7 +219,6 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
-        /// <summary>Generates the next TransactionID in format TXN-YYYYMMDD-NNNN.</summary>
         public string GenerateTransactionId()
         {
             string prefix = "TXN-" + DateTime.Today.ToString("yyyyMMdd") + "-";
@@ -269,11 +244,6 @@ namespace PremiumLivingOPS.Models.DAL
             return $"{prefix}{next:D4}";
         }
 
-        /// <summary>
-        /// Inserts a Transaction row and updates Invoice.PaidAmount,
-        /// RemainingBalance, PaymentStatus atomically.
-        /// Returns true on full success.
-        /// </summary>
         public bool RecordPayment(TransactionEntity txn)
         {
             using (var conn = DatabaseHelper.GetConnection())
@@ -283,13 +253,10 @@ namespace PremiumLivingOPS.Models.DAL
                 {
                     try
                     {
-                        // 1. Insert Transaction row
                         const string insertSql =
                             @"INSERT INTO `Transaction`
                                 (TransactionID, InvoiceID, Amount, TransactionDate, TransactionType)
-                              VALUES
-                                (@tid, @iid, @amount, @date, @type)";
-
+                              VALUES (@tid, @iid, @amount, @date, @type)";
                         using (var cmd = new MySqlCommand(insertSql, conn, tx))
                         {
                             cmd.Parameters.AddWithValue("@tid",    txn.TransactionID);
@@ -300,7 +267,6 @@ namespace PremiumLivingOPS.Models.DAL
                             cmd.ExecuteNonQuery();
                         }
 
-                        // 2. Re-aggregate paid amount from all transactions for this invoice
                         double newPaid;
                         using (var cmd = new MySqlCommand(
                             "SELECT COALESCE(SUM(Amount),0) FROM `Transaction` WHERE InvoiceID = @iid",
@@ -310,7 +276,6 @@ namespace PremiumLivingOPS.Models.DAL
                             newPaid = Convert.ToDouble(cmd.ExecuteScalar());
                         }
 
-                        // 3. Fetch TotalAmount for this invoice
                         double total;
                         using (var cmd = new MySqlCommand(
                             "SELECT TotalAmount FROM Invoice WHERE InvoiceID = @iid", conn, tx))
@@ -322,14 +287,10 @@ namespace PremiumLivingOPS.Models.DAL
                         double newBalance = Math.Max(0, total - newPaid);
                         string newStatus  = newBalance <= 0 ? "Full" : "Partial";
 
-                        // 4. Update Invoice row
                         const string updateSql =
                             @"UPDATE Invoice
-                              SET PaidAmount       = @paid,
-                                  RemainingBalance = @balance,
-                                  PaymentStatus    = @status
-                              WHERE InvoiceID      = @iid";
-
+                              SET PaidAmount = @paid, RemainingBalance = @balance, PaymentStatus = @status
+                              WHERE InvoiceID = @iid";
                         using (var cmd = new MySqlCommand(updateSql, conn, tx))
                         {
                             cmd.Parameters.AddWithValue("@paid",    newPaid);
@@ -342,11 +303,7 @@ namespace PremiumLivingOPS.Models.DAL
                         tx.Commit();
                         return true;
                     }
-                    catch
-                    {
-                        tx.Rollback();
-                        throw;
-                    }
+                    catch { tx.Rollback(); throw; }
                 }
             }
         }
@@ -355,10 +312,7 @@ namespace PremiumLivingOPS.Models.DAL
         //  COMPLAINT queries
         // ══════════════════════════════════════════════════════════════════
 
-        /// <summary>Returns complaints with optional status / keyword filter.</summary>
-        public List<ComplaintEntity> SearchComplaints(
-            string status  = null,
-            string keyword = null)
+        public List<ComplaintEntity> SearchComplaints(string status = null, string keyword = null)
         {
             var list = new List<ComplaintEntity>();
             using (var conn = DatabaseHelper.GetConnection())
@@ -374,18 +328,14 @@ namespace PremiumLivingOPS.Models.DAL
                 if (!string.IsNullOrEmpty(status))
                     sql += " AND c.ComplaintStatus = @status";
                 if (!string.IsNullOrEmpty(keyword))
-                    sql += @" AND (c.ComplaintID          LIKE @kw
-                               OR c.OrderID              LIKE @kw
-                               OR s.StaffName            LIKE @kw
-                               OR c.ComplaintDescription LIKE @kw)";
-
+                    sql += @" AND (c.ComplaintID LIKE @kw OR c.OrderID LIKE @kw
+                               OR s.StaffName LIKE @kw OR c.ComplaintDescription LIKE @kw)";
                 sql += " ORDER BY c.ComplaintID DESC";
 
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
                     if (!string.IsNullOrEmpty(status))  cmd.Parameters.AddWithValue("@status", status);
                     if (!string.IsNullOrEmpty(keyword)) cmd.Parameters.AddWithValue("@kw", "%" + keyword + "%");
-
                     using (var rdr = cmd.ExecuteReader())
                         while (rdr.Read()) list.Add(MapComplaint(rdr));
                 }
@@ -393,17 +343,14 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
-        /// <summary>Returns all complaints (no filter).</summary>
         public List<ComplaintEntity> GetAllComplaints() => SearchComplaints();
 
-        /// <summary>Updates the ComplaintStatus of a single complaint.</summary>
         public bool UpdateComplaintStatus(string complaintId, string newStatus)
         {
             using (var conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
-                const string sql =
-                    "UPDATE Complaint SET ComplaintStatus = @status WHERE ComplaintID = @id";
+                const string sql = "UPDATE Complaint SET ComplaintStatus = @status WHERE ComplaintID = @id";
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
                     cmd.Parameters.AddWithValue("@status", newStatus);
@@ -413,17 +360,13 @@ namespace PremiumLivingOPS.Models.DAL
             }
         }
 
-        /// <summary>
-        /// Returns a list of (StaffID, StaffName) tuples for all active staff.
-        /// </summary>
         public List<(string StaffID, string StaffName)> GetStaffList()
         {
             var list = new List<(string, string)>();
             using (var conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
-                const string sql =
-                    "SELECT StaffID, StaffName FROM Staff ORDER BY StaffName ASC";
+                const string sql = "SELECT StaffID, StaffName FROM Staff ORDER BY StaffName ASC";
                 using (var cmd = new MySqlCommand(sql, conn))
                 using (var rdr = cmd.ExecuteReader())
                     while (rdr.Read())
@@ -432,34 +375,26 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
-        /// <summary>
-        /// Returns a list of (StaffID, StaffName, Department, StaffRole) tuples for all staff.
-        /// </summary>
         public List<(string StaffID, string StaffName, string Department, string StaffRole)> GetStaffListForPicker()
         {
             var list = new List<(string, string, string, string)>();
             using (var conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
-                const string sql =
-                    "SELECT StaffID, StaffName, Department, StaffRole FROM Staff ORDER BY StaffName ASC";
+                const string sql = "SELECT StaffID, StaffName, Department, StaffRole FROM Staff ORDER BY StaffName ASC";
                 using (var cmd = new MySqlCommand(sql, conn))
                 using (var rdr = cmd.ExecuteReader())
                     while (rdr.Read())
-                        list.Add((
-                            rdr.GetString("StaffID"),
-                            rdr.GetString("StaffName"),
-                            rdr.GetString("Department"),
-                            rdr.GetString("StaffRole")));
+                        list.Add((rdr.GetString("StaffID"), rdr.GetString("StaffName"),
+                                  rdr.GetString("Department"), rdr.GetString("StaffRole")));
             }
             return list;
         }
 
-        /// <summary>Generates the next ComplaintID in the format CMP-YYYYMMDD-NNNN.</summary>
         public string GenerateComplaintId()
         {
-            string prefix   = "CMP-" + DateTime.Today.ToString("yyyyMMdd") + "-";
-            var    list     = new List<string>();
+            string prefix = "CMP-" + DateTime.Today.ToString("yyyyMMdd") + "-";
+            var    list   = new List<string>();
             using (var conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
@@ -481,7 +416,6 @@ namespace PremiumLivingOPS.Models.DAL
             return $"{prefix}{next:D4}";
         }
 
-        /// <summary>Inserts a new Complaint row. Returns true on success.</summary>
         public bool CreateComplaint(ComplaintEntity c)
         {
             using (var conn = DatabaseHelper.GetConnection())
@@ -490,8 +424,7 @@ namespace PremiumLivingOPS.Models.DAL
                 const string sql =
                     @"INSERT INTO Complaint
                         (ComplaintID, OrderID, StaffID, ComplaintDescription, ComplaintStatus)
-                      VALUES
-                        (@cid, @oid, @sid, @desc, @status)";
+                      VALUES (@cid, @oid, @sid, @desc, @status)";
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
                     cmd.Parameters.AddWithValue("@cid",    c.ComplaintID);
@@ -508,10 +441,7 @@ namespace PremiumLivingOPS.Models.DAL
         //  RETURN ORDER queries
         // ══════════════════════════════════════════════════════════════════
 
-        /// <summary>Returns return orders with optional status / keyword filter.</summary>
-        public List<ReturnOrderEntity> SearchReturnOrders(
-            string status  = null,
-            string keyword = null)
+        public List<ReturnOrderEntity> SearchReturnOrders(string status = null, string keyword = null)
         {
             var list = new List<ReturnOrderEntity>();
             using (var conn = DatabaseHelper.GetConnection())
@@ -528,18 +458,14 @@ namespace PremiumLivingOPS.Models.DAL
                 if (!string.IsNullOrEmpty(status))
                     sql += " AND r.ReturnStatus = @status";
                 if (!string.IsNullOrEmpty(keyword))
-                    sql += @" AND (r.ReturnID      LIKE @kw
-                               OR r.OrderID        LIKE @kw
-                               OR c.CustomerName   LIKE @kw
-                               OR r.Reason         LIKE @kw)";
-
+                    sql += @" AND (r.ReturnID LIKE @kw OR r.OrderID LIKE @kw
+                               OR c.CustomerName LIKE @kw OR r.Reason LIKE @kw)";
                 sql += " ORDER BY r.ReturnDate DESC";
 
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
                     if (!string.IsNullOrEmpty(status))  cmd.Parameters.AddWithValue("@status", status);
                     if (!string.IsNullOrEmpty(keyword)) cmd.Parameters.AddWithValue("@kw", "%" + keyword + "%");
-
                     using (var rdr = cmd.ExecuteReader())
                         while (rdr.Read()) list.Add(MapReturnOrder(rdr));
                 }
@@ -547,17 +473,14 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
-        /// <summary>Returns all return orders (no filter).</summary>
         public List<ReturnOrderEntity> GetAllReturnOrders() => SearchReturnOrders();
 
-        /// <summary>Updates the ReturnStatus of a single return order.</summary>
         public bool UpdateReturnOrderStatus(string returnId, string newStatus)
         {
             using (var conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
-                const string sql =
-                    "UPDATE ReturnOrder SET ReturnStatus = @status WHERE ReturnID = @id";
+                const string sql = "UPDATE ReturnOrder SET ReturnStatus = @status WHERE ReturnID = @id";
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
                     cmd.Parameters.AddWithValue("@status", newStatus);
@@ -567,7 +490,6 @@ namespace PremiumLivingOPS.Models.DAL
             }
         }
 
-        /// <summary>Returns existing ReturnIDs that start with the given prefix.</summary>
         public List<string> GetReturnIdsByPrefix(string prefix)
         {
             var list = new List<string>();
@@ -585,9 +507,6 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
-        /// <summary>
-        /// Returns all completed/delivered orders available for return.
-        /// </summary>
         public List<OrderEntity> GetOrdersForReturn()
         {
             var list = new List<OrderEntity>();
@@ -607,7 +526,6 @@ namespace PremiumLivingOPS.Models.DAL
                       JOIN Staff    s ON o.SalesID    = s.StaffID
                       WHERE o.OrderStatus IN ('Delivered','Completed')
                       ORDER BY o.IssuedTime DESC";
-
                 using (var cmd = new MySqlCommand(sql, conn))
                 using (var rdr = cmd.ExecuteReader())
                     while (rdr.Read()) list.Add(MapOrder(rdr));
@@ -615,7 +533,46 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
-        /// <summary>Inserts a new ReturnOrder row. Returns true on success.</summary>
+        /// <summary>
+        /// Returns orders eligible for return (Delivered / Completed / Partially Delivered),
+        /// with optional keyword filter on OrderID or CustomerName.
+        /// Used by Create Return Order picker dialog.
+        /// </summary>
+        public List<OrderEntity> GetOrdersForReturnPicker(string keyword = null)
+        {
+            var list = new List<OrderEntity>();
+            using (var conn = DatabaseHelper.GetConnection())
+            {
+                conn.Open();
+                var sql =
+                    @"SELECT o.OrderID, o.CustomerID, c.CustomerName,
+                             o.IssuedTime, o.DeliveryDate, o.GrandTotal,
+                             o.OrderStatus, o.OrderContactName,
+                             o.SalesID, s.StaffName AS SalesName,
+                             o.QuotationID, o.AddressID,
+                             o.ShippingAddress, o.BillingAddress,
+                             o.SubTotal, o.DiscountType, o.DiscountValue, o.DiscountAmount
+                      FROM `Order` o
+                      JOIN Customer c ON o.CustomerID = c.CustomerID
+                      JOIN Staff    s ON o.SalesID    = s.StaffID
+                      WHERE o.OrderStatus IN ('Delivered','Completed','Partially Delivered')";
+
+                if (!string.IsNullOrEmpty(keyword))
+                    sql += " AND (o.OrderID LIKE @kw OR c.CustomerName LIKE @kw)";
+
+                sql += " ORDER BY o.IssuedTime DESC";
+
+                using (var cmd = new MySqlCommand(sql, conn))
+                {
+                    if (!string.IsNullOrEmpty(keyword))
+                        cmd.Parameters.AddWithValue("@kw", "%" + keyword + "%");
+                    using (var rdr = cmd.ExecuteReader())
+                        while (rdr.Read()) list.Add(MapOrder(rdr));
+                }
+            }
+            return list;
+        }
+
         public bool CreateReturnOrder(ReturnOrderEntity r)
         {
             using (var conn = DatabaseHelper.GetConnection())
@@ -624,8 +581,7 @@ namespace PremiumLivingOPS.Models.DAL
                 const string sql =
                     @"INSERT INTO ReturnOrder
                         (ReturnID, OrderID, StaffID, ReturnDate, Reason, RefundAmount, ReturnStatus)
-                      VALUES
-                        (@rid, @oid, @sid, @date, @reason, @refund, @status)";
+                      VALUES (@rid, @oid, @sid, @date, @reason, @refund, @status)";
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
                     cmd.Parameters.AddWithValue("@rid",    r.ReturnID);
@@ -644,10 +600,7 @@ namespace PremiumLivingOPS.Models.DAL
         //  ACCOUNT RECEIVABLE queries
         // ══════════════════════════════════════════════════════════════════
 
-        /// <summary>Returns account-receivable rows with optional status / keyword filter.</summary>
-        public List<AccountReceivableEntity> SearchAccountReceivables(
-            string status  = null,
-            string keyword = null)
+        public List<AccountReceivableEntity> SearchAccountReceivables(string status = null, string keyword = null)
         {
             var list = new List<AccountReceivableEntity>();
             using (var conn = DatabaseHelper.GetConnection())
@@ -665,17 +618,15 @@ namespace PremiumLivingOPS.Models.DAL
                 if (!string.IsNullOrEmpty(status))
                     sql += " AND i.PaymentStatus = @status";
                 if (!string.IsNullOrEmpty(keyword))
-                    sql += @" AND (i.InvoiceID    LIKE @kw
-                               OR c.CustomerName  LIKE @kw
-                               OR i.OrderID       LIKE @kw)";
-
+                    sql += @" AND (i.InvoiceID   LIKE @kw
+                               OR c.CustomerName LIKE @kw
+                               OR i.OrderID      LIKE @kw)";
                 sql += " ORDER BY i.DueDate ASC";
 
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
                     if (!string.IsNullOrEmpty(status))  cmd.Parameters.AddWithValue("@status", status);
                     if (!string.IsNullOrEmpty(keyword)) cmd.Parameters.AddWithValue("@kw", "%" + keyword + "%");
-
                     using (var rdr = cmd.ExecuteReader())
                         while (rdr.Read()) list.Add(MapAccountReceivable(rdr));
                 }
@@ -687,10 +638,7 @@ namespace PremiumLivingOPS.Models.DAL
         //  ACCOUNT PAYABLE queries
         // ══════════════════════════════════════════════════════════════════
 
-        /// <summary>Returns account-payable rows with optional status / keyword filter.</summary>
-        public List<AccountPayableEntity> SearchAccountPayables(
-            string status  = null,
-            string keyword = null)
+        public List<AccountPayableEntity> SearchAccountPayables(string status = null, string keyword = null)
         {
             var list = new List<AccountPayableEntity>();
             using (var conn = DatabaseHelper.GetConnection())
@@ -707,17 +655,15 @@ namespace PremiumLivingOPS.Models.DAL
                 if (!string.IsNullOrEmpty(status))
                     sql += " AND p.PaymentStatus = @status";
                 if (!string.IsNullOrEmpty(keyword))
-                    sql += @" AND (p.PurInvoiceID  LIKE @kw
-                               OR s.SupplierName   LIKE @kw
-                               OR p.SupplierID     LIKE @kw)";
-
+                    sql += @" AND (p.PurInvoiceID LIKE @kw
+                               OR s.SupplierName  LIKE @kw
+                               OR p.SupplierID    LIKE @kw)";
                 sql += " ORDER BY p.DueDate ASC";
 
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
                     if (!string.IsNullOrEmpty(status))  cmd.Parameters.AddWithValue("@status", status);
                     if (!string.IsNullOrEmpty(keyword)) cmd.Parameters.AddWithValue("@kw", "%" + keyword + "%");
-
                     using (var rdr = cmd.ExecuteReader())
                         while (rdr.Read()) list.Add(MapAccountPayable(rdr));
                 }
@@ -749,7 +695,8 @@ namespace PremiumLivingOPS.Models.DAL
             CustomerID       = r.GetString("CustomerID"),
             CustomerName     = r.GetString("CustomerName"),
             IssuedTime       = r.GetDateTime("IssuedTime"),
-            DeliveryDate     = r.IsDBNull(r.GetOrdinal("DeliveryDate"))     ? (DateTime?)null : r.GetDateTime("DeliveryDate"),
+            // DeliveryDate is nullable in DB — use explicit (DateTime?) cast to avoid CS0266
+            DeliveryDate     = r.IsDBNull(r.GetOrdinal("DeliveryDate"))     ? (DateTime?)null : (DateTime?)r.GetDateTime("DeliveryDate"),
             GrandTotal       = r.IsDBNull(r.GetOrdinal("GrandTotal"))       ? 0 : r.GetDouble("GrandTotal"),
             OrderStatus      = r.GetString("OrderStatus"),
             OrderContactName = r.IsDBNull(r.GetOrdinal("OrderContactName")) ? null : r.GetString("OrderContactName"),
@@ -776,39 +723,54 @@ namespace PremiumLivingOPS.Models.DAL
 
         private static ReturnOrderEntity MapReturnOrder(MySqlDataReader r) => new ReturnOrderEntity
         {
-            ReturnID      = r.GetString("ReturnID"),
-            OrderID       = r.GetString("OrderID"),
-            CustomerName  = r.GetString("CustomerName"),
-            ReturnDate    = r.GetDateTime("ReturnDate"),
-            Reason        = r.IsDBNull(r.GetOrdinal("Reason"))       ? null  : r.GetString("Reason"),
-            RefundAmount  = r.IsDBNull(r.GetOrdinal("RefundAmount"))  ? 0     : r.GetDouble("RefundAmount"),
-            ReturnStatus  = r.GetString("ReturnStatus")
+            ReturnID     = r.GetString("ReturnID"),
+            OrderID      = r.GetString("OrderID"),
+            CustomerName = r.GetString("CustomerName"),
+            ReturnDate   = r.GetDateTime("ReturnDate"),
+            Reason       = r.IsDBNull(r.GetOrdinal("Reason"))      ? null : r.GetString("Reason"),
+            RefundAmount = r.IsDBNull(r.GetOrdinal("RefundAmount")) ? 0    : r.GetDouble("RefundAmount"),
+            ReturnStatus = r.GetString("ReturnStatus")
+            // StaffID intentionally not mapped on SELECT (JOIN does not expose it)
         };
 
-        private static AccountReceivableEntity MapAccountReceivable(MySqlDataReader r) => new AccountReceivableEntity
+        private static AccountReceivableEntity MapAccountReceivable(MySqlDataReader r)
         {
-            InvoiceID        = r.GetString("InvoiceID"),
-            OrderID          = r.GetString("OrderID"),
-            CustomerName     = r.GetString("CustomerName"),
-            InvoiceDate      = r.GetDateTime("InvoiceDate"),
-            TotalAmount      = r.GetDouble("TotalAmount"),
-            PaidAmount       = r.GetDouble("PaidAmount"),
-            RemainingBalance = r.GetDouble("RemainingBalance"),
-            PaymentStatus    = r.GetString("PaymentStatus"),
-            DueDate          = r.GetDateTime("DueDate")
-        };
+            // IsOverdue: computed in C# to avoid DateTime? → DateTime implicit conversion (CS0266)
+            DateTime dueDate  = r.GetDateTime("DueDate");
+            double   balance  = r.GetDouble("RemainingBalance");
+            return new AccountReceivableEntity
+            {
+                InvoiceID        = r.GetString("InvoiceID"),
+                OrderID          = r.GetString("OrderID"),
+                CustomerName     = r.GetString("CustomerName"),
+                InvoiceDate      = r.GetDateTime("InvoiceDate"),
+                TotalAmount      = r.GetDouble("TotalAmount"),
+                PaidAmount       = r.GetDouble("PaidAmount"),
+                RemainingBalance = balance,
+                PaymentStatus    = r.GetString("PaymentStatus"),
+                DueDate          = dueDate,
+                IsOverdue        = balance > 0 && dueDate < DateTime.Today
+            };
+        }
 
-        private static AccountPayableEntity MapAccountPayable(MySqlDataReader r) => new AccountPayableEntity
+        private static AccountPayableEntity MapAccountPayable(MySqlDataReader r)
         {
-            PurInvoiceID     = r.GetString("PurInvoiceID"),
-            SupplierID       = r.GetString("SupplierID"),
-            SupplierName     = r.GetString("SupplierName"),
-            PurInvoiceDate   = r.GetDateTime("PurInvoiceDate"),
-            TotalAmount      = r.GetDouble("TotalAmount"),
-            PaidAmount       = r.GetDouble("PaidAmount"),
-            RemainingBalance = r.GetDouble("RemainingBalance"),
-            PaymentStatus    = r.GetString("PaymentStatus"),
-            DueDate          = r.GetDateTime("DueDate")
-        };
+            DateTime dueDate  = r.GetDateTime("DueDate");
+            string   status   = r.GetString("PaymentStatus");
+            return new AccountPayableEntity
+            {
+                PurInvoiceID     = r.GetString("PurInvoiceID"),
+                PurchaseID       = r.GetString("PurInvoiceID"),   // alias
+                SupplierID       = r.GetString("SupplierID"),
+                SupplierName     = r.GetString("SupplierName"),
+                PurInvoiceDate   = r.GetDateTime("PurInvoiceDate"),
+                TotalAmount      = r.GetDouble("TotalAmount"),
+                PaidAmount       = r.GetDouble("PaidAmount"),
+                RemainingBalance = r.GetDouble("RemainingBalance"),
+                PaymentStatus    = status,
+                DueDate          = dueDate,
+                IsOverdue        = status != "Full" && dueDate < DateTime.Today
+            };
+        }
     }
 }
