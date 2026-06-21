@@ -85,7 +85,7 @@ namespace PremiumLivingOPS.Views.AfterService
             };
             chkDateFrom.CheckedChanged += (s, e) => { dtpDateFrom.Enabled = chkDateFrom.Checked; };
 
-            // ── MakeCell helper (identical to ViewOrderForm)
+            // ── MakeCell helper
             TableLayoutPanel MakeCell(string caption, Control ctrl, bool rightPad = true)
             {
                 var tlp = new TableLayoutPanel
@@ -115,7 +115,7 @@ namespace PremiumLivingOPS.Views.AfterService
                 return tlp;
             }
 
-            // ── Date-From cell (same structure as ViewOrderForm)
+            // ── Date-From cell
             var cellDate = new TableLayoutPanel
             {
                 Dock            = DockStyle.Fill,
@@ -172,7 +172,7 @@ namespace PremiumLivingOPS.Views.AfterService
             pnlBtns.Controls.Add(btnSearch);
             pnlBtns.Controls.Add(btnRefresh);
 
-            // ── Search card TLP (3-row: title / fields / buttons)
+            // ── Search card TLP
             var tblCard = new TableLayoutPanel
             {
                 Dock            = DockStyle.Fill,
@@ -183,9 +183,9 @@ namespace PremiumLivingOPS.Views.AfterService
                 Padding         = new Padding(18, 14, 18, 14)
             };
             tblCard.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  60f));  // title
-            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute, 125f));  // fields
-            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  65f));  // buttons
+            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  60f));
+            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute, 125f));
+            tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  65f));
 
             var pnlTitle = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             var lblTitle = new Label
@@ -218,7 +218,6 @@ namespace PremiumLivingOPS.Views.AfterService
 
             // ════════════════════════════════════════════════════════════════
             // KPI Bar — pills (Fill left) + AP Verify button (Right)
-            // Mirrors ViewOrderForm's pnlActionBtns pattern exactly.
             // ════════════════════════════════════════════════════════════════
             pnlKpi = new Panel
             {
@@ -250,7 +249,7 @@ namespace PremiumLivingOPS.Views.AfterService
             var pnlActionBtns = new Panel
             {
                 Dock      = DockStyle.Right,
-                Width     = BtnPad + BtnW + BtnPad,  // 12+210+12 = 234
+                Width     = BtnPad + BtnW + BtnPad,
                 BackColor = Color.Transparent
             };
 
@@ -263,10 +262,9 @@ namespace PremiumLivingOPS.Views.AfterService
             pnlActionBtns.Controls.Add(btnVerify);
             pnlActionBtns.Resize += (s, e) => CentreVerifyBtn();
 
-            // Container: pills fill left, action button docked right
             var pnlKpiRow = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            pnlKpiRow.Controls.Add(pnlKpi);        // Fill  — pills added at runtime
-            pnlKpiRow.Controls.Add(pnlActionBtns); // Right — must be added AFTER Fill
+            pnlKpiRow.Controls.Add(pnlKpi);
+            pnlKpiRow.Controls.Add(pnlActionBtns);
 
             var pnlKpiInner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
             pnlKpiInner.Paint += PaintCardBorder;
@@ -282,6 +280,10 @@ namespace PremiumLivingOPS.Views.AfterService
             pnlKpiOuter.Controls.Add(pnlKpiInner);
 
             // ── AP Grid
+            // Columns sourced from PurchaseInvoice + AccountPayableEntity:
+            //   PurInvoiceID, PurchaseID, SupplierName (JOIN),
+            //   TotalAmount, PaidAmount, RemainingBalance,   ← schema-backed
+            //   PaymentStatus / IsOverdue, ExpectedDate
             dgvAP = new DataGridView
             {
                 ReadOnly              = true,
@@ -317,12 +319,15 @@ namespace PremiumLivingOPS.Views.AfterService
                     Padding            = new Padding(12, 6, 12, 6)
                 }
             };
-            dgvAP.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPurInvID",  HeaderText = "PUR. INVOICE ID", FillWeight = 18 });
-            dgvAP.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPurchaseID",HeaderText = "PURCHASE ORDER",  FillWeight = 16 });
-            dgvAP.Columns.Add(new DataGridViewTextBoxColumn { Name = "colSupplier",  HeaderText = "SUPPLIER",         FillWeight = 22 });
-            dgvAP.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTotal",     HeaderText = "TOTAL (HK$)",      FillWeight = 14 });
-            dgvAP.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",    HeaderText = "STATUS",           FillWeight = 12 });
-            dgvAP.Columns.Add(new DataGridViewTextBoxColumn { Name = "colExpected",  HeaderText = "EXPECTED DATE",    FillWeight = 14 });
+            // 8 columns — all values backed by PurchaseInvoice / AccountPayableEntity
+            dgvAP.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPurInvID",   HeaderText = "PUR. INVOICE ID",  FillWeight = 15 });
+            dgvAP.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPurchaseID",  HeaderText = "PURCHASE ORDER",   FillWeight = 13 });
+            dgvAP.Columns.Add(new DataGridViewTextBoxColumn { Name = "colSupplier",    HeaderText = "SUPPLIER",          FillWeight = 18 });
+            dgvAP.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTotal",       HeaderText = "TOTAL (HK$)",       FillWeight = 12 });
+            dgvAP.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPaid",        HeaderText = "PAID (HK$)",        FillWeight = 12 });
+            dgvAP.Columns.Add(new DataGridViewTextBoxColumn { Name = "colBalance",     HeaderText = "BALANCE (HK$)",     FillWeight = 12 });
+            dgvAP.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",      HeaderText = "STATUS",            FillWeight = 10 });
+            dgvAP.Columns.Add(new DataGridViewTextBoxColumn { Name = "colExpected",    HeaderText = "EXPECTED DATE",     FillWeight = 12 });
             dgvAP.CellFormatting += dgvAP_CellFormatting;
 
             var pnlGridCard  = new Panel { Dock = DockStyle.Fill, Padding = new Padding(20, 12, 20, 0), BackColor = Color.FromArgb(240, 244, 249) };
@@ -331,17 +336,15 @@ namespace PremiumLivingOPS.Views.AfterService
             pnlGridInner.Controls.Add(dgvAP);
             pnlGridCard.Controls.Add(pnlGridInner);
 
-            // ── Assemble (same stacking order as ViewOrderForm)
-            pnlMain.Controls.Add(pnlGridCard);    // Fill  — grid
-            pnlMain.Controls.Add(pnlKpiOuter);    // Top   — KPI bar
-            pnlMain.Controls.Add(pnlSearchOuter); // Top   — Search card
-            pnlMain.Controls.Add(_shell);         // Top   — nav chrome (topmost)
+            pnlMain.Controls.Add(pnlGridCard);
+            pnlMain.Controls.Add(pnlKpiOuter);
+            pnlMain.Controls.Add(pnlSearchOuter);
+            pnlMain.Controls.Add(_shell);
 
             this.Controls.Add(pnlMain);
             this.ResumeLayout(false);
         }
 
-        // ── Button factories (same palette as ViewOrderForm)
         private static Button MakePrimaryBtn(string text, Point loc, int w, int h)
         {
             var b = new Button
@@ -375,7 +378,6 @@ namespace PremiumLivingOPS.Views.AfterService
             return b;
         }
 
-        // ── Border painter (same as ViewOrderForm)
         private static void PaintCardBorder(object s, PaintEventArgs e)
         {
             var p = (Panel)s;

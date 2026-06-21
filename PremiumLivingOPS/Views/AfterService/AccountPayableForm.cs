@@ -37,7 +37,6 @@ namespace PremiumLivingOPS.Views.AfterService
             string statusSel    = cboStatus.SelectedItem?.ToString();
             string statusFilter = (statusSel == "All" || string.IsNullOrEmpty(statusSel)) ? null : statusSel;
 
-            // Combine Invoice No. and Supplier into a single keyword pass
             string invoiceKw  = txtSearchInvoiceNo.Text.Trim();
             string supplierKw = txtSearchSupplier.Text.Trim();
             string keyword    = !string.IsNullOrEmpty(invoiceKw)  ? invoiceKw
@@ -48,7 +47,7 @@ namespace PremiumLivingOPS.Views.AfterService
 
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
-            _shell.SetBreadcrumb("After-Service  ›  Account Payable");
+            _shell.SetBreadcrumb("After-Service  \u203a  Account Payable");
 
             _currentItems = vm.Items;
 
@@ -59,13 +58,14 @@ namespace PremiumLivingOPS.Views.AfterService
                     item.PurchaseID,
                     item.SupplierName,
                     $"HK$ {item.TotalAmount:N2}",
+                    $"HK$ {item.PaidAmount:N2}",
+                    $"HK$ {item.RemainingBalance:N2}",
                     item.IsOverdue ? "Overdue" : item.PaymentStatus,
                     item.ExpectedDate.ToString("yyyy-MM-dd"));
 
             RefreshKpi();
         }
 
-        // Name must match Designer.cs: btnRefresh.Click += (s,e) => ResetFilters();
         private void ResetFilters()
         {
             txtSearchInvoiceNo.Text = string.Empty;
@@ -75,33 +75,32 @@ namespace PremiumLivingOPS.Views.AfterService
             RefreshGrid();
         }
 
-        // ── KPI Pills (rendered at runtime into pnlKpi declared in Designer.cs) ─────────────
+        // ── KPI Pills: Total + 3 PaymentStatus (Partial / Full / Overdue)
+        // PurchaseInvoice.PaymentStatus ENUM('Partial','Full'); Overdue = C# computed property
         private void RefreshKpi()
         {
             pnlKpi.Controls.Clear();
 
             var all = _ctrl.GetAccountPayableVM().Items;
 
-            int    totalCount   = all.Count;
-            double outstanding  = 0;
-            int    overdueCount = 0;
-            int    partialCount = 0;
-            int    fullCount    = 0;
+            int totalCount   = all.Count;
+            int overdueCount = 0;
+            int partialCount = 0;
+            int fullCount    = 0;
 
             foreach (var i in all)
             {
-                if (i.PaymentStatus != "Full") outstanding += i.TotalAmount;
                 if (i.IsOverdue)                 overdueCount++;
                 if (i.PaymentStatus == "Partial") partialCount++;
                 if (i.PaymentStatus == "Full")    fullCount++;
             }
 
+            // 4 pills: Total PO Invoices | Partial | Full | Overdue
             var pills = new[]
             {
                 ("Total PO Invoices", totalCount.ToString(),   Color.FromArgb( 19,  35,  61), Color.FromArgb(219, 234, 254)),
-                ("Outstanding (HK$)", $"{outstanding:N0}",     Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199)),
-                ("Partial",           partialCount.ToString(), Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254)),
-                ("Fully Paid",        fullCount.ToString(),    Color.FromArgb( 22, 101,  52), Color.FromArgb(220, 252, 231)),
+                ("Partial",           partialCount.ToString(), Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199)),
+                ("Full",              fullCount.ToString(),    Color.FromArgb( 22, 101,  52), Color.FromArgb(220, 252, 231)),
                 ("Overdue",           overdueCount.ToString(), Color.FromArgb(185,  28,  28), Color.FromArgb(254, 226, 226)),
             };
 
@@ -177,11 +176,10 @@ namespace PremiumLivingOPS.Views.AfterService
                 flow.Controls.Add(pill);
             }
 
-            // Pills fill pnlKpi; btnVerify is already placed in pnlActionBtns (Designer.cs)
             pnlKpi.Controls.Add(flow);
         }
 
-        // ── AP Verification button handler (btnVerify declared + wired in Designer.cs) ─────────
+        // ── AP Verification button handler
         private void BtnVerify_Click(object sender, EventArgs e)
         {
             if (dgvAP.SelectedRows.Count == 0)
@@ -225,7 +223,7 @@ namespace PremiumLivingOPS.Views.AfterService
             dlg.ShowDialog(this);
         }
 
-        // ── CellFormatting ────────────────────────────────────────────────────────
+        // ── CellFormatting
         private void dgvAP_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
             if (e.RowIndex < 0 || e.RowIndex >= _currentItems.Count) return;
