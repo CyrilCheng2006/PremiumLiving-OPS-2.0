@@ -27,17 +27,18 @@ namespace PremiumLivingOPS.Controllers
         public ShipmentEntity GetShipmentById(string shipmentId)
             => _repo.GetShipmentById(shipmentId);
 
-        public List<ShipmentItemEntity> GetShipmentItems(string shipmentId)
-            => _repo.GetShipmentItems(shipmentId);
+        /// <summary>Returns line items (ShipmentLine rows) for the given shipment.</summary>
+        public List<ShipmentLineEntity> GetShipmentLines(string shipmentId)
+            => _repo.GetShipmentLines(shipmentId);
 
         public string GenerateNextShipmentId() => _repo.GenerateNextShipmentId();
 
         // ── Shipment WRITE ───────────────────────────────────────────────
 
         /// <summary>Creates a new shipment record and logs the CREATE.</summary>
-        public bool CreateShipment(ShipmentEntity shipment, List<ShipmentItemEntity> items)
+        public bool CreateShipment(ShipmentEntity shipment, List<ShipmentLineEntity> lines)
         {
-            bool ok = _repo.CreateShipment(shipment, items);
+            bool ok = _repo.CreateShipment(shipment, lines);
             if (ok)
                 AuditLogger.Write(AuditLogger.TYPE_CREATE, "Shipment",
                     oldValue: null,
@@ -45,8 +46,8 @@ namespace PremiumLivingOPS.Controllers
                         ("ID",      shipment.ShipmentID),
                         ("Order",   shipment.OrderID ?? ""),
                         ("Status",  shipment.ShipmentStatus ?? ""),
-                        ("Carrier", shipment.Carrier ?? ""),
-                        ("Items",   (items?.Count ?? 0).ToString())));
+                        ("Method",  shipment.DeliveryMethod ?? ""),
+                        ("Lines",   (lines?.Count ?? 0).ToString())));
             return ok;
         }
 
