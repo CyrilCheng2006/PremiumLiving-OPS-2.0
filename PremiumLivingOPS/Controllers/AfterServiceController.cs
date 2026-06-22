@@ -1,111 +1,182 @@
-using System;
-using System.Collections.Generic;
 using PremiumLivingOPS.Models.DAL;
 using PremiumLivingOPS.Models.Entities;
-using PremiumLivingOPS.Services;
+using System;
+using System.Collections.Generic;
 
 namespace PremiumLivingOPS.Controllers
 {
     /// <summary>
-    /// Controller (MVC middle layer) for After-Service module.
-    /// All DB-write operations are audit-logged via AuditLogger.
-    /// Contains NO UI code.
-    /// ReturnOrder write methods live in AfterServiceController.ReturnOrder.cs (partial).
+    /// Controller (MVC middle layer) for the After-Service module.
+    /// Accepts requests from View layer, delegates to AfterServiceRepo,
+    /// and returns ViewModels. Contains NO UI code.
     /// </summary>
     public partial class AfterServiceController
     {
         private readonly AfterServiceRepo _repo = new AfterServiceRepo();
 
-        // ── Return Order READ ───────────────────────────────────────────────
-        // NOTE: CreateReturnOrder / UpdateReturnOrderStatus live in
-        //       AfterServiceController.ReturnOrder.cs (partial). Only READ here.
-
-        public List<ReturnOrderEntity> GetReturnOrders(string keyword = null, string status = null)
-            => _repo.SearchReturnOrders(keyword, status);
-
-        public string GenerateNextReturnOrderId() => _repo.GenerateNextReturnOrderId();
-
-        // ── Account Payable ───────────────────────────────────────────────
-
-        public List<AccountPayableEntity> GetAccountPayables(string keyword = null, string status = null)
-            => _repo.SearchAccountPayables(keyword, status);
-
-        // ── Account Receivable ────────────────────────────────────────────
-
-        public List<AccountReceivableEntity> GetAccountReceivables(string keyword = null)
-            => _repo.SearchAccountReceivables(keyword);
-
-        // ── Invoice (Customer Invoice / A/R) ──────────────────────────
-
-        public List<InvoiceEntity> GetInvoices(string keyword = null)
-            => _repo.SearchInvoices(keyword);
-
-        public string GenerateNextInvoiceId() => _repo.GenerateNextInvoiceId();
-
-        /// <summary>Creates a Customer Invoice and logs the CREATE.</summary>
-        public bool CreateInvoice(InvoiceEntity invoice)
+        // ── Helper: current user ─────────────────────────────────────────
+        private static UserBarViewModel CurrentUserBar()
         {
-            bool ok = _repo.CreateInvoice(invoice);
-            if (ok)
-                AuditLogger.Write(AuditLogger.TYPE_CREATE, "Invoice",
-                    oldValue: null,
-                    newValue: AuditLogger.Snapshot(
-                        ("ID",      invoice.InvoiceID),
-                        ("Order",   invoice.OrderID ?? ""),
-                        ("Total",   invoice.TotalAmount.ToString("F2")),
-                        ("Status",  invoice.PaymentStatus ?? ""),
-                        ("DueDate", invoice.DueDate.ToString("yyyy-MM-dd"))));
-            return ok;
+            var u = SessionManager.CurrentUser;
+            return new UserBarViewModel
+            {
+                DisplayName = u?.StaffName  ?? "Unknown",
+                Department  = u?.Department ?? ""
+            };
         }
 
-        /// <summary>Updates Invoice status and logs the EDIT.</summary>
-        public bool UpdateInvoiceStatus(string invoiceId, string newStatus)
+        private static string[] CurrentMenus()
+            => NavAccessPolicy.GetAllowedMenus(SessionManager.CurrentUser?.Department ?? "");
+
+        // ════════════════════════════════════════════════════════════════════
+        //  Create Invoice
+        // ════════════════════════════════════════════════════════════════════
+
+        public CreateInvoiceViewModel GetCreateInvoiceVM()
         {
-            bool ok = _repo.UpdateInvoiceStatus(invoiceId, newStatus);
-            if (ok)
-                AuditLogger.Write(AuditLogger.TYPE_EDIT, "Invoice",
-                    oldValue: AuditLogger.Snapshot(("ID", invoiceId)),
-                    newValue: AuditLogger.Snapshot(
-                        ("ID",     invoiceId),
-                        ("Status", newStatus)));
-            return ok;
+            return new CreateInvoiceViewModel
+            {
+                UserBar      = CurrentUserBar(),
+                AllowedMenus = CurrentMenus(),
+                Orders       = _repo.GetOrdersWithoutInvoice()
+            };
         }
 
-        // ── Complaint ──────────────────────────────────────────────────
-
-        public List<ComplaintEntity> GetComplaints(string keyword = null, string status = null)
-            => _repo.SearchComplaints(keyword, status);
-
-        /// <summary>Creates a Complaint and logs the CREATE.</summary>
-        public bool CreateComplaint(ComplaintEntity complaint)
+        public string GenerateInvoiceId()
         {
-            bool ok = _repo.CreateComplaint(complaint);
-            if (ok)
-                AuditLogger.Write(AuditLogger.TYPE_CREATE, "Complaint",
-                    oldValue: null,
-                    newValue: AuditLogger.Snapshot(
-                        ("ID",     complaint.ComplaintID),
-                        ("Order",  complaint.OrderID ?? ""),
-                        ("Status", complaint.ComplaintStatus ?? "")));
-            return ok;
+            string prefix   = "INV-" + DateTime.Today.ToString("yyyyMMdd") + "-";
+            var    existing = _repo.GetInvoiceIdsByPrefix(prefix);
+            int    next     = 1;
+            foreach (var id in existing)
+            {
+                if (id.Length >= prefix.Length + 4 &&
+                    int.TryParse(id.Substring(prefix.Length, 4), out int seq) &&
+                    seq >= next)
+                    next = seq + 1;
+            }
+            return $"{prefix}{next:D4}";
         }
 
-        /// <summary>Updates Complaint status and logs the EDIT.</summary>
+        public bool SaveInvoice(InvoiceEntity inv)
+        {
+            if (string.IsNullOrWhiteSpace(inv.InvoiceID))
+                inv.InvoiceID = GenerateInvoiceId();
+            inv.RemainingBalance = Math.Max(0, inv.TotalAmount - inv.PaidAmount);
+            inv.PaymentStatus    = inv.RemainingBalance <= 0 ? "Full" : "Partial";
+            return _repo.CreateInvoice(inv);
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        //  Complaint List
+        // ════════════════════════════════════════════════════════════════════
+
+        public ComplaintListViewModel GetComplaintListVM(string status = null, string keyword = null)
+        {
+            return new ComplaintListViewModel
+            {
+                UserBar      = CurrentUserBar(),
+                AllowedMenus = CurrentMenus(),
+                Complaints   = _repo.SearchComplaints(status, keyword)
+            };
+        }
+
         public bool UpdateComplaintStatus(string complaintId, string newStatus)
+            => _repo.UpdateComplaintStatus(complaintId, newStatus);
+
+        public List<(string StaffID, string StaffName)> GetStaffList()
+            => _repo.GetStaffList();
+
+        public bool CreateComplaint(ComplaintEntity c)
         {
-            bool ok = _repo.UpdateComplaintStatus(complaintId, newStatus);
-            if (ok)
-                AuditLogger.Write(AuditLogger.TYPE_EDIT, "Complaint",
-                    oldValue: AuditLogger.Snapshot(("ID", complaintId)),
-                    newValue: AuditLogger.Snapshot(
-                        ("ID",     complaintId),
-                        ("Status", newStatus)));
-            return ok;
+            if (string.IsNullOrWhiteSpace(c.ComplaintID))
+                c.ComplaintID = _repo.GenerateComplaintId();
+            if (string.IsNullOrWhiteSpace(c.ComplaintStatus))
+                c.ComplaintStatus = "Pending";
+            return _repo.CreateComplaint(c);
         }
 
-        // ── AP 3-Way Verification ────────────────────────────────────────
+        // ════════════════════════════════════════════════════════════════════
+        //  Return Order List
+        // ════════════════════════════════════════════════════════════════════
 
-        public APVerificationDetailVM GetAPVerificationDetail(string purInvoiceId)
-            => _repo.GetAPVerificationDetail(purInvoiceId);
+        public ReturnOrderListViewModel GetReturnOrderListVM(string status = null, string keyword = null)
+        {
+            return new ReturnOrderListViewModel
+            {
+                UserBar      = CurrentUserBar(),
+                AllowedMenus = CurrentMenus(),
+                ReturnOrders = _repo.SearchReturnOrders(status, keyword)
+            };
+        }
+
+        public bool UpdateReturnOrderStatus(string returnId, string newStatus)
+            => _repo.UpdateReturnOrderStatus(returnId, newStatus);
+
+        // NOTE: Create / Picker / GenerateId methods live in AfterServiceController.ReturnOrder.cs
+
+        // ════════════════════════════════════════════════════════════════════
+        //  Account Receivable
+        // ════════════════════════════════════════════════════════════════════
+
+        public AccountReceivableViewModel GetAccountReceivableVM(string status = null, string keyword = null)
+        {
+            return new AccountReceivableViewModel
+            {
+                UserBar      = CurrentUserBar(),
+                AllowedMenus = CurrentMenus(),
+                Items        = _repo.SearchAccountReceivables(status, keyword)
+            };
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        //  Invoice List + Record Payment  (Account Receivable popup)
+        // ════════════════════════════════════════════════════════════════════
+
+        public InvoiceListViewModel GetInvoiceListVM(string keyword = null)
+        {
+            return new InvoiceListViewModel
+            {
+                UserBar      = CurrentUserBar(),
+                AllowedMenus = CurrentMenus(),
+                Invoices     = _repo.GetInvoiceDetails(keyword)
+            };
+        }
+
+        public string GenerateTransactionId()
+            => _repo.GenerateTransactionId();
+
+        /// <summary>
+        /// Records a payment transaction for an invoice.
+        /// Amount must be > 0 and ≤ invoice RemainingBalance.
+        /// </summary>
+        public bool RecordPayment(string invoiceId, double amount, string txnType)
+        {
+            if (amount <= 0)
+                throw new ArgumentException("Payment amount must be greater than zero.");
+
+            var txn = new TransactionEntity
+            {
+                TransactionID   = GenerateTransactionId(),
+                InvoiceID       = invoiceId,
+                Amount          = amount,
+                TransactionDate = DateTime.Today,
+                TransactionType = txnType
+            };
+            return _repo.RecordPayment(txn);
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        //  Account Payable
+        // ════════════════════════════════════════════════════════════════════
+
+        public AccountPayableViewModel GetAccountPayableVM(string status = null, string keyword = null)
+        {
+            return new AccountPayableViewModel
+            {
+                UserBar      = CurrentUserBar(),
+                AllowedMenus = CurrentMenus(),
+                Items        = _repo.SearchAccountPayables(status, keyword)
+            };
+        }
     }
 }

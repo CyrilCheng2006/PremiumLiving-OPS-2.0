@@ -1,170 +1,172 @@
-using System;
-using System.Collections.Generic;
 using PremiumLivingOPS.Models.DAL;
 using PremiumLivingOPS.Models.Entities;
-using PremiumLivingOPS.Services;
+using System.Collections.Generic;
 
 namespace PremiumLivingOPS.Controllers
 {
-    /// <summary>
-    /// Controller (MVC middle layer) for Inventory Control.
-    /// Covers: Products, Raw Materials, Warehouse Items, Inward Goods, Warehouse Transfer.
-    /// All DB-write operations are audit-logged via AuditLogger.
-    /// Contains NO UI code.
-    /// </summary>
     public class InventoryControlController
     {
         private readonly InventoryControlRepo _repo = new InventoryControlRepo();
 
-        // ── Product ────────────────────────────────────────────────────
+        // ════════════════════════════════════════════════════════════════
+        //  PRODUCT — read
+        // ════════════════════════════════════════════════════════════════
 
-        public List<ProductEntity> SearchProducts(string keyword = null)
-            => _repo.SearchProducts(keyword);
-
-        public ProductEntity GetProductById(string itemId)
-            => _repo.GetProductById(itemId);
-
-        public bool AddProduct(ProductEntity product)
+        public ViewProductViewModel GetViewProductVM(string keyword = null, string category = null)
         {
-            bool ok = _repo.InsertProduct(product);
-            if (ok)
-                AuditLogger.Write(AuditLogger.TYPE_CREATE, "Product",
-                    oldValue: null,
-                    newValue: AuditLogger.Snapshot(
-                        ("ID",       product.ItemID),
-                        ("Name",     product.ItemName),
-                        ("Category", product.Category ?? ""),
-                        ("Price",    product.SalesPrice.ToString("F2"))));
-            return ok;
+            var user = SessionManager.CurrentUser;
+            return new ViewProductViewModel
+            {
+                UserBar      = new UserBarViewModel { DisplayName = user?.StaffName ?? "Unknown", Department = user?.Department ?? "" },
+                AllowedMenus = NavAccessPolicy.GetAllowedMenus(user?.Department),
+                Products     = _repo.SearchProducts(keyword, category)
+            };
         }
 
-        public bool UpdateProduct(ProductEntity product)
-        {
-            var old = _repo.GetProductById(product.ItemID);
-            string oldSnap = old == null ? product.ItemID
-                : AuditLogger.Snapshot(
-                    ("ID",   old.ItemID),
-                    ("Name", old.ItemName),
-                    ("Cat",  old.Category ?? ""));
+        public List<string> GetProductCategories() => _repo.GetProductCategories();
 
-            bool ok = _repo.UpdateProduct(product);
-            if (ok)
-                AuditLogger.Write(AuditLogger.TYPE_EDIT, "Product",
-                    oldValue: oldSnap,
-                    newValue: AuditLogger.Snapshot(
-                        ("ID",   product.ItemID),
-                        ("Name", product.ItemName),
-                        ("Cat",  product.Category ?? "")));
-            return ok;
+        public ModifyProductViewModel GetModifyProductVM(string itemId)
+        {
+            var user = SessionManager.CurrentUser;
+            return new ModifyProductViewModel
+            {
+                UserBar            = new UserBarViewModel { DisplayName = user?.StaffName ?? "Unknown", Department = user?.Department ?? "" },
+                AllowedMenus       = NavAccessPolicy.GetAllowedMenus(user?.Department),
+                Product            = _repo.GetProductById(itemId),
+                WarehouseBreakdown = _repo.GetWarehouseItemsByItemId(itemId),
+                Warehouses         = _repo.GetAllWarehouses()
+            };
         }
 
-        public bool DeleteProduct(string itemId)
+        public AddProductViewModel GetAddProductVM()
         {
-            var old = _repo.GetProductById(itemId);
-            string oldSnap = old == null ? itemId
-                : AuditLogger.Snapshot(("ID", old.ItemID), ("Name", old.ItemName));
-
-            bool ok = _repo.DeleteProduct(itemId);
-            if (ok)
-                AuditLogger.Write(AuditLogger.TYPE_DELETE, "Product",
-                    oldValue: oldSnap, newValue: null);
-            return ok;
+            var user = SessionManager.CurrentUser;
+            return new AddProductViewModel
+            {
+                UserBar      = new UserBarViewModel { DisplayName = user?.StaffName ?? "Unknown", Department = user?.Department ?? "" },
+                AllowedMenus = NavAccessPolicy.GetAllowedMenus(user?.Department),
+                Categories   = new System.Collections.Generic.List<string> { "Sofa", "Bed", "Table", "Chair", "Cabinet" },
+                Warehouses   = _repo.GetAllWarehouses()
+            };
         }
 
-        // ── Raw Material ───────────────────────────────────────────────
+        // ════════════════════════════════════════════════════════════════
+        //  PRODUCT — write
+        // ════════════════════════════════════════════════════════════════
 
-        public List<RawMaterialEntity> SearchRawMaterials(string keyword = null)
-            => _repo.SearchRawMaterials(keyword);
+        public void SubmitAddProduct(string itemId, string itemName, string itemDesc,
+                                     string category, double salesPrice,
+                                     string warehouseId, int initialQty, int reorderLevel)
+            => _repo.AddProduct(itemId, itemName, itemDesc, category, salesPrice, warehouseId, initialQty, reorderLevel);
 
-        public RawMaterialEntity GetRawMaterialById(string itemId)
-            => _repo.GetRawMaterialById(itemId);
+        public void SubmitUpdateProduct(string itemId, string itemName, string itemDesc,
+                                        string category, double salesPrice)
+            => _repo.UpdateProduct(itemId, itemName, itemDesc, category, salesPrice);
 
-        public bool AddRawMaterial(RawMaterialEntity material)
+        public void DeleteProduct(string itemId) => _repo.DeleteProduct(itemId);
+
+        public string GenerateNextProductItemId()     => _repo.GenerateNextProductItemId();
+        public string GenerateNextRawMaterialItemId() => _repo.GenerateNextRawMaterialItemId();
+        public bool   IsItemIdExists(string itemId)   => _repo.IsItemIdExists(itemId);
+
+        // ════════════════════════════════════════════════════════════════
+        //  RAW MATERIAL — read
+        // ════════════════════════════════════════════════════════════════
+
+        public ViewRawMaterialViewModel GetViewRawMaterialVM(string keyword = null, string category = null)
         {
-            bool ok = _repo.InsertRawMaterial(material);
-            if (ok)
-                AuditLogger.Write(AuditLogger.TYPE_CREATE, "RawMaterial",
-                    oldValue: null,
-                    newValue: AuditLogger.Snapshot(
-                        ("ID",   material.MaterialID),
-                        ("Name", material.MaterialName),
-                        ("Type", material.Category ?? "")));
-            return ok;
+            var user = SessionManager.CurrentUser;
+            return new ViewRawMaterialViewModel
+            {
+                UserBar      = new UserBarViewModel { DisplayName = user?.StaffName ?? "Unknown", Department = user?.Department ?? "" },
+                AllowedMenus = NavAccessPolicy.GetAllowedMenus(user?.Department),
+                Materials    = _repo.SearchRawMaterials(keyword, category)
+            };
         }
 
-        public bool UpdateRawMaterial(RawMaterialEntity material)
-        {
-            var old = _repo.GetRawMaterialById(material.MaterialID);
-            string oldSnap = old == null ? material.MaterialID
-                : AuditLogger.Snapshot(
-                    ("ID",   old.MaterialID),
-                    ("Name", old.MaterialName),
-                    ("Type", old.Category ?? ""));
+        public List<string> GetRawMaterialCategories() => _repo.GetRawMaterialCategories();
 
-            bool ok = _repo.UpdateRawMaterial(material);
-            if (ok)
-                AuditLogger.Write(AuditLogger.TYPE_EDIT, "RawMaterial",
-                    oldValue: oldSnap,
-                    newValue: AuditLogger.Snapshot(
-                        ("ID",   material.MaterialID),
-                        ("Name", material.MaterialName),
-                        ("Type", material.Category ?? "")));
-            return ok;
+        public ModifyRawMaterialViewModel GetModifyRawMaterialVM(string itemId)
+        {
+            var user = SessionManager.CurrentUser;
+            return new ModifyRawMaterialViewModel
+            {
+                UserBar            = new UserBarViewModel { DisplayName = user?.StaffName ?? "Unknown", Department = user?.Department ?? "" },
+                AllowedMenus       = NavAccessPolicy.GetAllowedMenus(user?.Department),
+                Material           = _repo.GetRawMaterialById(itemId),
+                WarehouseBreakdown = _repo.GetWarehouseItemsByItemId(itemId),
+                Warehouses         = _repo.GetAllWarehouses()
+            };
         }
 
-        public bool DeleteRawMaterial(string itemId)
+        public AddRawMaterialViewModel GetAddRawMaterialVM()
         {
-            var old = _repo.GetRawMaterialById(itemId);
-            string oldSnap = old == null ? itemId
-                : AuditLogger.Snapshot(("ID", old.MaterialID), ("Name", old.MaterialName));
-
-            bool ok = _repo.DeleteRawMaterial(itemId);
-            if (ok)
-                AuditLogger.Write(AuditLogger.TYPE_DELETE, "RawMaterial",
-                    oldValue: oldSnap, newValue: null);
-            return ok;
+            var user = SessionManager.CurrentUser;
+            return new AddRawMaterialViewModel
+            {
+                UserBar      = new UserBarViewModel { DisplayName = user?.StaffName ?? "Unknown", Department = user?.Department ?? "" },
+                AllowedMenus = NavAccessPolicy.GetAllowedMenus(user?.Department),
+                Categories   = new System.Collections.Generic.List<string> { "Wood", "Metal", "Fabric", "Foam", "Glass", "Paint" },
+                Warehouses   = _repo.GetAllWarehouses()
+            };
         }
 
-        // ── Warehouse ─────────────────────────────────────────────────
+        // ════════════════════════════════════════════════════════════════
+        //  RAW MATERIAL — write
+        // ════════════════════════════════════════════════════════════════
 
-        public List<WarehouseEntity> GetAllWarehouses() => _repo.GetAllWarehouses();
+        public void SubmitAddRawMaterial(string itemId, string itemName, string itemDesc,
+                                         string materialType, double purchasePrice,
+                                         string warehouseId, int initialQty, int reorderLevel)
+            => _repo.AddRawMaterial(itemId, itemName, itemDesc, materialType, purchasePrice, warehouseId, initialQty, reorderLevel);
 
-        // ── Warehouse Item ──────────────────────────────────────────────
+        public void SubmitUpdateRawMaterial(string itemId, string itemName, string itemDesc,
+                                            string materialType, double purchasePrice)
+            => _repo.UpdateRawMaterial(itemId, itemName, itemDesc, materialType, purchasePrice);
 
-        public List<WarehouseItemEntity> GetWarehouseItems(string itemId = null, string warehouseId = null)
-            => _repo.GetWarehouseItems(itemId, warehouseId);
+        public void DeleteRawMaterial(string itemId) => _repo.DeleteRawMaterial(itemId);
 
-        /// <summary>Inward Goods: adds stock to a WarehouseItem and logs EDIT.</summary>
-        public bool InwardGoods(string warehouseItemId, int qty)
+        // ════════════════════════════════════════════════════════════════
+        //  INWARD GOODS
+        // ════════════════════════════════════════════════════════════════
+
+        public InwardGoodsViewModel GetInwardGoodsVM()
         {
-            bool ok = _repo.AddStock(warehouseItemId, qty);
-            if (ok)
-                AuditLogger.Write(AuditLogger.TYPE_EDIT, "WarehouseItem",
-                    oldValue: AuditLogger.Snapshot(("WI", warehouseItemId)),
-                    newValue: AuditLogger.Snapshot(
-                        ("WI",    warehouseItemId),
-                        ("Delta", "+" + qty)));
-            return ok;
+            var user = SessionManager.CurrentUser;
+            return new InwardGoodsViewModel
+            {
+                UserBar      = new UserBarViewModel { DisplayName = user?.StaffName ?? "Unknown", Department = user?.Department ?? "" },
+                AllowedMenus = NavAccessPolicy.GetAllowedMenus(user?.Department),
+                Warehouses   = _repo.GetAllWarehouses(),
+                Items        = _repo.GetAllItemsLookup()
+            };
         }
 
-        /// <summary>Warehouse Transfer: moves qty between two WarehouseItems and logs EDIT.</summary>
-        public bool TransferStock(string fromWarehouseItemId, string toWarehouseItemId, int qty)
+        public void SubmitInwardGoods(string itemId, string warehouseId, int qty)
+            => _repo.RecordInwardGoods(itemId, warehouseId, qty);
+
+        // ════════════════════════════════════════════════════════════════
+        //  WAREHOUSE TRANSFER
+        // ════════════════════════════════════════════════════════════════
+
+        public WarehouseTransferViewModel GetWarehouseTransferVM()
         {
-            bool ok = _repo.TransferStock(fromWarehouseItemId, toWarehouseItemId, qty);
-            if (ok)
-                AuditLogger.Write(AuditLogger.TYPE_EDIT, "WarehouseItem",
-                    oldValue: AuditLogger.Snapshot(
-                        ("From", fromWarehouseItemId),
-                        ("To",   toWarehouseItemId)),
-                    newValue: AuditLogger.Snapshot(
-                        ("From",  fromWarehouseItemId),
-                        ("To",    toWarehouseItemId),
-                        ("Qty",   qty.ToString())));
-            return ok;
+            var user = SessionManager.CurrentUser;
+            return new WarehouseTransferViewModel
+            {
+                UserBar         = new UserBarViewModel { DisplayName = user?.StaffName ?? "Unknown", Department = user?.Department ?? "" },
+                AllowedMenus    = NavAccessPolicy.GetAllowedMenus(user?.Department),
+                Warehouses      = _repo.GetAllWarehouses(),
+                WarehouseItems  = _repo.GetAllWarehouseItems(),
+                NextTransferID  = _repo.GenerateNextTransferId()
+            };
         }
 
-        // ── Lookup helpers (no logging needed) ────────────────────────
+        public void SubmitWarehouseTransfer(string transferId, string fromWarehouseItemId,
+                                            string toWarehouseId, int qty)
+            => _repo.RecordWarehouseTransfer(transferId, fromWarehouseItemId, toWarehouseId, qty);
 
-        public List<ItemLookup> GetItemLookups() => _repo.GetItemLookups();
+        public List<WarehouseEntity>     GetAllWarehouses()                     => _repo.GetAllWarehouses();
+        public List<WarehouseItemEntity> GetWarehouseItemsByItem(string itemId) => _repo.GetWarehouseItemsByItemId(itemId);
     }
 }

@@ -1,94 +1,107 @@
-using System;
-using System.Collections.Generic;
 using PremiumLivingOPS.Models.DAL;
 using PremiumLivingOPS.Models.Entities;
 using PremiumLivingOPS.Models.ViewModels;
-using PremiumLivingOPS.Services;
+using System;
+using System.Collections.Generic;
 
 namespace PremiumLivingOPS.Controllers
 {
     /// <summary>
-    /// Controller (MVC middle layer) for Production Processing.
-    /// Covers: Raw Material Requests + (future) Production Order management.
-    /// All DB-write operations are audit-logged via AuditLogger.
-    /// Contains NO UI code.
+    /// Controller (middle layer) for Production Processing module.
+    /// The View never accesses ProductionProcessingRepo or the DB directly.
     /// </summary>
     public class ProductionProcessingController
     {
         private readonly ProductionProcessingRepo _repo = new ProductionProcessingRepo();
 
-        // ── Material Request ──────────────────────────────────────────────
+        // ════════════════════════════════════════════════════════════════
+        //  SEARCH RAW MATERIAL REQUEST
+        // ════════════════════════════════════════════════════════════════
 
         public SearchMaterialRequestViewModel GetSearchMaterialRequestVM(
-            string keyword = null,
-            string status  = null)
+            string keyword     = null,
+            string urgency     = null,
+            string triggerType = null,
+            bool   linkedOnly  = false)
         {
             var user = SessionManager.CurrentUser;
             return new SearchMaterialRequestViewModel
             {
-                UserBar      = new UserBarViewModel { DisplayName = user?.StaffName ?? "Unknown", Department = user?.Department ?? "" },
-                AllowedMenus = NavAccessPolicy.GetAllowedMenus(user?.Department ?? ""),
-                Requests     = _repo.SearchMaterialRequests(keyword, status)
+                UserBar      = new UserBarViewModel
+                {
+                    DisplayName = user?.StaffName  ?? "Unknown",
+                    Department  = user?.Department ?? ""
+                },
+                AllowedMenus = NavAccessPolicy.GetAllowedMenus(user?.Department),
+                Requests     = _repo.SearchMaterialRequests(keyword, urgency, triggerType, linkedOnly)
             };
         }
+
+        // ════════════════════════════════════════════════════════════════
+        //  MATERIAL REQUEST DETAIL
+        // ════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Returns full detail for a single Material Request (used by the detail dialog).
+        /// </summary>
+        public MaterialRequestDetailEntity GetMaterialRequestDetail(string requestId)
+            => _repo.GetMaterialRequestDetail(requestId);
+
+        // ════════════════════════════════════════════════════════════════
+        //  CREATE RAW MATERIAL REQUEST
+        // ════════════════════════════════════════════════════════════════
 
         public CreateMaterialRequestViewModel GetCreateMaterialRequestVM()
         {
             var user = SessionManager.CurrentUser;
             return new CreateMaterialRequestViewModel
             {
-                UserBar        = new UserBarViewModel { DisplayName = user?.StaffName ?? "Unknown", Department = user?.Department ?? "" },
-                AllowedMenus   = NavAccessPolicy.GetAllowedMenus(user?.Department ?? ""),
-                RawMaterials   = _repo.GetRawMaterialLookups(),
-                WarehouseItems = _repo.GetWarehouseItemLookups(),
-                Orders         = _repo.GetOrderLookups(),
+                UserBar        = new UserBarViewModel
+                {
+                    DisplayName = user?.StaffName  ?? "Unknown",
+                    Department  = user?.Department ?? ""
+                },
+                AllowedMenus   = NavAccessPolicy.GetAllowedMenus(user?.Department),
+                RawMaterials   = _repo.GetAllRawMaterials(),
+                WarehouseItems = new List<WarehouseItemLookup>(), // populated after material is selected
+                Orders         = _repo.GetActiveOrders(),
                 NextRequestID  = _repo.GenerateNextRequestId()
             };
         }
 
+        /// <summary>
+        /// Returns WarehouseItems for the given raw material.
+        /// Called when the user selects a material in the form.
+        /// </summary>
+        public List<WarehouseItemLookup> GetWarehouseItemsForMaterial(string rawMaterialItemId)
+            => _repo.GetWarehouseItemsByMaterial(rawMaterialItemId);
+
+        public void SubmitCreateMaterialRequest(
+            string requestId, string orderId, string rawMaterialItemId,
+            string warehouseItemId, int requestedQty,
+            string urgencyLevel, string triggerType)
+        {
+            if (string.IsNullOrWhiteSpace(rawMaterialItemId))
+                throw new ArgumentException("Please select a Raw Material.");
+            if (string.IsNullOrWhiteSpace(warehouseItemId))
+                throw new ArgumentException("Please select a Warehouse / Stock Location.");
+            if (requestedQty <= 0)
+                throw new ArgumentException("Requested Quantity must be greater than 0.");
+            if (triggerType == "OrderDemand" && string.IsNullOrWhiteSpace(orderId))
+                throw new ArgumentException("An Order must be selected when Trigger Type is 'Order Demand'.");
+
+            string staffId = SessionManager.CurrentUser?.StaffId ?? "SYSTEM";
+
+            _repo.CreateMaterialRequest(
+                requestId, orderId, rawMaterialItemId,
+                warehouseItemId, requestedQty,
+                urgencyLevel, triggerType, staffId);
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  HELPERS
+        // ════════════════════════════════════════════════════════════════
+
         public string GenerateNextRequestId() => _repo.GenerateNextRequestId();
-
-        /// <summary>Creates a Material Request and logs the CREATE.</summary>
-        public bool CreateMaterialRequest(MaterialRequestEntity req)
-        {
-            bool ok = _repo.InsertMaterialRequest(req);
-            if (ok)
-                AuditLogger.Write(AuditLogger.TYPE_CREATE, "MaterialRequest",
-                    oldValue: null,
-                    newValue: AuditLogger.Snapshot(
-                        ("ID",       req.RequestID),
-                        ("Material", req.RawMaterialItemID ?? ""),
-                        ("Qty",      req.RequestedQty.ToString()),
-                        ("Urgency",  req.UrgencyLevel ?? "")));
-            return ok;
-        }
-
-        // ── Update Material Request Status ─────────────────────────────
-
-        // MaterialRequestEntity has no explicit Status column in the file;
-        // status updates delegate entirely to Repo.
-        public bool UpdateMaterialRequestStatus(string requestId, string newStatus)
-        {
-            bool ok = _repo.UpdateMaterialRequestStatus(requestId, newStatus);
-            if (ok)
-                AuditLogger.Write(AuditLogger.TYPE_EDIT, "MaterialRequest",
-                    oldValue: AuditLogger.Snapshot(("ID", requestId)),
-                    newValue: AuditLogger.Snapshot(
-                        ("ID",     requestId),
-                        ("Status", newStatus)));
-            return ok;
-        }
-
-        // ── Read helpers ──────────────────────────────────────────────
-
-        public List<MaterialRequestEntity> SearchMaterialRequests(string kw, string status)
-            => _repo.SearchMaterialRequests(kw, status);
-
-        public MaterialRequestDetailEntity GetMaterialRequestDetail(string requestId)
-            => _repo.GetMaterialRequestDetail(requestId);
-
-        public List<RawMaterialLookup>   GetRawMaterialLookups()   => _repo.GetRawMaterialLookups();
-        public List<WarehouseItemLookup> GetWarehouseItemLookups() => _repo.GetWarehouseItemLookups();
-        public List<OrderLookup>         GetOrderLookups()         => _repo.GetOrderLookups();
     }
 }
