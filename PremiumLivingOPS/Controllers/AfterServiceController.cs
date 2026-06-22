@@ -11,6 +11,7 @@ namespace PremiumLivingOPS.Controllers
     /// Controller (MVC middle layer) for After-Service module.
     /// All DB-write operations (PurchaseInvoice, ReturnOrder, AccountPayable) are audit-logged.
     /// Contains NO UI code.
+    /// ReturnOrder write methods live in AfterServiceController.ReturnOrder.cs (partial).
     /// </summary>
     public partial class AfterServiceController
     {
@@ -80,6 +81,9 @@ namespace PremiumLivingOPS.Controllers
         }
 
         // ── Return Order ───────────────────────────────────────────────
+        // NOTE: CreateReturnOrder, UpdateReturnOrderStatus, and all Return-Order
+        // write methods are defined in AfterServiceController.ReturnOrder.cs.
+        // Only READ helpers live here.
 
         public ReturnOrderListViewModel GetReturnOrderListVM(
             string keyword = null,
@@ -95,42 +99,6 @@ namespace PremiumLivingOPS.Controllers
         }
 
         public string GenerateNextReturnOrderId() => _repo.GenerateNextReturnOrderId();
-
-        /// <summary>Creates a Return Order and logs the CREATE.</summary>
-        public bool CreateReturnOrder(ReturnOrderEntity ro)
-        {
-            bool ok = _repo.CreateReturnOrder(ro);
-            if (ok)
-                AuditLogger.Write(AuditLogger.TYPE_CREATE, "ReturnOrder",
-                    oldValue: null,
-                    newValue: AuditLogger.Snapshot(
-                        ("ID",      ro.ReturnOrderID),
-                        ("Order",   ro.OrderID ?? ""),
-                        ("Reason",  ro.ReturnReason ?? ""),
-                        ("Status",  ro.ReturnStatus ?? ""),
-                        ("Total",   ro.TotalRefund.ToString("F2"))));
-            return ok;
-        }
-
-        /// <summary>Updates Return Order status and logs the EDIT.</summary>
-        public bool UpdateReturnOrderStatus(string returnId, string newStatus)
-        {
-            var old = _repo.GetReturnOrderById(returnId);
-            string oldSnap = old == null ? returnId
-                : AuditLogger.Snapshot(
-                    ("ID",     old.ReturnOrderID),
-                    ("Status", old.ReturnStatus ?? ""),
-                    ("Order",  old.OrderID ?? ""));
-
-            bool ok = _repo.UpdateReturnOrderStatus(returnId, newStatus);
-            if (ok)
-                AuditLogger.Write(AuditLogger.TYPE_EDIT, "ReturnOrder",
-                    oldValue: oldSnap,
-                    newValue: AuditLogger.Snapshot(
-                        ("ID",     returnId),
-                        ("Status", newStatus)));
-            return ok;
-        }
 
         // ── Account Payable ────────────────────────────────────────────
 
