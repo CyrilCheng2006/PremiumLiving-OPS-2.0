@@ -10,11 +10,7 @@ namespace PremiumLivingOPS.Controllers
     /// Controller (MVC middle layer) for After-Service module.
     /// All DB-write operations are audit-logged via AuditLogger.
     /// Contains NO UI code.
-    ///
-    /// Partial split:
-    ///   AfterServiceController.cs              ← this file (Invoice, Complaint, ReturnOrder READ, AccountPayable, AccountReceivable)
-    ///   AfterServiceController.ReturnOrder.cs  ← ReturnOrder WRITE methods
-    ///   AfterServiceController.APVerification.cs ← GetAPVerificationDetail
+    /// ReturnOrder write methods live in AfterServiceController.ReturnOrder.cs (partial).
     /// </summary>
     public partial class AfterServiceController
     {
@@ -107,7 +103,9 @@ namespace PremiumLivingOPS.Controllers
             return ok;
         }
 
-        // NOTE: GetAPVerificationDetail is defined in
-        //       AfterServiceController.APVerification.cs (partial).
+        // ── AP 3-Way Verification ────────────────────────────────────────
+
+        public APVerificationDetailVM GetAPVerificationDetail(string purInvoiceId)
+            => _repo.GetAPVerificationDetail(purInvoiceId);
     }
 }
