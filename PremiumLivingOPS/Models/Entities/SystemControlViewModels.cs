@@ -2,7 +2,7 @@ using System.Collections.Generic;
 
 namespace PremiumLivingOPS.Models.Entities
 {
-    // ── Log List ──────────────────────────────────────────────────────────────────
+    // ── Log List ──────────────────────────────────────────────────────────────────────────
     public class LogListViewModel
     {
         public UserBarViewModel     UserBar      { get; set; }
@@ -11,7 +11,7 @@ namespace PremiumLivingOPS.Models.Entities
         public List<AuditLogEntity> Logs         { get; set; } = new List<AuditLogEntity>();
     }
 
-    // ── Staff List ────────────────────────────────────────────────────────────────
+    // ── Staff List ──────────────────────────────────────────────────────────────────────────
     public class StaffListViewModel
     {
         public UserBarViewModel UserBar      { get; set; }

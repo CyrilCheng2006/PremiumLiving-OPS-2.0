@@ -15,7 +15,7 @@ namespace PremiumLivingOPS.Controllers
     {
         private readonly SystemControlRepo _repo = new SystemControlRepo();
 
-        // ═ Log List ═══════════════════════════════════════════════════════════════
+        // ═ Log List ═════════════════════════════════════════════════════
         public LogListViewModel GetLogListVM(string keyword = null)
         {
             var user = SessionManager.CurrentUser;
@@ -27,7 +27,7 @@ namespace PremiumLivingOPS.Controllers
             };
         }
 
-        // ═ Staff List ══════════════════════════════════════════════════════════════
+        // ═ Staff List ════════════════════════════════════════════════════
         public StaffListViewModel GetStaffListVM(string keyword = null)
         {
             var user = SessionManager.CurrentUser;

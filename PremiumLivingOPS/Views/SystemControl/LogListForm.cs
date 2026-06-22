@@ -4,7 +4,6 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
-using System.Drawing.Drawing2D;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -18,7 +17,7 @@ namespace PremiumLivingOPS.Views.SystemControl
 {
     public partial class LogListForm : Form
     {
-        // ── KPI label refs (populated in RefreshGrid) ────────────────────────────────
+        // ── KPI label refs (populated in RefreshGrid) ─────────────────────────────────────────
         private Label _lblTotal;
         private Label _lblToday;
         private Label _lblCreate;
@@ -26,7 +25,7 @@ namespace PremiumLivingOPS.Views.SystemControl
         private Label _lblDelete;
         private Label _lblLogin;
 
-        // ── Data ──────────────────────────────────────────────────────────────────
+        // ── Data ──────────────────────────────────────────────────────────────────────────
         private List<AuditLogEntity> _allLogs = new List<AuditLogEntity>();
         private readonly SystemControlController _ctrl = new SystemControlController();
 
@@ -81,6 +80,7 @@ namespace PremiumLivingOPS.Views.SystemControl
             dgvLogs.Rows.Clear();
             foreach (var l in logs)
             {
+                // AuditLogEntity has no LogID — use timestamp+staffID as a display key
                 string logKey = $"{l.Timestamp:yyyyMMdd-HHmmss} {l.StaffID ?? ""}".Trim();
 
                 int ri  = dgvLogs.Rows.Add();
@@ -105,7 +105,7 @@ namespace PremiumLivingOPS.Views.SystemControl
         }
 
         // =====================================================================
-        // KPI strip builder
+        // KPI strip builder (called after InitializeComponent)
         // =====================================================================
         private void RefreshKpi()
         {
@@ -116,138 +116,80 @@ namespace PremiumLivingOPS.Views.SystemControl
                 Dock          = DockStyle.Fill,
                 FlowDirection = FlowDirection.LeftToRight,
                 WrapContents  = false,
-                BackColor     = Color.Transparent,
+                BackColor     = System.Drawing.Color.Transparent,
                 Padding       = new Padding(0),
                 AutoScroll    = false
             };
 
             _lblTotal  = AddKpiPill(flow, "Total Logs",
-                Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254));
+                System.Drawing.Color.FromArgb( 47, 111, 237), System.Drawing.Color.FromArgb(219, 234, 254));
             _lblToday  = AddKpiPill(flow, "Today",
-                Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229));
+                System.Drawing.Color.FromArgb(  6,  95,  70), System.Drawing.Color.FromArgb(209, 250, 229));
             _lblCreate = AddKpiPill(flow, "CREATE",
-                Color.FromArgb( 22, 163,  74), Color.FromArgb(220, 252, 231));
+                System.Drawing.Color.FromArgb( 22, 163,  74), System.Drawing.Color.FromArgb(220, 252, 231));
             _lblEdit   = AddKpiPill(flow, "EDIT",
-                Color.FromArgb(161, 110,   0), Color.FromArgb(254, 243, 199));
+                System.Drawing.Color.FromArgb(161, 110,   0), System.Drawing.Color.FromArgb(254, 243, 199));
             _lblDelete = AddKpiPill(flow, "DELETE",
-                Color.FromArgb(185,  28,  28), Color.FromArgb(254, 226, 226));
+                System.Drawing.Color.FromArgb(185,  28,  28), System.Drawing.Color.FromArgb(254, 226, 226));
             _lblLogin  = AddKpiPill(flow, "LOGIN",
-                Color.FromArgb( 91,  33, 182), Color.FromArgb(237, 233, 254));
+                System.Drawing.Color.FromArgb( 91,  33, 182), System.Drawing.Color.FromArgb(237, 233, 254));
 
-            // ── Export TXT button — right side of KPI bar (210 × 60) ──────────
-            var btnExport = new Button
-            {
-                Text      = "\uD83D\uDCE5  Export Log TXT",
-                Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
-                ForeColor = Color.White,
-                BackColor = Color.FromArgb(19, 35, 61),
-                FlatStyle = FlatStyle.Flat,
-                Size      = new Size(210, 60),
-                Margin    = new Padding(16, 0, 0, 0),
-                Cursor    = Cursors.Hand
-            };
-            btnExport.FlatAppearance.BorderSize         = 0;
-            btnExport.FlatAppearance.MouseOverBackColor = Color.FromArgb(31, 54, 96);
-            btnExport.FlatAppearance.MouseDownBackColor = Color.FromArgb(10, 22, 41);
-            btnExport.Click += BtnExport_Click;
-
-            flow.Controls.Add(btnExport);
             pnlKpi.Controls.Add(flow);
         }
 
-        // =====================================================================
-        // Export TXT
-        // =====================================================================
-        private void BtnExport_Click(object sender, EventArgs e)
+        private static Label AddKpiPill(
+            FlowLayoutPanel flow, string title,
+            System.Drawing.Color fg, System.Drawing.Color bg)
         {
-            // Collect current filtered / all logs from the grid display
-            string kw = txtSearch.Text.Trim().ToLowerInvariant();
-            var toExport = string.IsNullOrEmpty(kw)
-                ? _allLogs
-                : _allLogs.Where(l =>
-                    (l.StaffID     ?? "").ToLowerInvariant().Contains(kw) ||
-                    (l.LogType     ?? "").ToLowerInvariant().Contains(kw) ||
-                    (l.TargetTable ?? "").ToLowerInvariant().Contains(kw) ||
-                    (l.StaffName   ?? "").ToLowerInvariant().Contains(kw)
-                  ).ToList();
+            const int PillW = 160, PillH = 60, Gap = 8, NumW = 60;
 
-            if (toExport.Count == 0)
+            var pill = new Panel
             {
-                MessageBox.Show("No log entries to export.",
-                    "Export", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
-
-            using var sfd = new SaveFileDialog
-            {
-                Title            = "Export Audit Log",
-                Filter           = "Text File (*.txt)|*.txt",
-                FileName         = $"AuditLog_Export_{DateTime.Now:yyyyMMdd_HHmmss}.txt",
-                InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.Desktop)
+                BackColor = bg,
+                Size      = new System.Drawing.Size(PillW, PillH),
+                Margin    = new Padding(0, 0, Gap, 0)
             };
 
-            if (sfd.ShowDialog() != DialogResult.OK) return;
-
-            try
+            var tlp = new TableLayoutPanel
             {
-                var sb = new StringBuilder();
-                sb.AppendLine("==============================================================");
-                sb.AppendLine($"  PREMIUM LIVING OPS — AUDIT LOG EXPORT");
-                sb.AppendLine($"  Exported by : {SessionManager.CurrentUser?.StaffName ?? "Unknown"}");
-                sb.AppendLine($"  Exported at : {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-                sb.AppendLine($"  Total Entries: {toExport.Count}");
-                if (!string.IsNullOrEmpty(kw))
-                    sb.AppendLine($"  Filter Keyword: \"{txtSearch.Text.Trim()}\"");
-                sb.AppendLine("==============================================================");
-                sb.AppendLine();
+                Dock        = DockStyle.Fill,
+                ColumnCount = 2, RowCount = 1,
+                BackColor   = System.Drawing.Color.Transparent,
+                CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                Padding     = new Padding(8, 0, 6, 0)
+            };
+            tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, NumW));
+            tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+            tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
-                // Column headers
-                sb.AppendLine(
-                    $"{"Timestamp",-22}" +
-                    $"{"Type",-10}" +
-                    $"{"Staff ID",-12}" +
-                    $"{"Staff Name",-20}" +
-                    $"{"Module/Table",-20}" +
-                    "Details");
-                sb.AppendLine(new string('-', 120));
-
-                foreach (var l in toExport)
-                {
-                    string details = string.Empty;
-                    if (!string.IsNullOrWhiteSpace(l.OldValue) || !string.IsNullOrWhiteSpace(l.NewValue))
-                        details = $"OLD: {(string.IsNullOrWhiteSpace(l.OldValue) ? "-" : l.OldValue)}  |  NEW: {(string.IsNullOrWhiteSpace(l.NewValue) ? "-" : l.NewValue)}";
-
-                    sb.AppendLine(
-                        $"{l.Timestamp:yyyy-MM-dd HH:mm:ss,-22}" +
-                        $"{(l.LogType ?? ""),-10}" +
-                        $"{(l.StaffID ?? ""),-12}" +
-                        $"{(l.StaffName ?? ""),-20}" +
-                        $"{(l.TargetTable ?? ""),-20}" +
-                        details);
-                }
-
-                sb.AppendLine();
-                sb.AppendLine("-- END OF EXPORT --");
-
-                File.WriteAllText(sfd.FileName, sb.ToString(), Encoding.UTF8);
-
-                // Write audit entry for the export action itself
-                AuditLogger.Write(AuditLogger.TYPE_EDIT, "AuditLog",
-                    oldValue: null,
-                    newValue: AuditLogger.Snapshot(
-                        ("Action",  "Export"),
-                        ("Entries", toExport.Count.ToString()),
-                        ("File",    Path.GetFileName(sfd.FileName))));
-
-                MessageBox.Show(
-                    $"Export completed.\n\n{toExport.Count} entries saved to:\n{sfd.FileName}",
-                    "Export Successful", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-            catch (Exception ex)
+            var lblNum = new Label
             {
-                MessageBox.Show($"Export failed.\n\n{ex.Message}",
-                    "Export Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
+                Text      = "0",
+                Font      = new System.Drawing.Font("Segoe UI", 14f, System.Drawing.FontStyle.Bold),
+                ForeColor = fg,
+                BackColor = System.Drawing.Color.Transparent,
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleCenter,
+                AutoSize  = false
+            };
+            var lblTitle = new Label
+            {
+                Text      = title,
+                Font      = new System.Drawing.Font("Segoe UI", 11f),
+                ForeColor = fg,
+                BackColor = System.Drawing.Color.Transparent,
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft,
+                AutoSize  = false,
+                AutoEllipsis = true
+            };
+
+            tlp.Controls.Add(lblNum,   0, 0);
+            tlp.Controls.Add(lblTitle, 1, 0);
+            pill.Controls.Add(tlp);
+            flow.Controls.Add(pill);
+
+            return lblNum;   // caller stores reference to update count
         }
 
         // =====================================================================
@@ -263,26 +205,27 @@ namespace PremiumLivingOPS.Views.SystemControl
 
         private void ShowDetailDialog(AuditLogEntity log)
         {
+            // Derive a display key from timestamp + staffID (AuditLogEntity has no LogID field)
             string logKey = $"{log.Timestamp:yyyyMMdd-HHmmss} {log.StaffID ?? ""}".Trim();
 
             using var dlg = new Form
             {
                 Text            = $"Log Detail  \u2014  {logKey}",
-                Size            = new Size(740, 460),
+                Size            = new System.Drawing.Size(740, 460),
                 StartPosition   = FormStartPosition.CenterParent,
-                BackColor       = Color.White,
-                Font            = new Font("Segoe UI", 12f),
+                BackColor       = System.Drawing.Color.White,
+                Font            = new System.Drawing.Font("Segoe UI", 12f),
                 FormBorderStyle = FormBorderStyle.FixedDialog,
                 MaximizeBox     = false,
                 MinimizeBox     = false
             };
 
-            var pnlHdr = new Panel { Dock = DockStyle.Top, Height = 64, BackColor = Color.FromArgb(19, 35, 61) };
+            var pnlHdr = new Panel { Dock = DockStyle.Top, Height = 64, BackColor = System.Drawing.Color.FromArgb(19, 35, 61) };
             pnlHdr.Controls.Add(new Label
             {
                 Text      = $"Log Detail  \u2014  {log.LogType} on {log.TargetTable}",
-                Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
-                ForeColor = Color.White,
+                Font      = new System.Drawing.Font("Segoe UI", 14f, System.Drawing.FontStyle.Bold),
+                ForeColor = System.Drawing.Color.White,
                 Dock      = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft,
                 Padding   = new Padding(24, 0, 0, 0)
@@ -293,7 +236,7 @@ namespace PremiumLivingOPS.Views.SystemControl
                 Dock            = DockStyle.Fill,
                 ColumnCount     = 2,
                 RowCount        = 7,
-                BackColor       = Color.White,
+                BackColor       = System.Drawing.Color.White,
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
                 Padding         = new Padding(24, 16, 24, 8)
             };
@@ -317,11 +260,11 @@ namespace PremiumLivingOPS.Views.SystemControl
                 tbl.Controls.Add(MakeLblVal(fields[i].Item2), 1, i);
             }
 
-            var pnlFtr = new Panel { Dock = DockStyle.Bottom, Height = 60, BackColor = Color.White, Padding = new Padding(0, 8, 20, 8) };
-            pnlFtr.Paint += (fps, fpe) => { using var pen = new Pen(Color.FromArgb(221, 227, 236), 1); fpe.Graphics.DrawLine(pen, 0, 0, ((Panel)fps).Width, 0); };
-            var btnClose = new Button { Text = "Close", Font = new Font("Segoe UI", 12f), ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White, FlatStyle = FlatStyle.Flat, Dock = DockStyle.Right, Width = 130, Cursor = Cursors.Hand };
-            btnClose.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
-            btnClose.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
+            var pnlFtr = new Panel { Dock = DockStyle.Bottom, Height = 60, BackColor = System.Drawing.Color.White, Padding = new Padding(0, 8, 20, 8) };
+            pnlFtr.Paint += (fps, fpe) => { using var pen = new System.Drawing.Pen(System.Drawing.Color.FromArgb(221, 227, 236), 1); fpe.Graphics.DrawLine(pen, 0, 0, ((Panel)fps).Width, 0); };
+            var btnClose = new Button { Text = "Close", Font = new System.Drawing.Font("Segoe UI", 12f), ForeColor = System.Drawing.Color.FromArgb(15, 31, 53), BackColor = System.Drawing.Color.White, FlatStyle = FlatStyle.Flat, Dock = DockStyle.Right, Width = 130, Cursor = Cursors.Hand };
+            btnClose.FlatAppearance.BorderColor        = System.Drawing.Color.FromArgb(221, 227, 236);
+            btnClose.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(240, 244, 249);
             btnClose.Click += (bcs, bce) => dlg.Close();
             pnlFtr.Controls.Add(btnClose);
 
@@ -334,8 +277,8 @@ namespace PremiumLivingOPS.Views.SystemControl
         private static Label MakeLblKey(string text) => new Label
         {
             Text      = text,
-            Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
-            ForeColor = Color.FromArgb(98, 112, 135),
+            Font      = new System.Drawing.Font("Segoe UI", 10f, System.Drawing.FontStyle.Bold),
+            ForeColor = System.Drawing.Color.FromArgb(98, 112, 135),
             Dock      = DockStyle.Fill,
             TextAlign = ContentAlignment.MiddleLeft,
             Padding   = new Padding(0, 0, 8, 0)
@@ -344,8 +287,8 @@ namespace PremiumLivingOPS.Views.SystemControl
         private static Label MakeLblVal(string text) => new Label
         {
             Text      = text ?? "\u2014",
-            Font      = new Font("Segoe UI", 12f),
-            ForeColor = Color.FromArgb(15, 31, 53),
+            Font      = new System.Drawing.Font("Segoe UI", 12f),
+            ForeColor = System.Drawing.Color.FromArgb(15, 31, 53),
             Dock      = DockStyle.Fill,
             TextAlign = ContentAlignment.MiddleLeft,
             AutoEllipsis = true
@@ -360,16 +303,16 @@ namespace PremiumLivingOPS.Views.SystemControl
             {
                 Text      = text,
                 Location  = loc,
-                Size      = new Size(w, h),
-                BackColor = Color.FromArgb(19, 35, 61),
-                ForeColor = Color.White,
+                Size      = new System.Drawing.Size(w, h),
+                BackColor = System.Drawing.Color.FromArgb(19, 35, 61),
+                ForeColor = System.Drawing.Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                Font      = new System.Drawing.Font("Segoe UI", 12f, System.Drawing.FontStyle.Bold),
                 Cursor    = Cursors.Hand
             };
             btn.FlatAppearance.BorderSize         = 0;
-            btn.FlatAppearance.MouseOverBackColor = Color.FromArgb(31, 54, 96);
-            btn.FlatAppearance.MouseDownBackColor = Color.FromArgb(10, 22, 41);
+            btn.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(31, 54, 96);
+            btn.FlatAppearance.MouseDownBackColor = System.Drawing.Color.FromArgb(10, 22, 41);
             return btn;
         }
 
@@ -379,23 +322,23 @@ namespace PremiumLivingOPS.Views.SystemControl
             {
                 Text      = text,
                 Location  = loc,
-                Size      = new Size(w, h),
-                BackColor = Color.White,
-                ForeColor = Color.FromArgb(15, 31, 53),
+                Size      = new System.Drawing.Size(w, h),
+                BackColor = System.Drawing.Color.White,
+                ForeColor = System.Drawing.Color.FromArgb(15, 31, 53),
                 FlatStyle = FlatStyle.Flat,
-                Font      = new Font("Segoe UI", 12f),
+                Font      = new System.Drawing.Font("Segoe UI", 12f),
                 Cursor    = Cursors.Hand
             };
-            btn.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
+            btn.FlatAppearance.BorderColor        = System.Drawing.Color.FromArgb(221, 227, 236);
             btn.FlatAppearance.BorderSize         = 1;
-            btn.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
+            btn.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(240, 244, 249);
             return btn;
         }
 
-        private static void PaintCardBorder(object sender, PaintEventArgs e)
+        private static void PaintCardBorder(object sender, System.Windows.Forms.PaintEventArgs e)
         {
             var pnl = (Panel)sender;
-            using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
+            using var pen = new System.Drawing.Pen(System.Drawing.Color.FromArgb(221, 227, 236), 1);
             e.Graphics.DrawRectangle(pen, 0, 0, pnl.Width - 1, pnl.Height - 1);
         }
 
