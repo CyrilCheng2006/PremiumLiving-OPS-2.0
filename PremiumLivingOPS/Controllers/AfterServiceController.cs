@@ -1,15 +1,14 @@
-using PremiumLivingOPS.Models.DAL;
-using PremiumLivingOPS.Models.Entities;
-using PremiumLivingOPS.Models.ViewModels;
-using PremiumLivingOPS.Services;
 using System;
 using System.Collections.Generic;
+using PremiumLivingOPS.Models.DAL;
+using PremiumLivingOPS.Models.Entities;
+using PremiumLivingOPS.Services;
 
 namespace PremiumLivingOPS.Controllers
 {
     /// <summary>
     /// Controller (MVC middle layer) for After-Service module.
-    /// All DB-write operations (PurchaseInvoice, ReturnOrder, AccountPayable) are audit-logged.
+    /// All DB-write operations are audit-logged via AuditLogger.
     /// Contains NO UI code.
     /// ReturnOrder write methods live in AfterServiceController.ReturnOrder.cs (partial).
     /// </summary>
@@ -17,133 +16,96 @@ namespace PremiumLivingOPS.Controllers
     {
         private readonly AfterServiceRepo _repo = new AfterServiceRepo();
 
-        // ── Purchase Invoice ───────────────────────────────────────────
+        // ── Return Order READ ───────────────────────────────────────────────
+        // NOTE: CreateReturnOrder / UpdateReturnOrderStatus live in
+        //       AfterServiceController.ReturnOrder.cs (partial). Only READ here.
 
-        public PurchaseInvoiceListViewModel GetPurchaseInvoiceListVM(
-            string keyword = null,
-            string status  = null)
-        {
-            var user = SessionManager.CurrentUser;
-            return new PurchaseInvoiceListViewModel
-            {
-                UserBar      = new UserBarViewModel { DisplayName = user?.StaffName ?? "Unknown", Department = user?.Department ?? "" },
-                AllowedMenus = NavAccessPolicy.GetAllowedMenus(user?.Department ?? ""),
-                Invoices     = _repo.SearchPurchaseInvoices(keyword, status)
-            };
-        }
+        public List<ReturnOrderEntity> GetReturnOrders(string keyword = null, string status = null)
+            => _repo.SearchReturnOrders(keyword, status);
 
-        public PurchaseInvoiceDetailViewModel GetPurchaseInvoiceDetailVM(string invoiceId)
-        {
-            var user = SessionManager.CurrentUser;
-            return new PurchaseInvoiceDetailViewModel
-            {
-                UserBar      = new UserBarViewModel { DisplayName = user?.StaffName ?? "Unknown", Department = user?.Department ?? "" },
-                AllowedMenus = NavAccessPolicy.GetAllowedMenus(user?.Department ?? ""),
-                Invoice      = _repo.GetPurchaseInvoiceById(invoiceId)
-            };
-        }
+        public string GenerateNextReturnOrderId() => _repo.GenerateNextReturnOrderId();
+
+        // ── Account Payable ───────────────────────────────────────────────
+
+        public List<AccountPayableEntity> GetAccountPayables(string keyword = null, string status = null)
+            => _repo.SearchAccountPayables(keyword, status);
+
+        // ── Account Receivable ────────────────────────────────────────────
+
+        public List<AccountReceivableEntity> GetAccountReceivables(string keyword = null)
+            => _repo.SearchAccountReceivables(keyword);
+
+        // ── Invoice (Customer Invoice / A/R) ──────────────────────────
+
+        public List<InvoiceEntity> GetInvoices(string keyword = null)
+            => _repo.SearchInvoices(keyword);
 
         public string GenerateNextInvoiceId() => _repo.GenerateNextInvoiceId();
 
-        /// <summary>Creates a Purchase Invoice and logs the CREATE.</summary>
-        public bool CreatePurchaseInvoice(PurchaseInvoiceEntity invoice)
+        /// <summary>Creates a Customer Invoice and logs the CREATE.</summary>
+        public bool CreateInvoice(InvoiceEntity invoice)
         {
-            bool ok = _repo.CreatePurchaseInvoice(invoice);
+            bool ok = _repo.CreateInvoice(invoice);
             if (ok)
-                AuditLogger.Write(AuditLogger.TYPE_CREATE, "PurchaseInvoice",
+                AuditLogger.Write(AuditLogger.TYPE_CREATE, "Invoice",
                     oldValue: null,
                     newValue: AuditLogger.Snapshot(
-                        ("ID",       invoice.PurchaseInvoiceID),
-                        ("PO",       invoice.PurchaseOrderID ?? ""),
-                        ("Total",    invoice.TotalAmount.ToString("F2")),
-                        ("Status",   invoice.InvoiceStatus ?? ""),
-                        ("DueDate",  invoice.DueDate?.ToString("yyyy-MM-dd") ?? "")));
+                        ("ID",      invoice.InvoiceID),
+                        ("Order",   invoice.OrderID ?? ""),
+                        ("Total",   invoice.TotalAmount.ToString("F2")),
+                        ("Status",  invoice.PaymentStatus ?? ""),
+                        ("DueDate", invoice.DueDate.ToString("yyyy-MM-dd"))));
             return ok;
         }
 
         /// <summary>Updates Invoice status and logs the EDIT.</summary>
         public bool UpdateInvoiceStatus(string invoiceId, string newStatus)
         {
-            var old = _repo.GetPurchaseInvoiceById(invoiceId);
-            string oldSnap = old == null ? invoiceId
-                : AuditLogger.Snapshot(
-                    ("ID",     old.PurchaseInvoiceID),
-                    ("Status", old.InvoiceStatus ?? ""));
-
             bool ok = _repo.UpdateInvoiceStatus(invoiceId, newStatus);
             if (ok)
-                AuditLogger.Write(AuditLogger.TYPE_EDIT, "PurchaseInvoice",
-                    oldValue: oldSnap,
+                AuditLogger.Write(AuditLogger.TYPE_EDIT, "Invoice",
+                    oldValue: AuditLogger.Snapshot(("ID", invoiceId)),
                     newValue: AuditLogger.Snapshot(
                         ("ID",     invoiceId),
                         ("Status", newStatus)));
             return ok;
         }
 
-        // ── Return Order ───────────────────────────────────────────────
-        // NOTE: CreateReturnOrder, UpdateReturnOrderStatus, and all Return-Order
-        // write methods are defined in AfterServiceController.ReturnOrder.cs.
-        // Only READ helpers live here.
+        // ── Complaint ──────────────────────────────────────────────────
 
-        public ReturnOrderListViewModel GetReturnOrderListVM(
-            string keyword = null,
-            string status  = null)
+        public List<ComplaintEntity> GetComplaints(string keyword = null, string status = null)
+            => _repo.SearchComplaints(keyword, status);
+
+        /// <summary>Creates a Complaint and logs the CREATE.</summary>
+        public bool CreateComplaint(ComplaintEntity complaint)
         {
-            var user = SessionManager.CurrentUser;
-            return new ReturnOrderListViewModel
-            {
-                UserBar      = new UserBarViewModel { DisplayName = user?.StaffName ?? "Unknown", Department = user?.Department ?? "" },
-                AllowedMenus = NavAccessPolicy.GetAllowedMenus(user?.Department ?? ""),
-                ReturnOrders = _repo.SearchReturnOrders(keyword, status)
-            };
-        }
-
-        public string GenerateNextReturnOrderId() => _repo.GenerateNextReturnOrderId();
-
-        // ── Account Payable ────────────────────────────────────────────
-
-        public AccountPayableListViewModel GetAccountPayableListVM(
-            string keyword = null,
-            string status  = null)
-        {
-            var user = SessionManager.CurrentUser;
-            return new AccountPayableListViewModel
-            {
-                UserBar         = new UserBarViewModel { DisplayName = user?.StaffName ?? "Unknown", Department = user?.Department ?? "" },
-                AllowedMenus    = NavAccessPolicy.GetAllowedMenus(user?.Department ?? ""),
-                AccountPayables = _repo.SearchAccountPayables(keyword, status)
-            };
-        }
-
-        // ── Supplier Receipt ───────────────────────────────────────────
-
-        public SupplierReceiptListViewModel GetSupplierReceiptListVM(string keyword = null)
-        {
-            var user = SessionManager.CurrentUser;
-            return new SupplierReceiptListViewModel
-            {
-                UserBar      = new UserBarViewModel { DisplayName = user?.StaffName ?? "Unknown", Department = user?.Department ?? "" },
-                AllowedMenus = NavAccessPolicy.GetAllowedMenus(user?.Department ?? ""),
-                Receipts     = _repo.SearchSupplierReceipts(keyword)
-            };
-        }
-
-        public string GenerateNextReceiptId() => _repo.GenerateNextReceiptId();
-
-        /// <summary>Records a Supplier Receipt and logs the CREATE.</summary>
-        public bool CreateSupplierReceipt(SupplierReceiptEntity receipt)
-        {
-            bool ok = _repo.CreateSupplierReceipt(receipt);
+            bool ok = _repo.CreateComplaint(complaint);
             if (ok)
-                AuditLogger.Write(AuditLogger.TYPE_CREATE, "SupplierReceipt",
+                AuditLogger.Write(AuditLogger.TYPE_CREATE, "Complaint",
                     oldValue: null,
                     newValue: AuditLogger.Snapshot(
-                        ("ID",       receipt.SupplierReceiptID),
-                        ("PO",       receipt.PurchaseOrderID ?? ""),
-                        ("Supplier", receipt.SupplierID ?? ""),
-                        ("Total",    receipt.TotalAmount.ToString("F2")),
-                        ("Date",     receipt.ReceiptDate.ToString("yyyy-MM-dd"))));
+                        ("ID",     complaint.ComplaintID),
+                        ("Order",  complaint.OrderID ?? ""),
+                        ("Status", complaint.ComplaintStatus ?? "")));
             return ok;
         }
+
+        /// <summary>Updates Complaint status and logs the EDIT.</summary>
+        public bool UpdateComplaintStatus(string complaintId, string newStatus)
+        {
+            bool ok = _repo.UpdateComplaintStatus(complaintId, newStatus);
+            if (ok)
+                AuditLogger.Write(AuditLogger.TYPE_EDIT, "Complaint",
+                    oldValue: AuditLogger.Snapshot(("ID", complaintId)),
+                    newValue: AuditLogger.Snapshot(
+                        ("ID",     complaintId),
+                        ("Status", newStatus)));
+            return ok;
+        }
+
+        // ── AP 3-Way Verification ────────────────────────────────────────
+
+        public APVerificationDetailVM GetAPVerificationDetail(string purInvoiceId)
+            => _repo.GetAPVerificationDetail(purInvoiceId);
     }
 }

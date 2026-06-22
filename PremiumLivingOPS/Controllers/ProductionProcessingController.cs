@@ -1,14 +1,15 @@
+using System;
+using System.Collections.Generic;
 using PremiumLivingOPS.Models.DAL;
 using PremiumLivingOPS.Models.Entities;
 using PremiumLivingOPS.Models.ViewModels;
 using PremiumLivingOPS.Services;
-using System;
-using System.Collections.Generic;
 
 namespace PremiumLivingOPS.Controllers
 {
     /// <summary>
     /// Controller (MVC middle layer) for Production Processing.
+    /// Covers: Raw Material Requests + (future) Production Order management.
     /// All DB-write operations are audit-logged via AuditLogger.
     /// Contains NO UI code.
     /// </summary>
@@ -16,100 +17,78 @@ namespace PremiumLivingOPS.Controllers
     {
         private readonly ProductionProcessingRepo _repo = new ProductionProcessingRepo();
 
-        // ── Search Production Orders ───────────────────────────────────
+        // ── Material Request ──────────────────────────────────────────────
 
-        public ProductionListViewModel GetProductionListVM(
+        public SearchMaterialRequestViewModel GetSearchMaterialRequestVM(
             string keyword = null,
             string status  = null)
         {
             var user = SessionManager.CurrentUser;
-            return new ProductionListViewModel
+            return new SearchMaterialRequestViewModel
             {
                 UserBar      = new UserBarViewModel { DisplayName = user?.StaffName ?? "Unknown", Department = user?.Department ?? "" },
                 AllowedMenus = NavAccessPolicy.GetAllowedMenus(user?.Department ?? ""),
-                Orders       = _repo.SearchProductionOrders(keyword, status)
+                Requests     = _repo.SearchMaterialRequests(keyword, status)
             };
         }
 
-        public ProductionDetailViewModel GetProductionDetailVM(string productionId)
+        public CreateMaterialRequestViewModel GetCreateMaterialRequestVM()
         {
             var user = SessionManager.CurrentUser;
-            return new ProductionDetailViewModel
+            return new CreateMaterialRequestViewModel
             {
-                UserBar      = new UserBarViewModel { DisplayName = user?.StaffName ?? "Unknown", Department = user?.Department ?? "" },
-                AllowedMenus = NavAccessPolicy.GetAllowedMenus(user?.Department ?? ""),
-                Order        = _repo.GetProductionOrderById(productionId),
-                Lines        = _repo.GetProductionLines(productionId)
+                UserBar        = new UserBarViewModel { DisplayName = user?.StaffName ?? "Unknown", Department = user?.Department ?? "" },
+                AllowedMenus   = NavAccessPolicy.GetAllowedMenus(user?.Department ?? ""),
+                RawMaterials   = _repo.GetRawMaterialLookups(),
+                WarehouseItems = _repo.GetWarehouseItemLookups(),
+                Orders         = _repo.GetOrderLookups(),
+                NextRequestID  = _repo.GenerateNextRequestId()
             };
         }
 
-        // ── Create Production Order ────────────────────────────────────
+        public string GenerateNextRequestId() => _repo.GenerateNextRequestId();
 
-        public CreateProductionViewModel GetCreateProductionVM()
+        /// <summary>Creates a Material Request and logs the CREATE.</summary>
+        public bool CreateMaterialRequest(MaterialRequestEntity req)
         {
-            var user = SessionManager.CurrentUser;
-            return new CreateProductionViewModel
-            {
-                UserBar      = new UserBarViewModel { DisplayName = user?.StaffName ?? "Unknown", Department = user?.Department ?? "" },
-                AllowedMenus = NavAccessPolicy.GetAllowedMenus(user?.Department ?? ""),
-                NextID       = _repo.GenerateNextProductionId(),
-                Products     = _repo.GetFinishedGoodItems(),
-                RawMaterials = _repo.GetRawMaterialItems()
-            };
-        }
-
-        public string GenerateNextProductionId() => _repo.GenerateNextProductionId();
-
-        /// <summary>Creates a production order and logs the CREATE.</summary>
-        public bool CreateProductionOrder(ProductionOrderEntity order, List<ProductionLineEntity> lines)
-        {
-            bool ok = _repo.CreateProductionOrder(order, lines);
+            bool ok = _repo.InsertMaterialRequest(req);
             if (ok)
-                AuditLogger.Write(AuditLogger.TYPE_CREATE, "ProductionOrder",
+                AuditLogger.Write(AuditLogger.TYPE_CREATE, "MaterialRequest",
                     oldValue: null,
                     newValue: AuditLogger.Snapshot(
-                        ("ID",      order.ProductionID),
-                        ("Product", order.ItemID ?? ""),
-                        ("Qty",     order.PlannedQty.ToString()),
-                        ("Status",  order.Status ?? ""),
-                        ("Lines",   (lines?.Count ?? 0).ToString())));
+                        ("ID",       req.RequestID),
+                        ("Material", req.RawMaterialItemID ?? ""),
+                        ("Qty",      req.RequestedQty.ToString()),
+                        ("Urgency",  req.UrgencyLevel ?? "")));
             return ok;
         }
 
-        // ── Update Production Status ───────────────────────────────────
+        // ── Update Material Request Status ─────────────────────────────
 
-        /// <summary>Updates production order status and logs the EDIT.</summary>
-        public bool UpdateProductionStatus(string productionId, string newStatus)
+        // MaterialRequestEntity has no explicit Status column in the file;
+        // status updates delegate entirely to Repo.
+        public bool UpdateMaterialRequestStatus(string requestId, string newStatus)
         {
-            var old = _repo.GetProductionOrderById(productionId);
-            string oldSnap = old == null ? productionId
-                : AuditLogger.Snapshot(
-                    ("ID",     old.ProductionID),
-                    ("Status", old.Status ?? ""),
-                    ("Item",   old.ItemID ?? ""));
-
-            bool ok = _repo.UpdateProductionStatus(productionId, newStatus);
+            bool ok = _repo.UpdateMaterialRequestStatus(requestId, newStatus);
             if (ok)
-                AuditLogger.Write(AuditLogger.TYPE_EDIT, "ProductionOrder",
-                    oldValue: oldSnap,
+                AuditLogger.Write(AuditLogger.TYPE_EDIT, "MaterialRequest",
+                    oldValue: AuditLogger.Snapshot(("ID", requestId)),
                     newValue: AuditLogger.Snapshot(
-                        ("ID",     productionId),
+                        ("ID",     requestId),
                         ("Status", newStatus)));
             return ok;
         }
 
-        // ── Read helpers ───────────────────────────────────────────────
+        // ── Read helpers ──────────────────────────────────────────────
 
-        public List<ProductionOrderEntity> SearchProductionOrders(string kw, string status)
-            => _repo.SearchProductionOrders(kw, status);
+        public List<MaterialRequestEntity> SearchMaterialRequests(string kw, string status)
+            => _repo.SearchMaterialRequests(kw, status);
 
-        public ProductionOrderEntity GetProductionOrderById(string id)
-            => _repo.GetProductionOrderById(id);
+        public MaterialRequestDetailEntity GetMaterialRequestDetail(string requestId)
+            => _repo.GetMaterialRequestDetail(requestId);
 
-        public List<ProductionLineEntity> GetProductionLines(string id)
-            => _repo.GetProductionLines(id);
-
-        public List<InventoryItemEntity> GetFinishedGoodItems() => _repo.GetFinishedGoodItems();
-        public List<InventoryItemEntity> GetRawMaterialItems()  => _repo.GetRawMaterialItems();
+        public List<RawMaterialLookup>   GetRawMaterialLookups()   => _repo.GetRawMaterialLookups();
+        public List<WarehouseItemLookup> GetWarehouseItemLookups() => _repo.GetWarehouseItemLookups();
+        public List<OrderLookup>         GetOrderLookups()         => _repo.GetOrderLookups();
     }
 }
