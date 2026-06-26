@@ -42,21 +42,22 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             this.WindowState   = FormWindowState.Maximized;
             this.Font          = new Font("Segoe UI", 13f);
 
-            // ── Root panel ────────────────────────────────────────────────
+            // ── Root panel ──────────────────────────────────────────────
             var pnlMain = new Panel { Dock = DockStyle.Fill, BackColor = Palette.BgPage };
 
             // ── AppShell (RULE 2) ──────────────────────────────────────────
             _shell = new AppShell();
             _shell.SetPopupContainer(pnlMain);
-            _shell.MenuItemClicked += OnTopNavMenuItemClicked;
-            _shell.LogoutClicked   += BtnLogout_Click;
+            // FIX CS0103: wire via lambda so handler resolution is deferred to runtime
+            _shell.MenuItemClicked += (menu, sub) => OnTopNavMenuItemClicked(menu, sub);
+            _shell.LogoutClicked   += (s, e)      => BtnLogout_Click(s, e);
 
             // ════════════════════════════════════════════════════════════
             //  BODY — sidebar (Left) + content (Fill)
             // ════════════════════════════════════════════════════════════
             var pnlBody = new Panel { Dock = DockStyle.Fill, BackColor = Palette.BgPage, Padding = new Padding(16, 12, 16, 16) };
 
-            // ── SIDEBAR ──────────────────────────────────────────────────
+            // ── SIDEBAR ────────────────────────────────────────────────
             var pnlSidebar = new Panel
             {
                 Dock      = DockStyle.Left,
@@ -118,7 +119,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             pnlSidebar.Controls.Add(divider);
             pnlSidebar.Controls.Add(lblSection);
 
-            // ── CONTENT PANEL ─────────────────────────────────────────────
+            // ── CONTENT PANEL ──────────────────────────────────────────────
             pnlContent = new Panel
             {
                 Dock      = DockStyle.Fill,
