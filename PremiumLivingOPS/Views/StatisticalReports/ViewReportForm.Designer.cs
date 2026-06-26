@@ -65,7 +65,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 Padding   = new Padding(0, 12, 0, 12)
             };
 
-            // Section label
             var lblSection = new Label
             {
                 Text      = "REPORTS",
@@ -78,7 +77,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 Padding   = new Padding(20, 0, 0, 0)
             };
 
-            // Sidebar button factory
             Button MakeSidebarBtn(string icon, string label)
             {
                 var b = new Button
@@ -100,28 +98,25 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 return b;
             }
 
-            // Build buttons in reverse dock order (last added = topmost in layout)
-            btnFinance      = MakeSidebarBtn("💰", "Finance Overview");
-            btnAfterService = MakeSidebarBtn("🔧", "After-Service");
-            btnLogistics    = MakeSidebarBtn("🚚", "Logistics");
-            btnProcurement  = MakeSidebarBtn("📦", "Procurement");
-            btnInventory    = MakeSidebarBtn("🗄", "Inventory Status");
-            btnSales        = MakeSidebarBtn("📊", "Sales Performance");
+            btnFinance      = MakeSidebarBtn("\U0001F4B0", "Finance Overview");
+            btnAfterService = MakeSidebarBtn("\U0001F527", "After-Service");
+            btnLogistics    = MakeSidebarBtn("\U0001F69A", "Logistics");
+            btnProcurement  = MakeSidebarBtn("\U0001F4E6", "Procurement");
+            btnInventory    = MakeSidebarBtn("\U0001F5C4", "Inventory Status");
+            btnSales        = MakeSidebarBtn("\U0001F4CA", "Sales Performance");
 
-            // Divider
-            var divider = new Panel { Dock = DockStyle.Top, Height = 1, BackColor = Color.FromArgb(40, 65, 100), Margin = new Padding(0, 4, 0, 4) };
+            var divider = new Panel { Dock = DockStyle.Top, Height = 1, BackColor = Color.FromArgb(40, 65, 100) };
 
-            // Add controls to sidebar (Fill-first / Top-last rule)
-            var pnlSidebarFill = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };  // spacer
-            pnlSidebar.Controls.Add(pnlSidebarFill);   // Fill
-            pnlSidebar.Controls.Add(btnFinance);        // Top
-            pnlSidebar.Controls.Add(btnAfterService);   // Top
-            pnlSidebar.Controls.Add(btnLogistics);      // Top
-            pnlSidebar.Controls.Add(btnProcurement);    // Top
-            pnlSidebar.Controls.Add(btnInventory);      // Top
-            pnlSidebar.Controls.Add(btnSales);          // Top
-            pnlSidebar.Controls.Add(divider);           // Top
-            pnlSidebar.Controls.Add(lblSection);        // Top
+            var pnlSidebarFill = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
+            pnlSidebar.Controls.Add(pnlSidebarFill);
+            pnlSidebar.Controls.Add(btnFinance);
+            pnlSidebar.Controls.Add(btnAfterService);
+            pnlSidebar.Controls.Add(btnLogistics);
+            pnlSidebar.Controls.Add(btnProcurement);
+            pnlSidebar.Controls.Add(btnInventory);
+            pnlSidebar.Controls.Add(btnSales);
+            pnlSidebar.Controls.Add(divider);
+            pnlSidebar.Controls.Add(lblSection);
 
             // ── CONTENT PANEL ─────────────────────────────────────────────
             pnlContent = new Panel
@@ -131,21 +126,16 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 Padding   = new Padding(16, 0, 0, 0)
             };
 
-            // Assemble body (Fill first, then Left)
-            pnlBody.Controls.Add(pnlContent);  // Fill
-            pnlBody.Controls.Add(pnlSidebar);  // Left
+            pnlBody.Controls.Add(pnlContent);
+            pnlBody.Controls.Add(pnlSidebar);
 
-            // ════════════════════════════════════════════════════════════
-            //  Assemble pnlMain (RULE 5 — Fill before Top)
-            // ════════════════════════════════════════════════════════════
-            pnlMain.Controls.Add(pnlBody);    // Fill
-            pnlMain.Controls.Add(_shell);     // Top — AppShell last = topmost
+            pnlMain.Controls.Add(pnlBody);
+            pnlMain.Controls.Add(_shell);
 
             this.Controls.Add(pnlMain);
             this.ResumeLayout(false);
             this.PerformLayout();
 
-            // RULE 3 — lock AppShell height
             _shell.Height      = AppShell.TotalHeight;
             _shell.MinimumSize = new System.Drawing.Size(0, AppShell.TotalHeight);
         }
