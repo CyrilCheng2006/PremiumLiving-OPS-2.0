@@ -2,6 +2,7 @@ using System;
 using System.Drawing;
 using System.Windows.Forms;
 using PremiumLivingOPS.Views.Shared;
+using PremiumLivingOPS.Controllers;          // SessionManager
 
 namespace PremiumLivingOPS.Views.StatisticalReports
 {
@@ -9,7 +10,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
     {
         private System.ComponentModel.IContainer components = null;
 
-        // ── AppShell ────────────────────────────────────────────────────────────────
+        // ── AppShell ───────────────────────────────────────────────────────────────
         private AppShell _shell;
 
         // ── Sidebar report buttons ────────────────────────────────────────────
@@ -41,7 +42,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             this.BackColor     = Color.FromArgb(240, 244, 249);
             this.WindowState   = FormWindowState.Maximized;
             this.Font          = new Font("Segoe UI", 13f);
-            // NOTE: No AutoScaleMode/AutoScaleDimensions — mirrors HGR pattern.
 
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             //  Root panel
@@ -54,13 +54,12 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             //  AppShell — RULE 2/4
-            //  FIX CS0103: ViewReportForm.cs has no logout handler method.
-            //  Use SessionManager lambda directly (same pattern as AccountReceivableForm).
+            //  LogoutClicked uses inline lambda + SessionManager (Controllers namespace now imported)
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             _shell = new AppShell();
             _shell.SetPopupContainer(pnlMain);
-            _shell.MenuItemClicked += (menu, sub) => OnTopNavMenuItemClicked(menu, sub);  // RULE 4
-            _shell.LogoutClicked   += (s, e) => { SessionManager.Clear(); Application.Restart(); };  // RULE 4
+            _shell.MenuItemClicked += (menu, sub) => OnTopNavMenuItemClicked(menu, sub);
+            _shell.LogoutClicked   += (s, e) => { SessionManager.Clear(); Application.Restart(); };
 
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             //  Sidebar (DockStyle.Left, Width 210)
