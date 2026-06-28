@@ -13,13 +13,12 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         // ── AppShell ───────────────────────────────────────────────────────────────
         private AppShell _shell;
 
-        // ── Sidebar report buttons ────────────────────────────────────────────
-        private Button btnSales;
-        private Button btnInventory;
-        private Button btnProcurement;
-        private Button btnLogistics;
-        private Button btnAfterService;
-        private Button btnFinance;
+        // ── Top Tab Bar buttons (commit 8d7b970 baseline) ─────────────────────
+        private Button btnTabSalesRevenue;
+        private Button btnTabInventory;
+        private Button btnTabProduction;
+        private Button btnTabLogistics;
+        private Button btnTabAfterService;
 
         // ── Content panel (rebuilt on each report switch) ────────────────────
         internal Panel pnlContent;
@@ -54,7 +53,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             //  AppShell — RULE 2/4
-            //  LogoutClicked uses inline lambda + SessionManager (Controllers namespace now imported)
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             _shell = new AppShell();
             _shell.SetPopupContainer(pnlMain);
@@ -62,22 +60,22 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             _shell.LogoutClicked   += (s, e) => { SessionManager.Clear(); Application.Restart(); };
 
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            //  Sidebar (DockStyle.Left, Width 210)
+            //  Top Tab Bar (DockStyle.Top, Height 48)
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            Button MakeSideBtn(string text)
+            Button MakeTabBtn(string text)
             {
                 var b = new Button
                 {
                     Text      = text,
-                    Font      = new Font("Segoe UI", 11f),
-                    ForeColor = Palette.SidebarText,
+                    Font      = new Font("Segoe UI", 12f),
+                    ForeColor = Color.FromArgb(98, 112, 135),
                     BackColor = Color.Transparent,
                     FlatStyle = FlatStyle.Flat,
-                    Dock      = DockStyle.Top,
-                    Height    = 44,
+                    Dock      = DockStyle.Left,
+                    Width     = 170,
                     Cursor    = Cursors.Hand,
-                    TextAlign = ContentAlignment.MiddleLeft,
-                    Padding   = new Padding(16, 0, 0, 0)
+                    TextAlign = ContentAlignment.MiddleCenter,
+                    Padding   = new Padding(0, 0, 0, 3)
                 };
                 b.FlatAppearance.BorderSize         = 0;
                 b.FlatAppearance.MouseOverBackColor = Color.FromArgb(235, 241, 255);
@@ -85,38 +83,33 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 return b;
             }
 
-            btnSales        = MakeSideBtn("\U0001F4B0  Sales Performance");
-            btnInventory    = MakeSideBtn("\U0001F4E6  Inventory Status");
-            btnProcurement  = MakeSideBtn("\U0001F4CB  Procurement");
-            btnLogistics    = MakeSideBtn("\U0001F69A  Logistics");
-            btnAfterService = MakeSideBtn("\U0001F527  After-Service");
-            btnFinance      = MakeSideBtn("\U0001F4B3  Finance");
+            btnTabSalesRevenue = MakeTabBtn("Sales & Revenue");
+            btnTabInventory    = MakeTabBtn("Inventory");
+            btnTabProduction   = MakeTabBtn("Procurement");
+            btnTabLogistics    = MakeTabBtn("Logistics");
+            btnTabAfterService = MakeTabBtn("After-Service");
 
-            btnSales.Click        += (s, e) => BtnSales_Click(s, e);
-            btnInventory.Click    += (s, e) => BtnInventory_Click(s, e);
-            btnProcurement.Click  += (s, e) => BtnProcurement_Click(s, e);
-            btnLogistics.Click    += (s, e) => BtnLogistics_Click(s, e);
-            btnAfterService.Click += (s, e) => BtnAfterService_Click(s, e);
-            btnFinance.Click      += (s, e) => BtnFinance_Click(s, e);
+            btnTabSalesRevenue.Click += (s, e) => SwitchToReport(0);
+            btnTabInventory.Click    += (s, e) => SwitchToReport(1);
+            btnTabProduction.Click   += (s, e) => SwitchToReport(2);
+            btnTabLogistics.Click    += (s, e) => SwitchToReport(3);
+            btnTabAfterService.Click += (s, e) => SwitchToReport(4);
 
-            // Sidebar outer card (CardPanel 3-layer)
-            var (pnlSideOuter, pnlSideCard) = CardPanel.Create(
-                outerHeight  : 0,
-                outerPadding : new Padding(12, 8, 0, 8));
-            pnlSideOuter.Dock  = DockStyle.Left;
-            pnlSideOuter.Width = 210;
-            pnlSideCard.Dock   = DockStyle.Fill;
-
-            // Add buttons bottom-up so DockStyle.Top stacks correctly
-            pnlSideCard.Controls.Add(btnFinance);
-            pnlSideCard.Controls.Add(btnAfterService);
-            pnlSideCard.Controls.Add(btnLogistics);
-            pnlSideCard.Controls.Add(btnProcurement);
-            pnlSideCard.Controls.Add(btnInventory);
-            pnlSideCard.Controls.Add(btnSales);
+            var pnlTabBar = new Panel
+            {
+                Dock      = DockStyle.Top,
+                Height    = 48,
+                BackColor = Color.White
+            };
+            // Add right-to-left so DockStyle.Left stacks left-to-right
+            pnlTabBar.Controls.Add(btnTabAfterService);
+            pnlTabBar.Controls.Add(btnTabLogistics);
+            pnlTabBar.Controls.Add(btnTabProduction);
+            pnlTabBar.Controls.Add(btnTabInventory);
+            pnlTabBar.Controls.Add(btnTabSalesRevenue);
 
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            //  Content panel (DockStyle.Fill — rebuilt by each RenderXxx)
+            //  Content panel (DockStyle.Fill — rebuilt by each BuildXxxReport)
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             pnlContent = new Panel
             {
@@ -125,15 +118,28 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 Padding   = new Padding(0)
             };
 
+            // Placeholder — replaced on first SwitchToReport() call
+            pnlContent.Controls.Add(MakePlaceholderLabel("Select a report from the tab bar above"));
+
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            //  Assemble — RULE 5: Fill first, Left next, _shell LAST (topmost)
+            //  Assemble — RULE 5: Fill first, Top (tabBar) next, _shell LAST
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            pnlMain.Controls.Add(pnlContent);    // DockStyle.Fill  — first
-            pnlMain.Controls.Add(pnlSideOuter);  // DockStyle.Left
-            pnlMain.Controls.Add(_shell);         // DockStyle.Top   — LAST = topmost
+            pnlMain.Controls.Add(pnlContent);   // DockStyle.Fill  — first
+            pnlMain.Controls.Add(pnlTabBar);    // DockStyle.Top
+            pnlMain.Controls.Add(_shell);        // DockStyle.Top   — LAST = topmost
 
             this.Controls.Add(pnlMain);
             this.ResumeLayout(false);
         }
+
+        // ── Placeholder label (used in Designer only) ─────────────────────────
+        private static Label MakePlaceholderLabel(string text) => new Label
+        {
+            Text      = text,
+            Dock      = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleCenter,
+            Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
+            ForeColor = Color.FromArgb(98, 112, 135)
+        };
     }
 }
