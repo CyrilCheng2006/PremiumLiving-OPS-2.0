@@ -13,10 +13,15 @@ namespace PremiumLivingOPS.Views.StatisticalReports
     /// View — Statistical Reports › View Report
     ///
     /// Rendering baseline: HandlingGoodsReceivedForm (Logistics Processing)
-    ///   - Tab Bar:    pnlTabOuter Height=69,  Padding=(20,4,20,0)
-    ///   - KPI Bar:    pnlKpiOuter Height=90,  Padding=(20,8,20,8)
-    ///   - Filter Bar: pnlFilterOuter Height=300, Padding=(20,14,20,8)
-    ///     3-row tblCard: row0=60(title), row1=125(fields), row2=65(buttons)
+    ///   - Tab Bar:    pnlTabOuter  Height=69,  Padding=(20,4,20,0)
+    ///   - Filter Bar: pnlFilterOuter Height=200, Padding=(20,14,20,8)
+    ///     3-row tblCard: row0=50(title), row1=60(fields single-row), row2=65(buttons)
+    ///
+    /// Changes (2026-06-29):
+    ///   - KPI bar removed entirely
+    ///   - Date filter collapsed to single horizontal row:
+    ///       [chk] [dtpFrom] ["to" label] [dtpTo]
+    ///   - All buttons resized to 210×60
     ///
     /// Tab index map:
     ///   0 = Sales Performance      3 = Logistics Overview
@@ -123,20 +128,15 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
         // ════════════════════════════════════════════════════════════════
         //  FILTER BAR BUILDER
-        //  Baseline: HandlingGoodsReceivedForm tblCard
-        //    Row 0 — title + divider  (60 px, Absolute)
-        //    Row 1 — filter fields   (125 px, Absolute)   ← MakeCell columns
-        //    Row 2 — action buttons   (65 px, Absolute)
-        //  tblCard Padding=(18,14,18,14) inside white CardPanel.
-        //  pnlFilterOuter outer height=300, padding=(20,14,20,8) set in Designer.
+        //  3-row tblCard inside white CardPanel inside pnlFilterOuter:
+        //    Row 0 — title + divider  (50 px, Absolute)
+        //    Row 1 — filter fields   ( 60 px, Absolute)  ← single input row
+        //    Row 2 — action buttons  ( 65 px, Absolute)
+        //  tblCard Padding=(18,10,18,10)
         // ════════════════════════════════════════════════════════════════
 
-        /// <summary>
-        /// Builds the filter card and places it inside pnlFilterOuter.
-        /// </summary>
-        private void SetFilterBar(string titleText, TableLayoutPanel fieldCells, Panel btnRow)
+        private void SetFilterBar(string titleText, Panel fieldRow, Panel btnRow)
         {
-            // ── 3-row TLP inside white card  ─────────────────────────────────
             var tbl = new TableLayoutPanel
             {
                 Dock            = DockStyle.Fill,
@@ -144,12 +144,12 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 ColumnCount     = 1,
                 BackColor       = Color.Transparent,
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                Padding         = new Padding(18, 14, 18, 14)
+                Padding         = new Padding(18, 10, 18, 10)
             };
             tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute,  60f));  // title   (HGR baseline)
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 125f));  // fields  (HGR baseline)
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute,  65f));  // buttons (HGR baseline)
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute,  50f));  // title
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute,  60f));  // fields (single row)
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute,  65f));  // buttons
 
             // Row 0 — title + bottom divider
             var pnlTitle = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
@@ -168,14 +168,13 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 BackColor = Color.FromArgb(221, 227, 236)
             });
 
-            // Row 2 — buttons
-            btnRow.Dock = DockStyle.Fill;
+            fieldRow.Dock = DockStyle.Fill;
+            btnRow.Dock   = DockStyle.Fill;
 
-            tbl.Controls.Add(pnlTitle,   0, 0);
-            tbl.Controls.Add(fieldCells, 0, 1);
-            tbl.Controls.Add(btnRow,     0, 2);
+            tbl.Controls.Add(pnlTitle, 0, 0);
+            tbl.Controls.Add(fieldRow, 0, 1);
+            tbl.Controls.Add(btnRow,   0, 2);
 
-            // White card wrapper with border
             var card = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
             card.Paint += PaintCardBorder;
             card.Controls.Add(tbl);
@@ -184,47 +183,32 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         }
 
         // ────────────────────────────────────────────────────────────────
-        //  Builds the field-columns row (Row 1 of filter card).
-        //  Mirrors HGR tblFields + MakeCell() pattern.
-        //  col1 required; col2..col4 optional (pass null to omit column).
+        //  BuildFieldsRow  — single horizontal row of labelled controls.
+        //  Each column: optional caption label (22 px) + control (fill).
+        //  For date range filters use BuildDateRangeRow instead.
         // ────────────────────────────────────────────────────────────────
-        private static TableLayoutPanel BuildFieldsRow(
-            (string caption, Control ctrl)?  col1,
-            (string caption, Control ctrl)?  col2 = null,
-            (string caption, Control ctrl)?  col3 = null,
-            (string caption, Control ctrl)?  col4 = null)
+        private static Panel BuildFieldsRow(params (string caption, Control ctrl)[] cols)
         {
-            var cols = new List<(string caption, Control ctrl)?> { col1, col2, col3, col4 };
-            cols.RemoveAll(c => c == null);
-            int n = Math.Max(1, cols.Count);
-
+            int n = Math.Max(1, cols.Length);
             var tbl = new TableLayoutPanel
             {
                 Dock            = DockStyle.Fill,
                 ColumnCount     = n,
                 RowCount        = 1,
                 BackColor       = Color.Transparent,
-                CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+                CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                Padding         = new Padding(0, 4, 0, 4)
             };
-            if (n >= 3)
-            {
-                tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40f));
-                float rest = 60f / (n - 1);
-                for (int i = 1; i < n; i++)
-                    tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, rest));
-            }
-            else
-            {
-                for (int i = 0; i < n; i++)
-                    tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f / n));
-            }
+            for (int i = 0; i < n; i++)
+                tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f / n));
             tbl.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
-            for (int i = 0; i < cols.Count; i++)
+            for (int i = 0; i < cols.Length; i++)
             {
-                var (caption, ctrl) = cols[i].Value;
-                bool lastCol = i == cols.Count - 1;
+                var (caption, ctrl) = cols[i];
+                bool last = i == cols.Length - 1;
 
+                // Wrap each col in a mini 2-row TLP: caption (22px) + control (fill)
                 var cell = new TableLayoutPanel
                 {
                     Dock            = DockStyle.Fill,
@@ -232,154 +216,157 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                     ColumnCount     = 1,
                     BackColor       = Color.Transparent,
                     CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                    Padding         = lastCol ? Padding.Empty : new Padding(0, 0, 12, 0)
+                    Padding         = last ? Padding.Empty : new Padding(0, 0, 12, 0)
                 };
                 cell.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-                cell.RowStyles.Add(new RowStyle(SizeType.Absolute, 36f));
+                cell.RowStyles.Add(new RowStyle(SizeType.Absolute, 22f));
                 cell.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
-                cell.Controls.Add(new Label
-                {
-                    Text      = caption,
-                    Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
-                    ForeColor = Color.FromArgb(98, 112, 135),
-                    Dock      = DockStyle.Fill,
-                    TextAlign = ContentAlignment.BottomLeft,
-                    Padding   = new Padding(0, 0, 0, 2)
-                }, 0, 0);
+                if (!string.IsNullOrEmpty(caption))
+                    cell.Controls.Add(new Label
+                    {
+                        Text      = caption,
+                        Font      = new Font("Segoe UI", 9f, FontStyle.Bold),
+                        ForeColor = Color.FromArgb(98, 112, 135),
+                        Dock      = DockStyle.Fill,
+                        TextAlign = ContentAlignment.BottomLeft
+                    }, 0, 0);
 
                 ctrl.Dock = DockStyle.Fill;
-                if (ctrl is DateTimePicker || ctrl is ComboBox) ctrl.Height = 34;
                 cell.Controls.Add(ctrl, 0, 1);
-
                 tbl.Controls.Add(cell, i, 0);
             }
             return tbl;
         }
 
         // ────────────────────────────────────────────────────────────────
-        //  Builds the buttons row (Row 2 of filter card).
+        //  BuildDateRangeRow — single horizontal row for date range input:
+        //    [CheckBox] [From DatePicker] ["to" label] [To DatePicker]
+        //    plus any additional columns appended after.
+        //  chkEnable: the checkbox that enables/disables dtpFrom.
+        //  dtpFrom / dtpTo: the two date pickers.
+        //  extraCols: optional additional (caption, ctrl) pairs.
+        // ────────────────────────────────────────────────────────────────
+        private static Panel BuildDateRangeRow(
+            CheckBox chkEnable,
+            DateTimePicker dtpFrom,
+            DateTimePicker dtpTo,
+            params (string caption, Control ctrl)[] extraCols)
+        {
+            // "to" connector label
+            var lblTo = new Label
+            {
+                Text      = "to",
+                Font      = new Font("Segoe UI", 11f),
+                ForeColor = Color.FromArgb(98, 112, 135),
+                BackColor = Color.Transparent,
+                TextAlign = ContentAlignment.MiddleCenter,
+                Dock      = DockStyle.Fill
+            };
+
+            // Total columns: chk(fixed) + dtpFrom + lblTo(fixed) + dtpTo + extras
+            int extraCount = extraCols == null ? 0 : extraCols.Length;
+            int totalCols  = 4 + extraCount;
+
+            var tbl = new TableLayoutPanel
+            {
+                Dock            = DockStyle.Fill,
+                ColumnCount     = totalCols,
+                RowCount        = 1,
+                BackColor       = Color.Transparent,
+                CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                Padding         = new Padding(0, 2, 0, 2)
+            };
+            tbl.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+            // Checkbox col: fixed 34px
+            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 34f));
+            // From DatePicker: percent
+            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, extraCount == 0 ? 40f : 30f));
+            // "to" label: fixed 36px
+            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 36f));
+            // To DatePicker: percent
+            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, extraCount == 0 ? 40f : 30f));
+            // Extra cols share remaining percent
+            for (int i = 0; i < extraCount; i++)
+                tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40f));
+
+            chkEnable.Dock = DockStyle.Fill;
+            dtpFrom.Dock   = DockStyle.Fill;
+            dtpTo.Dock     = DockStyle.Fill;
+
+            tbl.Controls.Add(chkEnable, 0, 0);
+            tbl.Controls.Add(dtpFrom,   1, 0);
+            tbl.Controls.Add(lblTo,     2, 0);
+            tbl.Controls.Add(dtpTo,     3, 0);
+
+            if (extraCols != null)
+            {
+                for (int i = 0; i < extraCols.Length; i++)
+                {
+                    var (cap, ctrl) = extraCols[i];
+                    // Wrap extra in a mini 2-row cell with caption
+                    var cell = new TableLayoutPanel
+                    {
+                        Dock            = DockStyle.Fill,
+                        RowCount        = 2,
+                        ColumnCount     = 1,
+                        BackColor       = Color.Transparent,
+                        CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                        Padding         = new Padding(8, 0, 0, 0)
+                    };
+                    cell.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+                    cell.RowStyles.Add(new RowStyle(SizeType.Absolute, 20f));
+                    cell.RowStyles.Add(new RowStyle(SizeType.Percent,  100f));
+                    if (!string.IsNullOrEmpty(cap))
+                        cell.Controls.Add(new Label
+                        {
+                            Text = cap, Font = new Font("Segoe UI", 9f, FontStyle.Bold),
+                            ForeColor = Color.FromArgb(98, 112, 135),
+                            Dock = DockStyle.Fill, TextAlign = ContentAlignment.BottomLeft
+                        }, 0, 0);
+                    ctrl.Dock = DockStyle.Fill;
+                    cell.Controls.Add(ctrl, 0, 1);
+                    tbl.Controls.Add(cell, 4 + i, 0);
+                }
+            }
+            return tbl;
+        }
+
+        // ────────────────────────────────────────────────────────────────
+        //  BuildButtonsRow — all buttons 210×60
         // ────────────────────────────────────────────────────────────────
         private static Panel BuildButtonsRow(
             Button btnApply, Button btnReset,
             Button btnChart, Button btnTable, Button btnExport)
         {
-            var pnl = new Panel { BackColor = Color.Transparent };
+            const int BtnW = 210;
+            const int BtnH =  60;
+            const int Gap  =   8;
 
-            btnApply.Location = new Point(0, 4);
-            btnReset.Location = new Point(btnApply.Width + 8, 4);
+            btnApply.Size  = new Size(BtnW, BtnH);
+            btnReset.Size  = new Size(BtnW, BtnH);
+            btnChart.Size  = new Size(BtnW, BtnH);
+            btnTable.Size  = new Size(BtnW, BtnH);
+            btnExport.Size = new Size(BtnW, BtnH);
+
+            btnApply.Location  = new Point(0, 0);
+            btnReset.Location  = new Point(BtnW + Gap, 0);
 
             var div = new Panel
             {
-                Size      = new Size(1, 40),
-                Location  = new Point(btnApply.Width + btnReset.Width + 24, 4),
+                Size      = new Size(1, BtnH),
+                Location  = new Point((BtnW + Gap) * 2 + 8, 0),
                 BackColor = Color.FromArgb(221, 227, 236)
             };
 
-            int xRight = div.Left + div.Width + 16;
-            btnChart.Location  = new Point(xRight, 4);
-            btnTable.Location  = new Point(xRight + btnChart.Width + 8, 4);
-            btnExport.Location = new Point(xRight + btnChart.Width + btnTable.Width + 20, 4);
+            int xRight = div.Left + div.Width + 8;
+            btnChart.Location  = new Point(xRight, 0);
+            btnTable.Location  = new Point(xRight + BtnW + Gap, 0);
+            btnExport.Location = new Point(xRight + (BtnW + Gap) * 2, 0);
 
+            var pnl = new Panel { BackColor = Color.Transparent };
             pnl.Controls.AddRange(new Control[] { btnApply, btnReset, div, btnChart, btnTable, btnExport });
             return pnl;
-        }
-
-        // ════════════════════════════════════════════════════════════════
-        //  KPI BAR BUILDER
-        //  Baseline: HandlingGoodsReceivedForm pnlKpi
-        //    PillW=310, PillH=60, Gap=10, LeftPad=12
-        // ════════════════════════════════════════════════════════════════
-
-        private static void BuildKpiPills(
-            Panel pnlKpi,
-            (string label, string count, Color fg, Color bg, string filterValue)[] pills)
-        {
-            pnlKpi.Controls.Clear();
-
-            const int PillW   = 310;
-            const int PillH   = 60;
-            const int Gap     = 10;
-            const int NumColW = 80;
-            const int LeftPad = 12;
-
-            var flow = new FlowLayoutPanel
-            {
-                FlowDirection = FlowDirection.LeftToRight,
-                WrapContents  = false,
-                BackColor     = Color.Transparent,
-                Padding       = new Padding(0),
-                AutoScroll    = false,
-                AutoSize      = true,
-                AutoSizeMode  = AutoSizeMode.GrowAndShrink
-            };
-
-            foreach (var (label, count, fg, bg, _) in pills)
-            {
-                var pill = new Panel
-                {
-                    BackColor = bg,
-                    Size      = new Size(PillW, PillH),
-                    Margin    = new Padding(0, 0, Gap, 0),
-                    Cursor    = Cursors.Default
-                };
-                pill.Paint += (s, ev) =>
-                {
-                    ev.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-                    using var path  = RoundedRect(((Panel)s).ClientRectangle, 8);
-                    using var brush = new SolidBrush(((Panel)s).BackColor);
-                    ev.Graphics.FillPath(brush, path);
-                };
-
-                var tlp = new TableLayoutPanel
-                {
-                    Dock            = DockStyle.Fill,
-                    ColumnCount     = 2,
-                    RowCount        = 1,
-                    BackColor       = Color.Transparent,
-                    CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                    Padding         = new Padding(10, 0, 8, 0)
-                };
-                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, NumColW));
-                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
-                tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-
-                tlp.Controls.Add(new Label
-                {
-                    Text      = count,
-                    Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
-                    ForeColor = fg,
-                    BackColor = Color.Transparent,
-                    Dock      = DockStyle.Fill,
-                    TextAlign = ContentAlignment.MiddleCenter,
-                    AutoSize  = false
-                }, 0, 0);
-
-                tlp.Controls.Add(new Label
-                {
-                    Text      = label,
-                    Font      = new Font("Segoe UI", 12f),
-                    ForeColor = fg,
-                    BackColor = Color.Transparent,
-                    Dock      = DockStyle.Fill,
-                    TextAlign = ContentAlignment.MiddleLeft,
-                    AutoSize  = false
-                }, 1, 0);
-
-                pill.Controls.Add(tlp);
-                flow.Controls.Add(pill);
-            }
-
-            var wrapper = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            wrapper.Controls.Add(flow);
-            wrapper.Layout += (s, e) =>
-            {
-                var w = (Panel)s;
-                flow.Left = LeftPad;
-                flow.Top  = Math.Max(0, (w.Height - PillH) / 2);
-            };
-
-            pnlKpi.Controls.Add(wrapper);
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -439,15 +426,18 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         {
             var dtpFrom  = MakeDatePicker(DateTime.Today.AddMonths(-3));
             var dtpTo    = MakeDatePicker(DateTime.Today);
-            var chkDate  = new CheckBox { Text = "", Font = new Font("Segoe UI", 11f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), BackColor = Color.Transparent, AutoSize = true };
-            var btnApply = MakePrimaryBtn("Apply", 110, 40);
-            var btnReset = MakeOutlineBtn("Reset",  90, 40);
-            var btnChart = MakeToggleBtn("\U0001F4CA  Chart", 130, 40, _salesChart);
-            var btnTable = MakeToggleBtn("\U0001F4CB  Table", 120, 40, !_salesChart);
-            var btnExport = MakeExportBtn(150, 40);
+            var chkDate  = new CheckBox { Text = "Date Range", Font = new Font("Segoe UI", 11f), ForeColor = Color.FromArgb(98, 112, 135), BackColor = Color.Transparent, AutoSize = false, Dock = DockStyle.Fill };
+            var btnApply = MakePrimaryBtn("Apply");
+            var btnReset = MakeOutlineBtn("Reset");
+            var btnChart = MakeToggleBtn("\U0001F4CA  Chart", _salesChart);
+            var btnTable = MakeToggleBtn("\U0001F4CB  Table", !_salesChart);
+            var btnExport = MakeExportBtn();
+
+            dtpFrom.Enabled = false;
+            chkDate.CheckedChanged += (s, e) => dtpFrom.Enabled = chkDate.Checked;
 
             SetFilterBar("Filter: Sales Performance",
-                BuildFieldsRow(("Date Filter", chkDate), ("From", dtpFrom), ("To", MakeLabel("To:")), ("To Date", dtpTo)),
+                BuildDateRangeRow(chkDate, dtpFrom, dtpTo),
                 BuildButtonsRow(btnApply, btnReset, btnChart, btnTable, btnExport));
 
             var dgv = MakeGrid();
@@ -472,16 +462,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             {
                 var vm = _ctrl.GetSalesReportVM(from, to);
                 ApplyShell(vm, "Sales Performance");
-                var k = vm.SalesKpi;
-                BuildKpiPills(pnlKpi, new[]
-                {
-                    ("Total Orders",  k.TotalOrders.ToString(),        Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254), (string)null),
-                    ("Revenue (HK$)", $"{k.TotalRevenue:N0}",          Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229), (string)null),
-                    ("Avg Order",     $"HK$ {k.AverageOrderValue:N0}", Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254), (string)null),
-                    ("Delivered",     k.DeliveredOrders.ToString(),    Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229), (string)null),
-                    ("Processing",    k.ProcessingOrders.ToString(),   Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), (string)null),
-                    ("Pending",       k.PendingOrders.ToString(),      Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), (string)null),
-                });
+
                 dgv.Rows.Clear();
                 foreach (var r in vm.SalesRows)
                     dgv.Rows.Add(r.OrderID, r.CustomerName, r.OrderStatus, r.IssuedTime.ToString("yyyy-MM-dd"), $"HK$ {r.GrandTotal:N2}", r.LineCount);
@@ -502,8 +483,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 ToggleChartTable(_salesChart, dgv, chartMain, dgvTop, chartTop);
             };
 
-            chkDate.CheckedChanged += (s, e) => dtpFrom.Enabled = chkDate.Checked;
-            dtpFrom.Enabled = false;
             btnApply.Click  += (s, e) => load(chkDate.Checked ? (DateTime?)dtpFrom.Value : null, dtpTo.Value);
             btnReset.Click  += (s, e) => { chkDate.Checked = false; dtpFrom.Value = DateTime.Today.AddMonths(-3); dtpTo.Value = DateTime.Today; load(null, null); };
             btnChart.Click  += (s, e) => { _salesChart = true;  FlipToggle(btnChart, btnTable, true);  ToggleChartTable(_salesChart, dgv, chartMain, dgvTop, chartTop); };
@@ -517,13 +496,13 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
         private void RenderInventory()
         {
-            var cboCat     = MakeCbo(new[] { "All", "Product", "Raw Material" }, 185);
+            var cboCat     = MakeCbo(new[] { "All", "Product", "Raw Material" });
             var chkReorder = new CheckBox { Text = "Below Reorder Only", Font = new Font("Segoe UI", 11f), ForeColor = Color.FromArgb(98, 112, 135), BackColor = Color.Transparent, AutoSize = true };
-            var btnApply   = MakePrimaryBtn("Apply", 110, 40);
-            var btnReset   = MakeOutlineBtn("Reset",  90, 40);
-            var btnChart   = MakeToggleBtn("\U0001F4CA  Chart", 130, 40, _inventoryChart);
-            var btnTable   = MakeToggleBtn("\U0001F4CB  Table", 120, 40, !_inventoryChart);
-            var btnExport  = MakeExportBtn(150, 40);
+            var btnApply   = MakePrimaryBtn("Apply");
+            var btnReset   = MakeOutlineBtn("Reset");
+            var btnChart   = MakeToggleBtn("\U0001F4CA  Chart", _inventoryChart);
+            var btnTable   = MakeToggleBtn("\U0001F4CB  Table", !_inventoryChart);
+            var btnExport  = MakeExportBtn();
 
             SetFilterBar("Filter: Inventory Status",
                 BuildFieldsRow(("Category", cboCat), ("Reorder Alert", chkReorder)),
@@ -558,14 +537,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             {
                 var vm = _ctrl.GetInventoryReportVM(cboCat.SelectedItem?.ToString(), chkReorder.Checked);
                 ApplyShell(vm, "Inventory Status");
-                var k = vm.InventoryKpi;
-                BuildKpiPills(pnlKpi, new[]
-                {
-                    ("Total SKUs",    k.TotalSKUs.ToString(),         Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254), (string)null),
-                    ("Products",      k.ProductCount.ToString(),      Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254), (string)null),
-                    ("Raw Materials", k.RawMaterialCount.ToString(),  Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229), (string)null),
-                    ("Below Reorder", k.BelowReorderCount.ToString(), Color.FromArgb(185,  28,  28), Color.FromArgb(254, 226, 226), (string)null),
-                });
                 dgv.Rows.Clear();
                 foreach (var r in vm.InventoryRows)
                     dgv.Rows.Add(r.WarehouseItemID, $"{r.ItemID}  —  {r.ItemName}", r.ItemCategory,
@@ -598,12 +569,12 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
         private void RenderProcurement()
         {
-            var cboStatus = MakeCbo(new[] { "All", "Sent", "Partially Received", "Received", "Completed", "Cancelled" }, 200);
-            var btnApply  = MakePrimaryBtn("Apply", 110, 40);
-            var btnReset  = MakeOutlineBtn("Reset",  90, 40);
-            var btnChart  = MakeToggleBtn("\U0001F4CA  Chart", 130, 40, _procurementChart);
-            var btnTable  = MakeToggleBtn("\U0001F4CB  Table", 120, 40, !_procurementChart);
-            var btnExport = MakeExportBtn(150, 40);
+            var cboStatus = MakeCbo(new[] { "All", "Sent", "Partially Received", "Received", "Completed", "Cancelled" });
+            var btnApply  = MakePrimaryBtn("Apply");
+            var btnReset  = MakeOutlineBtn("Reset");
+            var btnChart  = MakeToggleBtn("\U0001F4CA  Chart", _procurementChart);
+            var btnTable  = MakeToggleBtn("\U0001F4CB  Table", !_procurementChart);
+            var btnExport = MakeExportBtn();
 
             SetFilterBar("Filter: Procurement Summary",
                 BuildFieldsRow(("Status", cboStatus)),
@@ -624,15 +595,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             {
                 var vm = _ctrl.GetProcurementReportVM(cboStatus.SelectedItem?.ToString());
                 ApplyShell(vm, "Procurement Summary");
-                var k = vm.ProcKpi;
-                BuildKpiPills(pnlKpi, new[]
-                {
-                    ("Total POs",   k.TotalPOs.ToString(),        Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254), (string)null),
-                    ("Spend (HK$)", $"{k.TotalSpend:N0}",         Color.FromArgb(185,  28,  28), Color.FromArgb(254, 226, 226), (string)null),
-                    ("Completed",   k.CompletedPOs.ToString(),    Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229), (string)null),
-                    ("Pending",     k.PendingPOs.ToString(),      Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), (string)null),
-                    ("Suppliers",   k.UniqueSuppliers.ToString(), Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254), (string)null),
-                });
                 dgv.Rows.Clear();
                 foreach (var r in vm.ProcRows)
                     dgv.Rows.Add(r.PurchaseID, r.SupplierName, r.PurchaseStatus, r.OrderDate.ToString("yyyy-MM-dd"), $"HK$ {r.POTotalAmount:N2}", r.MaterialNames);
@@ -662,12 +624,12 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
         private void RenderLogistics()
         {
-            var cboStatus = MakeCbo(new[] { "All", "Pending", "In Transit", "Completed" }, 185);
-            var btnApply  = MakePrimaryBtn("Apply", 110, 40);
-            var btnReset  = MakeOutlineBtn("Reset",  90, 40);
-            var btnChart  = MakeToggleBtn("\U0001F4CA  Chart", 130, 40, _logisticsChart);
-            var btnTable  = MakeToggleBtn("\U0001F4CB  Table", 120, 40, !_logisticsChart);
-            var btnExport = MakeExportBtn(150, 40);
+            var cboStatus = MakeCbo(new[] { "All", "Pending", "In Transit", "Completed" });
+            var btnApply  = MakePrimaryBtn("Apply");
+            var btnReset  = MakeOutlineBtn("Reset");
+            var btnChart  = MakeToggleBtn("\U0001F4CA  Chart", _logisticsChart);
+            var btnTable  = MakeToggleBtn("\U0001F4CB  Table", !_logisticsChart);
+            var btnExport = MakeExportBtn();
 
             SetFilterBar("Filter: Logistics Overview",
                 BuildFieldsRow(("Status", cboStatus)),
@@ -708,21 +670,13 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             {
                 var vm = _ctrl.GetLogisticsReportVM(cboStatus.SelectedItem?.ToString());
                 ApplyShell(vm, "Logistics Overview");
-                var k = vm.LogKpi;
-                BuildKpiPills(pnlKpi, new[]
-                {
-                    ("Total",       k.TotalShipments.ToString(), Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254), (string)null),
-                    ("Completed",   k.Completed.ToString(),      Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229), (string)null),
-                    ("In Transit",  k.InTransit.ToString(),      Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), (string)null),
-                    ("Pending",     k.Pending.ToString(),        Color.FromArgb(185,  28,  28), Color.FromArgb(254, 226, 226), (string)null),
-                    ("Reply Slips", k.WithReplySlip.ToString(),  Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254), (string)null),
-                });
                 dgv.Rows.Clear();
                 foreach (var r in vm.LogRows)
                     dgv.Rows.Add(r.ShipmentID, r.OrderID, r.CustomerName, r.ShipmentStatus, r.ShipmentType,
                                  r.DeliveryMethod, r.ShipDate.ToString("yyyy-MM-dd"),
                                  r.HasDeliveryNote ? "Yes" : "No", r.HasReplySlip ? "Yes" : "No");
 
+                var k = vm.LogKpi;
                 var donutData = new List<(string, double)>
                 {
                     ("Completed",  (double)k.Completed),
@@ -746,13 +700,13 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
         private void RenderAfterService()
         {
-            var cboCmp    = MakeCbo(new[] { "All", "Pending", "Processing", "Escalated", "Completed" }, 185);
-            var cboRtn    = MakeCbo(new[] { "All", "Pending", "Approved", "Processing", "Rejected", "Completed" }, 185);
-            var btnApply  = MakePrimaryBtn("Apply", 110, 40);
-            var btnReset  = MakeOutlineBtn("Reset",  90, 40);
-            var btnChart  = MakeToggleBtn("\U0001F4CA  Chart", 130, 40, _afterServiceChart);
-            var btnTable  = MakeToggleBtn("\U0001F4CB  Table", 120, 40, !_afterServiceChart);
-            var btnExport = MakeExportBtn(150, 40);
+            var cboCmp    = MakeCbo(new[] { "All", "Pending", "Processing", "Escalated", "Completed" });
+            var cboRtn    = MakeCbo(new[] { "All", "Pending", "Approved", "Processing", "Rejected", "Completed" });
+            var btnApply  = MakePrimaryBtn("Apply");
+            var btnReset  = MakeOutlineBtn("Reset");
+            var btnChart  = MakeToggleBtn("\U0001F4CA  Chart", _afterServiceChart);
+            var btnTable  = MakeToggleBtn("\U0001F4CB  Table", !_afterServiceChart);
+            var btnExport = MakeExportBtn();
 
             SetFilterBar("Filter: After-Service Summary",
                 BuildFieldsRow(("Complaint Status", cboCmp), ("Return Status", cboRtn)),
@@ -781,14 +735,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             {
                 var vm = _ctrl.GetAfterServiceReportVM(cboCmp.SelectedItem?.ToString(), cboRtn.SelectedItem?.ToString());
                 ApplyShell(vm, "After-Service Summary");
-                var k = vm.AfterKpi;
-                BuildKpiPills(pnlKpi, new[]
-                {
-                    ("Complaints",     k.TotalComplaints.ToString(), Color.FromArgb(185,  28,  28), Color.FromArgb(254, 226, 226), (string)null),
-                    ("Open",           k.OpenComplaints.ToString(),  Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), (string)null),
-                    ("Returns",        k.TotalReturns.ToString(),    Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), (string)null),
-                    ("Refunded (HK$)", $"{k.TotalRefunded:N0}",      Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254), (string)null),
-                });
                 dgvCmp.Rows.Clear();
                 foreach (var r in vm.Complaints) dgvCmp.Rows.Add(r.ComplaintID, r.OrderID, r.CustomerName, r.ComplaintDescription, r.ComplaintStatus);
                 dgvRtn.Rows.Clear();
@@ -820,15 +766,18 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         {
             var dtpFrom   = MakeDatePicker(DateTime.Today.AddMonths(-3));
             var dtpTo     = MakeDatePicker(DateTime.Today);
-            var chkDate   = new CheckBox { Text = "", Font = new Font("Segoe UI", 11f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), BackColor = Color.Transparent, AutoSize = true };
-            var btnApply  = MakePrimaryBtn("Apply",  110, 40);
-            var btnReset  = MakeOutlineBtn("Reset",   90, 40);
-            var btnChart  = MakeToggleBtn("\U0001F4CA  Chart", 130, 40, _financeChart);
-            var btnTable  = MakeToggleBtn("\U0001F4CB  Table", 120, 40, !_financeChart);
-            var btnExport = MakeExportBtn(150, 40);
+            var chkDate   = new CheckBox { Text = "Date Range", Font = new Font("Segoe UI", 11f), ForeColor = Color.FromArgb(98, 112, 135), BackColor = Color.Transparent, AutoSize = false, Dock = DockStyle.Fill };
+            var btnApply  = MakePrimaryBtn("Apply");
+            var btnReset  = MakeOutlineBtn("Reset");
+            var btnChart  = MakeToggleBtn("\U0001F4CA  Chart", _financeChart);
+            var btnTable  = MakeToggleBtn("\U0001F4CB  Table", !_financeChart);
+            var btnExport = MakeExportBtn();
+
+            dtpFrom.Enabled = false;
+            chkDate.CheckedChanged += (s, e) => dtpFrom.Enabled = chkDate.Checked;
 
             SetFilterBar("Filter: Finance Overview",
-                BuildFieldsRow(("Date Filter", chkDate), ("From", dtpFrom), ("To Label", MakeLabel("To:")), ("To Date", dtpTo)),
+                BuildDateRangeRow(chkDate, dtpFrom, dtpTo),
                 BuildButtonsRow(btnApply, btnReset, btnChart, btnTable, btnExport));
 
             var dgv = MakeGrid();
@@ -846,20 +795,12 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             {
                 var vm = _ctrl.GetFinanceReportVM(from, to);
                 ApplyShell(vm, "Finance Overview");
-                var k = vm.FinanceKpi;
-                BuildKpiPills(pnlKpi, new[]
-                {
-                    ("Sales Rev (HK$)",   $"{k.TotalSalesRevenue:N0}",     Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229), (string)null),
-                    ("Procurement (HK$)", $"{k.TotalProcurementSpend:N0}", Color.FromArgb(185,  28,  28), Color.FromArgb(254, 226, 226), (string)null),
-                    ("Refunds (HK$)",     $"{k.TotalRefunds:N0}",          Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), (string)null),
-                    ("AR Due (HK$)",      $"{k.AROutstanding:N0}",         Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), (string)null),
-                    ("AP Due (HK$)",      $"{k.APOutstanding:N0}",         Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254), (string)null),
-                });
                 dgv.Rows.Clear();
                 foreach (var r in vm.FinanceRows)
                     dgv.Rows.Add(r.TransactionID, r.TransactionType, $"{r.Amount:N2}",
                                  r.TransactionDate.ToString("yyyy-MM-dd"), r.LinkedDocument, r.DocumentType);
 
+                var k = vm.FinanceKpi;
                 var typeTotals = new Dictionary<string, double>();
                 foreach (var r in vm.FinanceRows) { if (!typeTotals.ContainsKey(r.TransactionType)) typeTotals[r.TransactionType] = 0; typeTotals[r.TransactionType] += (double)r.Amount; }
                 var barData = new List<(string, double)>(); foreach (var kv in typeTotals) barData.Add((kv.Key, kv.Value));
@@ -880,7 +821,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             };
 
             chkDate.CheckedChanged += (s, e) => dtpFrom.Enabled = chkDate.Checked;
-            dtpFrom.Enabled = false;
             btnApply.Click  += (s, e) => load(chkDate.Checked ? (DateTime?)dtpFrom.Value : null, dtpTo.Value);
             btnReset.Click  += (s, e) => { chkDate.Checked = false; dtpFrom.Value = DateTime.Today.AddMonths(-3); dtpTo.Value = DateTime.Today; load(null, null); };
             btnChart.Click  += (s, e) => { _financeChart = true;  FlipToggle(btnChart, btnTable, true);  ToggleChartTable(_financeChart, dgv, chartAmounts, null, chartBreakdown); };
@@ -967,29 +907,29 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         }
 
         // ════════════════════════════════════════════════════════════════
-        //  BUTTON / CONTROL FACTORIES
+        //  BUTTON / CONTROL FACTORIES  (all buttons 210×60)
         // ════════════════════════════════════════════════════════════════
 
-        private static Button MakePrimaryBtn(string text, int w, int h)
+        private static Button MakePrimaryBtn(string text)
         {
-            var b = new Button { Text = text, Font = new Font("Segoe UI", 12f), ForeColor = Color.White, BackColor = Color.FromArgb(19, 35, 61), FlatStyle = FlatStyle.Flat, Size = new Size(w, h), Cursor = Cursors.Hand };
+            var b = new Button { Text = text, Font = new Font("Segoe UI", 12f), ForeColor = Color.White, BackColor = Color.FromArgb(19, 35, 61), FlatStyle = FlatStyle.Flat, Size = new Size(210, 60), Cursor = Cursors.Hand };
             b.FlatAppearance.BorderSize = 0;
             b.FlatAppearance.MouseOverBackColor = Color.FromArgb(29, 52, 92);
             return b;
         }
 
-        private static Button MakeOutlineBtn(string text, int w, int h)
+        private static Button MakeOutlineBtn(string text)
         {
-            var b = new Button { Text = text, Font = new Font("Segoe UI", 12f), ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White, FlatStyle = FlatStyle.Flat, Size = new Size(w, h), Cursor = Cursors.Hand };
+            var b = new Button { Text = text, Font = new Font("Segoe UI", 12f), ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White, FlatStyle = FlatStyle.Flat, Size = new Size(210, 60), Cursor = Cursors.Hand };
             b.FlatAppearance.BorderColor = Color.FromArgb(221, 227, 236);
             b.FlatAppearance.BorderSize  = 1;
             b.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
             return b;
         }
 
-        private static Button MakeToggleBtn(string text, int w, int h, bool active)
+        private static Button MakeToggleBtn(string text, bool active)
         {
-            var b = new Button { Text = text, Font = new Font("Segoe UI", 11f), Size = new Size(w, h), FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
+            var b = new Button { Text = text, Font = new Font("Segoe UI", 11f), Size = new Size(210, 60), FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
             b.BackColor = active ? Palette.Primary : Color.White;
             b.ForeColor = active ? Color.White : Color.FromArgb(98, 112, 135);
             b.FlatAppearance.BorderColor = Color.FromArgb(221, 227, 236);
@@ -997,9 +937,9 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             return b;
         }
 
-        private static Button MakeExportBtn(int w, int h)
+        private static Button MakeExportBtn()
         {
-            var b = new Button { Text = "\u2B07 Export CSV", Font = new Font("Segoe UI", 11f), ForeColor = Color.White, BackColor = Color.FromArgb(5, 150, 105), FlatStyle = FlatStyle.Flat, Size = new Size(w, h), Cursor = Cursors.Hand };
+            var b = new Button { Text = "\u2B07 Export CSV", Font = new Font("Segoe UI", 11f), ForeColor = Color.White, BackColor = Color.FromArgb(5, 150, 105), FlatStyle = FlatStyle.Flat, Size = new Size(210, 60), Cursor = Cursors.Hand };
             b.FlatAppearance.BorderSize = 0;
             b.FlatAppearance.MouseOverBackColor = Color.FromArgb(4, 120, 87);
             return b;
@@ -1008,15 +948,12 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         private static DateTimePicker MakeDatePicker(DateTime value)
             => new DateTimePicker { Format = DateTimePickerFormat.Short, Value = value, Font = new Font("Segoe UI", 11f), Width = 130, CalendarForeColor = Color.FromArgb(15, 31, 53), CalendarTitleBackColor = Color.FromArgb(19, 35, 61), CalendarTitleForeColor = Color.White };
 
-        private static ComboBox MakeCbo(string[] items, int width)
+        private static ComboBox MakeCbo(string[] items)
         {
-            var c = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 11f), Width = width, BackColor = Color.White, ForeColor = Color.FromArgb(15, 31, 53) };
+            var c = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 11f), BackColor = Color.White, ForeColor = Color.FromArgb(15, 31, 53) };
             c.Items.AddRange(items); c.SelectedIndex = 0;
             return c;
         }
-
-        private static Label MakeLabel(string text)
-            => new Label { Text = text, Font = new Font("Segoe UI", 11f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), BackColor = Color.Transparent, AutoSize = true, TextAlign = ContentAlignment.MiddleLeft };
 
         // ════════════════════════════════════════════════════════════════
         //  APPSHELL UPDATER
@@ -1027,7 +964,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             if (vm == null) return;
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
-            _shell.SetBreadcrumb($"Statistical Reports  \u203a  {reportTitle}");
+            _shell.SetBreadcrumb($"Statistical Reports  ›  {reportTitle}");
         }
 
         // ════════════════════════════════════════════════════════════════
