@@ -9,17 +9,22 @@ namespace PremiumLivingOPS.Views.StatisticalReports
     {
         private System.ComponentModel.IContainer components = null;
 
+        // AppShell (TopNavBar 44 px + UserBar 72 px = 116 px total)
         private AppShell _shell;
-        private Panel pnlMain;
-        private Panel pnlTopTabs;
-        private Panel pnlTabOuter;
-        private TableLayoutPanel tblTabs;
-        private Button btnTab0;
-        private Button btnTab1;
-        private Button btnTab2;
-        private Button btnTab3;
-        private Button btnTab4;
-        private Button btnTab5;
+
+        // Tab bar
+        private Panel             pnlTabOuter;
+        private TableLayoutPanel  tblTabs;
+        private Button btnTab0, btnTab1, btnTab2, btnTab3, btnTab4, btnTab5;
+
+        // KPI strip
+        private Panel pnlKpiOuter;
+        private Panel pnlKpi;
+
+        // Filter bar
+        private Panel pnlFilterOuter;
+
+        // Report content host
         private Panel pnlContent;
 
         protected override void Dispose(bool disposing)
@@ -30,63 +35,71 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
         private void InitializeComponent()
         {
-            SuspendLayout();                                              // RULE 1
+            this.SuspendLayout();
 
-            // ── Form ─────────────────────────────────────────────────────────────
-            this.BackColor          = Palette.BgPage;
-            this.Text               = "Statistical Reports \u00b7 View Report";
-            this.StartPosition      = FormStartPosition.CenterScreen;
-            this.WindowState        = FormWindowState.Maximized;
-            this.MinimumSize        = new Size(1440, 900);
-            this.Font               = new Font("Segoe UI", 10F);
-            this.AutoScaleMode      = System.Windows.Forms.AutoScaleMode.Font;
-            this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
+            // ── Form ────────────────────────────────────────────────────────
+            this.Text          = "Statistical Reports \u00b7 View Report";
+            this.Size          = new Size(1440, 900);
+            this.MinimumSize   = new Size(1200, 720);
+            this.StartPosition = FormStartPosition.CenterScreen;
+            this.BackColor     = Palette.BgPage;
+            this.WindowState   = FormWindowState.Maximized;
+            this.Font          = new Font("Segoe UI", 13f);
+            // NOTE: AutoScaleMode / AutoScaleDimensions intentionally omitted.
+            // Setting them causes WinForms font-scaling to recalculate
+            // _shell.Height after ResumeLayout and collapse the UserBar.
 
-            // ── pnlMain (Fill) ────────────────────────────────────────────────────
-            pnlMain = new Panel
+            // ── pnlMain (Fill) ───────────────────────────────────────────────
+            var pnlMain = new Panel { Dock = DockStyle.Fill, BackColor = Palette.BgPage };
+
+            // ── AppShell  ────────────────────────────────────────────────────
+            // DO NOT set Dock / Height / MinimumSize externally here.
+            // AppShell.OnLayout + ScaleControl self-lock height at 116 px.
+            _shell = new AppShell();
+            _shell.SetPopupContainer(pnlMain);
+            _shell.MenuItemClicked += OnTopNavMenuItemClicked;  // RULE 4 — once
+            _shell.LogoutClicked   += btnLogout_Click;          // RULE 4 — once
+
+            // ── Tab bar outer (DockStyle.Top, 69 px) ────────────────────────
+            // Same dimensions as HGR: Height=69, Padding=(20,4,20,0)
+            Button MakeTabBtn(string text, int idx)
             {
-                Dock      = DockStyle.Fill,
-                BackColor = Palette.BgPage
-            };
+                var b = new Button
+                {
+                    Text      = text,
+                    Font      = new Font("Segoe UI", 12f),
+                    ForeColor = Color.FromArgb(98, 112, 135),
+                    BackColor = Color.White,
+                    FlatStyle = FlatStyle.Flat,
+                    Dock      = DockStyle.Fill,
+                    Cursor    = Cursors.Hand,
+                    TextAlign = ContentAlignment.MiddleCenter,
+                    Padding   = new Padding(0, 0, 0, 3)
+                };
+                b.FlatAppearance.BorderSize         = 0;
+                b.FlatAppearance.MouseOverBackColor = Color.FromArgb(245, 248, 255);
+                b.FlatAppearance.MouseDownBackColor = Color.FromArgb(235, 241, 255);
+                b.Click += (s, e) => SwitchToReport(idx);
+                return b;
+            }
 
-            // ── pnlTopTabs — Tab Bar outer container (grey bg, leaves side margin)
-            pnlTopTabs = new Panel
-            {
-                Dock      = DockStyle.Top,
-                Height    = 69,
-                BackColor = Palette.BgPage,
-                Padding   = new Padding(20, 4, 20, 0)
-            };
+            btnTab0 = MakeTabBtn("Sales Performance",     0);
+            btnTab1 = MakeTabBtn("Inventory Status",      1);
+            btnTab2 = MakeTabBtn("Procurement Summary",   2);
+            btnTab3 = MakeTabBtn("Logistics Overview",    3);
+            btnTab4 = MakeTabBtn("After-Service Summary", 4);
+            btnTab5 = MakeTabBtn("Finance Overview",      5);
 
-            // ── pnlTabOuter — white card that hosts the tab buttons
-            pnlTabOuter = new Panel
-            {
-                Dock      = DockStyle.Fill,
-                BackColor = Color.White
-            };
-            pnlTabOuter.Paint += PaintTabUnderline;
-
-            // ── tblTabs — 6-column equal-width TableLayoutPanel
             tblTabs = new TableLayoutPanel
             {
-                Dock            = DockStyle.Fill,
-                BackColor       = Color.White,
-                ColumnCount     = 6,
-                RowCount        = 1,
-                Margin          = new Padding(0),
-                Padding         = new Padding(0)
+                Dock      = DockStyle.Fill,
+                BackColor = Color.White,
+                ColumnCount = 6, RowCount = 1,
+                Margin = new Padding(0), Padding = new Padding(0)
             };
             for (int i = 0; i < 6; i++)
                 tblTabs.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f / 6f));
             tblTabs.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-
-            btnTab0 = CreateTabButton("Sales Performance",    0);
-            btnTab1 = CreateTabButton("Inventory Status",     1);
-            btnTab2 = CreateTabButton("Procurement Summary",  2);
-            btnTab3 = CreateTabButton("Logistics Overview",   3);
-            btnTab4 = CreateTabButton("After-Service Summary",4);
-            btnTab5 = CreateTabButton("Finance Overview",     5);
-
             tblTabs.Controls.Add(btnTab0, 0, 0);
             tblTabs.Controls.Add(btnTab1, 1, 0);
             tblTabs.Controls.Add(btnTab2, 2, 0);
@@ -94,61 +107,73 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             tblTabs.Controls.Add(btnTab4, 4, 0);
             tblTabs.Controls.Add(btnTab5, 5, 0);
 
-            pnlTabOuter.Controls.Add(tblTabs);
-            pnlTopTabs.Controls.Add(pnlTabOuter);
+            var pnlTabCard = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
+            pnlTabCard.Paint += PaintCardBorder;
+            pnlTabCard.Controls.Add(tblTabs);
 
-            // ── pnlContent — report body (Fill)
-            pnlContent = new Panel
+            pnlTabOuter = new Panel
+            {
+                Dock = DockStyle.Top, Height = 69,
+                BackColor = Palette.BgPage,
+                Padding   = new Padding(20, 4, 20, 0)
+            };
+            pnlTabOuter.Paint   += PaintTabUnderline;
+            pnlTabOuter.Controls.Add(pnlTabCard);
+
+            // ── KPI bar outer (DockStyle.Top, 90 px) ─────────────────────────
+            // Same structure as HGR: Height=90, Padding=(20,8,20,8)
+            pnlKpi = new Panel
             {
                 Dock      = DockStyle.Fill,
-                BackColor = Palette.BgPage
+                BackColor = Color.Transparent,
+                Padding   = new Padding(12, 10, 12, 10)
             };
 
-            // ── AppShell — RULE 2: construct inside SuspendLayout scope
-            _shell = new AppShell();
-            _shell.Dock        = DockStyle.Top;
-            _shell.Height      = AppShell.TotalHeight;
-            _shell.MinimumSize = new Size(0, AppShell.TotalHeight);
-            _shell.MenuItemClicked += OnTopNavMenuItemClicked;            // RULE 4
-            _shell.SetPopupContainer(pnlMain);
+            var pnlKpiInner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
+            pnlKpiInner.Paint += PaintCardBorder;
+            pnlKpiInner.Controls.Add(pnlKpi);
 
-            // ── Wire hierarchy
-            // pnlMain: Fill first, then Top (RULE 5)
-            pnlMain.Controls.Add(pnlContent);   // DockStyle.Fill  — goes first
-            pnlMain.Controls.Add(pnlTopTabs);   // DockStyle.Top   — stacks above content
-            pnlMain.Controls.Add(_shell);        // DockStyle.Top   — wins topmost
+            pnlKpiOuter = new Panel
+            {
+                Dock = DockStyle.Top, Height = 90,
+                BackColor = Palette.BgPage,
+                Padding   = new Padding(20, 8, 20, 8)
+            };
+            pnlKpiOuter.Controls.Add(pnlKpiInner);
+
+            // ── Filter bar outer (DockStyle.Top, 118 px) ─────────────────────
+            // Matches HGR search card horizontal margins: Padding=(20,8,20,8)
+            pnlFilterOuter = new Panel
+            {
+                Dock = DockStyle.Top, Height = 118,
+                BackColor = Palette.BgPage,
+                Padding   = new Padding(20, 8, 20, 8)
+            };
+            // Content is populated dynamically by each Render*() method
+
+            // ── Report content host (DockStyle.Fill) ─────────────────────────
+            pnlContent = new Panel { Dock = DockStyle.Fill, BackColor = Palette.BgPage };
+
+            // ── Assemble: Fill first, Top sections in bottom-to-top order, _shell LAST
+            pnlMain.Controls.Add(pnlContent);     // Fill — first
+            pnlMain.Controls.Add(pnlTabOuter);    // Top
+            pnlMain.Controls.Add(pnlKpiOuter);    // Top
+            pnlMain.Controls.Add(pnlFilterOuter); // Top
+            pnlMain.Controls.Add(_shell);          // Top — LAST = topmost chrome
 
             this.Controls.Add(pnlMain);
 
-            ResumeLayout(false);
-            PerformLayout();
-
-            // RULE 3: re-enforce after PerformLayout
-            _shell.Height      = AppShell.TotalHeight;
-            _shell.MinimumSize = new Size(0, AppShell.TotalHeight);
+            // NOTE: ResumeLayout(false) only — NO PerformLayout().
+            // PerformLayout triggers AutoScaleMode font-scaling which can
+            // recalculate and collapse AppShell.Height (UserBar disappears).
+            this.ResumeLayout(false);
         }
 
-        private Button CreateTabButton(string text, int tabIndex)
+        private static void PaintCardBorder(object sender, System.Windows.Forms.PaintEventArgs e)
         {
-            var btn = new Button
-            {
-                Dock                  = DockStyle.Fill,
-                FlatStyle             = FlatStyle.Flat,
-                BackColor             = Color.White,
-                ForeColor             = Color.FromArgb(98, 112, 135),
-                Font                  = new Font("Segoe UI", 12F, FontStyle.Regular),
-                Text                  = text,
-                Margin                = new Padding(0),
-                Padding               = new Padding(0, 0, 0, 4),
-                Cursor                = Cursors.Hand,
-                TabStop               = false,
-                UseVisualStyleBackColor = false
-            };
-            btn.FlatAppearance.BorderSize            = 0;
-            btn.FlatAppearance.MouseDownBackColor    = Color.White;
-            btn.FlatAppearance.MouseOverBackColor    = Color.White;
-            btn.Click += (s, e) => SwitchToReport(tabIndex);
-            return btn;
+            var p = (Panel)sender;
+            using var pen = new System.Drawing.Pen(Color.FromArgb(221, 227, 236), 1f);
+            e.Graphics.DrawRectangle(pen, 0, 0, p.Width - 1, p.Height - 1);
         }
     }
 }
