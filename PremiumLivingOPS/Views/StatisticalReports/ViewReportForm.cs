@@ -1101,10 +1101,8 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         //  APPSHELL HELPERS
         // ════════════════════════════════════════════════════════════════
 
-        /// <summary>Updates AppShell breadcrumb / page title labels if present.</summary>
         private void ApplyShell(object vm, string pageTitle)
         {
-            // AppShell breadcrumb / title update — safe no-op if controls absent
             if (this.Controls.ContainsKey("lblPageTitle"))
                 ((Label)this.Controls["lblPageTitle"]).Text = pageTitle;
         }
@@ -1134,6 +1132,19 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             path.AddArc(bounds.X,                       bounds.Y + bounds.Height - d,    d, d,  90, 90);
             path.CloseFigure();
             return path;
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  NAVIGATION & LOGOUT  (AppShell Rule 4 — required handlers)
+        // ════════════════════════════════════════════════════════════════
+
+        private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
+            => FormNavigator.NavigateTo(this, menuLabel, subItem);
+
+        private void BtnLogout_Click(object sender, EventArgs e)
+        {
+            SessionManager.Clear();
+            Application.Restart();
         }
     }
 }
