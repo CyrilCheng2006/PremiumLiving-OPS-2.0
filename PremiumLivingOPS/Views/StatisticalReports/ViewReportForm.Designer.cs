@@ -21,7 +21,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         private Panel pnlKpiOuter;
         private Panel pnlKpi;
 
-        // Filter bar
+        // Filter bar — outer grey wrapper only; card content built per-report
         private Panel pnlFilterOuter;
 
         // Report content host
@@ -46,23 +46,17 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             this.WindowState   = FormWindowState.Maximized;
             this.Font          = new Font("Segoe UI", 13f);
             // NOTE: AutoScaleMode / AutoScaleDimensions intentionally omitted.
-            // Setting them causes WinForms font-scaling to recalculate
-            // _shell.Height after ResumeLayout and collapse the UserBar.
 
             // ── pnlMain (Fill) ───────────────────────────────────────────────
             var pnlMain = new Panel { Dock = DockStyle.Fill, BackColor = Palette.BgPage };
 
             // ── AppShell  ────────────────────────────────────────────────────
-            // DO NOT set Dock / Height / MinimumSize externally here.
-            // AppShell.OnLayout + ScaleControl self-lock height at 116 px.
             _shell = new AppShell();
             _shell.SetPopupContainer(pnlMain);
-            _shell.MenuItemClicked += OnTopNavMenuItemClicked;  // RULE 4 — once
-            _shell.LogoutClicked   += btnLogout_Click;          // RULE 4 — once
+            _shell.MenuItemClicked += OnTopNavMenuItemClicked;
+            _shell.LogoutClicked   += btnLogout_Click;
 
             // ── Tab bar outer (DockStyle.Top, 69 px) ────────────────────────
-            // Mirrors HGR: Height=69, outer Padding=(20,4,20,0)
-            // tblTabs inner Padding=(8,0,8,0) matching HGR tab switcher
             Button MakeTabBtn(string text, int idx)
             {
                 var b = new Button
@@ -98,8 +92,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 ColumnCount = 6,
                 RowCount    = 1,
                 Margin      = new Padding(0),
-                // HGR baseline: tab switcher uses (8,0,8,0) inner padding so
-                // buttons don't press against the white card left/right edges.
                 Padding     = new Padding(8, 0, 8, 0)
             };
             for (int i = 0; i < 6; i++)
@@ -121,20 +113,19 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 Dock      = DockStyle.Top,
                 Height    = 69,
                 BackColor = Palette.BgPage,
-                // HGR baseline: (20,4,20,0) — 0 bottom lets the active tab
-                // underline sit flush against the card bottom edge.
                 Padding   = new Padding(20, 4, 20, 0)
             };
-            pnlTabOuter.Paint   += PaintTabUnderline;
+            pnlTabOuter.Paint += PaintTabUnderline;
             pnlTabOuter.Controls.Add(pnlTabCard);
 
-            // ── KPI bar outer (DockStyle.Top, 90 px) ─────────────────────────
-            // HGR baseline: Height=90, Padding=(20,8,20,8)
+            // ── KPI bar outer (DockStyle.Top, 96 px) ─────────────────────────
+            // Baseline: ViewProductForm actionOuter — outerHeight=96, outerPadding=(20,12,20,0)
+            // pnlKpi fills the left portion; right side reserved for action buttons in VP
+            // but in VRF the whole inner is the KPI pill area.
             pnlKpi = new Panel
             {
                 Dock      = DockStyle.Fill,
-                BackColor = Color.Transparent,
-                Padding   = new Padding(12, 10, 12, 10)
+                BackColor = Color.Transparent
             };
 
             var pnlKpiInner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
@@ -144,28 +135,22 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             pnlKpiOuter = new Panel
             {
                 Dock      = DockStyle.Top,
-                Height    = 90,
+                Height    = 96,
                 BackColor = Palette.BgPage,
-                // HGR baseline: (20,8,20,8) — equal top/bottom grey margin
-                Padding   = new Padding(20, 8, 20, 8)
+                Padding   = new Padding(20, 12, 20, 0)  // mirrors ViewProductForm actionOuter
             };
             pnlKpiOuter.Controls.Add(pnlKpiInner);
 
-            // ── Filter bar outer (DockStyle.Top, 72 px) ──────────────────────
-            // HGR baseline reference: pnlSearchOuter uses top=14 for its large
-            // multi-row form card.  VRF uses a compact single-row filter strip;
-            // top=12 gives proportional breathing room while keeping height lean.
-            //
-            //   Outer H = 72 px
-            //   Padding  = (20, 12, 20, 8)   → grey left/right = 20 px (= HGR)
-            //   Inner usable height = 72 − 12 − 8 = 52 px
-            //   Filter buttons h = 40 px → centred with 6 px clearance each side
+            // ── Filter bar outer (DockStyle.Top, 260 px) ─────────────────────
+            // Baseline: ViewProductForm searchOuter — outerHeight=260, outerPadding=(20,12,20,0)
+            // Inner card built dynamically per-report via SetFilterBar();
+            // the outer is a plain grey wrapper with the same dimensions.
             pnlFilterOuter = new Panel
             {
                 Dock      = DockStyle.Top,
-                Height    = 72,
+                Height    = 260,
                 BackColor = Palette.BgPage,
-                Padding   = new Padding(20, 12, 20, 8)
+                Padding   = new Padding(20, 12, 20, 0)  // mirrors ViewProductForm searchOuter
             };
             // Content is populated dynamically by each Render*() method via SetFilterBar()
 
@@ -173,12 +158,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             pnlContent = new Panel { Dock = DockStyle.Fill, BackColor = Palette.BgPage };
 
             // ── Assemble ──────────────────────────────────────────────────────
-            // HGR canonical order: Fill first, Top sections bottom→top, _shell LAST.
-            //   pnlGridHost    (Fill)
-            //   pnlTabOuter    (Top)
-            //   pnlKpiOuter    (Top)
-            //   pnlSearchOuter (Top)
-            //   _shell          (Top — topmost chrome)
             pnlMain.Controls.Add(pnlContent);     // Fill — first
             pnlMain.Controls.Add(pnlTabOuter);    // Top
             pnlMain.Controls.Add(pnlKpiOuter);    // Top
@@ -186,10 +165,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             pnlMain.Controls.Add(_shell);          // Top — LAST = topmost chrome
 
             this.Controls.Add(pnlMain);
-
-            // NOTE: ResumeLayout(false) only — NO PerformLayout().
-            // PerformLayout triggers AutoScaleMode font-scaling which can
-            // recalculate and collapse AppShell.Height (UserBar disappears).
             this.ResumeLayout(false);
         }
 

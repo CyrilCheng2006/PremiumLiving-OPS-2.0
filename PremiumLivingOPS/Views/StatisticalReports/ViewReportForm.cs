@@ -12,13 +12,11 @@ namespace PremiumLivingOPS.Views.StatisticalReports
     /// <summary>
     /// View — Statistical Reports › View Report
     ///
-    /// Rendering baseline: HandlingGoodsReceivedForm
-    ///   - AppShell wiring: no external Dock/Height; SetPopupContainer only
-    ///   - ResumeLayout(false) only, no PerformLayout()
-    ///   - No AutoScaleMode / AutoScaleDimensions
-    ///   - Tab bar: 6-column equal-width TableLayoutPanel, active tab underline
-    ///   - KPI bar: white card, Padding=(20,8,20,8), Height=90
-    ///   - Filter bar: white card, Padding=(20,8,20,8), Height=118
+    /// Rendering baseline: ViewProductForm (Inventory Control)
+    ///   - Filter bar: 3-row CardPanel (title+divider / fields / buttons)
+    ///     identical to ViewProductForm tblSearchCard structure
+    ///   - KPI bar: white card, outerPadding=(20,12,20,0), height=96,
+    ///     pills PillW=310 PillH=60 Gap=10 — mirrors ViewProductForm.RefreshKpi()
     ///
     /// Tab index map:
     ///   0 = Sales Performance      3 = Logistics Overview
@@ -28,13 +26,13 @@ namespace PremiumLivingOPS.Views.StatisticalReports
     public partial class ViewReportForm : Form
     {
         private readonly StatisticalReportsController _ctrl = new StatisticalReportsController();
-        private int    _activeTab        = -1;
-        private bool   _salesChart       = false;
-        private bool   _inventoryChart   = false;
-        private bool   _procurementChart = false;
-        private bool   _logisticsChart   = false;
+        private int    _activeTab         = -1;
+        private bool   _salesChart        = false;
+        private bool   _inventoryChart    = false;
+        private bool   _procurementChart  = false;
+        private bool   _logisticsChart    = false;
         private bool   _afterServiceChart = false;
-        private bool   _financeChart     = false;
+        private bool   _financeChart      = false;
         private Button[] _tabButtons;
 
         private static readonly Dictionary<string, (Color bg, Color fg)> StatusColors =
@@ -76,7 +74,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
             pnlContent.SuspendLayout();
             pnlContent.Controls.Clear();
-
             pnlFilterOuter.Controls.Clear();
 
             HighlightTab(tabIndex);
@@ -115,9 +112,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         private void PaintTabUnderline(object sender, PaintEventArgs e)
         {
             if (_activeTab < 0 || _activeTab >= _tabButtons.Length) return;
-            var btn  = _tabButtons[_activeTab];
-            // btn.Bounds is relative to tblTabs; pnlTabOuter wraps pnlTabCard
-            // so offset by pnlTabCard left (= pnlTabOuter.Padding.Left)
+            var btn = _tabButtons[_activeTab];
             int padL = pnlTabOuter.Padding.Left;
             int x    = padL + btn.Bounds.X + 24;
             int w    = Math.Max(0, btn.Bounds.Width - 48);
@@ -127,20 +122,185 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         }
 
         // ════════════════════════════════════════════════════════════════
-        //  FILTER BAR BUILDER  — placed in pnlFilterOuter white card
+        //  FILTER BAR BUILDER
+        //  Baseline: ViewProductForm tblSearchCard
+        //    Row 0 — title + divider  (52 px, Absolute)
+        //    Row 1 — filter fields    (110 px, Absolute)   ← MakeCell columns
+        //    Row 2 — action buttons   (68 px, Absolute)
+        //  The whole 3-row TLP sits inside a white CardPanel inner.
+        //  pnlFilterOuter outer height=260, padding=(20,12,20,0) set in Designer.
         // ════════════════════════════════════════════════════════════════
 
-        private void SetFilterBar(Panel filterContent)
+        /// <summary>
+        /// Builds the filter card and places it inside pnlFilterOuter.
+        /// <para>fieldCells  — pass the field-column TLP (built by BuildFieldsRow).</para>
+        /// <para>btnRow      — pass the button panel (built by BuildButtonsRow).</para>
+        /// <para>titleText   — section title shown in the title row.</para>
+        /// </summary>
+        private void SetFilterBar(string titleText, TableLayoutPanel fieldCells, Panel btnRow)
         {
-            var inner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
-            inner.Paint += PaintCardBorder;
-            filterContent.Dock = DockStyle.Fill;
-            inner.Controls.Add(filterContent);
-            pnlFilterOuter.Controls.Add(inner);
+            // ── 3-row TLP inside white card  ─────────────────────────────────
+            var tbl = new TableLayoutPanel
+            {
+                Dock            = DockStyle.Fill,
+                RowCount        = 3,
+                ColumnCount     = 1,
+                BackColor       = Color.Transparent,
+                CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                Padding         = new Padding(18, 14, 18, 14)
+            };
+            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute,  52f));  // title
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 110f));  // fields
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute,  68f));  // buttons
+
+            // Row 0 — title + bottom divider
+            var pnlTitle = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
+            pnlTitle.Controls.Add(new Label
+            {
+                Text      = titleText,
+                Font      = new Font("Segoe UI", 13f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(15, 31, 53),
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft
+            });
+            pnlTitle.Controls.Add(new Panel
+            {
+                Dock      = DockStyle.Bottom,
+                Height    = 1,
+                BackColor = Color.FromArgb(221, 227, 236)
+            });
+
+            // Row 2 — buttons, left-anchored with top offset
+            btnRow.Dock = DockStyle.Fill;
+
+            tbl.Controls.Add(pnlTitle,    0, 0);
+            tbl.Controls.Add(fieldCells,  0, 1);
+            tbl.Controls.Add(btnRow,      0, 2);
+
+            // White card wrapper with border
+            var card = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
+            card.Paint += PaintCardBorder;
+            card.Controls.Add(tbl);
+
+            pnlFilterOuter.Controls.Add(card);
+        }
+
+        // ────────────────────────────────────────────────────────────────
+        //  Builds the field-columns row (Row 1 of filter card).
+        //  Mirrors ViewProductForm tblFields + MakeCell() pattern.
+        //  Pass up to 4 (caption, control) pairs; null pair = empty column.
+        // ────────────────────────────────────────────────────────────────
+        private static TableLayoutPanel BuildFieldsRow(
+            (string caption, Control ctrl)? col1,
+            (string caption, Control ctrl)? col2,
+            (string caption, Control ctrl)? col3 = null,
+            (string caption, Control ctrl)? col4 = null)
+        {
+            // Determine column count and percent widths
+            var cols = new List<(string caption, Control ctrl)?> { col1, col2, col3, col4 };
+            cols.RemoveAll(c => c == null);
+            int n = Math.Max(1, cols.Count);
+
+            var tbl = new TableLayoutPanel
+            {
+                Dock            = DockStyle.Fill,
+                ColumnCount     = n,
+                RowCount        = 1,
+                BackColor       = Color.Transparent,
+                CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+            };
+            // Distribute widths: first column takes 40% if 3+ cols (keyword is widest)
+            if (n >= 3)
+            {
+                tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40f));
+                float rest = 60f / (n - 1);
+                for (int i = 1; i < n; i++)
+                    tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, rest));
+            }
+            else
+            {
+                for (int i = 0; i < n; i++)
+                    tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f / n));
+            }
+            tbl.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+
+            for (int i = 0; i < cols.Count; i++)
+            {
+                var (caption, ctrl) = cols[i].Value;
+                bool lastCol = i == cols.Count - 1;
+
+                // MakeCell: 2-row TLP — label top, control bottom
+                var cell = new TableLayoutPanel
+                {
+                    Dock            = DockStyle.Fill,
+                    RowCount        = 2,
+                    ColumnCount     = 1,
+                    BackColor       = Color.Transparent,
+                    CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                    Padding         = lastCol ? Padding.Empty : new Padding(0, 0, 12, 0)
+                };
+                cell.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+                cell.RowStyles.Add(new RowStyle(SizeType.Absolute, 36f));
+                cell.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+
+                cell.Controls.Add(new Label
+                {
+                    Text      = caption,
+                    Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
+                    ForeColor = Color.FromArgb(98, 112, 135),
+                    Dock      = DockStyle.Fill,
+                    TextAlign = ContentAlignment.BottomLeft,
+                    Padding   = new Padding(0, 0, 0, 2)
+                }, 0, 0);
+
+                ctrl.Dock = DockStyle.Fill;
+                if (ctrl is DateTimePicker || ctrl is ComboBox) ctrl.Height = 34;
+                cell.Controls.Add(ctrl, 0, 1);
+
+                tbl.Controls.Add(cell, i, 0);
+            }
+            return tbl;
+        }
+
+        // ────────────────────────────────────────────────────────────────
+        //  Builds the buttons row (Row 2 of filter card).
+        //  Mirrors ViewProductForm pnlSearchBtns — left-anchored, y=4 offset.
+        // ────────────────────────────────────────────────────────────────
+        private static Panel BuildButtonsRow(
+            Button btnApply, Button btnReset,
+            Button btnChart, Button btnTable, Button btnExport)
+        {
+            var pnl = new Panel { BackColor = Color.Transparent };
+
+            // Left group: Apply + Reset
+            btnApply.Location = new Point(0, 4);
+            btnReset.Location = new Point(btnApply.Width + 8, 4);
+
+            // Divider
+            var div = new Panel
+            {
+                Size      = new Size(1, 40),
+                Location  = new Point(btnApply.Width + btnReset.Width + 24, 4),
+                BackColor = Color.FromArgb(221, 227, 236)
+            };
+
+            // Right group: Chart + Table + Export
+            int xRight = div.Left + div.Width + 16;
+            btnChart.Location  = new Point(xRight, 4);
+            btnTable.Location  = new Point(xRight + btnChart.Width + 8, 4);
+            btnExport.Location = new Point(xRight + btnChart.Width + btnTable.Width + 20, 4);
+
+            pnl.Controls.AddRange(new Control[] { btnApply, btnReset, div, btnChart, btnTable, btnExport });
+            return pnl;
         }
 
         // ════════════════════════════════════════════════════════════════
         //  KPI BAR BUILDER
+        //  Baseline: ViewProductForm.RefreshKpi()
+        //    PillW=310, PillH=60, Gap=10, LeftPad=12
+        //    Count col width=80, label font=12f
+        //    FlowLayoutPanel AutoSize=true, pills vertically centred via wrapper.Layout
         // ════════════════════════════════════════════════════════════════
 
         private static void BuildKpiPills(
@@ -149,19 +309,21 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         {
             pnlKpi.Controls.Clear();
 
-            const int PillW   = 220;
-            const int PillH   = 58;
-            const int Gap     = 8;
-            const int NumColW = 75;
+            const int PillW   = 310;
+            const int PillH   = 60;
+            const int Gap     = 10;
+            const int NumColW = 80;
+            const int LeftPad = 12;
 
             var flow = new FlowLayoutPanel
             {
-                Dock          = DockStyle.Fill,
                 FlowDirection = FlowDirection.LeftToRight,
                 WrapContents  = false,
                 BackColor     = Color.Transparent,
                 Padding       = new Padding(0),
-                AutoScroll    = false
+                AutoScroll    = false,
+                AutoSize      = true,
+                AutoSizeMode  = AutoSizeMode.GrowAndShrink
             };
 
             foreach (var (label, count, fg, bg, _) in pills)
@@ -170,7 +332,8 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 {
                     BackColor = bg,
                     Size      = new Size(PillW, PillH),
-                    Margin    = new Padding(0, 0, Gap, 0)
+                    Margin    = new Padding(0, 0, Gap, 0),
+                    Cursor    = Cursors.Default
                 };
                 pill.Paint += (s, ev) =>
                 {
@@ -183,7 +346,8 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 var tlp = new TableLayoutPanel
                 {
                     Dock            = DockStyle.Fill,
-                    ColumnCount     = 2, RowCount = 1,
+                    ColumnCount     = 2,
+                    RowCount        = 1,
                     BackColor       = Color.Transparent,
                     CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
                     Padding         = new Padding(10, 0, 8, 0)
@@ -194,26 +358,45 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
                 tlp.Controls.Add(new Label
                 {
-                    Text = count, Font = new Font("Segoe UI", 14f, FontStyle.Bold),
-                    ForeColor = fg, BackColor = Color.Transparent,
-                    Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, AutoSize = false
+                    Text      = count,
+                    Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
+                    ForeColor = fg,
+                    BackColor = Color.Transparent,
+                    Dock      = DockStyle.Fill,
+                    TextAlign = ContentAlignment.MiddleCenter,
+                    AutoSize  = false
                 }, 0, 0);
+
                 tlp.Controls.Add(new Label
                 {
-                    Text = label, Font = new Font("Segoe UI", 11f),
-                    ForeColor = fg, BackColor = Color.Transparent,
-                    Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
+                    Text      = label,
+                    Font      = new Font("Segoe UI", 12f),
+                    ForeColor = fg,
+                    BackColor = Color.Transparent,
+                    Dock      = DockStyle.Fill,
+                    TextAlign = ContentAlignment.MiddleLeft,
+                    AutoSize  = false
                 }, 1, 0);
 
                 pill.Controls.Add(tlp);
                 flow.Controls.Add(pill);
             }
-            pnlKpi.Controls.Add(flow);
+
+            // Wrapper centres the flow vertically — mirrors VP wrapper.Layout
+            var wrapper = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
+            wrapper.Controls.Add(flow);
+            wrapper.Layout += (s, e) =>
+            {
+                var w = (Panel)s;
+                flow.Left = LeftPad;
+                flow.Top  = Math.Max(0, (w.Height - PillH) / 2);
+            };
+
+            pnlKpi.Controls.Add(wrapper);
         }
 
         // ════════════════════════════════════════════════════════════════
-        //  GRID CARD BUILDER  (used by every Render* to add grids/charts
-        //  into pnlContent as white card wrappers)
+        //  GRID CARD BUILDER
         // ════════════════════════════════════════════════════════════════
 
         private void AddGridCard(
@@ -224,9 +407,10 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         {
             var hdrPanel = new Panel
             {
-                Dock = DockStyle.Top, Height = 38,
+                Dock      = DockStyle.Top,
+                Height    = 38,
                 BackColor = Color.FromArgb(246, 249, 255),
-                Padding = new Padding(16, 0, 0, 0)
+                Padding   = new Padding(16, 0, 0, 0)
             };
             hdrPanel.Paint += (o, ev) =>
             {
@@ -235,9 +419,11 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             };
             hdrPanel.Controls.Add(new Label
             {
-                Text = sectionLabel, Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+                Text      = sectionLabel,
+                Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(98, 112, 135),
-                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft
             });
 
             var inner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
@@ -273,7 +459,16 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             var btnTable = MakeToggleBtn("\U0001F4CB  Table", 120, 40, !_salesChart);
             var btnExport = MakeExportBtn(150, 40);
 
-            SetFilterBar(BuildFilterRow(chkDate, dtpFrom, MakeLabel("To:"), dtpTo, btnApply, btnReset, btnChart, btnTable, btnExport));
+            var fields = BuildFieldsRow(
+                ("Date",   chkDate),
+                ("From",   dtpFrom),
+                ("To",     MakeLabel("To:")),
+                ("To Date",dtpTo));
+            // Override: use 4-col equal layout for date range
+            // col1=checkbox, col2=fromPicker, col3=toLabel, col4=toPicker
+            SetFilterBar("Filter: Sales Performance",
+                BuildFieldsRow(("Date Filter", chkDate), ("From", dtpFrom), ("To", MakeLabel("To:")), ("To Date", dtpTo)),
+                BuildButtonsRow(btnApply, btnReset, btnChart, btnTable, btnExport));
 
             var dgv = MakeGrid();
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colOrderID",  HeaderText = "ORDER ID",    FillWeight = 18 });
@@ -300,12 +495,12 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 var k = vm.SalesKpi;
                 BuildKpiPills(pnlKpi, new[]
                 {
-                    ("Total Orders",  k.TotalOrders.ToString(),         Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254), (string)null),
-                    ("Revenue (HK$)", $"{k.TotalRevenue:N0}",           Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229), (string)null),
-                    ("Avg Order",     $"HK$ {k.AverageOrderValue:N0}",  Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254), (string)null),
-                    ("Delivered",     k.DeliveredOrders.ToString(),     Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229), (string)null),
-                    ("Processing",    k.ProcessingOrders.ToString(),    Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), (string)null),
-                    ("Pending",       k.PendingOrders.ToString(),       Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), (string)null),
+                    ("Total Orders",  k.TotalOrders.ToString(),        Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254), (string)null),
+                    ("Revenue (HK$)", $"{k.TotalRevenue:N0}",          Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229), (string)null),
+                    ("Avg Order",     $"HK$ {k.AverageOrderValue:N0}", Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254), (string)null),
+                    ("Delivered",     k.DeliveredOrders.ToString(),    Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229), (string)null),
+                    ("Processing",    k.ProcessingOrders.ToString(),   Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), (string)null),
+                    ("Pending",       k.PendingOrders.ToString(),      Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), (string)null),
                 });
                 dgv.Rows.Clear();
                 foreach (var r in vm.SalesRows)
@@ -350,7 +545,9 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             var btnTable   = MakeToggleBtn("\U0001F4CB  Table", 120, 40, !_inventoryChart);
             var btnExport  = MakeExportBtn(150, 40);
 
-            SetFilterBar(BuildFilterRow(MakeLabel("Category:"), cboCat, chkReorder, null, btnApply, btnReset, btnChart, btnTable, btnExport));
+            SetFilterBar("Filter: Inventory Status",
+                BuildFieldsRow(("Category", cboCat), ("Reorder Alert", chkReorder)),
+                BuildButtonsRow(btnApply, btnReset, btnChart, btnTable, btnExport));
 
             var dgv = MakeGrid();
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colWHIID",   HeaderText = "WHI ID",        FillWeight = 13 });
@@ -384,10 +581,10 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 var k = vm.InventoryKpi;
                 BuildKpiPills(pnlKpi, new[]
                 {
-                    ("Total SKUs",    k.TotalSKUs.ToString(),        Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254), (string)null),
-                    ("Products",      k.ProductCount.ToString(),     Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254), (string)null),
-                    ("Raw Materials", k.RawMaterialCount.ToString(), Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229), (string)null),
-                    ("Below Reorder", k.BelowReorderCount.ToString(),Color.FromArgb(185,  28,  28), Color.FromArgb(254, 226, 226), (string)null),
+                    ("Total SKUs",    k.TotalSKUs.ToString(),         Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254), (string)null),
+                    ("Products",      k.ProductCount.ToString(),      Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254), (string)null),
+                    ("Raw Materials", k.RawMaterialCount.ToString(),  Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229), (string)null),
+                    ("Below Reorder", k.BelowReorderCount.ToString(), Color.FromArgb(185,  28,  28), Color.FromArgb(254, 226, 226), (string)null),
                 });
                 dgv.Rows.Clear();
                 foreach (var r in vm.InventoryRows)
@@ -409,10 +606,10 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 ToggleChartTable(_inventoryChart, dgv, chartStock, null, chartCat);
             };
 
-            btnApply.Click += (s, e) => load();
-            btnReset.Click += (s, e) => { cboCat.SelectedIndex = 0; chkReorder.Checked = false; load(); };
-            btnChart.Click += (s, e) => { _inventoryChart = true;  FlipToggle(btnChart, btnTable, true);  ToggleChartTable(_inventoryChart, dgv, chartStock, null, chartCat); };
-            btnTable.Click += (s, e) => { _inventoryChart = false; FlipToggle(btnChart, btnTable, false); ToggleChartTable(_inventoryChart, dgv, chartStock, null, chartCat); };
+            btnApply.Click  += (s, e) => load();
+            btnReset.Click  += (s, e) => { cboCat.SelectedIndex = 0; chkReorder.Checked = false; load(); };
+            btnChart.Click  += (s, e) => { _inventoryChart = true;  FlipToggle(btnChart, btnTable, true);  ToggleChartTable(_inventoryChart, dgv, chartStock, null, chartCat); };
+            btnTable.Click  += (s, e) => { _inventoryChart = false; FlipToggle(btnChart, btnTable, false); ToggleChartTable(_inventoryChart, dgv, chartStock, null, chartCat); };
             btnExport.Click += (s, e) => CsvExporter.Export(dgv, "InventoryStatus");
             load();
 
@@ -428,7 +625,9 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             var btnTable  = MakeToggleBtn("\U0001F4CB  Table", 120, 40, !_procurementChart);
             var btnExport = MakeExportBtn(150, 40);
 
-            SetFilterBar(BuildFilterRow(MakeLabel("Status:"), cboStatus, null, null, btnApply, btnReset, btnChart, btnTable, btnExport));
+            SetFilterBar("Filter: Procurement Summary",
+                BuildFieldsRow(("Status", cboStatus)),
+                BuildButtonsRow(btnApply, btnReset, btnChart, btnTable, btnExport));
 
             var dgv = MakeGrid();
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPOID",     HeaderText = "PO ID",      FillWeight = 20 });
@@ -471,10 +670,10 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 ToggleChartTable(_procurementChart, dgv, chartSupplier, null, chartStatus);
             };
 
-            btnApply.Click += (s, e) => load();
-            btnReset.Click += (s, e) => { cboStatus.SelectedIndex = 0; load(); };
-            btnChart.Click += (s, e) => { _procurementChart = true;  FlipToggle(btnChart, btnTable, true);  ToggleChartTable(_procurementChart, dgv, chartSupplier, null, chartStatus); };
-            btnTable.Click += (s, e) => { _procurementChart = false; FlipToggle(btnChart, btnTable, false); ToggleChartTable(_procurementChart, dgv, chartSupplier, null, chartStatus); };
+            btnApply.Click  += (s, e) => load();
+            btnReset.Click  += (s, e) => { cboStatus.SelectedIndex = 0; load(); };
+            btnChart.Click  += (s, e) => { _procurementChart = true;  FlipToggle(btnChart, btnTable, true);  ToggleChartTable(_procurementChart, dgv, chartSupplier, null, chartStatus); };
+            btnTable.Click  += (s, e) => { _procurementChart = false; FlipToggle(btnChart, btnTable, false); ToggleChartTable(_procurementChart, dgv, chartSupplier, null, chartStatus); };
             btnExport.Click += (s, e) => CsvExporter.Export(dgv, "ProcurementSummary");
             load();
 
@@ -490,7 +689,9 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             var btnTable  = MakeToggleBtn("\U0001F4CB  Table", 120, 40, !_logisticsChart);
             var btnExport = MakeExportBtn(150, 40);
 
-            SetFilterBar(BuildFilterRow(MakeLabel("Status:"), cboStatus, null, null, btnApply, btnReset, btnChart, btnTable, btnExport));
+            SetFilterBar("Filter: Logistics Overview",
+                BuildFieldsRow(("Status", cboStatus)),
+                BuildButtonsRow(btnApply, btnReset, btnChart, btnTable, btnExport));
 
             var dgv = MakeGrid();
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colShipID", HeaderText = "SHIPMENT ID", FillWeight = 20 });
@@ -530,11 +731,11 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 var k = vm.LogKpi;
                 BuildKpiPills(pnlKpi, new[]
                 {
-                    ("Total",      k.TotalShipments.ToString(), Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254), (string)null),
-                    ("Completed",  k.Completed.ToString(),      Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229), (string)null),
-                    ("In Transit", k.InTransit.ToString(),      Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), (string)null),
-                    ("Pending",    k.Pending.ToString(),        Color.FromArgb(185,  28,  28), Color.FromArgb(254, 226, 226), (string)null),
-                    ("Reply Slips",k.WithReplySlip.ToString(),  Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254), (string)null),
+                    ("Total",       k.TotalShipments.ToString(), Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254), (string)null),
+                    ("Completed",   k.Completed.ToString(),      Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229), (string)null),
+                    ("In Transit",  k.InTransit.ToString(),      Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), (string)null),
+                    ("Pending",     k.Pending.ToString(),        Color.FromArgb(185,  28,  28), Color.FromArgb(254, 226, 226), (string)null),
+                    ("Reply Slips", k.WithReplySlip.ToString(),  Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254), (string)null),
                 });
                 dgv.Rows.Clear();
                 foreach (var r in vm.LogRows)
@@ -553,10 +754,10 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 ToggleChartTable(_logisticsChart, dgv, chartStatus, null, null);
             };
 
-            btnApply.Click += (s, e) => load();
-            btnReset.Click += (s, e) => { cboStatus.SelectedIndex = 0; load(); };
-            btnChart.Click += (s, e) => { _logisticsChart = true;  FlipToggle(btnChart, btnTable, true);  ToggleChartTable(_logisticsChart, dgv, chartStatus, null, null); };
-            btnTable.Click += (s, e) => { _logisticsChart = false; FlipToggle(btnChart, btnTable, false); ToggleChartTable(_logisticsChart, dgv, chartStatus, null, null); };
+            btnApply.Click  += (s, e) => load();
+            btnReset.Click  += (s, e) => { cboStatus.SelectedIndex = 0; load(); };
+            btnChart.Click  += (s, e) => { _logisticsChart = true;  FlipToggle(btnChart, btnTable, true);  ToggleChartTable(_logisticsChart, dgv, chartStatus, null, null); };
+            btnTable.Click  += (s, e) => { _logisticsChart = false; FlipToggle(btnChart, btnTable, false); ToggleChartTable(_logisticsChart, dgv, chartStatus, null, null); };
             btnExport.Click += (s, e) => CsvExporter.Export(dgv, "LogisticsOverview");
             load();
 
@@ -573,7 +774,9 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             var btnTable  = MakeToggleBtn("\U0001F4CB  Table", 120, 40, !_afterServiceChart);
             var btnExport = MakeExportBtn(150, 40);
 
-            SetFilterBar(BuildFilterRow(MakeLabel("Complaint:"), cboCmp, MakeLabel("Return:"), cboRtn, btnApply, btnReset, btnChart, btnTable, btnExport));
+            SetFilterBar("Filter: After-Service Summary",
+                BuildFieldsRow(("Complaint Status", cboCmp), ("Return Status", cboRtn)),
+                BuildButtonsRow(btnApply, btnReset, btnChart, btnTable, btnExport));
 
             var dgvCmp = MakeGrid();
             dgvCmp.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCmpID",  HeaderText = "COMPLAINT ID", FillWeight = 22 });
@@ -644,7 +847,9 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             var btnTable  = MakeToggleBtn("\U0001F4CB  Table", 120, 40, !_financeChart);
             var btnExport = MakeExportBtn(150, 40);
 
-            SetFilterBar(BuildFilterRow(chkDate, dtpFrom, MakeLabel("To:"), dtpTo, btnApply, btnReset, btnChart, btnTable, btnExport));
+            SetFilterBar("Filter: Finance Overview",
+                BuildFieldsRow(("Date Filter", chkDate), ("From", dtpFrom), ("To Label", MakeLabel("To:")), ("To Date", dtpTo)),
+                BuildButtonsRow(btnApply, btnReset, btnChart, btnTable, btnExport));
 
             var dgv = MakeGrid();
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTxnID",   HeaderText = "TRANSACTION ID",  FillWeight = 22 });
@@ -664,11 +869,11 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 var k = vm.FinanceKpi;
                 BuildKpiPills(pnlKpi, new[]
                 {
-                    ("Sales Rev (HK$)",   $"{k.TotalSalesRevenue:N0}",    Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229), (string)null),
-                    ("Procurement (HK$)", $"{k.TotalProcurementSpend:N0}",Color.FromArgb(185,  28,  28), Color.FromArgb(254, 226, 226), (string)null),
-                    ("Refunds (HK$)",     $"{k.TotalRefunds:N0}",         Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), (string)null),
-                    ("AR Due (HK$)",      $"{k.AROutstanding:N0}",        Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), (string)null),
-                    ("AP Due (HK$)",      $"{k.APOutstanding:N0}",        Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254), (string)null),
+                    ("Sales Rev (HK$)",   $"{k.TotalSalesRevenue:N0}",     Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229), (string)null),
+                    ("Procurement (HK$)", $"{k.TotalProcurementSpend:N0}", Color.FromArgb(185,  28,  28), Color.FromArgb(254, 226, 226), (string)null),
+                    ("Refunds (HK$)",     $"{k.TotalRefunds:N0}",          Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), (string)null),
+                    ("AR Due (HK$)",      $"{k.AROutstanding:N0}",         Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), (string)null),
+                    ("AP Due (HK$)",      $"{k.APOutstanding:N0}",         Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254), (string)null),
                 });
                 dgv.Rows.Clear();
                 foreach (var r in vm.FinanceRows)
@@ -704,50 +909,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             load(null, null);
 
             AddGridCard(DockStyle.Fill, 0, "TRANSACTIONS", dgv, chartAmounts, _financeChart, true);
-        }
-
-        // ════════════════════════════════════════════════════════════════
-        //  FILTER ROW BUILDER
-        // ════════════════════════════════════════════════════════════════
-
-        private static Panel BuildFilterRow(
-            Control f1, Control f2, Control f3, Control f4,
-            Button btnApply, Button btnReset,
-            Button btnChart, Button btnTable, Button btnExport)
-        {
-            var flow = new FlowLayoutPanel
-            {
-                Dock          = DockStyle.Fill,
-                FlowDirection = FlowDirection.LeftToRight,
-                WrapContents  = false,
-                BackColor     = Color.Transparent,
-                Padding       = new Padding(16, 0, 16, 0)
-            };
-
-            void Add(Control c, int rightGap = 8)
-            {
-                if (c == null) return;
-                c.Margin = new Padding(0, 0, rightGap, 0);
-                if (c is DateTimePicker || c is ComboBox) c.Height = 34;
-                flow.Controls.Add(c);
-            }
-
-            Add(f1); Add(f2, 12); Add(f3); Add(f4, 12);
-            Add(btnApply); Add(btnReset, 16);
-
-            var div = new Panel { Width = 1, BackColor = Color.FromArgb(221, 227, 236), Margin = new Padding(0, 8, 16, 8) };
-            flow.Controls.Add(div);
-
-            Add(btnChart); Add(btnTable, 12); Add(btnExport);
-
-            var wrapper = new Panel { BackColor = Color.Transparent, Dock = DockStyle.Fill };
-            wrapper.Controls.Add(flow);
-            wrapper.Layout += (s, e) =>
-            {
-                var p = (Panel)s;
-                flow.Top = Math.Max(0, (p.Height - flow.PreferredSize.Height) / 2);
-            };
-            return wrapper;
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -906,7 +1067,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         }
 
         // ════════════════════════════════════════════════════════════════
-        //  EVENT STUBS (subscribed in Designer.cs RULE 4)
+        //  NAVIGATION / SESSION
         // ════════════════════════════════════════════════════════════════
 
         private void OnTopNavMenuItemClicked(string menu, string sub)
