@@ -14,14 +14,16 @@ namespace PremiumLivingOPS.Views.StatisticalReports
     ///
     /// Rendering baseline: HandlingGoodsReceivedForm (Logistics Processing)
     ///   - Tab Bar:    pnlTabOuter  Height=69,  Padding=(20,4,20,0)
-    ///   - Filter Bar: pnlFilterOuter Height=200, Padding=(20,14,20,8)
-    ///     3-row tblCard: row0=50(title), row1=60(fields single-row), row2=65(buttons)
+    ///   - Filter Bar: pnlFilterOuter Height=220 (=200×1.1), Padding=(20,14,20,8)
+    ///     3-row tblCard: row0=52(title), row1=66(fields), row2=72(buttons)
     ///
     /// Changes (2026-06-29):
+    ///   - Filter Bar height ×1.1  → 220 px
+    ///   - DateTimePicker width ×0.8  (percent 40 → 32 each)
+    ///   - Chart + Table merged into single toggle button (btnToggleView)
+    ///   - Toggle + Export buttons right-aligned in button row
     ///   - KPI bar removed entirely
-    ///   - Date filter collapsed to single horizontal row:
-    ///       [chk] [dtpFrom] ["to" label] [dtpTo]
-    ///   - All buttons resized to 210×60
+    ///   - All action buttons resized to 210×60
     ///
     /// Tab index map:
     ///   0 = Sales Performance      3 = Logistics Overview
@@ -128,10 +130,11 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
         // ════════════════════════════════════════════════════════════════
         //  FILTER BAR BUILDER
+        //  Height=220 (×1.1 of 200)
         //  3-row tblCard inside white CardPanel inside pnlFilterOuter:
-        //    Row 0 — title + divider  (50 px, Absolute)
-        //    Row 1 — filter fields   ( 60 px, Absolute)  ← single input row
-        //    Row 2 — action buttons  ( 65 px, Absolute)
+        //    Row 0 — title + divider  (52 px, Absolute)
+        //    Row 1 — filter fields   ( 66 px, Absolute)
+        //    Row 2 — action buttons  ( 72 px, Absolute)
         //  tblCard Padding=(18,10,18,10)
         // ════════════════════════════════════════════════════════════════
 
@@ -147,9 +150,9 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 Padding         = new Padding(18, 10, 18, 10)
             };
             tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute,  50f));  // title
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute,  60f));  // fields (single row)
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute,  65f));  // buttons
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute,  52f));  // title
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute,  66f));  // fields
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute,  72f));  // buttons
 
             // Row 0 — title + bottom divider
             var pnlTitle = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
@@ -184,8 +187,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
         // ────────────────────────────────────────────────────────────────
         //  BuildFieldsRow  — single horizontal row of labelled controls.
-        //  Each column: optional caption label (22 px) + control (fill).
-        //  For date range filters use BuildDateRangeRow instead.
         // ────────────────────────────────────────────────────────────────
         private static Panel BuildFieldsRow(params (string caption, Control ctrl)[] cols)
         {
@@ -208,7 +209,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 var (caption, ctrl) = cols[i];
                 bool last = i == cols.Length - 1;
 
-                // Wrap each col in a mini 2-row TLP: caption (22px) + control (fill)
                 var cell = new TableLayoutPanel
                 {
                     Dock            = DockStyle.Fill,
@@ -240,12 +240,9 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         }
 
         // ────────────────────────────────────────────────────────────────
-        //  BuildDateRangeRow — single horizontal row for date range input:
-        //    [CheckBox] [From DatePicker] ["to" label] [To DatePicker]
-        //    plus any additional columns appended after.
-        //  chkEnable: the checkbox that enables/disables dtpFrom.
-        //  dtpFrom / dtpTo: the two date pickers.
-        //  extraCols: optional additional (caption, ctrl) pairs.
+        //  BuildDateRangeRow
+        //  DateTimePicker width: ×0.8 of original 40% → 32% each
+        //  Freed 16% redistributed to extra cols (or left as spacer).
         // ────────────────────────────────────────────────────────────────
         private static Panel BuildDateRangeRow(
             CheckBox chkEnable,
@@ -253,7 +250,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             DateTimePicker dtpTo,
             params (string caption, Control ctrl)[] extraCols)
         {
-            // "to" connector label
             var lblTo = new Label
             {
                 Text      = "to",
@@ -264,7 +260,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 Dock      = DockStyle.Fill
             };
 
-            // Total columns: chk(fixed) + dtpFrom + lblTo(fixed) + dtpTo + extras
             int extraCount = extraCols == null ? 0 : extraCols.Length;
             int totalCols  = 4 + extraCount;
 
@@ -278,17 +273,18 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 Padding         = new Padding(0, 2, 0, 2)
             };
             tbl.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-            // Checkbox col: fixed 34px
+
+            // Checkbox: fixed 34px
             tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 34f));
-            // From DatePicker: percent
-            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, extraCount == 0 ? 40f : 30f));
+            // From DTP: 32% (was 40%, ×0.8)
+            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 32f));
             // "to" label: fixed 36px
             tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 36f));
-            // To DatePicker: percent
-            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, extraCount == 0 ? 40f : 30f));
+            // To DTP: 32% (was 40%, ×0.8)
+            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 32f));
             // Extra cols share remaining percent
             for (int i = 0; i < extraCount; i++)
-                tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40f));
+                tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 36f));
 
             chkEnable.Dock = DockStyle.Fill;
             dtpFrom.Dock   = DockStyle.Fill;
@@ -304,7 +300,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 for (int i = 0; i < extraCols.Length; i++)
                 {
                     var (cap, ctrl) = extraCols[i];
-                    // Wrap extra in a mini 2-row cell with caption
                     var cell = new TableLayoutPanel
                     {
                         Dock            = DockStyle.Fill,
@@ -333,39 +328,55 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         }
 
         // ────────────────────────────────────────────────────────────────
-        //  BuildButtonsRow — all buttons 210×60
+        //  BuildButtonsRow
+        //  Layout: [Apply] [Reset]  ············  [📊/📋 Toggle] [Export]
+        //  - Apply + Reset: left-aligned, absolute positions
+        //  - Toggle + Export: right-aligned via DockStyle.Right panel
+        //  - Chart/Table merged into btnToggleView (single toggle button)
+        //  - All buttons 210×60
         // ────────────────────────────────────────────────────────────────
         private static Panel BuildButtonsRow(
             Button btnApply, Button btnReset,
-            Button btnChart, Button btnTable, Button btnExport)
+            Button btnToggleView, Button btnExport)
         {
             const int BtnW = 210;
             const int BtnH =  60;
             const int Gap  =   8;
 
-            btnApply.Size  = new Size(BtnW, BtnH);
-            btnReset.Size  = new Size(BtnW, BtnH);
-            btnChart.Size  = new Size(BtnW, BtnH);
-            btnTable.Size  = new Size(BtnW, BtnH);
-            btnExport.Size = new Size(BtnW, BtnH);
+            btnApply.Size       = new Size(BtnW, BtnH);
+            btnReset.Size       = new Size(BtnW, BtnH);
+            btnToggleView.Size  = new Size(BtnW, BtnH);
+            btnExport.Size      = new Size(BtnW, BtnH);
 
-            btnApply.Location  = new Point(0, 0);
-            btnReset.Location  = new Point(BtnW + Gap, 0);
+            // Left group: Apply + Reset
+            btnApply.Location = new Point(0, 0);
+            btnReset.Location = new Point(BtnW + Gap, 0);
 
-            var div = new Panel
+            var pnlLeft = new Panel
             {
-                Size      = new Size(1, BtnH),
-                Location  = new Point((BtnW + Gap) * 2 + 8, 0),
-                BackColor = Color.FromArgb(221, 227, 236)
+                Dock      = DockStyle.Left,
+                Width     = (BtnW + Gap) * 2,
+                BackColor = Color.Transparent
             };
+            pnlLeft.Controls.Add(btnApply);
+            pnlLeft.Controls.Add(btnReset);
 
-            int xRight = div.Left + div.Width + 8;
-            btnChart.Location  = new Point(xRight, 0);
-            btnTable.Location  = new Point(xRight + BtnW + Gap, 0);
-            btnExport.Location = new Point(xRight + (BtnW + Gap) * 2, 0);
+            // Right group: Toggle + Export — right-aligned
+            btnToggleView.Location = new Point(0, 0);
+            btnExport.Location     = new Point(BtnW + Gap, 0);
 
-            var pnl = new Panel { BackColor = Color.Transparent };
-            pnl.Controls.AddRange(new Control[] { btnApply, btnReset, div, btnChart, btnTable, btnExport });
+            var pnlRight = new Panel
+            {
+                Dock      = DockStyle.Right,
+                Width     = (BtnW + Gap) * 2,
+                BackColor = Color.Transparent
+            };
+            pnlRight.Controls.Add(btnToggleView);
+            pnlRight.Controls.Add(btnExport);
+
+            var pnl = new Panel { BackColor = Color.Transparent, Dock = DockStyle.Fill };
+            pnl.Controls.Add(pnlRight);  // Right first so Fill doesn't push it
+            pnl.Controls.Add(pnlLeft);
             return pnl;
         }
 
@@ -424,21 +435,20 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
         private void RenderSales()
         {
-            var dtpFrom  = MakeDatePicker(DateTime.Today.AddMonths(-3));
-            var dtpTo    = MakeDatePicker(DateTime.Today);
-            var chkDate  = new CheckBox { Text = "Date Range", Font = new Font("Segoe UI", 11f), ForeColor = Color.FromArgb(98, 112, 135), BackColor = Color.Transparent, AutoSize = false, Dock = DockStyle.Fill };
-            var btnApply = MakePrimaryBtn("Apply");
-            var btnReset = MakeOutlineBtn("Reset");
-            var btnChart = MakeToggleBtn("\U0001F4CA  Chart", _salesChart);
-            var btnTable = MakeToggleBtn("\U0001F4CB  Table", !_salesChart);
-            var btnExport = MakeExportBtn();
+            var dtpFrom       = MakeDatePicker(DateTime.Today.AddMonths(-3));
+            var dtpTo         = MakeDatePicker(DateTime.Today);
+            var chkDate       = new CheckBox { Text = "Date Range", Font = new Font("Segoe UI", 11f), ForeColor = Color.FromArgb(98, 112, 135), BackColor = Color.Transparent, AutoSize = false, Dock = DockStyle.Fill };
+            var btnApply      = MakePrimaryBtn("Apply");
+            var btnReset      = MakeOutlineBtn("Reset");
+            var btnToggleView = MakeToggleViewBtn(_salesChart);
+            var btnExport     = MakeExportBtn();
 
             dtpFrom.Enabled = false;
             chkDate.CheckedChanged += (s, e) => dtpFrom.Enabled = chkDate.Checked;
 
             SetFilterBar("Filter: Sales Performance",
                 BuildDateRangeRow(chkDate, dtpFrom, dtpTo),
-                BuildButtonsRow(btnApply, btnReset, btnChart, btnTable, btnExport));
+                BuildButtonsRow(btnApply, btnReset, btnToggleView, btnExport));
 
             var dgv = MakeGrid();
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colOrderID",  HeaderText = "ORDER ID",    FillWeight = 18 });
@@ -481,13 +491,13 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 chartMain = ChartRenderer.CreateBarChart(barData, "Revenue by Order Status", "HK$", "N0", Palette.Primary);
                 chartTop  = ChartRenderer.CreateHorizontalBarChart(topData, "Top Products by Revenue", "N0", Palette.Primary);
                 ToggleChartTable(_salesChart, dgv, chartMain, dgvTop, chartTop);
+                UpdateToggleBtn(btnToggleView, _salesChart);
             };
 
-            btnApply.Click  += (s, e) => load(chkDate.Checked ? (DateTime?)dtpFrom.Value : null, dtpTo.Value);
-            btnReset.Click  += (s, e) => { chkDate.Checked = false; dtpFrom.Value = DateTime.Today.AddMonths(-3); dtpTo.Value = DateTime.Today; load(null, null); };
-            btnChart.Click  += (s, e) => { _salesChart = true;  FlipToggle(btnChart, btnTable, true);  ToggleChartTable(_salesChart, dgv, chartMain, dgvTop, chartTop); };
-            btnTable.Click  += (s, e) => { _salesChart = false; FlipToggle(btnChart, btnTable, false); ToggleChartTable(_salesChart, dgv, chartMain, dgvTop, chartTop); };
-            btnExport.Click += (s, e) => CsvExporter.Export(dgv, "SalesPerformance");
+            btnApply.Click      += (s, e) => load(chkDate.Checked ? (DateTime?)dtpFrom.Value : null, dtpTo.Value);
+            btnReset.Click      += (s, e) => { chkDate.Checked = false; dtpFrom.Value = DateTime.Today.AddMonths(-3); dtpTo.Value = DateTime.Today; load(null, null); };
+            btnToggleView.Click += (s, e) => { _salesChart = !_salesChart; UpdateToggleBtn(btnToggleView, _salesChart); ToggleChartTable(_salesChart, dgv, chartMain, dgvTop, chartTop); };
+            btnExport.Click     += (s, e) => CsvExporter.Export(dgv, "SalesPerformance");
             load(null, null);
 
             AddGridCard(DockStyle.Bottom, 292, "TOP PRODUCTS BY REVENUE", dgvTop, chartTop, _salesChart, true);
@@ -496,17 +506,16 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
         private void RenderInventory()
         {
-            var cboCat     = MakeCbo(new[] { "All", "Product", "Raw Material" });
-            var chkReorder = new CheckBox { Text = "Below Reorder Only", Font = new Font("Segoe UI", 11f), ForeColor = Color.FromArgb(98, 112, 135), BackColor = Color.Transparent, AutoSize = true };
-            var btnApply   = MakePrimaryBtn("Apply");
-            var btnReset   = MakeOutlineBtn("Reset");
-            var btnChart   = MakeToggleBtn("\U0001F4CA  Chart", _inventoryChart);
-            var btnTable   = MakeToggleBtn("\U0001F4CB  Table", !_inventoryChart);
-            var btnExport  = MakeExportBtn();
+            var cboCat         = MakeCbo(new[] { "All", "Product", "Raw Material" });
+            var chkReorder     = new CheckBox { Text = "Below Reorder Only", Font = new Font("Segoe UI", 11f), ForeColor = Color.FromArgb(98, 112, 135), BackColor = Color.Transparent, AutoSize = true };
+            var btnApply       = MakePrimaryBtn("Apply");
+            var btnReset       = MakeOutlineBtn("Reset");
+            var btnToggleView  = MakeToggleViewBtn(_inventoryChart);
+            var btnExport      = MakeExportBtn();
 
             SetFilterBar("Filter: Inventory Status",
                 BuildFieldsRow(("Category", cboCat), ("Reorder Alert", chkReorder)),
-                BuildButtonsRow(btnApply, btnReset, btnChart, btnTable, btnExport));
+                BuildButtonsRow(btnApply, btnReset, btnToggleView, btnExport));
 
             var dgv = MakeGrid();
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colWHIID",   HeaderText = "WHI ID",        FillWeight = 13 });
@@ -555,13 +564,13 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 chartStock = ChartRenderer.CreateHorizontalBarChart(stockData, "Stock Levels (Top 10)", "N0", Palette.Primary);
                 chartCat   = ChartRenderer.CreateDonutChart(donutData, "Stock by Category");
                 ToggleChartTable(_inventoryChart, dgv, chartStock, null, chartCat);
+                UpdateToggleBtn(btnToggleView, _inventoryChart);
             };
 
-            btnApply.Click  += (s, e) => load();
-            btnReset.Click  += (s, e) => { cboCat.SelectedIndex = 0; chkReorder.Checked = false; load(); };
-            btnChart.Click  += (s, e) => { _inventoryChart = true;  FlipToggle(btnChart, btnTable, true);  ToggleChartTable(_inventoryChart, dgv, chartStock, null, chartCat); };
-            btnTable.Click  += (s, e) => { _inventoryChart = false; FlipToggle(btnChart, btnTable, false); ToggleChartTable(_inventoryChart, dgv, chartStock, null, chartCat); };
-            btnExport.Click += (s, e) => CsvExporter.Export(dgv, "InventoryStatus");
+            btnApply.Click      += (s, e) => load();
+            btnReset.Click      += (s, e) => { cboCat.SelectedIndex = 0; chkReorder.Checked = false; load(); };
+            btnToggleView.Click += (s, e) => { _inventoryChart = !_inventoryChart; UpdateToggleBtn(btnToggleView, _inventoryChart); ToggleChartTable(_inventoryChart, dgv, chartStock, null, chartCat); };
+            btnExport.Click     += (s, e) => CsvExporter.Export(dgv, "InventoryStatus");
             load();
 
             AddGridCard(DockStyle.Fill, 0, "INVENTORY DETAIL", dgv, chartStock, _inventoryChart, true);
@@ -569,16 +578,15 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
         private void RenderProcurement()
         {
-            var cboStatus = MakeCbo(new[] { "All", "Sent", "Partially Received", "Received", "Completed", "Cancelled" });
-            var btnApply  = MakePrimaryBtn("Apply");
-            var btnReset  = MakeOutlineBtn("Reset");
-            var btnChart  = MakeToggleBtn("\U0001F4CA  Chart", _procurementChart);
-            var btnTable  = MakeToggleBtn("\U0001F4CB  Table", !_procurementChart);
-            var btnExport = MakeExportBtn();
+            var cboStatus     = MakeCbo(new[] { "All", "Sent", "Partially Received", "Received", "Completed", "Cancelled" });
+            var btnApply      = MakePrimaryBtn("Apply");
+            var btnReset      = MakeOutlineBtn("Reset");
+            var btnToggleView = MakeToggleViewBtn(_procurementChart);
+            var btnExport     = MakeExportBtn();
 
             SetFilterBar("Filter: Procurement Summary",
                 BuildFieldsRow(("Status", cboStatus)),
-                BuildButtonsRow(btnApply, btnReset, btnChart, btnTable, btnExport));
+                BuildButtonsRow(btnApply, btnReset, btnToggleView, btnExport));
 
             var dgv = MakeGrid();
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPOID",     HeaderText = "PO ID",      FillWeight = 20 });
@@ -610,13 +618,13 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 chartSupplier = ChartRenderer.CreateBarChart(supplierData, "Spend by Supplier (HK$)", "HK$", "N0", Palette.Primary);
                 chartStatus   = ChartRenderer.CreateDonutChart(statusData, "PO Status Breakdown");
                 ToggleChartTable(_procurementChart, dgv, chartSupplier, null, chartStatus);
+                UpdateToggleBtn(btnToggleView, _procurementChart);
             };
 
-            btnApply.Click  += (s, e) => load();
-            btnReset.Click  += (s, e) => { cboStatus.SelectedIndex = 0; load(); };
-            btnChart.Click  += (s, e) => { _procurementChart = true;  FlipToggle(btnChart, btnTable, true);  ToggleChartTable(_procurementChart, dgv, chartSupplier, null, chartStatus); };
-            btnTable.Click  += (s, e) => { _procurementChart = false; FlipToggle(btnChart, btnTable, false); ToggleChartTable(_procurementChart, dgv, chartSupplier, null, chartStatus); };
-            btnExport.Click += (s, e) => CsvExporter.Export(dgv, "ProcurementSummary");
+            btnApply.Click      += (s, e) => load();
+            btnReset.Click      += (s, e) => { cboStatus.SelectedIndex = 0; load(); };
+            btnToggleView.Click += (s, e) => { _procurementChart = !_procurementChart; UpdateToggleBtn(btnToggleView, _procurementChart); ToggleChartTable(_procurementChart, dgv, chartSupplier, null, chartStatus); };
+            btnExport.Click     += (s, e) => CsvExporter.Export(dgv, "ProcurementSummary");
             load();
 
             AddGridCard(DockStyle.Fill, 0, "PURCHASE ORDERS", dgv, chartSupplier, _procurementChart, true);
@@ -624,16 +632,15 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
         private void RenderLogistics()
         {
-            var cboStatus = MakeCbo(new[] { "All", "Pending", "In Transit", "Completed" });
-            var btnApply  = MakePrimaryBtn("Apply");
-            var btnReset  = MakeOutlineBtn("Reset");
-            var btnChart  = MakeToggleBtn("\U0001F4CA  Chart", _logisticsChart);
-            var btnTable  = MakeToggleBtn("\U0001F4CB  Table", !_logisticsChart);
-            var btnExport = MakeExportBtn();
+            var cboStatus     = MakeCbo(new[] { "All", "Pending", "In Transit", "Completed" });
+            var btnApply      = MakePrimaryBtn("Apply");
+            var btnReset      = MakeOutlineBtn("Reset");
+            var btnToggleView = MakeToggleViewBtn(_logisticsChart);
+            var btnExport     = MakeExportBtn();
 
             SetFilterBar("Filter: Logistics Overview",
                 BuildFieldsRow(("Status", cboStatus)),
-                BuildButtonsRow(btnApply, btnReset, btnChart, btnTable, btnExport));
+                BuildButtonsRow(btnApply, btnReset, btnToggleView, btnExport));
 
             var dgv = MakeGrid();
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colShipID", HeaderText = "SHIPMENT ID", FillWeight = 20 });
@@ -686,13 +693,13 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 donutData.RemoveAll(x => x.Item2 <= 0);
                 chartStatus = ChartRenderer.CreateDonutChart(donutData, "Shipment Status");
                 ToggleChartTable(_logisticsChart, dgv, chartStatus, null, null);
+                UpdateToggleBtn(btnToggleView, _logisticsChart);
             };
 
-            btnApply.Click  += (s, e) => load();
-            btnReset.Click  += (s, e) => { cboStatus.SelectedIndex = 0; load(); };
-            btnChart.Click  += (s, e) => { _logisticsChart = true;  FlipToggle(btnChart, btnTable, true);  ToggleChartTable(_logisticsChart, dgv, chartStatus, null, null); };
-            btnTable.Click  += (s, e) => { _logisticsChart = false; FlipToggle(btnChart, btnTable, false); ToggleChartTable(_logisticsChart, dgv, chartStatus, null, null); };
-            btnExport.Click += (s, e) => CsvExporter.Export(dgv, "LogisticsOverview");
+            btnApply.Click      += (s, e) => load();
+            btnReset.Click      += (s, e) => { cboStatus.SelectedIndex = 0; load(); };
+            btnToggleView.Click += (s, e) => { _logisticsChart = !_logisticsChart; UpdateToggleBtn(btnToggleView, _logisticsChart); ToggleChartTable(_logisticsChart, dgv, chartStatus, null, null); };
+            btnExport.Click     += (s, e) => CsvExporter.Export(dgv, "LogisticsOverview");
             load();
 
             AddGridCard(DockStyle.Fill, 0, "SHIPMENTS", dgv, chartStatus, _logisticsChart, true);
@@ -700,17 +707,16 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
         private void RenderAfterService()
         {
-            var cboCmp    = MakeCbo(new[] { "All", "Pending", "Processing", "Escalated", "Completed" });
-            var cboRtn    = MakeCbo(new[] { "All", "Pending", "Approved", "Processing", "Rejected", "Completed" });
-            var btnApply  = MakePrimaryBtn("Apply");
-            var btnReset  = MakeOutlineBtn("Reset");
-            var btnChart  = MakeToggleBtn("\U0001F4CA  Chart", _afterServiceChart);
-            var btnTable  = MakeToggleBtn("\U0001F4CB  Table", !_afterServiceChart);
-            var btnExport = MakeExportBtn();
+            var cboCmp        = MakeCbo(new[] { "All", "Pending", "Processing", "Escalated", "Completed" });
+            var cboRtn        = MakeCbo(new[] { "All", "Pending", "Approved", "Processing", "Rejected", "Completed" });
+            var btnApply      = MakePrimaryBtn("Apply");
+            var btnReset      = MakeOutlineBtn("Reset");
+            var btnToggleView = MakeToggleViewBtn(_afterServiceChart);
+            var btnExport     = MakeExportBtn();
 
             SetFilterBar("Filter: After-Service Summary",
                 BuildFieldsRow(("Complaint Status", cboCmp), ("Return Status", cboRtn)),
-                BuildButtonsRow(btnApply, btnReset, btnChart, btnTable, btnExport));
+                BuildButtonsRow(btnApply, btnReset, btnToggleView, btnExport));
 
             var dgvCmp = MakeGrid();
             dgvCmp.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCmpID",  HeaderText = "COMPLAINT ID", FillWeight = 22 });
@@ -749,13 +755,13 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 chartCmp = ChartRenderer.CreateDonutChart(cmpData, "Complaint Status");
                 chartRtn = ChartRenderer.CreateDonutChart(rtnData, "Return Status");
                 ToggleChartTable(_afterServiceChart, dgvCmp, chartCmp, dgvRtn, chartRtn);
+                UpdateToggleBtn(btnToggleView, _afterServiceChart);
             };
 
-            btnApply.Click  += (s, e) => load();
-            btnReset.Click  += (s, e) => { cboCmp.SelectedIndex = 0; cboRtn.SelectedIndex = 0; load(); };
-            btnChart.Click  += (s, e) => { _afterServiceChart = true;  FlipToggle(btnChart, btnTable, true);  ToggleChartTable(_afterServiceChart, dgvCmp, chartCmp, dgvRtn, chartRtn); };
-            btnTable.Click  += (s, e) => { _afterServiceChart = false; FlipToggle(btnChart, btnTable, false); ToggleChartTable(_afterServiceChart, dgvCmp, chartCmp, dgvRtn, chartRtn); };
-            btnExport.Click += (s, e) => { CsvExporter.Export(dgvCmp, "Complaints"); CsvExporter.Export(dgvRtn, "Returns"); };
+            btnApply.Click      += (s, e) => load();
+            btnReset.Click      += (s, e) => { cboCmp.SelectedIndex = 0; cboRtn.SelectedIndex = 0; load(); };
+            btnToggleView.Click += (s, e) => { _afterServiceChart = !_afterServiceChart; UpdateToggleBtn(btnToggleView, _afterServiceChart); ToggleChartTable(_afterServiceChart, dgvCmp, chartCmp, dgvRtn, chartRtn); };
+            btnExport.Click     += (s, e) => { CsvExporter.Export(dgvCmp, "Complaints"); CsvExporter.Export(dgvRtn, "Returns"); };
             load();
 
             AddGridCard(DockStyle.Bottom, 292, "RETURN ORDERS", dgvRtn, chartRtn, _afterServiceChart, true);
@@ -764,21 +770,20 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
         private void RenderFinance()
         {
-            var dtpFrom   = MakeDatePicker(DateTime.Today.AddMonths(-3));
-            var dtpTo     = MakeDatePicker(DateTime.Today);
-            var chkDate   = new CheckBox { Text = "Date Range", Font = new Font("Segoe UI", 11f), ForeColor = Color.FromArgb(98, 112, 135), BackColor = Color.Transparent, AutoSize = false, Dock = DockStyle.Fill };
-            var btnApply  = MakePrimaryBtn("Apply");
-            var btnReset  = MakeOutlineBtn("Reset");
-            var btnChart  = MakeToggleBtn("\U0001F4CA  Chart", _financeChart);
-            var btnTable  = MakeToggleBtn("\U0001F4CB  Table", !_financeChart);
-            var btnExport = MakeExportBtn();
+            var dtpFrom       = MakeDatePicker(DateTime.Today.AddMonths(-3));
+            var dtpTo         = MakeDatePicker(DateTime.Today);
+            var chkDate       = new CheckBox { Text = "Date Range", Font = new Font("Segoe UI", 11f), ForeColor = Color.FromArgb(98, 112, 135), BackColor = Color.Transparent, AutoSize = false, Dock = DockStyle.Fill };
+            var btnApply      = MakePrimaryBtn("Apply");
+            var btnReset      = MakeOutlineBtn("Reset");
+            var btnToggleView = MakeToggleViewBtn(_financeChart);
+            var btnExport     = MakeExportBtn();
 
             dtpFrom.Enabled = false;
             chkDate.CheckedChanged += (s, e) => dtpFrom.Enabled = chkDate.Checked;
 
             SetFilterBar("Filter: Finance Overview",
                 BuildDateRangeRow(chkDate, dtpFrom, dtpTo),
-                BuildButtonsRow(btnApply, btnReset, btnChart, btnTable, btnExport));
+                BuildButtonsRow(btnApply, btnReset, btnToggleView, btnExport));
 
             var dgv = MakeGrid();
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTxnID",   HeaderText = "TRANSACTION ID",  FillWeight = 22 });
@@ -818,14 +823,13 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 chartAmounts   = ChartRenderer.CreateBarChart(barData, "Transaction Amounts by Type (HK$)", "HK$", "N0", Palette.Primary);
                 chartBreakdown = ChartRenderer.CreateDonutChart(breakdownData, "Revenue Breakdown");
                 ToggleChartTable(_financeChart, dgv, chartAmounts, null, chartBreakdown);
+                UpdateToggleBtn(btnToggleView, _financeChart);
             };
 
-            chkDate.CheckedChanged += (s, e) => dtpFrom.Enabled = chkDate.Checked;
-            btnApply.Click  += (s, e) => load(chkDate.Checked ? (DateTime?)dtpFrom.Value : null, dtpTo.Value);
-            btnReset.Click  += (s, e) => { chkDate.Checked = false; dtpFrom.Value = DateTime.Today.AddMonths(-3); dtpTo.Value = DateTime.Today; load(null, null); };
-            btnChart.Click  += (s, e) => { _financeChart = true;  FlipToggle(btnChart, btnTable, true);  ToggleChartTable(_financeChart, dgv, chartAmounts, null, chartBreakdown); };
-            btnTable.Click  += (s, e) => { _financeChart = false; FlipToggle(btnChart, btnTable, false); ToggleChartTable(_financeChart, dgv, chartAmounts, null, chartBreakdown); };
-            btnExport.Click += (s, e) => CsvExporter.Export(dgv, "FinanceOverview");
+            btnApply.Click      += (s, e) => load(chkDate.Checked ? (DateTime?)dtpFrom.Value : null, dtpTo.Value);
+            btnReset.Click      += (s, e) => { chkDate.Checked = false; dtpFrom.Value = DateTime.Today.AddMonths(-3); dtpTo.Value = DateTime.Today; load(null, null); };
+            btnToggleView.Click += (s, e) => { _financeChart = !_financeChart; UpdateToggleBtn(btnToggleView, _financeChart); ToggleChartTable(_financeChart, dgv, chartAmounts, null, chartBreakdown); };
+            btnExport.Click     += (s, e) => CsvExporter.Export(dgv, "FinanceOverview");
             load(null, null);
 
             AddGridCard(DockStyle.Fill, 0, "TRANSACTIONS", dgv, chartAmounts, _financeChart, true);
@@ -896,18 +900,45 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             if (chart2 != null) chart2.Visible =  showChart;
         }
 
-        private static void FlipToggle(Button btnChart, Button btnTable, bool chartActive)
+        // ════════════════════════════════════════════════════════════════
+        //  TOGGLE VIEW BUTTON — Chart/Table single button
+        //  Active (showChart=true)  → primary blue, "📊 Chart View"
+        //  Inactive (showChart=false) → outline,   "📋 Table View"
+        // ════════════════════════════════════════════════════════════════
+
+        private static Button MakeToggleViewBtn(bool chartActive)
         {
-            btnChart.BackColor = chartActive ? Palette.Primary : Color.White;
-            btnChart.ForeColor = chartActive ? Color.White : Color.FromArgb(98, 112, 135);
-            btnChart.FlatAppearance.BorderSize = chartActive ? 0 : 1;
-            btnTable.BackColor = chartActive ? Color.White : Palette.Primary;
-            btnTable.ForeColor = chartActive ? Color.FromArgb(98, 112, 135) : Color.White;
-            btnTable.FlatAppearance.BorderSize = chartActive ? 1 : 0;
+            var b = new Button
+            {
+                Text      = chartActive ? "\U0001F4CA  Chart View" : "\U0001F4CB  Table View",
+                Font      = new Font("Segoe UI", 11f),
+                Size      = new Size(210, 60),
+                FlatStyle = FlatStyle.Flat,
+                Cursor    = Cursors.Hand
+            };
+            b.BackColor = chartActive ? Palette.Primary : Color.White;
+            b.ForeColor = chartActive ? Color.White : Color.FromArgb(98, 112, 135);
+            b.FlatAppearance.BorderColor = Color.FromArgb(221, 227, 236);
+            b.FlatAppearance.BorderSize  = chartActive ? 0 : 1;
+            b.FlatAppearance.MouseOverBackColor = chartActive
+                ? Color.FromArgb(12, 78, 138)
+                : Color.FromArgb(240, 244, 249);
+            return b;
+        }
+
+        private static void UpdateToggleBtn(Button btn, bool chartActive)
+        {
+            btn.Text      = chartActive ? "\U0001F4CA  Chart View" : "\U0001F4CB  Table View";
+            btn.BackColor = chartActive ? Palette.Primary : Color.White;
+            btn.ForeColor = chartActive ? Color.White : Color.FromArgb(98, 112, 135);
+            btn.FlatAppearance.BorderSize = chartActive ? 0 : 1;
+            btn.FlatAppearance.MouseOverBackColor = chartActive
+                ? Color.FromArgb(12, 78, 138)
+                : Color.FromArgb(240, 244, 249);
         }
 
         // ════════════════════════════════════════════════════════════════
-        //  BUTTON / CONTROL FACTORIES  (all buttons 210×60)
+        //  BUTTON / CONTROL FACTORIES  (all action buttons 210×60)
         // ════════════════════════════════════════════════════════════════
 
         private static Button MakePrimaryBtn(string text)
@@ -924,16 +955,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             b.FlatAppearance.BorderColor = Color.FromArgb(221, 227, 236);
             b.FlatAppearance.BorderSize  = 1;
             b.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
-            return b;
-        }
-
-        private static Button MakeToggleBtn(string text, bool active)
-        {
-            var b = new Button { Text = text, Font = new Font("Segoe UI", 11f), Size = new Size(210, 60), FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
-            b.BackColor = active ? Palette.Primary : Color.White;
-            b.ForeColor = active ? Color.White : Color.FromArgb(98, 112, 135);
-            b.FlatAppearance.BorderColor = Color.FromArgb(221, 227, 236);
-            b.FlatAppearance.BorderSize  = active ? 0 : 1;
             return b;
         }
 

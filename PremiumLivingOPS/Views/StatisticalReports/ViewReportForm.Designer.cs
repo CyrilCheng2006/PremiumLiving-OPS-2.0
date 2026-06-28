@@ -41,7 +41,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             this.BackColor     = Palette.BgPage;
             this.WindowState   = FormWindowState.Maximized;
             this.Font          = new Font("Segoe UI", 13f);
-            // NOTE: AutoScaleMode / AutoScaleDimensions intentionally omitted.
 
             // ── pnlMain (Fill) ────────────────────────────────────────────────
             var pnlMain = new Panel { Dock = DockStyle.Fill, BackColor = Palette.BgPage };
@@ -90,7 +89,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 ColumnCount = 6,
                 RowCount    = 1,
                 Margin      = new Padding(0),
-                Padding     = new Padding(8, 0, 8, 0)
+                Padding     = new Padding(0)
             };
             for (int i = 0; i < 6; i++)
                 tblTabs.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f / 6f));
@@ -116,27 +115,27 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             pnlTabOuter.Paint += PaintTabUnderline;
             pnlTabOuter.Controls.Add(pnlTabCard);
 
-            // ── Filter bar outer (DockStyle.Top, 200 px) ─────────────────────
-            // Single-row date filter: Height reduced from 300→200
-            // row0=50 title, row1=60 fields (single input row), row2=65 buttons
+            // ── Filter bar outer (DockStyle.Top, 220 px) ─────────────────────
+            // Height = 200 * 1.1 = 220 px
+            // row0=52(title) + row1=66(fields) + row2=72(buttons) = 190
+            // + tblCard.Padding top(10)+bottom(10) = 20  → 210 usable inside card
+            // pnlFilterOuter.Padding top(14)+bottom(8) = 22  → 220 total ✓
             pnlFilterOuter = new Panel
             {
                 Dock      = DockStyle.Top,
-                Height    = 200,
+                Height    = 220,
                 BackColor = Palette.BgPage,
-                Padding   = new Padding(20, 14, 20, 8)
+                Padding   = new Padding(20, 14, 20, 8)   // HGR baseline
             };
-            // Content populated dynamically by each Render*() via SetFilterBar()
 
             // ── Report content host (DockStyle.Fill) ──────────────────────────
             pnlContent = new Panel { Dock = DockStyle.Fill, BackColor = Palette.BgPage };
 
             // ── Assemble ──────────────────────────────────────────────────────
-            // Fill first, Top sections reverse-order, _shell LAST
-            pnlMain.Controls.Add(pnlContent);     // Fill — first
-            pnlMain.Controls.Add(pnlTabOuter);    // Top
-            pnlMain.Controls.Add(pnlFilterOuter); // Top
-            pnlMain.Controls.Add(_shell);          // Top — LAST = topmost chrome
+            pnlMain.Controls.Add(pnlContent);      // Fill — first
+            pnlMain.Controls.Add(pnlTabOuter);     // Top
+            pnlMain.Controls.Add(pnlFilterOuter);  // Top
+            pnlMain.Controls.Add(_shell);           // Top — LAST = topmost chrome
 
             this.Controls.Add(pnlMain);
             this.ResumeLayout(false);
