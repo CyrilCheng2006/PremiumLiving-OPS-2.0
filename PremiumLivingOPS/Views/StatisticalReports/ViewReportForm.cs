@@ -16,23 +16,36 @@ namespace PremiumLivingOPS.Views.StatisticalReports
     /// ─ KPI pills:  290 × 60, rounded, clickable, identical to ViewOrderForm.RefreshKpi()
     /// ─ Filter bar: single-row FlowLayout (search + DatePicker + Apply/Reset + divider + Chart/Table/Export)
     /// ─ DataGridView: identical header / cell / row style to ViewOrderForm.dgvOrders
-    /// ─ Action button row: ViewOrderForm-style primary/outline buttons below filter bar
     ///
     /// MVC role  : View only — all DB access via StatisticalReportsController.
     /// AppShell  : mandatory chrome (Rule 1-5).
     /// CardPanel : every content block in 3-layer nested cards.
+    ///
+    /// Tab navigation: 6 tabs mapped by index (0-5).
+    ///   0 = Sales Performance
+    ///   1 = Inventory Status
+    ///   2 = Procurement Summary
+    ///   3 = Logistics Overview
+    ///   4 = After-Service Summary
+    ///   5 = Finance Overview
     /// </summary>
     public partial class ViewReportForm : Form
     {
         private readonly StatisticalReportsController _ctrl = new StatisticalReportsController();
-        private ReportType _activeReport = ReportType.SalesPerformance;
 
+        // Active tab index (-1 = none loaded yet)
+        private int _activeTab = -1;
+
+        // Per-report chart toggle state
         private bool _salesChart        = false;
         private bool _inventoryChart    = false;
         private bool _procurementChart  = false;
         private bool _logisticsChart    = false;
         private bool _afterServiceChart = false;
         private bool _financeChart      = false;
+
+        // Tab button array — matches Designer btnTab0..btnTab5
+        private Button[] _tabButtons;
 
         // ── ViewOrderForm-style status colours (for badge cells) ──────────
         private static readonly Dictionary<string, (Color bg, Color fg)> StatusColors =
@@ -59,66 +72,54 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         public ViewReportForm()
         {
             InitializeComponent();
-            this.Load += (s, e) => SwitchReport(ReportType.SalesPerformance);
+
+            // Build tab array from Designer fields (index == tab number)
+            _tabButtons = new Button[] { btnTab0, btnTab1, btnTab2, btnTab3, btnTab4, btnTab5 };
+
+            this.Load += (s, e) => SwitchToReport(0);
         }
 
         // ════════════════════════════════════════════════════════════════
-        //  REPORT SWITCHER
+        //  REPORT SWITCHER  (index-based)
         // ════════════════════════════════════════════════════════════════
 
-        private void SwitchReport(ReportType rt)
+        private void SwitchToReport(int tabIndex)
         {
-            if (_activeReport == rt && pnlContent.Controls.Count > 0) return;
-            _activeReport = rt;
+            if (_activeTab == tabIndex && pnlContent.Controls.Count > 0) return;
+            _activeTab = tabIndex;
+
             pnlContent.SuspendLayout();
             pnlContent.Controls.Clear();
-            HighlightSidebarButton(rt);
-            RenderReport(rt);
+            HighlightTab(tabIndex);
+
+            switch (tabIndex)
+            {
+                case 0: RenderSales();        break;
+                case 1: RenderInventory();    break;
+                case 2: RenderProcurement();  break;
+                case 3: RenderLogistics();    break;
+                case 4: RenderAfterService(); break;
+                case 5: RenderFinance();      break;
+            }
+
             pnlContent.ResumeLayout(true);
         }
 
-        private void HighlightSidebarButton(ReportType rt)
-        {
-            var map = new Dictionary<ReportType, Button>
-            {
-                { ReportType.SalesPerformance,   btnSales        },
-                { ReportType.InventoryStatus,    btnInventory    },
-                { ReportType.ProcurementSummary, btnProcurement  },
-                { ReportType.LogisticsOverview,  btnLogistics    },
-                { ReportType.AfterServiceSummary,btnAfterService },
-                { ReportType.FinanceOverview,     btnFinance      }
-            };
-            foreach (var kv in map)
-            {
-                bool active = kv.Key == rt;
-                kv.Value.BackColor = active ? Palette.Primary      : Color.Transparent;
-                kv.Value.ForeColor = active ? Color.White          : Palette.SidebarText;
-            }
-        }
-
-        private void RenderReport(ReportType rt)
-        {
-            switch (rt)
-            {
-                case ReportType.SalesPerformance:   RenderSales();        break;
-                case ReportType.InventoryStatus:    RenderInventory();    break;
-                case ReportType.ProcurementSummary: RenderProcurement();  break;
-                case ReportType.LogisticsOverview:  RenderLogistics();    break;
-                case ReportType.AfterServiceSummary:RenderAfterService(); break;
-                case ReportType.FinanceOverview:    RenderFinance();      break;
-            }
-        }
-
         // ════════════════════════════════════════════════════════════════
-        //  SIDEBAR BUTTON CLICK HANDLERS
+        //  TAB HIGHLIGHT  (index loop, no dictionary)
         // ════════════════════════════════════════════════════════════════
 
-        private void BtnSales_Click       (object s, EventArgs e) => SwitchReport(ReportType.SalesPerformance);
-        private void BtnInventory_Click   (object s, EventArgs e) => SwitchReport(ReportType.InventoryStatus);
-        private void BtnProcurement_Click (object s, EventArgs e) => SwitchReport(ReportType.ProcurementSummary);
-        private void BtnLogistics_Click   (object s, EventArgs e) => SwitchReport(ReportType.LogisticsOverview);
-        private void BtnAfterService_Click(object s, EventArgs e) => SwitchReport(ReportType.AfterServiceSummary);
-        private void BtnFinance_Click     (object s, EventArgs e) => SwitchReport(ReportType.FinanceOverview);
+        private void HighlightTab(int activeIndex)
+        {
+            for (int i = 0; i < _tabButtons.Length; i++)
+            {
+                bool active = i == activeIndex;
+                _tabButtons[i].ForeColor  = active ? Palette.Primary              : Color.FromArgb(98, 112, 135);
+                _tabButtons[i].Font       = active ? new Font("Segoe UI", 12f, FontStyle.Bold)
+                                                   : new Font("Segoe UI", 12f);
+                _tabButtons[i].BackColor  = active ? Color.FromArgb(235, 241, 255) : Color.Transparent;
+            }
+        }
 
         // ════════════════════════════════════════════════════════════════
         //  REPORT RENDERS

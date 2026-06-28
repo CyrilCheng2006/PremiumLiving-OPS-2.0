@@ -13,14 +13,15 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         // ── AppShell ───────────────────────────────────────────────────────────────
         private AppShell _shell;
 
-        // ── Top Tab Bar buttons (commit 8d7b970 baseline) ─────────────────────
-        private Button btnTabSalesRevenue;
-        private Button btnTabInventory;
-        private Button btnTabProduction;
-        private Button btnTabLogistics;
-        private Button btnTabAfterService;
+        // ── Top Tab Bar buttons (index-based, 0-5) ────────────────────────────────
+        private Button btnTab0;  // Sales & Revenue
+        private Button btnTab1;  // Inventory
+        private Button btnTab2;  // Procurement
+        private Button btnTab3;  // Logistics
+        private Button btnTab4;  // After-Service
+        private Button btnTab5;  // Finance
 
-        // ── Content panel (rebuilt on each report switch) ────────────────────
+        // ── Content panel (rebuilt on each report switch) ─────────────────────────
         internal Panel pnlContent;
 
         protected override void Dispose(bool disposing)
@@ -83,17 +84,19 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 return b;
             }
 
-            btnTabSalesRevenue = MakeTabBtn("Sales & Revenue");
-            btnTabInventory    = MakeTabBtn("Inventory");
-            btnTabProduction   = MakeTabBtn("Procurement");
-            btnTabLogistics    = MakeTabBtn("Logistics");
-            btnTabAfterService = MakeTabBtn("After-Service");
+            btnTab0 = MakeTabBtn("Sales & Revenue");
+            btnTab1 = MakeTabBtn("Inventory");
+            btnTab2 = MakeTabBtn("Procurement");
+            btnTab3 = MakeTabBtn("Logistics");
+            btnTab4 = MakeTabBtn("After-Service");
+            btnTab5 = MakeTabBtn("Finance");
 
-            btnTabSalesRevenue.Click += (s, e) => SwitchToReport(0);
-            btnTabInventory.Click    += (s, e) => SwitchToReport(1);
-            btnTabProduction.Click   += (s, e) => SwitchToReport(2);
-            btnTabLogistics.Click    += (s, e) => SwitchToReport(3);
-            btnTabAfterService.Click += (s, e) => SwitchToReport(4);
+            btnTab0.Click += (s, e) => SwitchToReport(0);
+            btnTab1.Click += (s, e) => SwitchToReport(1);
+            btnTab2.Click += (s, e) => SwitchToReport(2);
+            btnTab3.Click += (s, e) => SwitchToReport(3);
+            btnTab4.Click += (s, e) => SwitchToReport(4);
+            btnTab5.Click += (s, e) => SwitchToReport(5);
 
             var pnlTabBar = new Panel
             {
@@ -101,15 +104,16 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 Height    = 48,
                 BackColor = Color.White
             };
-            // Add right-to-left so DockStyle.Left stacks left-to-right
-            pnlTabBar.Controls.Add(btnTabAfterService);
-            pnlTabBar.Controls.Add(btnTabLogistics);
-            pnlTabBar.Controls.Add(btnTabProduction);
-            pnlTabBar.Controls.Add(btnTabInventory);
-            pnlTabBar.Controls.Add(btnTabSalesRevenue);
+            // Add right-to-left so DockStyle.Left stacks left-to-right visually
+            pnlTabBar.Controls.Add(btnTab5);
+            pnlTabBar.Controls.Add(btnTab4);
+            pnlTabBar.Controls.Add(btnTab3);
+            pnlTabBar.Controls.Add(btnTab2);
+            pnlTabBar.Controls.Add(btnTab1);
+            pnlTabBar.Controls.Add(btnTab0);
 
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            //  Content panel (DockStyle.Fill — rebuilt by each BuildXxxReport)
+            //  Content panel (DockStyle.Fill — rebuilt by each SwitchToReport)
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             pnlContent = new Panel
             {
@@ -132,7 +136,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             this.ResumeLayout(false);
         }
 
-        // ── Placeholder label (used in Designer only) ─────────────────────────
+        // ── Placeholder label (used before first report loads) ────────────────────
         private static Label MakePlaceholderLabel(string text) => new Label
         {
             Text      = text,
