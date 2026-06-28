@@ -13,31 +13,28 @@ namespace PremiumLivingOPS.Views.StatisticalReports
     /// <summary>
     /// View — Statistical Reports  ›  View Report
     ///
-    /// Rendering baseline: ViewOrderForm (Order Processing › View Order)
-    /// ─ Tab Bar  :  6 report tabs in a CardPanel 3-layer card at the top of pnlContent.
-    ///               Replaces left-side Sidebar buttons (pnlSidebar.Visible = false in Designer).
-    ///               Active tab highlighted with Palette.Primary; rebuilt on every SwitchReport().
-    /// ─ KPI pills:  290 × 60, rounded, Cursor.Hand, click handler wired to pill + tlp + child labels
-    ///               identical to ViewOrderForm.RefreshKpi()
-    /// ─ Filter bar: single-row FlowLayout (search + DatePicker + Apply/Reset + divider + Chart/Table/Export)
-    /// ─ DataGridView: identical header / cell / row style to ViewOrderForm.dgvOrders
-    /// ─ Action button row: ViewOrderForm-style primary/outline buttons below filter bar
+    /// Tab Bar   : 6 report tabs in a CardPanel 3-layer card at the top of pnlContent.
+    ///             Style baseline: HandlingGoodsReceivedForm (Logistics Processing).
+    ///             Active tab → blue underline (#2F6FED, 3px) + Bold font.
+    ///             Inactive   → grey text (#627087), regular font.
+    ///             Sidebar buttons removed entirely (no Designer stub needed).
+    /// KPI pills : 290 × 60, rounded, Cursor.Hand, click → filter.
+    /// Filter bar: FlowLayout (search/date/combobox + Apply/Reset + divider + Chart/Table/Export).
+    /// DataGridView: header #F6F9FF / cell row 44px / selection #DBEAFe.
+    /// CardPanel : every block wrapped in 3-layer nested cards.
     ///
-    /// MVC role  : View only — all DB access via StatisticalReportsController.
-    /// AppShell  : mandatory chrome (Rule 1-5).
-    /// CardPanel : every content block in 3-layer nested cards (including Tab Bar).
-    ///
-    /// pnlContent card stack (top → bottom):
-    ///   tabOuter  (DockStyle.Top,    H=64)  ← Tab Bar card          [NEW]
-    ///   aOuter    (DockStyle.Top,    H=86)  ← KPI Pills card
-    ///   bOuter    (DockStyle.Top,    H=70)  ← Filter Bar card
-    ///   cOuter    (DockStyle.Fill)          ← Primary data card
-    ///   dOuter    (DockStyle.Bottom)        ← Secondary data card (Sales / AfterService)
+    /// pnlContent card stack (top → bottom, Controls.Add order reversed):
+    ///   tabOuter  (DockStyle.Top, H=56)  ← Tab Bar card
+    ///   aOuter    (DockStyle.Top, H=86)  ← KPI Pills card
+    ///   bOuter    (DockStyle.Top, H=70)  ← Filter Bar card
+    ///   cOuter    (DockStyle.Fill)        ← Primary data card
+    ///   dOuter    (DockStyle.Bottom)      ← Secondary data card (Sales / AfterService)
     /// </summary>
     public partial class ViewReportForm : Form
     {
         private readonly StatisticalReportsController _ctrl = new StatisticalReportsController();
         private ReportType _activeReport = ReportType.SalesPerformance;
+        private bool _tabPaintWired = false;
 
         private bool _salesChart        = false;
         private bool _inventoryChart    = false;
@@ -46,7 +43,10 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         private bool _afterServiceChart = false;
         private bool _financeChart      = false;
 
-        // ── ViewOrderForm-style status colours (for badge cells) ──────────
+        // Tab button references — kept so SwitchReport can repaint without rebuild
+        private Button[] _tabButtons = new Button[0];
+
+        // Status badge colour palette
         private static readonly Dictionary<string, (Color bg, Color fg)> StatusColors =
             new Dictionary<string, (Color, Color)>
             {
@@ -68,6 +68,10 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 { "Refund",              (Color.FromArgb(254, 243, 199), Color.FromArgb(146,  64,  14)) },
             };
 
+        // Active tab underline colour — matches HandlingGoodsReceivedForm exactly
+        private static readonly Color TabActiveColor   = Color.FromArgb(47, 111, 237);
+        private static readonly Color TabInactiveColor = Color.FromArgb(98, 112, 135);
+
         public ViewReportForm()
         {
             InitializeComponent();
@@ -85,8 +89,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             _shell.SetVisibleMenus(initVm.AllowedMenus);
             _shell.SetBreadcrumb("Statistical Reports  \u203a  View Report");
 
-            // Designer sidebar buttons are hidden (pnlSidebar.Visible = false).
-            // Navigation is now handled by the dynamic Tab Bar built in BuildTabBar().
             SwitchReport(ReportType.SalesPerformance);
         }
 
@@ -97,13 +99,8 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         private void SwitchReport(ReportType rt)
         {
             _activeReport = rt;
-            // HighlightSidebarButton is a no-op — Tab Bar is rebuilt by BuildLayout().
             RenderReport(rt);
         }
-
-        // Kept as empty stub; Designer-bound sidebar buttons remain in .Designer.cs
-        // but their panel is hidden. Tab Bar replaces them entirely.
-        private void HighlightSidebarButton(ReportType rt) { }
 
         // ════════════════════════════════════════════════════════════════
         //  RENDER REPORT
@@ -113,6 +110,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         {
             pnlContent.SuspendLayout();
             pnlContent.Controls.Clear();
+            _tabPaintWired = false;
 
             switch (rt)
             {
@@ -267,7 +265,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             Panel chartStock    = null;
             Panel chartCategory = null;
 
-            // ── FIX CS0165: onPillClick declared INSIDE load, no forward reference ──
             Action load = null;
             load = () =>
             {
@@ -372,7 +369,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             Panel chartSupplier = null;
             Panel chartStatus   = null;
 
-            // ── FIX CS0165: declare load = null first, assign lambda after ──
             Action load = null;
             load = () =>
             {
@@ -485,7 +481,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
             Panel chartStatus = null;
 
-            // ── FIX CS0165: declare load = null first, assign lambda after ──
             Action load = null;
             load = () =>
             {
@@ -577,7 +572,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             Panel chartCmp = null;
             Panel chartRtn = null;
 
-            // ── FIX CS0165: declare load = null first, assign lambda after ──
             Action load = null;
             load = () =>
             {
@@ -789,29 +783,36 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             aOuter.Controls.Add(aInner);
             pnlContent.Controls.Add(aOuter);
 
-            // ── Tab Bar card — always topmost in pnlContent ──────────────
+            // Tab Bar card — always topmost in pnlContent
             BuildTabBar(_activeReport);
         }
 
         // ════════════════════════════════════════════════════════════════
-        //  TAB BAR CARD  (replaces Designer sidebar, CardPanel 3-layer)
+        //  TAB BAR  — baseline: HandlingGoodsReceivedForm
         //
-        //  tabOuter  (Palette.BgPage gray, DockStyle.Top, H=64)
-        //   └─ tabInner  (Color.White, PaintCardBorder)
-        //        └─ wrapper (vertical-centre container)
-        //             └─ FlowLayoutPanel (6 tab buttons, left-to-right)
+        //  Style rules (mirror HGR exactly):
+        //  • Active   : ForeColor = #2F6FED, Font Bold 12pt, 3px blue underline painted
+        //  • Inactive : ForeColor = #627087, Font Regular 12pt, no underline
+        //  • BackColor: Transparent on all buttons (no filled pill)
+        //  • CardPanel: tabOuter (gray, DockStyle.Top, H=56)
+        //                └─ tabInner (white, PaintCardBorder)
+        //                     └─ wrapper (DockStyle.Fill, vertical-centre)
+        //                          └─ FlowLayoutPanel (left-to-right, 6 buttons)
+        //
+        //  _tabPaintWired guards against double-subscribing Paint when
+        //  BuildTabBar is called multiple times within the same form lifetime.
         // ════════════════════════════════════════════════════════════════
 
         private void BuildTabBar(ReportType activeRt)
         {
-            // ── Layer 1: outer gray wrap ─────────────────────────────────
-            var tabOuter = WrapCard(DockStyle.Top, 64, 0, 0, 0, 8);
+            // Layer 1: outer gray wrap
+            var tabOuter = WrapCard(DockStyle.Top, 56, 0, 0, 0, 8);
 
-            // ── Layer 2: white card with border ──────────────────────────
+            // Layer 2: white card with border
             var tabInner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
             tabInner.Paint += PaintCardBorder;
 
-            // ── Layer 3: horizontal flow of tab buttons ───────────────────
+            // Layer 3: flow of tab buttons
             var flow = new FlowLayoutPanel
             {
                 Dock          = DockStyle.Fill,
@@ -832,30 +833,52 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 (ReportType.FinanceOverview,     "\U0001F4B0  Finance"),
             };
 
-            foreach (var (rt, label) in tabDefs)
+            var buttons = new Button[tabDefs.Length];
+
+            for (int i = 0; i < tabDefs.Length; i++)
             {
+                var (rt, label) = tabDefs[i];
                 bool active = rt == activeRt;
+
                 var btn = new Button
                 {
                     Text      = label,
-                    Font      = new Font("Segoe UI", 11f, active ? FontStyle.Bold : FontStyle.Regular),
-                    ForeColor = active ? Color.White : Color.FromArgb(98, 112, 135),
-                    BackColor = active ? Palette.Primary : Color.Transparent,
+                    Font      = new Font("Segoe UI", 12f, active ? FontStyle.Bold : FontStyle.Regular),
+                    ForeColor = active ? TabActiveColor : TabInactiveColor,
+                    BackColor = Color.Transparent,
                     FlatStyle = FlatStyle.Flat,
-                    Height    = 40,
+                    Height    = 44,
                     AutoSize  = true,
                     Margin    = new Padding(0, 0, 4, 0),
                     Cursor    = Cursors.Hand
                 };
-                btn.FlatAppearance.BorderSize = 0;
-                btn.FlatAppearance.MouseOverBackColor = active
-                    ? Palette.PrimaryDark
-                    : Color.FromArgb(240, 244, 249);
+                btn.FlatAppearance.BorderSize            = 0;
+                btn.FlatAppearance.MouseOverBackColor    = Color.FromArgb(240, 244, 249);
+                btn.FlatAppearance.MouseDownBackColor    = Color.FromArgb(225, 232, 245);
 
-                var localRt = rt;
-                btn.Click += (s, e) => SwitchReport(localRt);
+                // Wire underline paint (same as HGR.PaintTabUnderline)
+                btn.Paint += PaintTabUnderline;
+
+                var localRt  = rt;
+                var allBtns  = buttons;   // captured reference; array filled after loop
+                btn.Click += (s, e) =>
+                {
+                    // Update visual state of all tabs before switching report
+                    for (int j = 0; j < allBtns.Length; j++)
+                    {
+                        bool isActive = tabDefs[j].Item1 == localRt;
+                        allBtns[j].ForeColor = isActive ? TabActiveColor : TabInactiveColor;
+                        allBtns[j].Font      = new Font("Segoe UI", 12f, isActive ? FontStyle.Bold : FontStyle.Regular);
+                        allBtns[j].Invalidate();
+                    }
+                    SwitchReport(localRt);
+                };
+
+                buttons[i] = btn;
                 flow.Controls.Add(btn);
             }
+
+            _tabButtons = buttons;
 
             // Vertically centre the flow inside tabInner
             var wrapper = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
@@ -870,6 +893,19 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             tabOuter.Controls.Add(tabInner);
             pnlContent.Controls.Add(tabOuter);
         }
+
+        // Mirrors HandlingGoodsReceivedForm.PaintTabUnderline exactly
+        private static void PaintTabUnderline(object sender, PaintEventArgs e)
+        {
+            var btn = (Button)sender;
+            if (btn.ForeColor != TabActiveColor) return;
+            using var pen = new Pen(TabActiveColor, 3f);
+            e.Graphics.DrawLine(pen, 0, btn.Height - 2, btn.Width, btn.Height - 2);
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  CARD HELPERS
+        // ════════════════════════════════════════════════════════════════
 
         private static Panel WrapCard(DockStyle dock, int height, int padL, int padT, int padR, int padB)
         {
@@ -893,10 +929,11 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             var hdr = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             hdr.Controls.Add(new Label
             {
-                Text = title ?? string.Empty,
-                Font = new Font("Segoe UI", 12f, FontStyle.Bold),
+                Text      = title ?? string.Empty,
+                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(19, 35, 61),
-                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft
             });
             hdr.Controls.Add(new Panel { Dock = DockStyle.Bottom, Height = 1, BackColor = Color.FromArgb(221, 227, 236) });
             tbl.Controls.Add(hdr, 0, 0);
@@ -904,7 +941,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         }
 
         // ════════════════════════════════════════════════════════════════
-        //  KPI PILLS  — baseline: ViewOrderForm.RefreshKpi()
+        //  KPI PILLS
         // ════════════════════════════════════════════════════════════════
 
         private static void BuildKpiPills(
@@ -1232,11 +1269,11 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         {
             return new DateTimePicker
             {
-                Format    = DateTimePickerFormat.Short,
-                Value     = value,
-                Font      = new Font("Segoe UI", 11f),
-                Width     = 130,
-                Height    = 34
+                Format = DateTimePickerFormat.Short,
+                Value  = value,
+                Font   = new Font("Segoe UI", 11f),
+                Width  = 130,
+                Height = 34
             };
         }
 
@@ -1284,10 +1321,10 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         {
             int d = radius * 2;
             var path = new GraphicsPath();
-            path.AddArc(bounds.X,                       bounds.Y,                        d, d, 180, 90);
-            path.AddArc(bounds.X + bounds.Width - d,    bounds.Y,                        d, d, 270, 90);
-            path.AddArc(bounds.X + bounds.Width - d,    bounds.Y + bounds.Height - d,    d, d,   0, 90);
-            path.AddArc(bounds.X,                       bounds.Y + bounds.Height - d,    d, d,  90, 90);
+            path.AddArc(bounds.X,                    bounds.Y,                     d, d, 180, 90);
+            path.AddArc(bounds.X + bounds.Width - d, bounds.Y,                     d, d, 270, 90);
+            path.AddArc(bounds.X + bounds.Width - d, bounds.Y + bounds.Height - d, d, d,   0, 90);
+            path.AddArc(bounds.X,                    bounds.Y + bounds.Height - d, d, d,  90, 90);
             path.CloseFigure();
             return path;
         }
