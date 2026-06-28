@@ -7,11 +7,8 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 {
     public partial class ViewReportForm : Form
     {
-        // ── Active tab index (0-based, matches btnTab* order) ─────────────────
+        // ── Active tab index (0-based, matches btnTab* order) ─────────────────────
         private int _activeTab = -1;
-
-        // ── Active tab button (for underline indicator) ───────────────────────
-        private Button _activeTabBtn;
 
         public ViewReportForm()
         {
@@ -19,24 +16,23 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             this.Load += ViewReportForm_Load;
         }
 
-        // ──────────────────────────────────────────────────────────────────────
+        // ──────────────────────────────────────────────────────────────────────────
         //  Load
-        // ──────────────────────────────────────────────────────────────────────
+        // ──────────────────────────────────────────────────────────────────────────
         private void ViewReportForm_Load(object sender, EventArgs e)
         {
             // Default to first tab: Sales & Revenue
             SwitchToReport(0);
         }
 
-        // ──────────────────────────────────────────────────────────────────────
+        // ──────────────────────────────────────────────────────────────────────────
         //  Tab switcher
-        // ──────────────────────────────────────────────────────────────────────
+        // ──────────────────────────────────────────────────────────────────────────
         internal void SwitchToReport(int tabIndex)
         {
             if (_activeTab == tabIndex) return;
             _activeTab = tabIndex;
 
-            // Update tab button visual states
             var tabBtns = new Button[]
             {
                 btnTabSalesRevenue,
@@ -52,15 +48,13 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 tabBtns[i].ForeColor = isActive
                     ? Color.FromArgb(47, 111, 237)
                     : Color.FromArgb(98, 112, 135);
-                tabBtns[i].Font = new Font("Segoe UI",
-                    12f,
+                tabBtns[i].Font    = new Font("Segoe UI", 12f,
                     isActive ? FontStyle.Bold : FontStyle.Regular);
                 tabBtns[i].Padding = isActive
-                    ? new Padding(0, 0, 0, 0)
+                    ? new Padding(0)
                     : new Padding(0, 0, 0, 3);
             }
 
-            // Rebuild the content area
             pnlContent.Controls.Clear();
 
             switch (tabIndex)
@@ -73,9 +67,9 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             }
         }
 
-        // ──────────────────────────────────────────────────────────────────────
-        //  Report builders  (placeholder — fill with real chart / grid panels)
-        // ──────────────────────────────────────────────────────────────────────
+        // ──────────────────────────────────────────────────────────────────────────
+        //  Report builders
+        // ──────────────────────────────────────────────────────────────────────────
         private void BuildSalesRevenueReport()
         {
             var (outer, inner) = CardPanel.CreateFill();
@@ -111,9 +105,9 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             pnlContent.Controls.Add(outer);
         }
 
-        // ──────────────────────────────────────────────────────────────────────
+        // ──────────────────────────────────────────────────────────────────────────
         //  Helpers
-        // ──────────────────────────────────────────────────────────────────────
+        // ──────────────────────────────────────────────────────────────────────────
         private static Label MakePlaceholderLabel(string text) => new Label
         {
             Text      = text,
@@ -123,17 +117,17 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             ForeColor = Color.FromArgb(98, 112, 135)
         };
 
-        // ──────────────────────────────────────────────────────────────────────
+        // ──────────────────────────────────────────────────────────────────────────
         //  AppShell event handlers
-        // ──────────────────────────────────────────────────────────────────────
+        // ──────────────────────────────────────────────────────────────────────────
         private void OnTopNavMenuItemClicked(string menu, string sub)
         {
-            FormNavigator.Navigate(this, menu, sub);
+            FormNavigator.NavigateTo(this, menu, sub);
         }
 
         private void BtnLogout_Click(object sender, EventArgs e)
         {
-            FormNavigator.Logout(this);
+            Application.Restart();
         }
     }
 }
