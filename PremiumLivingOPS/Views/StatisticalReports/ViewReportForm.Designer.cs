@@ -38,7 +38,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             this.SuspendLayout();
 
             // ── Form ────────────────────────────────────────────────────────
-            this.Text          = "Statistical Reports \u00b7 View Report";
+            this.Text          = "Statistical Reports · View Report";
             this.Size          = new Size(1440, 900);
             this.MinimumSize   = new Size(1200, 720);
             this.StartPosition = FormStartPosition.CenterScreen;
@@ -61,7 +61,8 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             _shell.LogoutClicked   += btnLogout_Click;          // RULE 4 — once
 
             // ── Tab bar outer (DockStyle.Top, 69 px) ────────────────────────
-            // Same dimensions as HGR: Height=69, Padding=(20,4,20,0)
+            // Mirrors HGR: Height=69, outer Padding=(20,4,20,0)
+            // tblTabs inner Padding=(8,0,8,0) matching HGR tab switcher
             Button MakeTabBtn(string text, int idx)
             {
                 var b = new Button
@@ -92,10 +93,14 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
             tblTabs = new TableLayoutPanel
             {
-                Dock      = DockStyle.Fill,
-                BackColor = Color.White,
-                ColumnCount = 6, RowCount = 1,
-                Margin = new Padding(0), Padding = new Padding(0)
+                Dock        = DockStyle.Fill,
+                BackColor   = Color.White,
+                ColumnCount = 6,
+                RowCount    = 1,
+                Margin      = new Padding(0),
+                // HGR baseline: tab switcher uses (8,0,8,0) inner padding so
+                // buttons don't press against the white card left/right edges.
+                Padding     = new Padding(8, 0, 8, 0)
             };
             for (int i = 0; i < 6; i++)
                 tblTabs.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f / 6f));
@@ -113,15 +118,18 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
             pnlTabOuter = new Panel
             {
-                Dock = DockStyle.Top, Height = 69,
+                Dock      = DockStyle.Top,
+                Height    = 69,
                 BackColor = Palette.BgPage,
+                // HGR baseline: (20,4,20,0) — 0 bottom lets the active tab
+                // underline sit flush against the card bottom edge.
                 Padding   = new Padding(20, 4, 20, 0)
             };
             pnlTabOuter.Paint   += PaintTabUnderline;
             pnlTabOuter.Controls.Add(pnlTabCard);
 
             // ── KPI bar outer (DockStyle.Top, 90 px) ─────────────────────────
-            // Same structure as HGR: Height=90, Padding=(20,8,20,8)
+            // HGR baseline: Height=90, Padding=(20,8,20,8)
             pnlKpi = new Panel
             {
                 Dock      = DockStyle.Fill,
@@ -135,26 +143,42 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
             pnlKpiOuter = new Panel
             {
-                Dock = DockStyle.Top, Height = 90,
+                Dock      = DockStyle.Top,
+                Height    = 90,
                 BackColor = Palette.BgPage,
+                // HGR baseline: (20,8,20,8) — equal top/bottom grey margin
                 Padding   = new Padding(20, 8, 20, 8)
             };
             pnlKpiOuter.Controls.Add(pnlKpiInner);
 
-            // ── Filter bar outer (DockStyle.Top, 118 px) ─────────────────────
-            // Matches HGR search card horizontal margins: Padding=(20,8,20,8)
+            // ── Filter bar outer (DockStyle.Top, 72 px) ──────────────────────
+            // HGR baseline reference: pnlSearchOuter uses top=14 for its large
+            // multi-row form card.  VRF uses a compact single-row filter strip;
+            // top=12 gives proportional breathing room while keeping height lean.
+            //
+            //   Outer H = 72 px
+            //   Padding  = (20, 12, 20, 8)   → grey left/right = 20 px (= HGR)
+            //   Inner usable height = 72 − 12 − 8 = 52 px
+            //   Filter buttons h = 40 px → centred with 6 px clearance each side
             pnlFilterOuter = new Panel
             {
-                Dock = DockStyle.Top, Height = 118,
+                Dock      = DockStyle.Top,
+                Height    = 72,
                 BackColor = Palette.BgPage,
-                Padding   = new Padding(20, 8, 20, 8)
+                Padding   = new Padding(20, 12, 20, 8)
             };
-            // Content is populated dynamically by each Render*() method
+            // Content is populated dynamically by each Render*() method via SetFilterBar()
 
             // ── Report content host (DockStyle.Fill) ─────────────────────────
             pnlContent = new Panel { Dock = DockStyle.Fill, BackColor = Palette.BgPage };
 
-            // ── Assemble: Fill first, Top sections in bottom-to-top order, _shell LAST
+            // ── Assemble ──────────────────────────────────────────────────────
+            // HGR canonical order: Fill first, Top sections bottom→top, _shell LAST.
+            //   pnlGridHost    (Fill)
+            //   pnlTabOuter    (Top)
+            //   pnlKpiOuter    (Top)
+            //   pnlSearchOuter (Top)
+            //   _shell          (Top — topmost chrome)
             pnlMain.Controls.Add(pnlContent);     // Fill — first
             pnlMain.Controls.Add(pnlTabOuter);    // Top
             pnlMain.Controls.Add(pnlKpiOuter);    // Top
