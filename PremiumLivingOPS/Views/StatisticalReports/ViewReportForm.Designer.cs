@@ -54,11 +54,13 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             //  AppShell — RULE 2/4
+            //  FIX CS0103: ViewReportForm.cs has no logout handler method.
+            //  Use SessionManager lambda directly (same pattern as AccountReceivableForm).
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             _shell = new AppShell();
             _shell.SetPopupContainer(pnlMain);
-            _shell.MenuItemClicked += OnTopNavMenuItemClicked;  // RULE 4
-            _shell.LogoutClicked   += btnLogout_Click;           // RULE 4
+            _shell.MenuItemClicked += (menu, sub) => OnTopNavMenuItemClicked(menu, sub);  // RULE 4
+            _shell.LogoutClicked   += (s, e) => { SessionManager.Clear(); Application.Restart(); };  // RULE 4
 
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             //  Sidebar (DockStyle.Left, Width 210)
