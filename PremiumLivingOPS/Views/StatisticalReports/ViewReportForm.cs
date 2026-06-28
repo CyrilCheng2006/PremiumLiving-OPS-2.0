@@ -9,7 +9,7 @@ using PremiumLivingOPS.Views.Shared;
 
 namespace PremiumLivingOPS.Views.StatisticalReports
 {
-    /// &lt;summary&gt;
+    /// <summary>
     /// View — Statistical Reports › View Report
     ///
     /// Rendering baseline: HandlingGoodsReceivedForm (Logistics Processing)
@@ -34,7 +34,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
     ///   0 = Sales Performance      3 = Logistics Overview
     ///   1 = Inventory Status       4 = After-Service Summary
     ///   2 = Procurement Summary    5 = Finance Overview
-    /// &lt;/summary&gt;
+    /// </summary>
     public partial class ViewReportForm : Form
     {
         private readonly StatisticalReportsController _ctrl = new StatisticalReportsController();
@@ -47,8 +47,8 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         private bool   _financeChart      = false;
         private Button[] _tabButtons;
 
-        private static readonly Dictionary&lt;string, (Color bg, Color fg)&gt; StatusColors =
-            new Dictionary&lt;string, (Color, Color)&gt;
+        private static readonly Dictionary<string, (Color bg, Color fg)> StatusColors =
+            new Dictionary<string, (Color, Color)>
             {
                 { "Pending",             (Color.FromArgb(254, 243, 199), Color.FromArgb(146,  64,  14)) },
                 { "Processing",          (Color.FromArgb(219, 234, 254), Color.FromArgb( 29,  78, 216)) },
@@ -72,7 +72,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         {
             InitializeComponent();
             _tabButtons = new Button[] { btnTab0, btnTab1, btnTab2, btnTab3, btnTab4, btnTab5 };
-            this.Load += (s, e) =&gt; SwitchToReport(0);
+            this.Load += (s, e) => SwitchToReport(0);
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -81,7 +81,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
         private void SwitchToReport(int tabIndex)
         {
-            if (_activeTab == tabIndex &amp;&amp; pnlContent.Controls.Count &gt; 0) return;
+            if (_activeTab == tabIndex && pnlContent.Controls.Count > 0) return;
             _activeTab = tabIndex;
 
             pnlContent.SuspendLayout();
@@ -110,7 +110,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
         private void HighlightTab(int activeIndex)
         {
-            for (int i = 0; i &lt; _tabButtons.Length; i++)
+            for (int i = 0; i < _tabButtons.Length; i++)
             {
                 bool active = i == activeIndex;
                 _tabButtons[i].ForeColor = active ? Palette.Primary : Color.FromArgb(98, 112, 135);
@@ -123,7 +123,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
         private void PaintTabUnderline(object sender, PaintEventArgs e)
         {
-            if (_activeTab &lt; 0 || _activeTab &gt;= _tabButtons.Length) return;
+            if (_activeTab < 0 || _activeTab >= _tabButtons.Length) return;
             var btn = _tabButtons[_activeTab];
             int padL = pnlTabOuter.Padding.Left;
             int x    = padL + btn.Bounds.X + 24;
@@ -205,11 +205,11 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
                 Padding         = new Padding(0, 4, 0, 4)
             };
-            for (int i = 0; i &lt; n; i++)
+            for (int i = 0; i < n; i++)
                 tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f / n));
             tbl.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
-            for (int i = 0; i &lt; cols.Length; i++)
+            for (int i = 0; i < cols.Length; i++)
             {
                 var (caption, ctrl) = cols[i];
                 bool last = i == cols.Length - 1;
@@ -288,7 +288,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             // To DTP: 22% (was 32%, ×0.7)
             tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 22f));
             // Extra cols share remaining percent
-            for (int i = 0; i &lt; extraCount; i++)
+            for (int i = 0; i < extraCount; i++)
                 tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 36f));
 
             chkEnable.Dock = DockStyle.Fill;
@@ -302,7 +302,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
             if (extraCols != null)
             {
-                for (int i = 0; i &lt; extraCols.Length; i++)
+                for (int i = 0; i < extraCols.Length; i++)
                 {
                     var (cap, ctrl) = extraCols[i];
                     var cell = new TableLayoutPanel
@@ -402,7 +402,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 BackColor = Color.FromArgb(246, 249, 255),
                 Padding   = new Padding(16, 0, 0, 0)
             };
-            hdrPanel.Paint += (o, ev) =&gt;
+            hdrPanel.Paint += (o, ev) =>
             {
                 using var pen = new System.Drawing.Pen(Color.FromArgb(221, 227, 236), 1);
                 ev.Graphics.DrawLine(pen, 0, ((Panel)o).Height - 1, ((Panel)o).Width, ((Panel)o).Height - 1);
@@ -429,7 +429,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 BackColor = Palette.BgPage,
                 Padding   = new Padding(20, 6, 20, padB)
             };
-            if (dock == DockStyle.Bottom &amp;&amp; height &gt; 0) outer.Height = height;
+            if (dock == DockStyle.Bottom && height > 0) outer.Height = height;
             outer.Controls.Add(inner);
             pnlContent.Controls.Add(outer);
         }
@@ -449,7 +449,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             var btnExport     = MakeExportBtn();
 
             dtpFrom.Enabled = false;
-            chkDate.CheckedChanged += (s, e) =&gt; dtpFrom.Enabled = chkDate.Checked;
+            chkDate.CheckedChanged += (s, e) => dtpFrom.Enabled = chkDate.Checked;
 
             SetFilterBar("Filter: Sales Performance",
                 BuildDateRangeRow(chkDate, dtpFrom, dtpTo),
@@ -462,7 +462,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDate",     HeaderText = "ORDER DATE",  FillWeight = 14 });
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTotal",    HeaderText = "GRAND TOTAL", FillWeight = 16 });
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLines",    HeaderText = "ITEMS",       FillWeight =  8 });
-            dgv.CellFormatting += (s, e) =&gt; ApplyStatusBadge(s, e, "colStatus");
+            dgv.CellFormatting += (s, e) => ApplyStatusBadge(s, e, "colStatus");
 
             var dgvTop = MakeGrid();
             dgvTop.Columns.Add(new DataGridViewTextBoxColumn { Name = "colItemID",  HeaderText = "ITEM ID",   FillWeight = 15 });
@@ -473,7 +473,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
             Panel chartMain = null, chartTop = null;
 
-            Action&lt;DateTime?, DateTime?&gt; load = (from, to) =&gt;
+            Action<DateTime?, DateTime?> load = (from, to) =>
             {
                 var vm = _ctrl.GetSalesReportVM(from, to);
                 ApplyShell(vm, "Sales Performance");
@@ -486,12 +486,12 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 foreach (var p in vm.TopProducts)
                     dgvTop.Rows.Add(p.ItemID, p.ItemName, p.Category, p.TotalQty, $"HK$ {p.TotalRevenue:N2}");
 
-                var statusTotals = new Dictionary&lt;string, double&gt;();
+                var statusTotals = new Dictionary<string, double>();
                 foreach (var r in vm.SalesRows) { if (!statusTotals.ContainsKey(r.OrderStatus)) statusTotals[r.OrderStatus] = 0; statusTotals[r.OrderStatus] += (double)r.GrandTotal; }
-                var barData = new List&lt;(string, double)&gt;(); foreach (var kv in statusTotals) barData.Add((kv.Key, kv.Value));
+                var barData = new List<(string, double)>(); foreach (var kv in statusTotals) barData.Add((kv.Key, kv.Value));
 
-                var topData = new List&lt;(string, double)&gt;();
-                foreach (var p in vm.TopProducts) topData.Add((p.ItemName.Length &gt; 18 ? p.ItemName.Substring(0, 16) + "\u2026" : p.ItemName, (double)p.TotalRevenue));
+                var topData = new List<(string, double)>();
+                foreach (var p in vm.TopProducts) topData.Add((p.ItemName.Length > 18 ? p.ItemName.Substring(0, 16) + "\u2026" : p.ItemName, (double)p.TotalRevenue));
 
                 chartMain = ChartRenderer.CreateBarChart(barData, "Revenue by Order Status", "HK$", "N0", Palette.Primary);
                 chartTop  = ChartRenderer.CreateHorizontalBarChart(topData, "Top Products by Revenue", "N0", Palette.Primary);
@@ -499,10 +499,10 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 UpdateToggleBtn(btnToggleView, _salesChart);
             };
 
-            btnApply.Click      += (s, e) =&gt; load(chkDate.Checked ? (DateTime?)dtpFrom.Value : null, dtpTo.Value);
-            btnReset.Click      += (s, e) =&gt; { chkDate.Checked = false; dtpFrom.Value = DateTime.Today.AddMonths(-3); dtpTo.Value = DateTime.Today; load(null, null); };
-            btnToggleView.Click += (s, e) =&gt; { _salesChart = !_salesChart; UpdateToggleBtn(btnToggleView, _salesChart); ToggleChartTable(_salesChart, dgv, chartMain, dgvTop, chartTop); };
-            btnExport.Click     += (s, e) =&gt; CsvExporter.Export(dgv, "SalesPerformance");
+            btnApply.Click      += (s, e) => load(chkDate.Checked ? (DateTime?)dtpFrom.Value : null, dtpTo.Value);
+            btnReset.Click      += (s, e) => { chkDate.Checked = false; dtpFrom.Value = DateTime.Today.AddMonths(-3); dtpTo.Value = DateTime.Today; load(null, null); };
+            btnToggleView.Click += (s, e) => { _salesChart = !_salesChart; UpdateToggleBtn(btnToggleView, _salesChart); ToggleChartTable(_salesChart, dgv, chartMain, dgvTop, chartTop); };
+            btnExport.Click     += (s, e) => CsvExporter.Export(dgv, "SalesPerformance");
             load(null, null);
 
             AddGridCard(DockStyle.Bottom, 292, "TOP PRODUCTS BY REVENUE", dgvTop, chartTop, _salesChart, true);
@@ -531,9 +531,9 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStock",   HeaderText = "CURRENT STOCK", FillWeight = 10 });
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colReorder", HeaderText = "REORDER LVL",   FillWeight = 10 });
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colAlert",   HeaderText = "ALERT",         FillWeight =  9 });
-            dgv.CellFormatting += (s, e) =&gt;
+            dgv.CellFormatting += (s, e) =>
             {
-                if (e.ColumnIndex &lt; 0 || e.RowIndex &lt; 0 || e.Value == null) return;
+                if (e.ColumnIndex < 0 || e.RowIndex < 0 || e.Value == null) return;
                 if (((DataGridView)s).Columns[e.ColumnIndex].Name != "colAlert") return;
                 bool low = e.Value.ToString() == "Low Stock";
                 e.CellStyle.ForeColor = low ? Color.FromArgb(185, 28, 28) : Color.FromArgb(6, 95, 70);
@@ -547,7 +547,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
             Panel chartStock = null, chartCat = null;
 
-            Action load = () =&gt;
+            Action load = () =>
             {
                 var vm = _ctrl.GetInventoryReportVM(cboCat.SelectedItem?.ToString(), chkReorder.Checked);
                 ApplyShell(vm, "Inventory Status");
@@ -558,13 +558,13 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                                  r.WarehouseLocation, r.CurrentStock, r.ReorderLevel,
                                  r.BelowReorder ? "Low Stock" : "OK");
 
-                var stockData = new List&lt;(string, double)&gt;();
+                var stockData = new List<(string, double)>();
                 foreach (var r in vm.InventoryRows) stockData.Add(($"{r.ItemID}", (double)r.CurrentStock));
-                if (stockData.Count &gt; 10) stockData = stockData.GetRange(0, 10);
+                if (stockData.Count > 10) stockData = stockData.GetRange(0, 10);
 
-                var catTotals = new Dictionary&lt;string, double&gt;();
+                var catTotals = new Dictionary<string, double>();
                 foreach (var r in vm.InventoryRows) { if (!catTotals.ContainsKey(r.ItemCategory)) catTotals[r.ItemCategory] = 0; catTotals[r.ItemCategory] += r.CurrentStock; }
-                var donutData = new List&lt;(string, double)&gt;(); foreach (var kv in catTotals) donutData.Add((kv.Key, kv.Value));
+                var donutData = new List<(string, double)>(); foreach (var kv in catTotals) donutData.Add((kv.Key, kv.Value));
 
                 chartStock = ChartRenderer.CreateHorizontalBarChart(stockData, "Stock Levels (Top 10)", "N0", Palette.Primary);
                 chartCat   = ChartRenderer.CreateDonutChart(donutData, "Stock by Category");
@@ -572,10 +572,10 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 UpdateToggleBtn(btnToggleView, _inventoryChart);
             };
 
-            btnApply.Click      += (s, e) =&gt; load();
-            btnReset.Click      += (s, e) =&gt; { cboCat.SelectedIndex = 0; chkReorder.Checked = false; load(); };
-            btnToggleView.Click += (s, e) =&gt; { _inventoryChart = !_inventoryChart; UpdateToggleBtn(btnToggleView, _inventoryChart); ToggleChartTable(_inventoryChart, dgv, chartStock, null, chartCat); };
-            btnExport.Click     += (s, e) =&gt; CsvExporter.Export(dgv, "InventoryStatus");
+            btnApply.Click      += (s, e) => load();
+            btnReset.Click      += (s, e) => { cboCat.SelectedIndex = 0; chkReorder.Checked = false; load(); };
+            btnToggleView.Click += (s, e) => { _inventoryChart = !_inventoryChart; UpdateToggleBtn(btnToggleView, _inventoryChart); ToggleChartTable(_inventoryChart, dgv, chartStock, null, chartCat); };
+            btnExport.Click     += (s, e) => CsvExporter.Export(dgv, "InventoryStatus");
             load();
 
             AddGridCard(DockStyle.Fill, 0, "INVENTORY DETAIL", dgv, chartStock, _inventoryChart, true);
@@ -600,11 +600,11 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDate",     HeaderText = "ORDER DATE", FillWeight = 14 });
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colAmount",   HeaderText = "PO AMOUNT",  FillWeight = 14 });
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colMat",      HeaderText = "MATERIALS",  FillWeight = 24 });
-            dgv.CellFormatting += (s, e) =&gt; ApplyStatusBadge(s, e, "colStatus");
+            dgv.CellFormatting += (s, e) => ApplyStatusBadge(s, e, "colStatus");
 
             Panel chartSupplier = null, chartStatus = null;
 
-            Action load = () =&gt;
+            Action load = () =>
             {
                 var vm = _ctrl.GetProcurementReportVM(cboStatus.SelectedItem?.ToString());
                 ApplyShell(vm, "Procurement Summary");
@@ -612,13 +612,13 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 foreach (var r in vm.ProcRows)
                     dgv.Rows.Add(r.PurchaseID, r.SupplierName, r.PurchaseStatus, r.OrderDate.ToString("yyyy-MM-dd"), $"HK$ {r.POTotalAmount:N2}", r.MaterialNames);
 
-                var supplierSpend = new Dictionary&lt;string, double&gt;();
+                var supplierSpend = new Dictionary<string, double>();
                 foreach (var r in vm.ProcRows) { if (!supplierSpend.ContainsKey(r.SupplierName)) supplierSpend[r.SupplierName] = 0; supplierSpend[r.SupplierName] += (double)r.POTotalAmount; }
-                var supplierData = new List&lt;(string, double)&gt;(); foreach (var kv in supplierSpend) supplierData.Add((kv.Key, kv.Value));
+                var supplierData = new List<(string, double)>(); foreach (var kv in supplierSpend) supplierData.Add((kv.Key, kv.Value));
 
-                var statusCounts = new Dictionary&lt;string, double&gt;();
+                var statusCounts = new Dictionary<string, double>();
                 foreach (var r in vm.ProcRows) { if (!statusCounts.ContainsKey(r.PurchaseStatus)) statusCounts[r.PurchaseStatus] = 0; statusCounts[r.PurchaseStatus]++; }
-                var statusData = new List&lt;(string, double)&gt;(); foreach (var kv in statusCounts) statusData.Add((kv.Key, kv.Value));
+                var statusData = new List<(string, double)>(); foreach (var kv in statusCounts) statusData.Add((kv.Key, kv.Value));
 
                 chartSupplier = ChartRenderer.CreateBarChart(supplierData, "Spend by Supplier (HK$)", "HK$", "N0", Palette.Primary);
                 chartStatus   = ChartRenderer.CreateDonutChart(statusData, "PO Status Breakdown");
@@ -626,10 +626,10 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 UpdateToggleBtn(btnToggleView, _procurementChart);
             };
 
-            btnApply.Click      += (s, e) =&gt; load();
-            btnReset.Click      += (s, e) =&gt; { cboStatus.SelectedIndex = 0; load(); };
-            btnToggleView.Click += (s, e) =&gt; { _procurementChart = !_procurementChart; UpdateToggleBtn(btnToggleView, _procurementChart); ToggleChartTable(_procurementChart, dgv, chartSupplier, null, chartStatus); };
-            btnExport.Click     += (s, e) =&gt; CsvExporter.Export(dgv, "ProcurementSummary");
+            btnApply.Click      += (s, e) => load();
+            btnReset.Click      += (s, e) => { cboStatus.SelectedIndex = 0; load(); };
+            btnToggleView.Click += (s, e) => { _procurementChart = !_procurementChart; UpdateToggleBtn(btnToggleView, _procurementChart); ToggleChartTable(_procurementChart, dgv, chartSupplier, null, chartStatus); };
+            btnExport.Click     += (s, e) => CsvExporter.Export(dgv, "ProcurementSummary");
             load();
 
             AddGridCard(DockStyle.Fill, 0, "PURCHASE ORDERS", dgv, chartSupplier, _procurementChart, true);
@@ -657,9 +657,9 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDate",   HeaderText = "SHIP DATE",   FillWeight = 12 });
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDN",     HeaderText = "D.NOTE",      FillWeight =  9 });
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colRS",     HeaderText = "REPLY SLIP",  FillWeight =  8 });
-            dgv.CellFormatting += (s, e) =&gt;
+            dgv.CellFormatting += (s, e) =>
             {
-                if (e.ColumnIndex &lt; 0 || e.RowIndex &lt; 0 || e.Value == null) return;
+                if (e.ColumnIndex < 0 || e.RowIndex < 0 || e.Value == null) return;
                 var gv = (DataGridView)s;
                 string col = gv.Columns[e.ColumnIndex].Name;
                 if (col == "colStatus") { ApplyStatusBadge(s, e, "colStatus"); return; }
@@ -678,7 +678,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
             Panel chartStatus = null;
 
-            Action load = () =&gt;
+            Action load = () =>
             {
                 var vm = _ctrl.GetLogisticsReportVM(cboStatus.SelectedItem?.ToString());
                 ApplyShell(vm, "Logistics Overview");
@@ -689,22 +689,22 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                                  r.HasDeliveryNote ? "Yes" : "No", r.HasReplySlip ? "Yes" : "No");
 
                 var k = vm.LogKpi;
-                var donutData = new List&lt;(string, double)&gt;
+                var donutData = new List<(string, double)>
                 {
                     ("Completed",  (double)k.Completed),
                     ("In Transit", (double)k.InTransit),
                     ("Pending",    (double)k.Pending),
                 };
-                donutData.RemoveAll(x =&gt; x.Item2 &lt;= 0);
+                donutData.RemoveAll(x => x.Item2 <= 0);
                 chartStatus = ChartRenderer.CreateDonutChart(donutData, "Shipment Status");
                 ToggleChartTable(_logisticsChart, dgv, chartStatus, null, null);
                 UpdateToggleBtn(btnToggleView, _logisticsChart);
             };
 
-            btnApply.Click      += (s, e) =&gt; load();
-            btnReset.Click      += (s, e) =&gt; { cboStatus.SelectedIndex = 0; load(); };
-            btnToggleView.Click += (s, e) =&gt; { _logisticsChart = !_logisticsChart; UpdateToggleBtn(btnToggleView, _logisticsChart); ToggleChartTable(_logisticsChart, dgv, chartStatus, null, null); };
-            btnExport.Click     += (s, e) =&gt; CsvExporter.Export(dgv, "LogisticsOverview");
+            btnApply.Click      += (s, e) => load();
+            btnReset.Click      += (s, e) => { cboStatus.SelectedIndex = 0; load(); };
+            btnToggleView.Click += (s, e) => { _logisticsChart = !_logisticsChart; UpdateToggleBtn(btnToggleView, _logisticsChart); ToggleChartTable(_logisticsChart, dgv, chartStatus, null, null); };
+            btnExport.Click     += (s, e) => CsvExporter.Export(dgv, "LogisticsOverview");
             load();
 
             AddGridCard(DockStyle.Fill, 0, "SHIPMENTS", dgv, chartStatus, _logisticsChart, true);
@@ -729,7 +729,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             dgvCmp.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCust",   HeaderText = "CUSTOMER",     FillWeight = 20 });
             dgvCmp.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDesc",   HeaderText = "DESCRIPTION",  FillWeight = 28 });
             dgvCmp.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus", HeaderText = "STATUS",       FillWeight = 14 });
-            dgvCmp.CellFormatting += (s, e) =&gt; ApplyStatusBadge(s, e, "colStatus");
+            dgvCmp.CellFormatting += (s, e) => ApplyStatusBadge(s, e, "colStatus");
 
             var dgvRtn = MakeGrid();
             dgvRtn.Columns.Add(new DataGridViewTextBoxColumn { Name = "colRtnID",  HeaderText = "RETURN ID",  FillWeight = 20 });
@@ -738,11 +738,11 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             dgvRtn.Columns.Add(new DataGridViewTextBoxColumn { Name = "colReason", HeaderText = "REASON",     FillWeight = 22 });
             dgvRtn.Columns.Add(new DataGridViewTextBoxColumn { Name = "colRefund", HeaderText = "REFUND",     FillWeight = 12 });
             dgvRtn.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus", HeaderText = "STATUS",     FillWeight = 14 });
-            dgvRtn.CellFormatting += (s, e) =&gt; ApplyStatusBadge(s, e, "colStatus");
+            dgvRtn.CellFormatting += (s, e) => ApplyStatusBadge(s, e, "colStatus");
 
             Panel chartCmp = null, chartRtn = null;
 
-            Action load = () =&gt;
+            Action load = () =>
             {
                 var vm = _ctrl.GetAfterServiceReportVM(cboCmp.SelectedItem?.ToString(), cboRtn.SelectedItem?.ToString());
                 ApplyShell(vm, "After-Service Summary");
@@ -751,11 +751,11 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 dgvRtn.Rows.Clear();
                 foreach (var r in vm.Returns) dgvRtn.Rows.Add(r.ReturnID, r.OrderID, r.CustomerName, r.Reason, $"HK$ {r.RefundAmount:N2}", r.ReturnStatus);
 
-                var cmpCounts = new Dictionary&lt;string, double&gt;(); foreach (var r in vm.Complaints) { if (!cmpCounts.ContainsKey(r.ComplaintStatus)) cmpCounts[r.ComplaintStatus] = 0; cmpCounts[r.ComplaintStatus]++; }
-                var cmpData = new List&lt;(string, double)&gt;(); foreach (var kv in cmpCounts) cmpData.Add((kv.Key, kv.Value));
+                var cmpCounts = new Dictionary<string, double>(); foreach (var r in vm.Complaints) { if (!cmpCounts.ContainsKey(r.ComplaintStatus)) cmpCounts[r.ComplaintStatus] = 0; cmpCounts[r.ComplaintStatus]++; }
+                var cmpData = new List<(string, double)>(); foreach (var kv in cmpCounts) cmpData.Add((kv.Key, kv.Value));
 
-                var rtnCounts = new Dictionary&lt;string, double&gt;(); foreach (var r in vm.Returns) { if (!rtnCounts.ContainsKey(r.ReturnStatus)) rtnCounts[r.ReturnStatus] = 0; rtnCounts[r.ReturnStatus]++; }
-                var rtnData = new List&lt;(string, double)&gt;(); foreach (var kv in rtnCounts) rtnData.Add((kv.Key, kv.Value));
+                var rtnCounts = new Dictionary<string, double>(); foreach (var r in vm.Returns) { if (!rtnCounts.ContainsKey(r.ReturnStatus)) rtnCounts[r.ReturnStatus] = 0; rtnCounts[r.ReturnStatus]++; }
+                var rtnData = new List<(string, double)>(); foreach (var kv in rtnCounts) rtnData.Add((kv.Key, kv.Value));
 
                 chartCmp = ChartRenderer.CreateDonutChart(cmpData, "Complaint Status");
                 chartRtn = ChartRenderer.CreateDonutChart(rtnData, "Return Status");
@@ -763,10 +763,10 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 UpdateToggleBtn(btnToggleView, _afterServiceChart);
             };
 
-            btnApply.Click      += (s, e) =&gt; load();
-            btnReset.Click      += (s, e) =&gt; { cboCmp.SelectedIndex = 0; cboRtn.SelectedIndex = 0; load(); };
-            btnToggleView.Click += (s, e) =&gt; { _afterServiceChart = !_afterServiceChart; UpdateToggleBtn(btnToggleView, _afterServiceChart); ToggleChartTable(_afterServiceChart, dgvCmp, chartCmp, dgvRtn, chartRtn); };
-            btnExport.Click     += (s, e) =&gt; { CsvExporter.Export(dgvCmp, "Complaints"); CsvExporter.Export(dgvRtn, "Returns"); };
+            btnApply.Click      += (s, e) => load();
+            btnReset.Click      += (s, e) => { cboCmp.SelectedIndex = 0; cboRtn.SelectedIndex = 0; load(); };
+            btnToggleView.Click += (s, e) => { _afterServiceChart = !_afterServiceChart; UpdateToggleBtn(btnToggleView, _afterServiceChart); ToggleChartTable(_afterServiceChart, dgvCmp, chartCmp, dgvRtn, chartRtn); };
+            btnExport.Click     += (s, e) => { CsvExporter.Export(dgvCmp, "Complaints"); CsvExporter.Export(dgvRtn, "Returns"); };
             load();
 
             AddGridCard(DockStyle.Bottom, 292, "RETURN ORDERS", dgvRtn, chartRtn, _afterServiceChart, true);
@@ -784,7 +784,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             var btnExport     = MakeExportBtn();
 
             dtpFrom.Enabled = false;
-            chkDate.CheckedChanged += (s, e) =&gt; dtpFrom.Enabled = chkDate.Checked;
+            chkDate.CheckedChanged += (s, e) => dtpFrom.Enabled = chkDate.Checked;
 
             SetFilterBar("Filter: Finance Overview",
                 BuildDateRangeRow(chkDate, dtpFrom, dtpTo),
@@ -797,11 +797,11 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDate",    HeaderText = "DATE",            FillWeight = 14 });
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDoc",     HeaderText = "LINKED DOCUMENT", FillWeight = 22 });
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDocType", HeaderText = "DOCUMENT TYPE",   FillWeight = 18 });
-            dgv.CellFormatting += (s, e) =&gt; ApplyStatusBadge(s, e, "colType");
+            dgv.CellFormatting += (s, e) => ApplyStatusBadge(s, e, "colType");
 
             Panel chartAmounts = null, chartBreakdown = null;
 
-            Action&lt;DateTime?, DateTime?&gt; load = (from, to) =&gt;
+            Action<DateTime?, DateTime?> load = (from, to) =>
             {
                 var vm = _ctrl.GetFinanceReportVM(from, to);
                 ApplyShell(vm, "Finance Overview");
@@ -811,11 +811,11 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                                  r.TransactionDate.ToString("yyyy-MM-dd"), r.LinkedDocument, r.DocumentType);
 
                 var k = vm.FinanceKpi;
-                var typeTotals = new Dictionary&lt;string, double&gt;();
+                var typeTotals = new Dictionary<string, double>();
                 foreach (var r in vm.FinanceRows) { if (!typeTotals.ContainsKey(r.TransactionType)) typeTotals[r.TransactionType] = 0; typeTotals[r.TransactionType] += (double)r.Amount; }
-                var barData = new List&lt;(string, double)&gt;(); foreach (var kv in typeTotals) barData.Add((kv.Key, kv.Value));
+                var barData = new List<(string, double)>(); foreach (var kv in typeTotals) barData.Add((kv.Key, kv.Value));
 
-                var breakdownData = new List&lt;(string, double)&gt;
+                var breakdownData = new List<(string, double)>
                 {
                     ("Sales Revenue",     (double)k.TotalSalesRevenue),
                     ("Procurement Spend", (double)k.TotalProcurementSpend),
@@ -823,7 +823,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                     ("AR Outstanding",    (double)k.AROutstanding),
                     ("AP Outstanding",    (double)k.APOutstanding),
                 };
-                breakdownData.RemoveAll(x =&gt; x.Item2 &lt;= 0);
+                breakdownData.RemoveAll(x => x.Item2 <= 0);
 
                 chartAmounts   = ChartRenderer.CreateBarChart(barData, "Transaction Amounts by Type (HK$)", "HK$", "N0", Palette.Primary);
                 chartBreakdown = ChartRenderer.CreateDonutChart(breakdownData, "Revenue Breakdown");
@@ -831,10 +831,10 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 UpdateToggleBtn(btnToggleView, _financeChart);
             };
 
-            btnApply.Click      += (s, e) =&gt; load(chkDate.Checked ? (DateTime?)dtpFrom.Value : null, dtpTo.Value);
-            btnReset.Click      += (s, e) =&gt; { chkDate.Checked = false; dtpFrom.Value = DateTime.Today.AddMonths(-3); dtpTo.Value = DateTime.Today; load(null, null); };
-            btnToggleView.Click += (s, e) =&gt; { _financeChart = !_financeChart; UpdateToggleBtn(btnToggleView, _financeChart); ToggleChartTable(_financeChart, dgv, chartAmounts, null, chartBreakdown); };
-            btnExport.Click     += (s, e) =&gt; CsvExporter.Export(dgv, "FinanceOverview");
+            btnApply.Click      += (s, e) => load(chkDate.Checked ? (DateTime?)dtpFrom.Value : null, dtpTo.Value);
+            btnReset.Click      += (s, e) => { chkDate.Checked = false; dtpFrom.Value = DateTime.Today.AddMonths(-3); dtpTo.Value = DateTime.Today; load(null, null); };
+            btnToggleView.Click += (s, e) => { _financeChart = !_financeChart; UpdateToggleBtn(btnToggleView, _financeChart); ToggleChartTable(_financeChart, dgv, chartAmounts, null, chartBreakdown); };
+            btnExport.Click     += (s, e) => CsvExporter.Export(dgv, "FinanceOverview");
             load(null, null);
 
             AddGridCard(DockStyle.Fill, 0, "TRANSACTIONS", dgv, chartAmounts, _financeChart, true);
@@ -881,7 +881,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
         private void ApplyStatusBadge(object sender, DataGridViewCellFormattingEventArgs e, string colName)
         {
-            if (e.ColumnIndex &lt; 0 || e.RowIndex &lt; 0 || e.Value == null) return;
+            if (e.ColumnIndex < 0 || e.RowIndex < 0 || e.Value == null) return;
             if (((DataGridView)sender).Columns[e.ColumnIndex].Name != colName) return;
             string val = e.Value.ToString();
             if (!StatusColors.TryGetValue(val, out var sc))
@@ -928,8 +928,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         {
             var b = new Button
             {
-                // Table mode → show "📊 Chart"  (invite to switch to chart)
-                // Chart mode → show "📋 Table"  (invite to switch to table)
                 Text      = chartActive ? "\U0001F4CB  Table" : "\U0001F4CA  Chart",
                 Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
                 Size      = new Size(210, 60),
@@ -956,9 +954,9 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         //  BUTTON / CONTROL FACTORIES  (all action buttons 210×60)
         // ════════════════════════════════════════════════════════════════
 
-        /// &lt;summary&gt;
+        /// <summary>
         /// Apply — Indigo-800 #3730A3, bold, hover Indigo-900 #312E81
-        /// &lt;/summary&gt;
+        /// </summary>
         private static Button MakePrimaryBtn(string text)
         {
             var b = new Button
@@ -976,9 +974,9 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             return b;
         }
 
-        /// &lt;summary&gt;
+        /// <summary>
         /// Reset — Slate-200 #F1F5F9 bg, Slate-600 #475569 fg
-        /// &lt;/summary&gt;
+        /// </summary>
         private static Button MakeOutlineBtn(string text)
         {
             var b = new Button
@@ -997,9 +995,9 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             return b;
         }
 
-        /// &lt;summary&gt;
+        /// <summary>
         /// Export — Emerald-800 #065F46, hover Emerald-900 #064E3B
-        /// &lt;/summary&gt;
+        /// </summary>
         private static Button MakeExportBtn()
         {
             var b = new Button
@@ -1018,7 +1016,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         }
 
         private static DateTimePicker MakeDatePicker(DateTime value)
-            =&gt; new DateTimePicker { Format = DateTimePickerFormat.Short, Value = value, Font = new Font("Segoe UI", 11f), Width = 130, CalendarForeColor = Color.FromArgb(15, 31, 53), CalendarTitleBackColor = Color.FromArgb(19, 35, 61), CalendarTitleForeColor = Color.White };
+            => new DateTimePicker { Format = DateTimePickerFormat.Short, Value = value, Font = new Font("Segoe UI", 11f), Width = 130, CalendarForeColor = Color.FromArgb(15, 31, 53), CalendarTitleBackColor = Color.FromArgb(19, 35, 61), CalendarTitleForeColor = Color.White };
 
         private static ComboBox MakeCbo(string[] items)
         {
@@ -1036,7 +1034,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             if (vm == null) return;
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
-            _shell.SetBreadcrumb($"Statistical Reports  ›  {reportTitle}");
+            _shell.SetBreadcrumb($"Statistical Reports  >  {reportTitle}");
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -1060,7 +1058,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         // ════════════════════════════════════════════════════════════════
 
         private void OnTopNavMenuItemClicked(string menu, string sub)
-            =&gt; FormNavigator.NavigateTo(this, menu, sub);
+            => FormNavigator.NavigateTo(this, menu, sub);
 
         private void btnLogout_Click(object sender, EventArgs e)
         {
