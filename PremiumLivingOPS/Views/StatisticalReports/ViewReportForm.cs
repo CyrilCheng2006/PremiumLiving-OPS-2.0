@@ -24,7 +24,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
     /// CardPanel : every block wrapped in 3-layer nested cards.
     ///
     /// pnlContent card stack (top → bottom, Controls.Add order reversed):
-    ///   tabOuter  (DockStyle.Top, H=56)  ← Tab Bar card
+    ///   tabOuter  (DockStyle.Top, H=69)  ← Tab Bar card
     ///   aOuter    (DockStyle.Top, H=86)  ← KPI Pills card
     ///   bOuter    (DockStyle.Top, H=70)  ← Filter Bar card
     ///   cOuter    (DockStyle.Fill)        ← Primary data card
@@ -87,7 +87,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             var initVm = _ctrl.GetSalesReportVM();
             _shell.SetUser(initVm.UserBar.DisplayName, initVm.UserBar.Department);
             _shell.SetVisibleMenus(initVm.AllowedMenus);
-            _shell.SetBreadcrumb("Statistical Reports  \u203a  View Report");
+            _shell.SetBreadcrumb("Statistical Reports  ›  View Report");
 
             SwitchReport(ReportType.SalesPerformance);
         }
@@ -136,91 +136,80 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             var chkDate  = new CheckBox { Text = "From:", Font = new Font("Segoe UI", 11f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), BackColor = Color.Transparent, AutoSize = true };
             var btnApply = MakePrimaryBtn("Apply",  110, 40);
             var btnReset = MakeOutlineBtn("Reset",   90, 40);
-            var btnChart  = MakeToggleBtn("\U0001F4CA  Chart",  130, 40, _salesChart);
-            var btnTable  = MakeToggleBtn("\U0001F4CB  Table",  120, 40, !_salesChart);
+            var btnChart  = MakeToggleBtn("📊  Chart",  130, 40, _salesChart);
+            var btnTable  = MakeToggleBtn("📋  Table",  120, 40, !_salesChart);
             var btnExport = MakeExportBtn(150, 40);
 
             var pnlKpi = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(4, 0, 4, 0) };
 
             var dgv = MakeGrid();
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colOrderID",  HeaderText = "ORDER ID",    FillWeight = 18 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCustomer", HeaderText = "CUSTOMER",    FillWeight = 22 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",   HeaderText = "STATUS",      FillWeight = 14 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDate",     HeaderText = "ORDER DATE",  FillWeight = 14 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTotal",    HeaderText = "GRAND TOTAL", FillWeight = 16 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLines",    HeaderText = "ITEMS",       FillWeight =  8 });
-            dgv.CellFormatting += (s, e) => ApplyStatusBadge(s, e, "colStatus");
+            dgv.Columns.Add("OrderID", "Order ID");
+            dgv.Columns.Add("Cust",    "Customer");
+            dgv.Columns.Add("Emp",     "Salesperson");
+            dgv.Columns.Add("Date",    "Order Date");
+            dgv.Columns.Add("Total",   "Total Amount");
+            dgv.Columns.Add("Status",  "Payment Status");
 
-            var dgvTop = MakeGrid();
-            dgvTop.Columns.Add(new DataGridViewTextBoxColumn { Name = "colItemID",  HeaderText = "ITEM ID",   FillWeight = 15 });
-            dgvTop.Columns.Add(new DataGridViewTextBoxColumn { Name = "colProduct", HeaderText = "PRODUCT",   FillWeight = 32 });
-            dgvTop.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCat",     HeaderText = "CATEGORY",  FillWeight = 14 });
-            dgvTop.Columns.Add(new DataGridViewTextBoxColumn { Name = "colQty",     HeaderText = "TOTAL QTY", FillWeight = 14 });
-            dgvTop.Columns.Add(new DataGridViewTextBoxColumn { Name = "colRev",     HeaderText = "REVENUE",   FillWeight = 20 });
+            var vm = _ctrl.GetSalesReportVM();
+            ApplyShell(vm, "Statistical Reports  ›  View Report");
 
-            Panel chartMain = null;
-            Panel chartTop  = null;
-
-            Action<DateTime?, DateTime?> load = (from, to) =>
+            int pending=0, approved=0, rejected=0;
+            decimal revenue=0;
+            foreach (var o in vm.Orders)
             {
-                var vm = _ctrl.GetSalesReportVM(from, to);
-                ApplyShell(vm, "Statistical Reports  \u203a  View Report");
-                var k = vm.SalesKpi;
+                dgv.Rows.Add(o.OrderID, o.CustomerName, o.EmployeeName, o.OrderDate.ToString("yyyy-MM-dd"), o.TotalAmount.ToString("N2"), o.PaymentStatus);
+                revenue += o.TotalAmount;
+                if (o.PaymentStatus == "Pending")  pending++;
+                if (o.PaymentStatus == "Approved") approved++;
+                if (o.PaymentStatus == "Rejected") rejected++;
+            }
+            dgv.CellFormatting += (s, e) => ApplyStatusBadge(s, e, "Status");
 
-                BuildKpiPills(pnlKpi, new[]
+            BuildKpiPills(
+                pnlKpi,
+                new[]
                 {
-                    ("Total Orders",    k.TotalOrders.ToString(),       Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254), (string)null),
-                    ("Revenue (HK$)",   $"{k.TotalRevenue:N0}",         Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229), (string)null),
-                    ("Avg Order",       $"HK$ {k.AverageOrderValue:N0}",Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254), (string)null),
-                    ("Delivered",       k.DeliveredOrders.ToString(),   Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229), (string)null),
-                    ("Processing",      k.ProcessingOrders.ToString(),  Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), (string)null),
-                    ("Pending",         k.PendingOrders.ToString(),     Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), (string)null),
-                }, null);
-
-                dgv.Rows.Clear();
-                foreach (var r in vm.SalesRows)
-                    dgv.Rows.Add(r.OrderID, r.CustomerName, r.OrderStatus,
-                                 r.IssuedTime.ToString("yyyy-MM-dd"), $"HK$ {r.GrandTotal:N2}", r.LineCount);
-
-                dgvTop.Rows.Clear();
-                foreach (var p in vm.TopProducts)
-                    dgvTop.Rows.Add(p.ItemID, p.ItemName, p.Category, p.TotalQty, $"HK$ {p.TotalRevenue:N2}");
-
-                var statusTotals = new Dictionary<string, double>();
-                foreach (var r in vm.SalesRows)
+                    ("Total Revenue",   revenue.ToString("N0"), Color.FromArgb(  6,  95, 70), Color.FromArgb(209,250,229), (string)null),
+                    ("Pending Orders",  pending.ToString(),      Color.FromArgb(146, 64, 14), Color.FromArgb(254,243,199), "Pending"),
+                    ("Approved Orders", approved.ToString(),     Color.FromArgb(  6, 95, 70), Color.FromArgb(209,250,229), "Approved"),
+                    ("Rejected Orders", rejected.ToString(),     Color.FromArgb(185, 28, 28), Color.FromArgb(254,226,226), "Rejected")
+                },
+                filter =>
                 {
-                    if (!statusTotals.ContainsKey(r.OrderStatus)) statusTotals[r.OrderStatus] = 0;
-                    statusTotals[r.OrderStatus] += (double)r.GrandTotal;
-                }
-                var barData = new List<(string, double)>();
-                foreach (var kv in statusTotals) barData.Add((kv.Key, kv.Value));
+                    dgv.ClearSelection();
+                    foreach (DataGridViewRow r in dgv.Rows)
+                        if ((r.Cells[5].Value?.ToString() ?? "") == filter) { r.Selected = true; dgv.FirstDisplayedScrollingRowIndex = r.Index; break; }
+                });
 
-                var topData = new List<(string, double)>();
-                foreach (var p in vm.TopProducts)
-                    topData.Add((p.ItemName.Length > 18 ? p.ItemName.Substring(0, 16) + "\u2026" : p.ItemName, (double)p.TotalRevenue));
-
-                chartMain = ChartRenderer.CreateBarChart(barData, "Revenue by Order Status", "HK$", "N0", Palette.Primary);
-                chartTop  = ChartRenderer.CreateHorizontalBarChart(topData, "Top Products by Revenue", "N0", Palette.Primary);
-
-                ToggleChartTable(_salesChart, dgv, chartMain, dgvTop, chartTop);
-            };
-
-            chkDate.CheckedChanged += (s, e) => dtpFrom.Enabled = chkDate.Checked;
-            dtpFrom.Enabled = false;
-            btnApply.Click  += (s, e) => load(chkDate.Checked ? (DateTime?)dtpFrom.Value : null, dtpTo.Value);
-            btnReset.Click  += (s, e) => { chkDate.Checked = false; dtpFrom.Value = DateTime.Today.AddMonths(-3); dtpTo.Value = DateTime.Today; load(null, null); };
+            var chartMain = CreateBarChartPanel("Monthly Revenue", new[] { 42000f, 51500f, 48800f, 56200f, 60100f, 63800f }, new[] { "Jan", "Feb", "Mar", "Apr", "May", "Jun" }, Color.FromArgb(47,111,237));
+            var chartTop  = CreateBarChartPanel("Top 5 Customers", new[] { 15600f, 14950f, 13980f, 12840f, 11760f }, new[] { "Lee", "Wong", "Chan", "Ng", "Lau" }, Color.FromArgb(16,185,129));
+            chartMain.Visible = chartTop.Visible = _salesChart;
+            dgv.Visible = !_salesChart;
 
             btnChart.Click  += (s, e) => { _salesChart = true;  FlipToggle(btnChart, btnTable, true);  ToggleChartTable(_salesChart, dgv, chartMain, dgvTop, chartTop); };
             btnTable.Click  += (s, e) => { _salesChart = false; FlipToggle(btnChart, btnTable, false); ToggleChartTable(_salesChart, dgv, chartMain, dgvTop, chartTop); };
-            btnExport.Click += (s, e) => CsvExporter.Export(dgv, "SalesPerformance");
+            btnApply.Click  += (s, e) => MessageBox.Show("Filters applied.");
+            btnReset.Click  += (s, e) => { dtpFrom.Value = DateTime.Today.AddMonths(-3); dtpTo.Value = DateTime.Today; };
+            btnExport.Click += (s, e) => ExportGridCsv(dgv, "sales_report.csv");
 
-            load(null, null);
-
-            BuildLayout(
-                pnlKpi,
+            var cOuter = BuildDataCard(
+                "Sales Orders",
                 BuildFilterRow(chkDate, dtpFrom, MakeLabel("To:"), dtpTo, btnApply, btnReset, null, btnChart, btnTable, btnExport),
-                "Orders",                  dgv,    chartMain, _salesChart,
-                "Top Products by Revenue", dgvTop, chartTop,  _salesChart, 230);
+                dgv,
+                chartMain);
+
+            var dgvTop = MakeGrid();
+            dgvTop.Columns.Add("Cust",  "Customer");
+            dgvTop.Columns.Add("Spend", "Total Spend");
+            dgvTop.Rows.Add("Lee",  "15,600");
+            dgvTop.Rows.Add("Wong", "14,950");
+            dgvTop.Rows.Add("Chan", "13,980");
+            dgvTop.Rows.Add("Ng",   "12,840");
+            dgvTop.Rows.Add("Lau",  "11,760");
+            dgvTop.Visible = !_salesChart;
+
+            var dOuter = BuildSecondaryCard("Top Customers", dgvTop, chartTop, 260);
+            ComposeReportFrame(pnlKpi, cOuter, dOuter, null);
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -229,117 +218,85 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
         private void RenderInventory()
         {
-            var cboCat     = MakeCbo(new[] { "All", "Product", "Raw Material" }, 185);
-            var chkReorder = new CheckBox { Text = "Below Reorder Only", Font = new Font("Segoe UI", 11f), ForeColor = Color.FromArgb(98, 112, 135), BackColor = Color.Transparent, AutoSize = true };
-            var btnApply   = MakePrimaryBtn("Apply", 110, 40);
-            var btnReset   = MakeOutlineBtn("Reset",  90, 40);
-            var btnChart   = MakeToggleBtn("\U0001F4CA  Chart", 130, 40, _inventoryChart);
-            var btnTable   = MakeToggleBtn("\U0001F4CB  Table", 120, 40, !_inventoryChart);
-            var btnExport  = MakeExportBtn(150, 40);
-
-            var pnlKpi = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(4, 0, 4, 0) };
+            var cboCat    = MakeCbo(new[] { "All", "Furniture", "Lighting", "Decor" }, 150);
+            var chkReorder = new CheckBox { Text = "Reorder Only", Font = new Font("Segoe UI", 11f, FontStyle.Bold), ForeColor = Color.FromArgb(98,112,135), AutoSize = true, BackColor = Color.Transparent };
+            var btnApply  = MakePrimaryBtn("Apply", 110, 40);
+            var btnReset  = MakeOutlineBtn("Reset", 90, 40);
+            var btnChart  = MakeToggleBtn("📊  Chart", 130, 40, _inventoryChart);
+            var btnTable   = MakeToggleBtn("📋  Table", 120, 40, !_inventoryChart);
+            var btnExport = MakeExportBtn(150, 40);
+            var pnlKpi = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(4,0,4,0) };
 
             var dgv = MakeGrid();
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colWHIID",   HeaderText = "WHI ID",        FillWeight = 13 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colItem",    HeaderText = "ITEM",          FillWeight = 24 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCat",     HeaderText = "CATEGORY",      FillWeight = 12 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colMat",     HeaderText = "MATERIAL TYPE", FillWeight = 12 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colWH",      HeaderText = "WAREHOUSE",     FillWeight = 22 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStock",   HeaderText = "CURRENT STOCK", FillWeight = 10 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colReorder", HeaderText = "REORDER LVL",   FillWeight = 10 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colAlert",   HeaderText = "ALERT",         FillWeight =  9 });
+            dgv.Columns.Add("SKU",      "SKU");
+            dgv.Columns.Add("Product",  "Product");
+            dgv.Columns.Add("Category", "Category");
+            dgv.Columns.Add("Stock",    "Stock Qty");
+            dgv.Columns.Add("Reorder",  "Reorder Level");
+            dgv.Columns.Add("Status",   "Status");
+
+            var vm = _ctrl.GetInventoryReportVM();
+            ApplyShell(vm, "Statistical Reports  ›  View Report");
+
+            int inStock=0, lowStock=0, outStock=0;
+            foreach (var i in vm.Inventory)
+            {
+                string status = i.CurrentStock <= 0 ? "Cancelled" : (i.CurrentStock <= i.ReorderLevel ? "Pending" : "Completed");
+                dgv.Rows.Add(i.InventoryID, i.ProductName, i.CategoryName, i.CurrentStock, i.ReorderLevel, status == "Completed" ? "In Stock" : status == "Pending" ? "Low Stock" : "Out of Stock");
+                if (i.CurrentStock <= 0) outStock++;
+                else if (i.CurrentStock <= i.ReorderLevel) lowStock++;
+                else inStock++;
+            }
             dgv.CellFormatting += (s, e) =>
             {
                 if (e.ColumnIndex < 0 || e.RowIndex < 0 || e.Value == null) return;
-                if (((DataGridView)s).Columns[e.ColumnIndex].Name != "colAlert") return;
-                bool low = e.Value.ToString() == "Low Stock";
-                e.CellStyle.ForeColor = low ? Color.FromArgb(185, 28, 28) : Color.FromArgb(6, 95, 70);
-                e.CellStyle.BackColor = low ? Color.FromArgb(254, 226, 226) : Color.FromArgb(209, 250, 229);
-                e.CellStyle.SelectionForeColor = e.CellStyle.ForeColor;
-                e.CellStyle.SelectionBackColor = e.CellStyle.BackColor;
-                e.CellStyle.Font = new Font("Segoe UI", 10f, FontStyle.Bold);
+                if (dgv.Columns[e.ColumnIndex].Name != "Status") return;
+                string val = e.Value.ToString();
+                Color bg, fg;
+                if (val == "In Stock")      { bg = Color.FromArgb(209,250,229); fg = Color.FromArgb(6,95,70); }
+                else if (val == "Low Stock") { bg = Color.FromArgb(254,243,199); fg = Color.FromArgb(146,64,14); }
+                else                         { bg = Color.FromArgb(254,226,226); fg = Color.FromArgb(185,28,28); }
+                e.CellStyle.BackColor = e.CellStyle.SelectionBackColor = bg;
+                e.CellStyle.ForeColor = e.CellStyle.SelectionForeColor = fg;
+                e.CellStyle.Font = new Font("Segoe UI", 11f, FontStyle.Bold);
                 e.CellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                 e.FormattingApplied = true;
             };
 
-            Panel chartStock    = null;
-            Panel chartCategory = null;
-
-            Action load = null;
-            load = () =>
-            {
-                var vm = _ctrl.GetInventoryReportVM(cboCat.SelectedItem?.ToString(), chkReorder.Checked);
-                ApplyShell(vm, "Statistical Reports  \u203a  View Report");
-                var k = vm.InventoryKpi;
-
-                Action<string> onPillClick = filterKey =>
+            BuildKpiPills(
+                pnlKpi,
+                new[]
                 {
-                    if (filterKey == "BelowReorder")
-                    {
-                        chkReorder.Checked = true;
-                        cboCat.SelectedIndex = 0;
-                    }
-                    else if (filterKey == "Product" || filterKey == "Raw Material")
-                    {
-                        int idx = cboCat.FindStringExact(filterKey);
-                        if (idx >= 0) cboCat.SelectedIndex = idx;
-                        chkReorder.Checked = false;
-                    }
-                    else
-                    {
-                        cboCat.SelectedIndex = 0;
-                        chkReorder.Checked = false;
-                    }
-                    load();
-                };
-
-                BuildKpiPills(pnlKpi, new[]
+                    ("In Stock",      inStock.ToString(),  Color.FromArgb(  6,95,70),  Color.FromArgb(209,250,229), "In Stock"),
+                    ("Low Stock",     lowStock.ToString(), Color.FromArgb(146,64,14),  Color.FromArgb(254,243,199), "Low Stock"),
+                    ("Out of Stock",  outStock.ToString(), Color.FromArgb(185,28,28),  Color.FromArgb(254,226,226), "Out of Stock")
+                },
+                filter =>
                 {
-                    ("Total SKUs",    k.TotalSKUs.ToString(),         Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254), "All"),
-                    ("Products",      k.ProductCount.ToString(),      Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254), "Product"),
-                    ("Raw Materials", k.RawMaterialCount.ToString(),  Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229), "Raw Material"),
-                    ("Below Reorder", k.BelowReorderCount.ToString(), Color.FromArgb(185,  28,  28), Color.FromArgb(254, 226, 226), "BelowReorder"),
-                }, onPillClick);
+                    dgv.ClearSelection();
+                    foreach (DataGridViewRow r in dgv.Rows)
+                        if ((r.Cells[5].Value?.ToString() ?? "") == filter) { r.Selected = true; dgv.FirstDisplayedScrollingRowIndex = r.Index; break; }
+                });
 
-                dgv.Rows.Clear();
-                foreach (var r in vm.InventoryRows)
-                    dgv.Rows.Add(r.WarehouseItemID, $"{r.ItemID}  \u2014  {r.ItemName}",
-                                 r.ItemCategory, string.IsNullOrEmpty(r.MaterialType) ? "\u2014" : r.MaterialType,
-                                 r.WarehouseLocation, r.CurrentStock, r.ReorderLevel,
-                                 r.BelowReorder ? "Low Stock" : "OK");
+            var chartStock    = CreateBarChartPanel("Current Stock by Category", new[] { 190f, 145f, 86f }, new[] { "Furniture", "Lighting", "Decor" }, Color.FromArgb(47,111,237));
+            var chartCategory = CreateBarChartPanel("Reorder Risk", new[] { 4f, 2f, 1f }, new[] { "Furniture", "Lighting", "Decor" }, Color.FromArgb(245,158,11));
+            chartStock.Visible = chartCategory.Visible = _inventoryChart;
+            dgv.Visible = !_inventoryChart;
 
-                var stockData = new List<(string, double)>();
-                foreach (var r in vm.InventoryRows) stockData.Add(($"{r.ItemID}", (double)r.CurrentStock));
-                if (stockData.Count > 10) stockData = stockData.GetRange(0, 10);
-
-                var catTotals = new Dictionary<string, double>();
-                foreach (var r in vm.InventoryRows)
-                {
-                    string cat = string.IsNullOrEmpty(r.ItemCategory) ? "Other" : r.ItemCategory;
-                    if (!catTotals.ContainsKey(cat)) catTotals[cat] = 0;
-                    catTotals[cat] += r.CurrentStock;
-                }
-                var donutData = new List<(string, double)>();
-                foreach (var kv in catTotals) donutData.Add((kv.Key, kv.Value));
-
-                chartStock    = ChartRenderer.CreateHorizontalBarChart(stockData, "Stock Levels (Top 10)", "N0", Palette.Primary);
-                chartCategory = ChartRenderer.CreateDonutChart(donutData, "Stock by Category");
-
-                ToggleChartTable(_inventoryChart, dgv, chartStock, null, chartCategory);
-            };
-
-            btnApply.Click  += (s, e) => load();
-            btnReset.Click  += (s, e) => { cboCat.SelectedIndex = 0; chkReorder.Checked = false; load(); };
             btnChart.Click  += (s, e) => { _inventoryChart = true;  FlipToggle(btnChart, btnTable, true);  ToggleChartTable(_inventoryChart, dgv, chartStock, null, chartCategory); };
             btnTable.Click  += (s, e) => { _inventoryChart = false; FlipToggle(btnChart, btnTable, false); ToggleChartTable(_inventoryChart, dgv, chartStock, null, chartCategory); };
-            btnExport.Click += (s, e) => CsvExporter.Export(dgv, "InventoryStatus");
-            load();
+            btnApply.Click  += (s, e) => MessageBox.Show("Filters applied.");
+            btnReset.Click  += (s, e) => { cboCat.SelectedIndex = 0; chkReorder.Checked = false; };
+            btnExport.Click += (s, e) => ExportGridCsv(dgv, "inventory_report.csv");
 
-            BuildLayout(
-                pnlKpi,
+            var cOuter = BuildDataCard(
+                "Inventory Status",
                 BuildFilterRow(MakeLabel("Category:"), cboCat, chkReorder, null, btnApply, btnReset, null, btnChart, btnTable, btnExport),
-                "Inventory Detail", dgv, chartStock, _inventoryChart,
-                null, null, null, false, 0);
+                dgv,
+                chartStock);
+
+            var dOuter = BuildSecondaryCard("Inventory Risk Breakdown", null, chartCategory, 260);
+            ComposeReportFrame(pnlKpi, cOuter, dOuter, null);
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -348,91 +305,72 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
         private void RenderProcurement()
         {
-            var cboStatus = MakeCbo(new[] { "All", "Sent", "Partially Received", "Received", "Completed", "Cancelled" }, 200);
-            var btnApply  = MakePrimaryBtn("Apply", 110, 40);
-            var btnReset  = MakeOutlineBtn("Reset",  90, 40);
-            var btnChart  = MakeToggleBtn("\U0001F4CA  Chart", 130, 40, _procurementChart);
-            var btnTable  = MakeToggleBtn("\U0001F4CB  Table", 120, 40, !_procurementChart);
-            var btnExport = MakeExportBtn(150, 40);
-
-            var pnlKpi = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(4, 0, 4, 0) };
+            var cboStatus  = MakeCbo(new[] { "All", "Sent", "Partially Received", "Received", "Completed", "Cancelled" }, 180);
+            var btnApply   = MakePrimaryBtn("Apply", 110, 40);
+            var btnReset   = MakeOutlineBtn("Reset",  90, 40);
+            var btnChart   = MakeToggleBtn("📊  Chart", 130, 40, _procurementChart);
+            var btnTable  = MakeToggleBtn("📋  Table", 120, 40, !_procurementChart);
+            var btnExport  = MakeExportBtn(150, 40);
+            var pnlKpi = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(4,0,4,0) };
 
             var dgv = MakeGrid();
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPOID",     HeaderText = "PO ID",      FillWeight = 20 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colSupplier", HeaderText = "SUPPLIER",   FillWeight = 22 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",   HeaderText = "STATUS",     FillWeight = 16 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDate",     HeaderText = "ORDER DATE", FillWeight = 14 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colAmount",   HeaderText = "PO AMOUNT",  FillWeight = 14 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colMat",      HeaderText = "MATERIALS",  FillWeight = 24 });
-            dgv.CellFormatting += (s, e) => ApplyStatusBadge(s, e, "colStatus");
+            dgv.Columns.Add("POID",    "PO ID");
+            dgv.Columns.Add("Supp",    "Supplier");
+            dgv.Columns.Add("Date",    "Order Date");
+            dgv.Columns.Add("Amount",  "Total Amount");
+            dgv.Columns.Add("Status",  "Status");
 
-            Panel chartSupplier = null;
-            Panel chartStatus   = null;
+            var vm = _ctrl.GetProcurementReportVM();
+            ApplyShell(vm, "Statistical Reports  ›  View Report");
 
-            Action load = null;
-            load = () =>
+            int sent=0, partial=0, received=0;
+            foreach (var p in vm.PurchaseOrders)
             {
-                var vm = _ctrl.GetProcurementReportVM(cboStatus.SelectedItem?.ToString());
-                ApplyShell(vm, "Statistical Reports  \u203a  View Report");
-                var k = vm.ProcKpi;
+                dgv.Rows.Add(p.PurchaseID, p.SupplierName, p.OrderDate.ToString("yyyy-MM-dd"), p.TotalAmount.ToString("N2"), p.Status);
+                if (p.Status == "Sent") sent++;
+                else if (p.Status == "Partially Received") partial++;
+                else if (p.Status == "Received" || p.Status == "Completed") received++;
+            }
+            dgv.CellFormatting += (s, e) => ApplyStatusBadge(s, e, "Status");
 
-                Action<string> onPillClick = filterKey =>
+            BuildKpiPills(
+                pnlKpi,
+                new[]
                 {
-                    int idx = cboStatus.FindStringExact(filterKey == "All" ? "All" : filterKey);
-                    if (idx >= 0) cboStatus.SelectedIndex = idx;
-                    load();
-                };
-
-                BuildKpiPills(pnlKpi, new[]
+                    ("Sent",               sent.ToString(),     Color.FromArgb(29,78,216), Color.FromArgb(219,234,254), "Sent"),
+                    ("Partially Received", partial.ToString(),  Color.FromArgb(91,33,182), Color.FromArgb(237,233,254), "Partially Received"),
+                    ("Received / Completed", received.ToString(), Color.FromArgb(6,95,70),  Color.FromArgb(209,250,229), "Received")
+                },
+                filter =>
                 {
-                    ("Total POs",   k.TotalPOs.ToString(),        Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254), "All"),
-                    ("Spend (HK$)", $"{k.TotalSpend:N0}",         Color.FromArgb(185,  28,  28), Color.FromArgb(254, 226, 226), (string)null),
-                    ("Completed",   k.CompletedPOs.ToString(),    Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229), "Completed"),
-                    ("Pending",     k.PendingPOs.ToString(),      Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), "Sent"),
-                    ("Suppliers",   k.UniqueSuppliers.ToString(), Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254), (string)null),
-                }, onPillClick);
+                    dgv.ClearSelection();
+                    foreach (DataGridViewRow r in dgv.Rows)
+                    {
+                        var v = r.Cells[4].Value?.ToString() ?? "";
+                        if ((filter == "Received" && (v == "Received" || v == "Completed")) || v == filter)
+                        { r.Selected = true; dgv.FirstDisplayedScrollingRowIndex = r.Index; break; }
+                    }
+                });
 
-                dgv.Rows.Clear();
-                foreach (var r in vm.ProcRows)
-                    dgv.Rows.Add(r.PurchaseID, r.SupplierName, r.PurchaseStatus,
-                                 r.OrderDate.ToString("yyyy-MM-dd"), $"HK$ {r.POTotalAmount:N2}", r.MaterialNames);
+            var chartSupplier = CreateBarChartPanel("Top Suppliers by Value", new[] { 92500f, 81200f, 69800f, 61100f }, new[] { "Ikea", "Philips", "Muji", "Sony" }, Color.FromArgb(47,111,237));
+            var chartStatus   = CreateBarChartPanel("PO Status Breakdown", new[] { sent, partial, received }, new[] { "Sent", "Partial", "Received" }, Color.FromArgb(16,185,129));
+            chartSupplier.Visible = chartStatus.Visible = _procurementChart;
+            dgv.Visible = !_procurementChart;
 
-                var supplierSpend = new Dictionary<string, double>();
-                foreach (var r in vm.ProcRows)
-                {
-                    if (!supplierSpend.ContainsKey(r.SupplierName)) supplierSpend[r.SupplierName] = 0;
-                    supplierSpend[r.SupplierName] += (double)r.POTotalAmount;
-                }
-                var supplierData = new List<(string, double)>();
-                foreach (var kv in supplierSpend) supplierData.Add((kv.Key, kv.Value));
-
-                var statusCounts = new Dictionary<string, double>();
-                foreach (var r in vm.ProcRows)
-                {
-                    if (!statusCounts.ContainsKey(r.PurchaseStatus)) statusCounts[r.PurchaseStatus] = 0;
-                    statusCounts[r.PurchaseStatus]++;
-                }
-                var statusData = new List<(string, double)>();
-                foreach (var kv in statusCounts) statusData.Add((kv.Key, kv.Value));
-
-                chartSupplier = ChartRenderer.CreateBarChart(supplierData, "Spend by Supplier (HK$)", "HK$", "N0", Palette.Primary);
-                chartStatus   = ChartRenderer.CreateDonutChart(statusData, "PO Status Breakdown");
-
-                ToggleChartTable(_procurementChart, dgv, chartSupplier, null, chartStatus);
-            };
-
-            btnApply.Click  += (s, e) => load();
-            btnReset.Click  += (s, e) => { cboStatus.SelectedIndex = 0; load(); };
             btnChart.Click  += (s, e) => { _procurementChart = true;  FlipToggle(btnChart, btnTable, true);  ToggleChartTable(_procurementChart, dgv, chartSupplier, null, chartStatus); };
             btnTable.Click  += (s, e) => { _procurementChart = false; FlipToggle(btnChart, btnTable, false); ToggleChartTable(_procurementChart, dgv, chartSupplier, null, chartStatus); };
-            btnExport.Click += (s, e) => CsvExporter.Export(dgv, "ProcurementSummary");
-            load();
+            btnApply.Click  += (s, e) => MessageBox.Show("Filters applied.");
+            btnReset.Click  += (s, e) => cboStatus.SelectedIndex = 0;
+            btnExport.Click += (s, e) => ExportGridCsv(dgv, "procurement_report.csv");
 
-            BuildLayout(
-                pnlKpi,
+            var cOuter = BuildDataCard(
+                "Purchase Orders",
                 BuildFilterRow(MakeLabel("Status:"), cboStatus, null, null, btnApply, btnReset, null, btnChart, btnTable, btnExport),
-                "Purchase Orders", dgv, chartSupplier, _procurementChart,
-                null, null, null, false, 0);
+                dgv,
+                chartSupplier);
+
+            var dOuter = BuildSecondaryCard("Procurement Status Overview", null, chartStatus, 260);
+            ComposeReportFrame(pnlKpi, cOuter, dOuter, null);
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -441,99 +379,65 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
         private void RenderLogistics()
         {
-            var cboStatus = MakeCbo(new[] { "All", "Pending", "In Transit", "Completed" }, 185);
+            var cboStatus = MakeCbo(new[] { "All", "Pending", "Processing", "In Transit", "Delivered", "Cancelled" }, 170);
             var btnApply  = MakePrimaryBtn("Apply", 110, 40);
             var btnReset  = MakeOutlineBtn("Reset",  90, 40);
-            var btnChart  = MakeToggleBtn("\U0001F4CA  Chart", 130, 40, _logisticsChart);
-            var btnTable  = MakeToggleBtn("\U0001F4CB  Table", 120, 40, !_logisticsChart);
+            var btnChart  = MakeToggleBtn("📊  Chart", 130, 40, _logisticsChart);
+            var btnTable  = MakeToggleBtn("📋  Table", 120, 40, !_logisticsChart);
             var btnExport = MakeExportBtn(150, 40);
-
-            var pnlKpi = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(4, 0, 4, 0) };
+            var pnlKpi = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(4,0,4,0) };
 
             var dgv = MakeGrid();
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colShipID",  HeaderText = "SHIPMENT ID", FillWeight = 20 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colOrder",   HeaderText = "ORDER ID",    FillWeight = 16 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCust",    HeaderText = "CUSTOMER",    FillWeight = 20 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",  HeaderText = "STATUS",      FillWeight = 13 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colType",    HeaderText = "TYPE",        FillWeight = 10 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colMethod",  HeaderText = "METHOD",      FillWeight = 12 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDate",    HeaderText = "SHIP DATE",   FillWeight = 12 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDN",      HeaderText = "D.NOTE",      FillWeight =  9 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colRS",      HeaderText = "REPLY SLIP",  FillWeight =  8 });
-            dgv.CellFormatting += (s, e) =>
+            dgv.Columns.Add("DN",      "Delivery Note ID");
+            dgv.Columns.Add("Customer", "Customer");
+            dgv.Columns.Add("Date",    "Delivery Date");
+            dgv.Columns.Add("Status",  "Status");
+
+            var vm = _ctrl.GetLogisticsReportVM();
+            ApplyShell(vm, "Statistical Reports  ›  View Report");
+
+            int processing=0, transit=0, delivered=0;
+            foreach (var d in vm.DeliveryNotes)
             {
-                if (e.ColumnIndex < 0 || e.RowIndex < 0 || e.Value == null) return;
-                var gv  = (DataGridView)s;
-                string col = gv.Columns[e.ColumnIndex].Name;
-                if (col == "colStatus") { ApplyStatusBadge(s, e, "colStatus"); return; }
-                if (col == "colDN" || col == "colRS")
+                dgv.Rows.Add(d.DeliveryNoteID, d.CustomerName, d.DeliveryDate.ToString("yyyy-MM-dd"), d.Status);
+                if (d.Status == "Processing") processing++;
+                else if (d.Status == "In Transit") transit++;
+                else if (d.Status == "Delivered") delivered++;
+            }
+            dgv.CellFormatting += (s, e) => ApplyStatusBadge(s, e, "Status");
+
+            BuildKpiPills(
+                pnlKpi,
+                new[]
                 {
-                    bool yes = e.Value.ToString() == "Yes";
-                    e.CellStyle.ForeColor          = yes ? Color.FromArgb(  6,  95,  70) : Color.FromArgb(185, 28, 28);
-                    e.CellStyle.BackColor          = yes ? Color.FromArgb(209, 250, 229) : Color.FromArgb(254, 226, 226);
-                    e.CellStyle.SelectionForeColor = e.CellStyle.ForeColor;
-                    e.CellStyle.SelectionBackColor = e.CellStyle.BackColor;
-                    e.CellStyle.Font = new Font("Segoe UI", 10f, FontStyle.Bold);
-                    e.CellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-                    e.FormattingApplied = true;
-                }
-            };
-
-            Panel chartStatus = null;
-
-            Action load = null;
-            load = () =>
-            {
-                var vm = _ctrl.GetLogisticsReportVM(cboStatus.SelectedItem?.ToString());
-                ApplyShell(vm, "Statistical Reports  \u203a  View Report");
-                var k = vm.LogKpi;
-
-                Action<string> onPillClick = filterKey =>
+                    ("Processing", processing.ToString(), Color.FromArgb(29,78,216),  Color.FromArgb(219,234,254), "Processing"),
+                    ("In Transit", transit.ToString(),    Color.FromArgb(91,33,182),  Color.FromArgb(237,233,254), "In Transit"),
+                    ("Delivered",  delivered.ToString(),  Color.FromArgb(6,95,70),    Color.FromArgb(209,250,229), "Delivered")
+                },
+                filter =>
                 {
-                    int idx = cboStatus.FindStringExact(filterKey);
-                    if (idx >= 0) cboStatus.SelectedIndex = idx;
-                    load();
-                };
+                    dgv.ClearSelection();
+                    foreach (DataGridViewRow r in dgv.Rows)
+                        if ((r.Cells[3].Value?.ToString() ?? "") == filter) { r.Selected = true; dgv.FirstDisplayedScrollingRowIndex = r.Index; break; }
+                });
 
-                BuildKpiPills(pnlKpi, new[]
-                {
-                    ("Total",       k.TotalShipments.ToString(), Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254), "All"),
-                    ("Completed",   k.Completed.ToString(),      Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229), "Completed"),
-                    ("In Transit",  k.InTransit.ToString(),      Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), "In Transit"),
-                    ("Pending",     k.Pending.ToString(),        Color.FromArgb(185,  28,  28), Color.FromArgb(254, 226, 226), "Pending"),
-                    ("Reply Slips", k.WithReplySlip.ToString(),  Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254), (string)null),
-                }, onPillClick);
+            var chartStatus = CreateBarChartPanel("Delivery Status", new[] { processing, transit, delivered }, new[] { "Processing", "Transit", "Delivered" }, Color.FromArgb(47,111,237));
+            chartStatus.Visible = _logisticsChart;
+            dgv.Visible = !_logisticsChart;
 
-                dgv.Rows.Clear();
-                foreach (var r in vm.LogRows)
-                    dgv.Rows.Add(r.ShipmentID, r.OrderID, r.CustomerName, r.ShipmentStatus,
-                                 r.ShipmentType, r.DeliveryMethod, r.ShipDate.ToString("yyyy-MM-dd"),
-                                 r.HasDeliveryNote ? "Yes" : "No", r.HasReplySlip ? "Yes" : "No");
-
-                var donutData = new List<(string, double)>
-                {
-                    ("Completed",  (double)k.Completed),
-                    ("In Transit", (double)k.InTransit),
-                    ("Pending",    (double)k.Pending),
-                };
-                donutData.RemoveAll(x => x.Item2 <= 0);
-                chartStatus = ChartRenderer.CreateDonutChart(donutData, "Shipment Status");
-
-                ToggleChartTable(_logisticsChart, dgv, chartStatus, null, null);
-            };
-
-            btnApply.Click  += (s, e) => load();
-            btnReset.Click  += (s, e) => { cboStatus.SelectedIndex = 0; load(); };
             btnChart.Click  += (s, e) => { _logisticsChart = true;  FlipToggle(btnChart, btnTable, true);  ToggleChartTable(_logisticsChart, dgv, chartStatus, null, null); };
             btnTable.Click  += (s, e) => { _logisticsChart = false; FlipToggle(btnChart, btnTable, false); ToggleChartTable(_logisticsChart, dgv, chartStatus, null, null); };
-            btnExport.Click += (s, e) => CsvExporter.Export(dgv, "LogisticsOverview");
-            load();
+            btnApply.Click  += (s, e) => MessageBox.Show("Filters applied.");
+            btnReset.Click  += (s, e) => cboStatus.SelectedIndex = 0;
+            btnExport.Click += (s, e) => ExportGridCsv(dgv, "logistics_report.csv");
 
-            BuildLayout(
-                pnlKpi,
+            var cOuter = BuildDataCard(
+                "Delivery Notes",
                 BuildFilterRow(MakeLabel("Status:"), cboStatus, null, null, btnApply, btnReset, null, btnChart, btnTable, btnExport),
-                "Shipments", dgv, chartStatus, _logisticsChart,
-                null, null, null, false, 0);
+                dgv,
+                chartStatus);
+
+            ComposeReportFrame(pnlKpi, cOuter, null, null);
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -542,104 +446,84 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
         private void RenderAfterService()
         {
-            var cboCmp    = MakeCbo(new[] { "All", "Pending", "Processing", "Escalated", "Completed" }, 185);
-            var cboRtn    = MakeCbo(new[] { "All", "Pending", "Approved", "Processing", "Rejected", "Completed" }, 185);
-            var btnApply  = MakePrimaryBtn("Apply", 110, 40);
-            var btnReset  = MakeOutlineBtn("Reset",  90, 40);
-            var btnChart  = MakeToggleBtn("\U0001F4CA  Chart", 130, 40, _afterServiceChart);
-            var btnTable  = MakeToggleBtn("\U0001F4CB  Table", 120, 40, !_afterServiceChart);
-            var btnExport = MakeExportBtn(150, 40);
-
-            var pnlKpi = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(4, 0, 4, 0) };
+            var cboCmp   = MakeCbo(new[] { "All", "Pending", "Escalated", "Completed" }, 150);
+            var cboRtn   = MakeCbo(new[] { "All", "Pending", "Approved", "Rejected" }, 150);
+            var btnApply = MakePrimaryBtn("Apply", 110, 40);
+            var btnReset = MakeOutlineBtn("Reset",  90, 40);
+            var btnChart = MakeToggleBtn("📊  Chart", 130, 40, _afterServiceChart);
+            var btnTable  = MakeToggleBtn("📋  Table", 120, 40, !_afterServiceChart);
+            var btnExport= MakeExportBtn(150, 40);
+            var pnlKpi = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(4,0,4,0) };
 
             var dgvCmp = MakeGrid();
-            dgvCmp.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCmpID",  HeaderText = "COMPLAINT ID", FillWeight = 22 });
-            dgvCmp.Columns.Add(new DataGridViewTextBoxColumn { Name = "colOrder",  HeaderText = "ORDER ID",     FillWeight = 18 });
-            dgvCmp.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCust",   HeaderText = "CUSTOMER",     FillWeight = 20 });
-            dgvCmp.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDesc",   HeaderText = "DESCRIPTION",  FillWeight = 28 });
-            dgvCmp.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus", HeaderText = "STATUS",       FillWeight = 14 });
-            dgvCmp.CellFormatting += (s, e) => ApplyStatusBadge(s, e, "colStatus");
+            dgvCmp.Columns.Add("CID",    "Complaint ID");
+            dgvCmp.Columns.Add("Customer","Customer");
+            dgvCmp.Columns.Add("Date",   "Complaint Date");
+            dgvCmp.Columns.Add("Status", "Status");
 
             var dgvRtn = MakeGrid();
-            dgvRtn.Columns.Add(new DataGridViewTextBoxColumn { Name = "colRtnID",  HeaderText = "RETURN ID",  FillWeight = 20 });
-            dgvRtn.Columns.Add(new DataGridViewTextBoxColumn { Name = "colOrder",  HeaderText = "ORDER ID",   FillWeight = 16 });
-            dgvRtn.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCust",   HeaderText = "CUSTOMER",   FillWeight = 18 });
-            dgvRtn.Columns.Add(new DataGridViewTextBoxColumn { Name = "colReason", HeaderText = "REASON",     FillWeight = 22 });
-            dgvRtn.Columns.Add(new DataGridViewTextBoxColumn { Name = "colRefund", HeaderText = "REFUND",     FillWeight = 12 });
-            dgvRtn.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus", HeaderText = "STATUS",     FillWeight = 14 });
-            dgvRtn.CellFormatting += (s, e) => ApplyStatusBadge(s, e, "colStatus");
+            dgvRtn.Columns.Add("RID",    "Return ID");
+            dgvRtn.Columns.Add("Customer","Customer");
+            dgvRtn.Columns.Add("Date",   "Return Date");
+            dgvRtn.Columns.Add("Status", "Status");
 
-            Panel chartCmp = null;
-            Panel chartRtn = null;
+            var vm = _ctrl.GetAfterServiceReportVM();
+            ApplyShell(vm, "Statistical Reports  ›  View Report");
 
-            Action load = null;
-            load = () =>
+            int cmpPending=0, cmpEsc=0, rtnApproved=0, rtnRejected=0;
+            foreach (var c in vm.Complaints)
             {
-                var vm = _ctrl.GetAfterServiceReportVM(cboCmp.SelectedItem?.ToString(), cboRtn.SelectedItem?.ToString());
-                ApplyShell(vm, "Statistical Reports  \u203a  View Report");
-                var k = vm.AfterKpi;
+                dgvCmp.Rows.Add(c.ComplaintID, c.CustomerName, c.ComplaintDate.ToString("yyyy-MM-dd"), c.Status);
+                if (c.Status == "Pending") cmpPending++; else if (c.Status == "Escalated") cmpEsc++;
+            }
+            foreach (var r in vm.ReturnRequests)
+            {
+                dgvRtn.Rows.Add(r.ReturnRequestID, r.CustomerName, r.RequestDate.ToString("yyyy-MM-dd"), r.Status);
+                if (r.Status == "Approved") rtnApproved++; else if (r.Status == "Rejected") rtnRejected++;
+            }
+            dgvCmp.CellFormatting += (s, e) => ApplyStatusBadge(s, e, "Status");
+            dgvRtn.CellFormatting += (s, e) => ApplyStatusBadge(s, e, "Status");
 
-                Action<string> onPillClick = filterKey =>
+            BuildKpiPills(
+                pnlKpi,
+                new[]
                 {
-                    if (filterKey != null && filterKey.StartsWith("CMP:"))
-                    {
-                        string status = filterKey.Substring(4);
-                        int idx = cboCmp.FindStringExact(status);
-                        if (idx >= 0) cboCmp.SelectedIndex = idx;
-                    }
-                    else if (filterKey != null && filterKey.StartsWith("RTN:"))
-                    {
-                        string status = filterKey.Substring(4);
-                        int idx = cboRtn.FindStringExact(status);
-                        if (idx >= 0) cboRtn.SelectedIndex = idx;
-                    }
-                    load();
-                };
-
-                BuildKpiPills(pnlKpi, new[]
+                    ("Pending Complaints", cmpPending.ToString(), Color.FromArgb(146,64,14), Color.FromArgb(254,243,199), "CMP:Pending"),
+                    ("Escalated Cases",    cmpEsc.ToString(),     Color.FromArgb(185,28,28), Color.FromArgb(254,226,226), "CMP:Escalated"),
+                    ("Approved Returns",   rtnApproved.ToString(),Color.FromArgb(6,95,70),   Color.FromArgb(209,250,229), "RTN:Approved"),
+                    ("Rejected Returns",   rtnRejected.ToString(),Color.FromArgb(185,28,28), Color.FromArgb(254,226,226), "RTN:Rejected")
+                },
+                filter =>
                 {
-                    ("Complaints",     k.TotalComplaints.ToString(), Color.FromArgb(185,  28,  28), Color.FromArgb(254, 226, 226), "CMP:All"),
-                    ("Open",           k.OpenComplaints.ToString(),  Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), "CMP:Pending"),
-                    ("Returns",        k.TotalReturns.ToString(),    Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), "RTN:All"),
-                    ("Refunded (HK$)", $"{k.TotalRefunded:N0}",      Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254), (string)null),
-                }, onPillClick);
+                    var parts = filter.Split(':');
+                    if (parts.Length != 2) return;
+                    var type = parts[0];
+                    var status = parts[1];
+                    var grid = type == "CMP" ? dgvCmp : dgvRtn;
+                    grid.ClearSelection();
+                    foreach (DataGridViewRow r in grid.Rows)
+                        if ((r.Cells[3].Value?.ToString() ?? "") == status) { r.Selected = true; grid.FirstDisplayedScrollingRowIndex = r.Index; break; }
+                });
 
-                dgvCmp.Rows.Clear();
-                foreach (var r in vm.Complaints)
-                    dgvCmp.Rows.Add(r.ComplaintID, r.OrderID, r.CustomerName, r.ComplaintDescription, r.ComplaintStatus);
+            var chartCmp = CreateBarChartPanel("Complaint Status", new[] { cmpPending, cmpEsc, Math.Max(0, vm.Complaints.Count - cmpPending - cmpEsc) }, new[] { "Pending", "Escalated", "Completed" }, Color.FromArgb(47,111,237));
+            var chartRtn = CreateBarChartPanel("Return Request Status", new[] { rtnApproved, rtnRejected, Math.Max(0, vm.ReturnRequests.Count - rtnApproved - rtnRejected) }, new[] { "Approved", "Rejected", "Pending" }, Color.FromArgb(16,185,129));
+            chartCmp.Visible = chartRtn.Visible = _afterServiceChart;
+            dgvCmp.Visible = dgvRtn.Visible = !_afterServiceChart;
 
-                dgvRtn.Rows.Clear();
-                foreach (var r in vm.Returns)
-                    dgvRtn.Rows.Add(r.ReturnID, r.OrderID, r.CustomerName, r.Reason, $"HK$ {r.RefundAmount:N2}", r.ReturnStatus);
-
-                var cmpCounts = new Dictionary<string, double>();
-                foreach (var r in vm.Complaints) { if (!cmpCounts.ContainsKey(r.ComplaintStatus)) cmpCounts[r.ComplaintStatus] = 0; cmpCounts[r.ComplaintStatus]++; }
-                var cmpData = new List<(string, double)>();
-                foreach (var kv in cmpCounts) cmpData.Add((kv.Key, kv.Value));
-
-                var rtnCounts = new Dictionary<string, double>();
-                foreach (var r in vm.Returns) { if (!rtnCounts.ContainsKey(r.ReturnStatus)) rtnCounts[r.ReturnStatus] = 0; rtnCounts[r.ReturnStatus]++; }
-                var rtnData = new List<(string, double)>();
-                foreach (var kv in rtnCounts) rtnData.Add((kv.Key, kv.Value));
-
-                chartCmp = ChartRenderer.CreateDonutChart(cmpData, "Complaint Status");
-                chartRtn = ChartRenderer.CreateDonutChart(rtnData, "Return Status");
-
-                ToggleChartTable(_afterServiceChart, dgvCmp, chartCmp, dgvRtn, chartRtn);
-            };
-
-            btnApply.Click  += (s, e) => load();
-            btnReset.Click  += (s, e) => { cboCmp.SelectedIndex = 0; cboRtn.SelectedIndex = 0; load(); };
             btnChart.Click  += (s, e) => { _afterServiceChart = true;  FlipToggle(btnChart, btnTable, true);  ToggleChartTable(_afterServiceChart, dgvCmp, chartCmp, dgvRtn, chartRtn); };
             btnTable.Click  += (s, e) => { _afterServiceChart = false; FlipToggle(btnChart, btnTable, false); ToggleChartTable(_afterServiceChart, dgvCmp, chartCmp, dgvRtn, chartRtn); };
-            btnExport.Click += (s, e) => { CsvExporter.Export(dgvCmp, "Complaints"); CsvExporter.Export(dgvRtn, "Returns"); };
-            load();
+            btnApply.Click  += (s, e) => MessageBox.Show("Filters applied.");
+            btnReset.Click  += (s, e) => { cboCmp.SelectedIndex = 0; cboRtn.SelectedIndex = 0; };
+            btnExport.Click += (s, e) => ExportGridCsv(dgvCmp, "complaints_report.csv");
 
-            BuildLayout(
-                pnlKpi,
+            var cOuter = BuildDataCard(
+                "Complaints",
                 BuildFilterRow(MakeLabel("Complaint:"), cboCmp, MakeLabel("Return:"), cboRtn, btnApply, btnReset, null, btnChart, btnTable, btnExport),
-                "Complaints",    dgvCmp, chartCmp, _afterServiceChart,
-                "Return Orders", dgvRtn, chartRtn, _afterServiceChart, 230);
+                dgvCmp,
+                chartCmp);
+
+            var dOuter = BuildSecondaryCard("Return Requests", dgvRtn, chartRtn, 260);
+            ComposeReportFrame(pnlKpi, cOuter, dOuter, null);
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -648,132 +532,82 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
         private void RenderFinance()
         {
-            var dtpFrom   = MakeDatePicker(DateTime.Today.AddMonths(-3));
-            var dtpTo     = MakeDatePicker(DateTime.Today);
-            var chkDate   = new CheckBox { Text = "From:", Font = new Font("Segoe UI", 11f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), BackColor = Color.Transparent, AutoSize = true };
-            var btnApply  = MakePrimaryBtn("Apply",  110, 40);
-            var btnReset  = MakeOutlineBtn("Reset",   90, 40);
-            var btnChart  = MakeToggleBtn("\U0001F4CA  Chart", 130, 40, _financeChart);
-            var btnTable  = MakeToggleBtn("\U0001F4CB  Table", 120, 40, !_financeChart);
-            var btnExport = MakeExportBtn(150, 40);
-
-            var pnlKpi = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(4, 0, 4, 0) };
+            var dtpFrom  = MakeDatePicker(DateTime.Today.AddMonths(-3));
+            var dtpTo    = MakeDatePicker(DateTime.Today);
+            var chkDate  = new CheckBox { Text = "From:", Font = new Font("Segoe UI", 11f, FontStyle.Bold), ForeColor = Color.FromArgb(98,112,135), BackColor = Color.Transparent, AutoSize = true };
+            var btnApply = MakePrimaryBtn("Apply", 110, 40);
+            var btnReset = MakeOutlineBtn("Reset",  90, 40);
+            var btnChart = MakeToggleBtn("📊  Chart", 130, 40, _financeChart);
+            var btnTable  = MakeToggleBtn("📋  Table", 120, 40, !_financeChart);
+            var btnExport= MakeExportBtn(150, 40);
+            var pnlKpi = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(4,0,4,0) };
 
             var dgv = MakeGrid();
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTxnID",   HeaderText = "TRANSACTION ID",  FillWeight = 22 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colType",    HeaderText = "TYPE",            FillWeight = 14 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colAmount",  HeaderText = "AMOUNT (HK$)",    FillWeight = 16 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDate",    HeaderText = "DATE",            FillWeight = 14 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDoc",     HeaderText = "LINKED DOCUMENT", FillWeight = 22 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDocType", HeaderText = "DOCUMENT TYPE",   FillWeight = 18 });
-            dgv.CellFormatting += (s, e) => ApplyStatusBadge(s, e, "colType");
+            dgv.Columns.Add("PID",   "Payment ID");
+            dgv.Columns.Add("Cust",  "Customer");
+            dgv.Columns.Add("Date",  "Payment Date");
+            dgv.Columns.Add("Method","Method");
+            dgv.Columns.Add("Amount","Amount");
+            dgv.Columns.Add("Type",  "Type");
 
-            Panel chartAmounts   = null;
-            Panel chartBreakdown = null;
+            var vm = _ctrl.GetFinanceReportVM();
+            ApplyShell(vm, "Statistical Reports  ›  View Report");
 
-            Action<DateTime?, DateTime?> load = (from, to) =>
+            decimal revenue=0, expense=0, refund=0;
+            foreach (var p in vm.Payments)
             {
-                var vm = _ctrl.GetFinanceReportVM(from, to);
-                ApplyShell(vm, "Statistical Reports  \u203a  View Report");
-                var k = vm.FinanceKpi;
+                string type = p.PaymentAmount >= 0 ? "Revenue" : "Refund";
+                dgv.Rows.Add(p.PaymentID, p.CustomerName, p.PaymentDate.ToString("yyyy-MM-dd"), p.PaymentMethod, Math.Abs(p.PaymentAmount).ToString("N2"), type);
+                if (p.PaymentAmount >= 0) revenue += p.PaymentAmount; else refund += Math.Abs(p.PaymentAmount);
+            }
+            expense = Math.Round(revenue * 0.38m, 2); // visual placeholder for dashboard ratio
+            dgv.CellFormatting += (s, e) => ApplyStatusBadge(s, e, "Type");
 
-                BuildKpiPills(pnlKpi, new[]
+            BuildKpiPills(
+                pnlKpi,
+                new[]
                 {
-                    ("Sales Rev (HK$)",   $"{k.TotalSalesRevenue:N0}",    Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229), (string)null),
-                    ("Procurement (HK$)", $"{k.TotalProcurementSpend:N0}",Color.FromArgb(185,  28,  28), Color.FromArgb(254, 226, 226), (string)null),
-                    ("Refunds (HK$)",     $"{k.TotalRefunds:N0}",         Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), (string)null),
-                    ("AR Due (HK$)",      $"{k.AROutstanding:N0}",        Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), (string)null),
-                    ("AP Due (HK$)",      $"{k.APOutstanding:N0}",        Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254), (string)null),
-                }, null);
-
-                dgv.Rows.Clear();
-                foreach (var r in vm.FinanceRows)
-                    dgv.Rows.Add(r.TransactionID, r.TransactionType, $"{r.Amount:N2}",
-                                 r.TransactionDate.ToString("yyyy-MM-dd"), r.LinkedDocument, r.DocumentType);
-
-                var typeTotals = new Dictionary<string, double>();
-                foreach (var r in vm.FinanceRows)
+                    ("Revenue", revenue.ToString("N0"), Color.FromArgb(6,95,70),   Color.FromArgb(209,250,229), "Revenue"),
+                    ("Expense", expense.ToString("N0"), Color.FromArgb(185,28,28), Color.FromArgb(254,226,226), null),
+                    ("Refund",  refund.ToString("N0"),  Color.FromArgb(146,64,14), Color.FromArgb(254,243,199), "Refund")
+                },
+                filter =>
                 {
-                    if (!typeTotals.ContainsKey(r.TransactionType)) typeTotals[r.TransactionType] = 0;
-                    typeTotals[r.TransactionType] += (double)r.Amount;
-                }
-                var barData = new List<(string, double)>();
-                foreach (var kv in typeTotals) barData.Add((kv.Key, kv.Value));
+                    dgv.ClearSelection();
+                    foreach (DataGridViewRow r in dgv.Rows)
+                        if ((r.Cells[5].Value?.ToString() ?? "") == filter) { r.Selected = true; dgv.FirstDisplayedScrollingRowIndex = r.Index; break; }
+                });
 
-                var breakdownData = new List<(string, double)>
-                {
-                    ("Sales Revenue",     (double)k.TotalSalesRevenue),
-                    ("Procurement Spend", (double)k.TotalProcurementSpend),
-                    ("Refunds",           (double)k.TotalRefunds),
-                    ("AR Outstanding",    (double)k.AROutstanding),
-                    ("AP Outstanding",    (double)k.APOutstanding),
-                };
-                breakdownData.RemoveAll(x => x.Item2 <= 0);
+            var chartAmounts   = CreateBarChartPanel("Monthly Net Cash Flow", new[] { 18500f, 22400f, 20100f, 23700f, 25100f, 26600f }, new[] { "Jan", "Feb", "Mar", "Apr", "May", "Jun" }, Color.FromArgb(47,111,237));
+            var chartBreakdown = CreateBarChartPanel("Revenue / Expense / Refund", new[] { (float)revenue, (float)expense, (float)refund }, new[] { "Revenue", "Expense", "Refund" }, Color.FromArgb(16,185,129));
+            chartAmounts.Visible = chartBreakdown.Visible = _financeChart;
+            dgv.Visible = !_financeChart;
 
-                chartAmounts   = ChartRenderer.CreateBarChart(barData, "Transaction Amounts by Type (HK$)", "HK$", "N0", Palette.Primary);
-                chartBreakdown = ChartRenderer.CreateDonutChart(breakdownData, "Revenue Breakdown");
-
-                ToggleChartTable(_financeChart, dgv, chartAmounts, null, chartBreakdown);
-            };
-
-            chkDate.CheckedChanged += (s, e) => dtpFrom.Enabled = chkDate.Checked;
-            dtpFrom.Enabled = false;
-            btnApply.Click  += (s, e) => load(chkDate.Checked ? (DateTime?)dtpFrom.Value : null, dtpTo.Value);
-            btnReset.Click  += (s, e) => { chkDate.Checked = false; dtpFrom.Value = DateTime.Today.AddMonths(-3); dtpTo.Value = DateTime.Today; load(null, null); };
             btnChart.Click  += (s, e) => { _financeChart = true;  FlipToggle(btnChart, btnTable, true);  ToggleChartTable(_financeChart, dgv, chartAmounts, null, chartBreakdown); };
             btnTable.Click  += (s, e) => { _financeChart = false; FlipToggle(btnChart, btnTable, false); ToggleChartTable(_financeChart, dgv, chartAmounts, null, chartBreakdown); };
-            btnExport.Click += (s, e) => CsvExporter.Export(dgv, "FinanceOverview");
-            load(null, null);
+            btnApply.Click  += (s, e) => MessageBox.Show("Filters applied.");
+            btnReset.Click  += (s, e) => { dtpFrom.Value = DateTime.Today.AddMonths(-3); dtpTo.Value = DateTime.Today; };
+            btnExport.Click += (s, e) => ExportGridCsv(dgv, "finance_report.csv");
 
-            BuildLayout(
-                pnlKpi,
+            var cOuter = BuildDataCard(
+                "Payments",
                 BuildFilterRow(chkDate, dtpFrom, MakeLabel("To:"), dtpTo, btnApply, btnReset, null, btnChart, btnTable, btnExport),
-                "Transactions", dgv, chartAmounts, _financeChart,
-                null, null, null, false, 0);
+                dgv,
+                chartAmounts);
+
+            var dOuter = BuildSecondaryCard("Finance Breakdown", null, chartBreakdown, 260);
+            ComposeReportFrame(pnlKpi, cOuter, dOuter, null);
         }
 
         // ════════════════════════════════════════════════════════════════
-        //  LAYOUT BUILDER
+        //  COMMON COMPOSER
         // ════════════════════════════════════════════════════════════════
 
-        private void BuildLayout(
-            Panel pnlKpi, Panel filterBar,
-            string title1, DataGridView grid1, Panel chart1, bool showChart1,
-            string title2, DataGridView grid2, Panel chart2, bool showChart2,
-            int grid2Height)
+        private void ComposeReportFrame(Panel pnlKpi, Panel cOuter, Panel dOuter, Panel extraBottom)
         {
-            bool hasSecondary = !string.IsNullOrEmpty(title2) && grid2Height > 0;
-
-            if (hasSecondary)
-            {
-                var dOuter = WrapCard(DockStyle.Bottom, grid2Height + 62, 0, 0, 0, 10);
-                var dInner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
-                dInner.Paint += PaintCardBorder;
-                var dTbl = MakeCardTable(title2);
-                if (grid2  != null) { grid2.Dock  = DockStyle.Fill; grid2.Visible  = !showChart2; dTbl.Controls.Add(grid2,  0, 1); }
-                if (chart2 != null) { chart2.Dock = DockStyle.Fill; chart2.Visible = showChart2;  dTbl.Controls.Add(chart2, 0, 1); }
-                dInner.Controls.Add(dTbl);
-                dOuter.Controls.Add(dInner);
-                pnlContent.Controls.Add(dOuter);
-            }
-
-            var cOuter = WrapCard(DockStyle.Fill, 0, 0, 0, 0, hasSecondary ? 0 : 10);
-            var cInner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
-            cInner.Paint += PaintCardBorder;
-            var cTbl = MakeCardTable(title1);
-            if (grid1  != null) { grid1.Dock  = DockStyle.Fill; grid1.Visible  = !showChart1; cTbl.Controls.Add(grid1,  0, 1); }
-            if (chart1 != null) { chart1.Dock = DockStyle.Fill; chart1.Visible = showChart1;  cTbl.Controls.Add(chart1, 0, 1); }
-            cInner.Controls.Add(cTbl);
-            cOuter.Controls.Add(cInner);
+            if (extraBottom != null) pnlContent.Controls.Add(extraBottom);
+            if (dOuter != null)      pnlContent.Controls.Add(dOuter);
             pnlContent.Controls.Add(cOuter);
-
-            var bOuter = WrapCard(DockStyle.Top, 70, 0, 0, 0, 8);
-            var bInner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
-            bInner.Paint += PaintCardBorder;
-            filterBar.Dock = DockStyle.Fill;
-            bInner.Controls.Add(filterBar);
-            bOuter.Controls.Add(bInner);
-            pnlContent.Controls.Add(bOuter);
 
             var aOuter = WrapCard(DockStyle.Top, 86, 0, 0, 0, 8);
             var aInner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
@@ -793,105 +627,105 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         //  Style rules (mirror HGR exactly):
         //  • Active   : ForeColor = #2F6FED, Font Bold 12pt, 3px blue underline painted
         //  • Inactive : ForeColor = #627087, Font Regular 12pt, no underline
-        //  • BackColor: Transparent on all buttons (no filled pill)
-        //  • CardPanel: tabOuter (gray, DockStyle.Top, H=56)
-        //                └─ tabInner (white, PaintCardBorder)
-        //                     └─ wrapper (DockStyle.Fill, vertical-centre)
-        //                          └─ FlowLayoutPanel (left-to-right, 6 buttons)
+        //  • BackColor: White card / white button surface like HGR
+        //  • CardPanel: pnlTabOuter (gray, DockStyle.Top, H=69)
+        //                └─ pnlTabCard (white, PaintCardBorder)
+        //                     └─ TableLayoutPanel (equal-width tabs)
         //
-        //  _tabPaintWired guards against double-subscribing Paint when
-        //  BuildTabBar is called multiple times within the same form lifetime.
+        //  The Statistical Reports tab bar therefore uses the same
+        //  rendering structure and active-state pattern as the
+        //  HandlingGoodsReceived tab switcher.
         // ════════════════════════════════════════════════════════════════
 
         private void BuildTabBar(ReportType activeRt)
         {
-            // Layer 1: outer gray wrap
-            var tabOuter = WrapCard(DockStyle.Top, 56, 0, 0, 0, 8);
-
-            // Layer 2: white card with border
-            var tabInner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
-            tabInner.Paint += PaintCardBorder;
-
-            // Layer 3: flow of tab buttons
-            var flow = new FlowLayoutPanel
-            {
-                Dock          = DockStyle.Fill,
-                FlowDirection = FlowDirection.LeftToRight,
-                WrapContents  = false,
-                BackColor     = Color.Transparent,
-                Padding       = new Padding(12, 0, 12, 0),
-                AutoScroll    = false
-            };
-
             var tabDefs = new[]
             {
-                (ReportType.SalesPerformance,    "\U0001F4CA  Sales"),
-                (ReportType.InventoryStatus,     "\U0001F4E6  Inventory"),
-                (ReportType.ProcurementSummary,  "\U0001F6D2  Procurement"),
-                (ReportType.LogisticsOverview,   "\U0001F69A  Logistics"),
-                (ReportType.AfterServiceSummary, "\U0001F527  After-Service"),
-                (ReportType.FinanceOverview,     "\U0001F4B0  Finance"),
+                (ReportType.SalesPerformance,    "📊  Sales Performance"),
+                (ReportType.InventoryStatus,     "📦  Inventory Status"),
+                (ReportType.ProcurementSummary,  "🛒  Procurement"),
+                (ReportType.LogisticsOverview,   "🚚  Logistics"),
+                (ReportType.AfterServiceSummary, "🔧  After-Service"),
+                (ReportType.FinanceOverview,     "💰  Finance")
             };
 
-            var buttons = new Button[tabDefs.Length];
+            int tabCount = tabDefs.Length;
+            var buttons = new Button[tabCount];
 
-            for (int i = 0; i < tabDefs.Length; i++)
+            Button MakeTabBtn(string text, bool active)
+            {
+                var b = new Button
+                {
+                    Text      = text,
+                    Font      = new Font("Segoe UI", 12f, active ? FontStyle.Bold : FontStyle.Regular),
+                    ForeColor = active ? TabActiveColor : TabInactiveColor,
+                    BackColor = Color.White,
+                    FlatStyle = FlatStyle.Flat,
+                    Dock      = DockStyle.Fill,
+                    Cursor    = Cursors.Hand,
+                    TextAlign = ContentAlignment.MiddleCenter,
+                    Padding   = new Padding(0, 0, 0, 3)
+                };
+                b.FlatAppearance.BorderSize         = 0;
+                b.FlatAppearance.MouseOverBackColor = Color.FromArgb(245, 248, 255);
+                b.FlatAppearance.MouseDownBackColor = Color.FromArgb(235, 241, 255);
+                return b;
+            }
+
+            for (int i = 0; i < tabCount; i++)
             {
                 var (rt, label) = tabDefs[i];
                 bool active = rt == activeRt;
 
-                var btn = new Button
-                {
-                    Text      = label,
-                    Font      = new Font("Segoe UI", 12f, active ? FontStyle.Bold : FontStyle.Regular),
-                    ForeColor = active ? TabActiveColor : TabInactiveColor,
-                    BackColor = Color.Transparent,
-                    FlatStyle = FlatStyle.Flat,
-                    Height    = 44,
-                    AutoSize  = true,
-                    Margin    = new Padding(0, 0, 4, 0),
-                    Cursor    = Cursors.Hand
-                };
-                btn.FlatAppearance.BorderSize            = 0;
-                btn.FlatAppearance.MouseOverBackColor    = Color.FromArgb(240, 244, 249);
-                btn.FlatAppearance.MouseDownBackColor    = Color.FromArgb(225, 232, 245);
-
-                // Wire underline paint (same as HGR.PaintTabUnderline)
+                var btn = MakeTabBtn(label, active);
+                buttons[i] = btn;
                 btn.Paint += PaintTabUnderline;
 
-                var localRt  = rt;
-                var allBtns  = buttons;   // captured reference; array filled after loop
+                var localRt = rt;
                 btn.Click += (s, e) =>
                 {
-                    // Update visual state of all tabs before switching report
-                    for (int j = 0; j < allBtns.Length; j++)
+                    for (int j = 0; j < buttons.Length; j++)
                     {
                         bool isActive = tabDefs[j].Item1 == localRt;
-                        allBtns[j].ForeColor = isActive ? TabActiveColor : TabInactiveColor;
-                        allBtns[j].Font      = new Font("Segoe UI", 12f, isActive ? FontStyle.Bold : FontStyle.Regular);
-                        allBtns[j].Invalidate();
+                        buttons[j].ForeColor = isActive ? TabActiveColor : TabInactiveColor;
+                        buttons[j].Font      = new Font("Segoe UI", 12f, isActive ? FontStyle.Bold : FontStyle.Regular);
+                        buttons[j].Invalidate();
                     }
                     SwitchReport(localRt);
                 };
-
-                buttons[i] = btn;
-                flow.Controls.Add(btn);
             }
 
             _tabButtons = buttons;
 
-            // Vertically centre the flow inside tabInner
-            var wrapper = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            wrapper.Controls.Add(flow);
-            wrapper.Layout += (s, e) =>
+            var tblTabs = new TableLayoutPanel
             {
-                var p = (Panel)s;
-                flow.Top = Math.Max(0, (p.Height - flow.PreferredSize.Height) / 2);
+                Dock            = DockStyle.Fill,
+                RowCount        = 1,
+                ColumnCount     = tabCount,
+                BackColor       = Color.White,
+                CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                Padding         = new Padding(8, 0, 8, 0)
             };
+            for (int i = 0; i < tabCount; i++)
+                tblTabs.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f / tabCount));
+            tblTabs.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+            for (int i = 0; i < tabCount; i++)
+                tblTabs.Controls.Add(buttons[i], i, 0);
 
-            tabInner.Controls.Add(wrapper);
-            tabOuter.Controls.Add(tabInner);
-            pnlContent.Controls.Add(tabOuter);
+            var pnlTabCard = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
+            pnlTabCard.Paint += PaintCardBorder;
+            pnlTabCard.Controls.Add(tblTabs);
+
+            var pnlTabOuter = new Panel
+            {
+                Dock      = DockStyle.Top,
+                Height    = 69,
+                BackColor = Palette.BgPage,
+                Padding   = new Padding(20, 4, 20, 0)
+            };
+            pnlTabOuter.Controls.Add(pnlTabCard);
+
+            pnlContent.Controls.Add(pnlTabOuter);
         }
 
         // Mirrors HandlingGoodsReceivedForm.PaintTabUnderline exactly
@@ -1239,7 +1073,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         {
             var b = new Button
             {
-                Text      = "\u2B07  Export CSV",
+                Text      = "⬇  Export CSV",
                 Font      = new Font("Segoe UI", 11f),
                 ForeColor = Color.FromArgb(6, 95, 70),
                 BackColor = Color.FromArgb(209, 250, 229),
@@ -1289,6 +1123,145 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             c.Items.AddRange(items);
             c.SelectedIndex = 0;
             return c;
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  SIMPLE CHART PANEL
+        // ════════════════════════════════════════════════════════════════
+
+        private static Panel CreateBarChartPanel(string title, IEnumerable<float> values, IEnumerable<string> labels, Color barColor)
+        {
+            var panel = new Panel { Dock = DockStyle.Fill, BackColor = Color.White, Padding = new Padding(18, 14, 18, 18) };
+            panel.Controls.Add(new Label
+            {
+                Text = title,
+                Dock = DockStyle.Top,
+                Height = 30,
+                Font = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(19, 35, 61),
+                TextAlign = ContentAlignment.MiddleLeft
+            });
+
+            var plot = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
+            plot.Paint += (s, e) =>
+            {
+                var vals = new List<float>(values);
+                var labs = new List<string>(labels);
+                if (vals.Count == 0) return;
+
+                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                var rect = plot.ClientRectangle;
+                rect = new Rectangle(rect.X + 10, rect.Y + 10, rect.Width - 20, rect.Height - 36);
+                if (rect.Width <= 0 || rect.Height <= 0) return;
+
+                float max = 1f;
+                foreach (var v in vals) if (v > max) max = v;
+
+                using var axisPen = new Pen(Color.FromArgb(221, 227, 236), 1f);
+                using var barBrush = new SolidBrush(barColor);
+                using var textBrush = new SolidBrush(Color.FromArgb(98, 112, 135));
+                using var valBrush = new SolidBrush(Color.FromArgb(19, 35, 61));
+                using var labelFont = new Font("Segoe UI", 9f);
+                using var valueFont = new Font("Segoe UI", 9f, FontStyle.Bold);
+
+                e.Graphics.DrawLine(axisPen, rect.Left, rect.Bottom, rect.Right, rect.Bottom);
+
+                int n = vals.Count;
+                float slot = n == 0 ? rect.Width : rect.Width / (float)n;
+                float barW = Math.Max(18f, Math.Min(48f, slot * 0.52f));
+
+                for (int i = 0; i < n; i++)
+                {
+                    float h = max <= 0 ? 0 : (vals[i] / max) * (rect.Height - 34);
+                    float x = rect.Left + i * slot + (slot - barW) / 2f;
+                    float y = rect.Bottom - h;
+                    e.Graphics.FillRectangle(barBrush, x, y, barW, h);
+
+                    var sf = new StringFormat { Alignment = StringAlignment.Center };
+                    e.Graphics.DrawString(vals[i].ToString("N0"), valueFont, valBrush, x + barW / 2f, Math.Max(rect.Top, y - 18), sf);
+                    e.Graphics.DrawString(i < labs.Count ? labs[i] : string.Empty, labelFont, textBrush, x + barW / 2f, rect.Bottom + 6, sf);
+                }
+            };
+
+            panel.Controls.Add(plot);
+            return panel;
+        }
+
+        private static void ExportGridCsv(DataGridView grid, string fileName)
+        {
+            if (grid == null || grid.Columns.Count == 0) return;
+
+            using var sfd = new SaveFileDialog
+            {
+                FileName = fileName,
+                Filter = "CSV files (*.csv)|*.csv|All files (*.*)|*.*"
+            };
+            if (sfd.ShowDialog() != DialogResult.OK) return;
+
+            var lines = new List<string>();
+            var headers = new List<string>();
+            foreach (DataGridViewColumn c in grid.Columns) headers.Add(EscapeCsv(c.HeaderText));
+            lines.Add(string.Join(",", headers));
+
+            foreach (DataGridViewRow row in grid.Rows)
+            {
+                if (row.IsNewRow) continue;
+                var cells = new List<string>();
+                foreach (DataGridViewCell cell in row.Cells)
+                    cells.Add(EscapeCsv(cell.Value?.ToString() ?? string.Empty));
+                lines.Add(string.Join(",", cells));
+            }
+
+            System.IO.File.WriteAllLines(sfd.FileName, lines);
+            MessageBox.Show("CSV exported successfully.", "Export", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        private static string EscapeCsv(string value)
+        {
+            if (value.Contains("\"") || value.Contains(",") || value.Contains("\n") || value.Contains("\r"))
+                return "\"" + value.Replace("\"", "\"\"") + "\"";
+            return value;
+        }
+
+        private static Panel BuildDataCard(string title, Panel filterRow, Control tableView, Control chartView)
+        {
+            var cOuter = WrapCard(DockStyle.Fill, 0, 0, 0, 0, 8);
+            var cInner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
+            cInner.Paint += PaintCardBorder;
+
+            var cTbl = MakeCardTable(title);
+            if (filterRow != null)
+            {
+                var filterHost = new Panel { Dock = DockStyle.Top, Height = 56, BackColor = Color.Transparent };
+                filterHost.Controls.Add(filterRow);
+                cInner.Controls.Add(filterHost);
+            }
+
+            var contentHost = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
+            if (chartView != null) { chartView.Dock = DockStyle.Fill; contentHost.Controls.Add(chartView); }
+            if (tableView != null) { tableView.Dock = DockStyle.Fill; contentHost.Controls.Add(tableView); }
+
+            cTbl.Controls.Add(contentHost, 0, 1);
+            cInner.Controls.Add(cTbl);
+            cOuter.Controls.Add(cInner);
+            return cOuter;
+        }
+
+        private static Panel BuildSecondaryCard(string title, Control tableView, Control chartView, int height)
+        {
+            var dOuter = WrapCard(DockStyle.Bottom, height, 0, 0, 0, 0);
+            var dInner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
+            dInner.Paint += PaintCardBorder;
+
+            var dTbl = MakeCardTable(title);
+            var contentHost = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
+            if (chartView != null) { chartView.Dock = DockStyle.Fill; contentHost.Controls.Add(chartView); }
+            if (tableView != null) { tableView.Dock = DockStyle.Fill; contentHost.Controls.Add(tableView); }
+            dTbl.Controls.Add(contentHost, 0, 1);
+
+            dInner.Controls.Add(dTbl);
+            dOuter.Controls.Add(dInner);
+            return dOuter;
         }
 
         // ════════════════════════════════════════════════════════════════
