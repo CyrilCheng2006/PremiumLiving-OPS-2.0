@@ -10,140 +10,127 @@ namespace PremiumLivingOPS.Views.StatisticalReports
     {
         private System.ComponentModel.IContainer components = null;
 
-        // ── AppShell ───────────────────────────────────────────────────────────────
         private AppShell _shell;
-
-        // ── Top Tab Bar buttons (index-based, 0-5) ────────────────────────────────
-        private Button btnTab0;  // Sales & Revenue
-        private Button btnTab1;  // Inventory
-        private Button btnTab2;  // Procurement
-        private Button btnTab3;  // Logistics
-        private Button btnTab4;  // After-Service
-        private Button btnTab5;  // Finance
-
-        // ── Content panel (rebuilt on each report switch) ─────────────────────────
-        internal Panel pnlContent;
+        private Panel pnlMain;
+        private Panel pnlTopTabs;
+        private Panel pnlTabOuter;
+        private TableLayoutPanel tblTabs;
+        private Button btnTab0;
+        private Button btnTab1;
+        private Button btnTab2;
+        private Button btnTab3;
+        private Button btnTab4;
+        private Button btnTab5;
+        private Panel pnlContent;
 
         protected override void Dispose(bool disposing)
         {
-            if (disposing && components != null) components.Dispose();
+            if (disposing && (components != null)) components.Dispose();
             base.Dispose(disposing);
         }
 
         private void InitializeComponent()
         {
             this.SuspendLayout();
-
-            // ── Form ───────────────────────────────────────────────────────────────
-            this.Text          = "Premium Living OPS — Statistical Reports";
-            this.Size          = new Size(1440, 900);
-            this.MinimumSize   = new Size(1280, 800);
+            this.BackColor = Palette.BgPage;
+            this.Text = "Statistical Reports · View Report";
             this.StartPosition = FormStartPosition.CenterScreen;
-            this.BackColor     = Color.FromArgb(240, 244, 249);
-            this.WindowState   = FormWindowState.Maximized;
-            this.Font          = new Font("Segoe UI", 13f);
+            this.WindowState = FormWindowState.Maximized;
+            this.MinimumSize = new Size(1440, 900);
+            this.Font = new Font("Segoe UI", 10F);
 
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            //  Root panel
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            var pnlMain = new Panel
+            _shell = new AppShell();
+            _shell.Dock = DockStyle.Fill;
+            _shell.MenuItemClicked += OnTopNavMenuItemClicked;
+            this.Controls.Add(_shell);
+
+            pnlMain = new Panel
             {
-                Dock      = DockStyle.Fill,
-                BackColor = Color.FromArgb(240, 244, 249)
+                Dock = DockStyle.Fill,
+                BackColor = Palette.BgPage,
+                Padding = new Padding(20, 16, 20, 20)
+            };
+            _shell.ContentHost.Controls.Add(pnlMain);
+
+            pnlTopTabs = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 69,
+                BackColor = Palette.BgPage,
+                Padding = new Padding(20, 4, 20, 0)
             };
 
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            //  AppShell — RULE 2/4
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            _shell = new AppShell();
-            _shell.SetPopupContainer(pnlMain);
-            _shell.MenuItemClicked += (menu, sub) => OnTopNavMenuItemClicked(menu, sub);
-            _shell.LogoutClicked   += (s, e) => { SessionManager.Clear(); Application.Restart(); };
-
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            //  Top Tab Bar (DockStyle.Top, Height 48)
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            Button MakeTabBtn(string text)
+            pnlTabOuter = new Panel
             {
-                var b = new Button
-                {
-                    Text      = text,
-                    Font      = new Font("Segoe UI", 12f),
-                    ForeColor = Color.FromArgb(98, 112, 135),
-                    BackColor = Color.Transparent,
-                    FlatStyle = FlatStyle.Flat,
-                    Dock      = DockStyle.Left,
-                    Width     = 170,
-                    Cursor    = Cursors.Hand,
-                    TextAlign = ContentAlignment.MiddleCenter,
-                    Padding   = new Padding(0, 0, 0, 3)
-                };
-                b.FlatAppearance.BorderSize         = 0;
-                b.FlatAppearance.MouseOverBackColor = Color.FromArgb(235, 241, 255);
-                b.FlatAppearance.MouseDownBackColor = Color.FromArgb(219, 234, 254);
-                return b;
-            }
-
-            btnTab0 = MakeTabBtn("Sales & Revenue");
-            btnTab1 = MakeTabBtn("Inventory");
-            btnTab2 = MakeTabBtn("Procurement");
-            btnTab3 = MakeTabBtn("Logistics");
-            btnTab4 = MakeTabBtn("After-Service");
-            btnTab5 = MakeTabBtn("Finance");
-
-            btnTab0.Click += (s, e) => SwitchToReport(0);
-            btnTab1.Click += (s, e) => SwitchToReport(1);
-            btnTab2.Click += (s, e) => SwitchToReport(2);
-            btnTab3.Click += (s, e) => SwitchToReport(3);
-            btnTab4.Click += (s, e) => SwitchToReport(4);
-            btnTab5.Click += (s, e) => SwitchToReport(5);
-
-            var pnlTabBar = new Panel
-            {
-                Dock      = DockStyle.Top,
-                Height    = 48,
+                Dock = DockStyle.Fill,
                 BackColor = Color.White
             };
-            // Add right-to-left so DockStyle.Left stacks left-to-right visually
-            pnlTabBar.Controls.Add(btnTab5);
-            pnlTabBar.Controls.Add(btnTab4);
-            pnlTabBar.Controls.Add(btnTab3);
-            pnlTabBar.Controls.Add(btnTab2);
-            pnlTabBar.Controls.Add(btnTab1);
-            pnlTabBar.Controls.Add(btnTab0);
+            pnlTabOuter.Paint += PaintTabUnderline;
 
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            //  Content panel (DockStyle.Fill — rebuilt by each SwitchToReport)
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            tblTabs = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                BackColor = Color.White,
+                ColumnCount = 6,
+                RowCount = 1,
+                Margin = new Padding(0),
+                Padding = new Padding(0)
+            };
+            for (int i = 0; i < 6; i++)
+                tblTabs.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f / 6f));
+            tblTabs.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+
+            btnTab0 = CreateTabButton("Sales Performance", 0);
+            btnTab1 = CreateTabButton("Inventory Status", 1);
+            btnTab2 = CreateTabButton("Procurement Summary", 2);
+            btnTab3 = CreateTabButton("Logistics Overview", 3);
+            btnTab4 = CreateTabButton("After-Service Summary", 4);
+            btnTab5 = CreateTabButton("Finance Overview", 5);
+
+            tblTabs.Controls.Add(btnTab0, 0, 0);
+            tblTabs.Controls.Add(btnTab1, 1, 0);
+            tblTabs.Controls.Add(btnTab2, 2, 0);
+            tblTabs.Controls.Add(btnTab3, 3, 0);
+            tblTabs.Controls.Add(btnTab4, 4, 0);
+            tblTabs.Controls.Add(btnTab5, 5, 0);
+
+            pnlTabOuter.Controls.Add(tblTabs);
+            pnlTopTabs.Controls.Add(pnlTabOuter);
+            pnlMain.Controls.Add(pnlTopTabs);
+
             pnlContent = new Panel
             {
-                Dock      = DockStyle.Fill,
-                BackColor = Color.FromArgb(240, 244, 249),
-                Padding   = new Padding(0)
+                Dock = DockStyle.Fill,
+                BackColor = Palette.BgPage,
+                Padding = new Padding(0)
             };
+            pnlMain.Controls.Add(pnlContent);
+            pnlContent.BringToFront();
 
-            // Placeholder — replaced on first SwitchToReport() call
-            pnlContent.Controls.Add(MakePlaceholderLabel("Select a report from the tab bar above"));
-
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            //  Assemble — RULE 5: Fill first, Top (tabBar) next, _shell LAST
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            pnlMain.Controls.Add(pnlContent);   // DockStyle.Fill  — first
-            pnlMain.Controls.Add(pnlTabBar);    // DockStyle.Top
-            pnlMain.Controls.Add(_shell);        // DockStyle.Top   — LAST = topmost
-
-            this.Controls.Add(pnlMain);
             this.ResumeLayout(false);
         }
 
-        // ── Placeholder label (used before first report loads) ────────────────────
-        private static Label MakePlaceholderLabel(string text) => new Label
+        private Button CreateTabButton(string text, int tabIndex)
         {
-            Text      = text,
-            Dock      = DockStyle.Fill,
-            TextAlign = ContentAlignment.MiddleCenter,
-            Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
-            ForeColor = Color.FromArgb(98, 112, 135)
-        };
+            var btn = new Button
+            {
+                Dock = DockStyle.Fill,
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.White,
+                ForeColor = Color.FromArgb(98, 112, 135),
+                Font = new Font("Segoe UI", 12F, FontStyle.Regular),
+                Text = text,
+                Margin = new Padding(0),
+                Padding = new Padding(0, 0, 0, 4),
+                Cursor = Cursors.Hand,
+                TabStop = false,
+                UseVisualStyleBackColor = false
+            };
+            btn.FlatAppearance.BorderSize = 0;
+            btn.FlatAppearance.MouseDownBackColor = Color.White;
+            btn.FlatAppearance.MouseOverBackColor = Color.White;
+            btn.Click += (s, e) => SwitchToReport(tabIndex);
+            return btn;
+        }
     }
 }
