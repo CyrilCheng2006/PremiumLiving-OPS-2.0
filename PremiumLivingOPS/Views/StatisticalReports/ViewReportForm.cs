@@ -12,11 +12,11 @@ namespace PremiumLivingOPS.Views.StatisticalReports
     /// <summary>
     /// View — Statistical Reports › View Report
     ///
-    /// Rendering baseline: ViewProductForm (Inventory Control)
-    ///   - Filter bar: 3-row CardPanel (title+divider / fields / buttons)
-    ///     identical to ViewProductForm tblSearchCard structure
-    ///   - KPI bar: white card, outerPadding=(20,12,20,0), height=96,
-    ///     pills PillW=310 PillH=60 Gap=10 — mirrors ViewProductForm.RefreshKpi()
+    /// Rendering baseline: HandlingGoodsReceivedForm (Logistics Processing)
+    ///   - Tab Bar:    pnlTabOuter Height=69,  Padding=(20,4,20,0)
+    ///   - KPI Bar:    pnlKpiOuter Height=90,  Padding=(20,8,20,8)
+    ///   - Filter Bar: pnlFilterOuter Height=300, Padding=(20,14,20,8)
+    ///     3-row tblCard: row0=60(title), row1=125(fields), row2=65(buttons)
     ///
     /// Tab index map:
     ///   0 = Sales Performance      3 = Logistics Overview
@@ -123,19 +123,16 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
         // ════════════════════════════════════════════════════════════════
         //  FILTER BAR BUILDER
-        //  Baseline: ViewProductForm tblSearchCard
-        //    Row 0 — title + divider  (52 px, Absolute)
-        //    Row 1 — filter fields    (110 px, Absolute)   ← MakeCell columns
-        //    Row 2 — action buttons   (68 px, Absolute)
-        //  The whole 3-row TLP sits inside a white CardPanel inner.
-        //  pnlFilterOuter outer height=260, padding=(20,12,20,0) set in Designer.
+        //  Baseline: HandlingGoodsReceivedForm tblCard
+        //    Row 0 — title + divider  (60 px, Absolute)
+        //    Row 1 — filter fields   (125 px, Absolute)   ← MakeCell columns
+        //    Row 2 — action buttons   (65 px, Absolute)
+        //  tblCard Padding=(18,14,18,14) inside white CardPanel.
+        //  pnlFilterOuter outer height=300, padding=(20,14,20,8) set in Designer.
         // ════════════════════════════════════════════════════════════════
 
         /// <summary>
         /// Builds the filter card and places it inside pnlFilterOuter.
-        /// <para>fieldCells  — pass the field-column TLP (built by BuildFieldsRow).</para>
-        /// <para>btnRow      — pass the button panel (built by BuildButtonsRow).</para>
-        /// <para>titleText   — section title shown in the title row.</para>
         /// </summary>
         private void SetFilterBar(string titleText, TableLayoutPanel fieldCells, Panel btnRow)
         {
@@ -150,9 +147,9 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 Padding         = new Padding(18, 14, 18, 14)
             };
             tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute,  52f));  // title
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 110f));  // fields
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute,  68f));  // buttons
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute,  60f));  // title   (HGR baseline)
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 125f));  // fields  (HGR baseline)
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute,  65f));  // buttons (HGR baseline)
 
             // Row 0 — title + bottom divider
             var pnlTitle = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
@@ -171,12 +168,12 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 BackColor = Color.FromArgb(221, 227, 236)
             });
 
-            // Row 2 — buttons, left-anchored with top offset
+            // Row 2 — buttons
             btnRow.Dock = DockStyle.Fill;
 
-            tbl.Controls.Add(pnlTitle,    0, 0);
-            tbl.Controls.Add(fieldCells,  0, 1);
-            tbl.Controls.Add(btnRow,      0, 2);
+            tbl.Controls.Add(pnlTitle,   0, 0);
+            tbl.Controls.Add(fieldCells, 0, 1);
+            tbl.Controls.Add(btnRow,     0, 2);
 
             // White card wrapper with border
             var card = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
@@ -188,16 +185,15 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
         // ────────────────────────────────────────────────────────────────
         //  Builds the field-columns row (Row 1 of filter card).
-        //  Mirrors ViewProductForm tblFields + MakeCell() pattern.
-        //  Pass up to 4 (caption, control) pairs; null pair = empty column.
+        //  Mirrors HGR tblFields + MakeCell() pattern.
+        //  col1 required; col2..col4 optional (pass null to omit column).
         // ────────────────────────────────────────────────────────────────
         private static TableLayoutPanel BuildFieldsRow(
-            (string caption, Control ctrl)? col1,
-            (string caption, Control ctrl)? col2,
-            (string caption, Control ctrl)? col3 = null,
-            (string caption, Control ctrl)? col4 = null)
+            (string caption, Control ctrl)?  col1,
+            (string caption, Control ctrl)?  col2 = null,
+            (string caption, Control ctrl)?  col3 = null,
+            (string caption, Control ctrl)?  col4 = null)
         {
-            // Determine column count and percent widths
             var cols = new List<(string caption, Control ctrl)?> { col1, col2, col3, col4 };
             cols.RemoveAll(c => c == null);
             int n = Math.Max(1, cols.Count);
@@ -210,7 +206,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 BackColor       = Color.Transparent,
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
-            // Distribute widths: first column takes 40% if 3+ cols (keyword is widest)
             if (n >= 3)
             {
                 tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40f));
@@ -230,7 +225,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 var (caption, ctrl) = cols[i].Value;
                 bool lastCol = i == cols.Count - 1;
 
-                // MakeCell: 2-row TLP — label top, control bottom
                 var cell = new TableLayoutPanel
                 {
                     Dock            = DockStyle.Fill,
@@ -265,7 +259,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
         // ────────────────────────────────────────────────────────────────
         //  Builds the buttons row (Row 2 of filter card).
-        //  Mirrors ViewProductForm pnlSearchBtns — left-anchored, y=4 offset.
         // ────────────────────────────────────────────────────────────────
         private static Panel BuildButtonsRow(
             Button btnApply, Button btnReset,
@@ -273,11 +266,9 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         {
             var pnl = new Panel { BackColor = Color.Transparent };
 
-            // Left group: Apply + Reset
             btnApply.Location = new Point(0, 4);
             btnReset.Location = new Point(btnApply.Width + 8, 4);
 
-            // Divider
             var div = new Panel
             {
                 Size      = new Size(1, 40),
@@ -285,7 +276,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 BackColor = Color.FromArgb(221, 227, 236)
             };
 
-            // Right group: Chart + Table + Export
             int xRight = div.Left + div.Width + 16;
             btnChart.Location  = new Point(xRight, 4);
             btnTable.Location  = new Point(xRight + btnChart.Width + 8, 4);
@@ -297,10 +287,8 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
         // ════════════════════════════════════════════════════════════════
         //  KPI BAR BUILDER
-        //  Baseline: ViewProductForm.RefreshKpi()
+        //  Baseline: HandlingGoodsReceivedForm pnlKpi
         //    PillW=310, PillH=60, Gap=10, LeftPad=12
-        //    Count col width=80, label font=12f
-        //    FlowLayoutPanel AutoSize=true, pills vertically centred via wrapper.Layout
         // ════════════════════════════════════════════════════════════════
 
         private static void BuildKpiPills(
@@ -382,7 +370,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 flow.Controls.Add(pill);
             }
 
-            // Wrapper centres the flow vertically — mirrors VP wrapper.Layout
             var wrapper = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             wrapper.Controls.Add(flow);
             wrapper.Layout += (s, e) =>
@@ -452,20 +439,13 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         {
             var dtpFrom  = MakeDatePicker(DateTime.Today.AddMonths(-3));
             var dtpTo    = MakeDatePicker(DateTime.Today);
-            var chkDate  = new CheckBox { Text = "From:", Font = new Font("Segoe UI", 11f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), BackColor = Color.Transparent, AutoSize = true };
+            var chkDate  = new CheckBox { Text = "", Font = new Font("Segoe UI", 11f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), BackColor = Color.Transparent, AutoSize = true };
             var btnApply = MakePrimaryBtn("Apply", 110, 40);
             var btnReset = MakeOutlineBtn("Reset",  90, 40);
             var btnChart = MakeToggleBtn("\U0001F4CA  Chart", 130, 40, _salesChart);
             var btnTable = MakeToggleBtn("\U0001F4CB  Table", 120, 40, !_salesChart);
             var btnExport = MakeExportBtn(150, 40);
 
-            var fields = BuildFieldsRow(
-                ("Date",   chkDate),
-                ("From",   dtpFrom),
-                ("To",     MakeLabel("To:")),
-                ("To Date",dtpTo));
-            // Override: use 4-col equal layout for date range
-            // col1=checkbox, col2=fromPicker, col3=toLabel, col4=toPicker
             SetFilterBar("Filter: Sales Performance",
                 BuildFieldsRow(("Date Filter", chkDate), ("From", dtpFrom), ("To", MakeLabel("To:")), ("To Date", dtpTo)),
                 BuildButtonsRow(btnApply, btnReset, btnChart, btnTable, btnExport));
@@ -840,7 +820,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         {
             var dtpFrom   = MakeDatePicker(DateTime.Today.AddMonths(-3));
             var dtpTo     = MakeDatePicker(DateTime.Today);
-            var chkDate   = new CheckBox { Text = "From:", Font = new Font("Segoe UI", 11f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), BackColor = Color.Transparent, AutoSize = true };
+            var chkDate   = new CheckBox { Text = "", Font = new Font("Segoe UI", 11f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), BackColor = Color.Transparent, AutoSize = true };
             var btnApply  = MakePrimaryBtn("Apply",  110, 40);
             var btnReset  = MakeOutlineBtn("Reset",   90, 40);
             var btnChart  = MakeToggleBtn("\U0001F4CA  Chart", 130, 40, _financeChart);
