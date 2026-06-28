@@ -53,13 +53,14 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             };
 
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            //  AppShell — wired via SetPopupContainer only (HGR rule)
-            //  Do NOT set _shell.Dock / .Height / .MinimumSize manually here.
+            //  AppShell  — RULE 2: construct inside SuspendLayout scope.
+            //  SetPopupContainer() wires the dropdown overlay.
+            //  Event subscriptions here ONCE (RULE 4) — never in .cs Load.
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             _shell = new AppShell();
             _shell.SetPopupContainer(pnlMain);
-            _shell.MenuItemClicked += OnTopNavMenuItemClicked;
-            _shell.LogoutClicked   += BtnLogout_Click;
+            _shell.MenuItemClicked += OnTopNavMenuItemClicked;  // RULE 4
+            _shell.LogoutClicked   += btnLogout_Click;           // RULE 4
 
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             //  Tab switcher bar  (DockStyle.Top, Height 69)
@@ -99,12 +100,12 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
             var tblTabs = new TableLayoutPanel
             {
-                Dock      = DockStyle.Fill,
-                RowCount  = 1,
+                Dock        = DockStyle.Fill,
+                RowCount    = 1,
                 ColumnCount = 5,
-                BackColor = Color.White,
+                BackColor   = Color.White,
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                Padding   = new Padding(8, 0, 8, 0)
+                Padding     = new Padding(8, 0, 8, 0)
             };
             tblTabs.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20f));
             tblTabs.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20f));
@@ -135,8 +136,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             };
 
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            //  Assemble — Fill first, Top sections reverse-order, _shell LAST
-            //  (mirrors HGR / ViewShipmentForm exactly)
+            //  Assemble — RULE 5: Fill first, Top reverse-order, _shell LAST
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             pnlMain.Controls.Add(pnlContent);   // DockStyle.Fill  — added first
             pnlMain.Controls.Add(pnlTabOuter);  // DockStyle.Top
