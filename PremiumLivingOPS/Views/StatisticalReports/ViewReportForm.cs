@@ -22,9 +22,8 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
         // ────────────────────────────────────────────────────────────────────
         //  Load  — mirrors HGR pattern exactly:
-        //          1. Load ViewModel via controller
-        //          2. Populate AppShell UserBar
-        //          3. Switch to default tab
+        //          1. Populate AppShell UserBar (via any report VM)
+        //          2. Switch to default tab
         // ────────────────────────────────────────────────────────────────────
         private void ViewReportForm_Load(object sender, EventArgs e)
         {
@@ -33,11 +32,14 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         }
 
         // ────────────────────────────────────────────────────────────────────
-        //  AppShell population  (called once on Load; controller provides VM)
+        //  AppShell population
+        //  Uses GetSalesReportVM() — the lightest report call — just to obtain
+        //  UserBar (DisplayName, Department) and AllowedMenus from the session.
+        //  No report-specific data from the returned VM is consumed here.
         // ────────────────────────────────────────────────────────────────────
         private void RefreshShell()
         {
-            var vm = _ctrl.GetViewReportVM();
+            var vm = _ctrl.GetSalesReportVM();
             if (vm == null) return;
 
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
@@ -89,7 +91,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         }
 
         // ────────────────────────────────────────────────────────────────────
-        //  Report builders
+        //  Report builders (placeholder — each will call the relevant ctrl method)
         // ────────────────────────────────────────────────────────────────────
         private void BuildSalesRevenueReport()
         {
