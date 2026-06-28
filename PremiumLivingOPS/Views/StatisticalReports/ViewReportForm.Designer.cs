@@ -57,11 +57,11 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             _shell = new AppShell();
             _shell.SetPopupContainer(pnlMain);
-            _shell.MenuItemClicked += OnTopNavMenuItemClicked;
-            _shell.LogoutClicked   += OnLogoutClicked;
+            _shell.MenuItemClicked += OnTopNavMenuItemClicked;  // RULE 4
+            _shell.LogoutClicked   += btnLogout_Click;           // RULE 4
 
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            //  Sidebar (DockStyle.Left, Width 200)
+            //  Sidebar (DockStyle.Left, Width 210)
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             Button MakeSideBtn(string text)
             {
