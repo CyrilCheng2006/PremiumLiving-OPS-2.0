@@ -14,7 +14,8 @@ namespace PremiumLivingOPS.Views.StatisticalReports
     /// View — Statistical Reports  ›  View Report
     ///
     /// Rendering baseline: ViewOrderForm (Order Processing › View Order)
-    /// ─ KPI pills:  290 × 60, rounded, clickable, identical to ViewOrderForm.RefreshKpi()
+    /// ─ KPI pills:  290 × 60, rounded, Cursor.Hand, click handler wired to pill + tlp + child labels
+    ///               identical to ViewOrderForm.RefreshKpi()
     /// ─ Filter bar: single-row FlowLayout (search + DatePicker + Apply/Reset + divider + Chart/Table/Export)
     /// ─ DataGridView: identical header / cell / row style to ViewOrderForm.dgvOrders
     /// ─ Action button row: ViewOrderForm-style primary/outline buttons below filter bar
@@ -190,7 +191,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                     ("Delivered",       k.DeliveredOrders.ToString(),   Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229), (string)null),
                     ("Processing",      k.ProcessingOrders.ToString(),  Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), (string)null),
                     ("Pending",         k.PendingOrders.ToString(),     Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), (string)null),
-                });
+                }, null);
 
                 dgv.Rows.Clear();
                 foreach (var r in vm.SalesRows)
@@ -280,19 +281,43 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             Panel chartStock = null;
             Panel chartCategory = null;
 
+            // ── KPI pill click handlers: drive cboCat + chkReorder ────────
+            Action<string> onPillClick = null;
+
             Action load = () =>
             {
                 var vm = _ctrl.GetInventoryReportVM(cboCat.SelectedItem?.ToString(), chkReorder.Checked);
                 ApplyShell(vm, "Statistical Reports  \u203a  View Report");
                 var k = vm.InventoryKpi;
 
+                onPillClick = filterKey =>
+                {
+                    if (filterKey == "BelowReorder")
+                    {
+                        chkReorder.Checked = true;
+                        cboCat.SelectedIndex = 0;
+                    }
+                    else if (filterKey == "Product" || filterKey == "Raw Material")
+                    {
+                        int idx = cboCat.FindStringExact(filterKey);
+                        if (idx >= 0) cboCat.SelectedIndex = idx;
+                        chkReorder.Checked = false;
+                    }
+                    else
+                    {
+                        cboCat.SelectedIndex = 0;
+                        chkReorder.Checked = false;
+                    }
+                    load();
+                };
+
                 BuildKpiPills(pnlKpi, new[]
                 {
-                    ("Total SKUs",    k.TotalSKUs.ToString(),         Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254), (string)null),
-                    ("Products",      k.ProductCount.ToString(),      Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254), (string)null),
-                    ("Raw Materials", k.RawMaterialCount.ToString(),  Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229), (string)null),
-                    ("Below Reorder", k.BelowReorderCount.ToString(), Color.FromArgb(185,  28,  28), Color.FromArgb(254, 226, 226), (string)null),
-                });
+                    ("Total SKUs",    k.TotalSKUs.ToString(),         Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254), "All"),
+                    ("Products",      k.ProductCount.ToString(),      Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254), "Product"),
+                    ("Raw Materials", k.RawMaterialCount.ToString(),  Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229), "Raw Material"),
+                    ("Below Reorder", k.BelowReorderCount.ToString(), Color.FromArgb(185,  28,  28), Color.FromArgb(254, 226, 226), "BelowReorder"),
+                }, onPillClick);
 
                 dgv.Rows.Clear();
                 foreach (var r in vm.InventoryRows)
@@ -368,14 +393,21 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 ApplyShell(vm, "Statistical Reports  \u203a  View Report");
                 var k = vm.ProcKpi;
 
+                Action<string> onPillClick = filterKey =>
+                {
+                    int idx = cboStatus.FindStringExact(filterKey == "All" ? "All" : filterKey);
+                    if (idx >= 0) cboStatus.SelectedIndex = idx;
+                    load();
+                };
+
                 BuildKpiPills(pnlKpi, new[]
                 {
-                    ("Total POs",   k.TotalPOs.ToString(),        Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254), (string)null),
+                    ("Total POs",   k.TotalPOs.ToString(),        Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254), "All"),
                     ("Spend (HK$)", $"{k.TotalSpend:N0}",         Color.FromArgb(185,  28,  28), Color.FromArgb(254, 226, 226), (string)null),
-                    ("Completed",   k.CompletedPOs.ToString(),    Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229), (string)null),
-                    ("Pending",     k.PendingPOs.ToString(),      Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), (string)null),
+                    ("Completed",   k.CompletedPOs.ToString(),    Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229), "Completed"),
+                    ("Pending",     k.PendingPOs.ToString(),      Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), "Sent"),
                     ("Suppliers",   k.UniqueSuppliers.ToString(), Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254), (string)null),
-                });
+                }, onPillClick);
 
                 dgv.Rows.Clear();
                 foreach (var r in vm.ProcRows)
@@ -472,14 +504,21 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 ApplyShell(vm, "Statistical Reports  \u203a  View Report");
                 var k = vm.LogKpi;
 
+                Action<string> onPillClick = filterKey =>
+                {
+                    int idx = cboStatus.FindStringExact(filterKey);
+                    if (idx >= 0) cboStatus.SelectedIndex = idx;
+                    load();
+                };
+
                 BuildKpiPills(pnlKpi, new[]
                 {
-                    ("Total",       k.TotalShipments.ToString(), Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254), (string)null),
-                    ("Completed",   k.Completed.ToString(),      Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229), (string)null),
-                    ("In Transit",  k.InTransit.ToString(),      Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), (string)null),
-                    ("Pending",     k.Pending.ToString(),        Color.FromArgb(185,  28,  28), Color.FromArgb(254, 226, 226), (string)null),
+                    ("Total",       k.TotalShipments.ToString(), Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254), "All"),
+                    ("Completed",   k.Completed.ToString(),      Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229), "Completed"),
+                    ("In Transit",  k.InTransit.ToString(),      Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), "In Transit"),
+                    ("Pending",     k.Pending.ToString(),        Color.FromArgb(185,  28,  28), Color.FromArgb(254, 226, 226), "Pending"),
                     ("Reply Slips", k.WithReplySlip.ToString(),  Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254), (string)null),
-                });
+                }, onPillClick);
 
                 dgv.Rows.Clear();
                 foreach (var r in vm.LogRows)
@@ -555,13 +594,31 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 ApplyShell(vm, "Statistical Reports  \u203a  View Report");
                 var k = vm.AfterKpi;
 
+                Action<string> onPillClick = filterKey =>
+                {
+                    // filterKey encodes "CMP:status" or "RTN:status"
+                    if (filterKey != null && filterKey.StartsWith("CMP:"))
+                    {
+                        string status = filterKey.Substring(4);
+                        int idx = cboCmp.FindStringExact(status);
+                        if (idx >= 0) cboCmp.SelectedIndex = idx;
+                    }
+                    else if (filterKey != null && filterKey.StartsWith("RTN:"))
+                    {
+                        string status = filterKey.Substring(4);
+                        int idx = cboRtn.FindStringExact(status);
+                        if (idx >= 0) cboRtn.SelectedIndex = idx;
+                    }
+                    load();
+                };
+
                 BuildKpiPills(pnlKpi, new[]
                 {
-                    ("Complaints",     k.TotalComplaints.ToString(), Color.FromArgb(185,  28,  28), Color.FromArgb(254, 226, 226), (string)null),
-                    ("Open",           k.OpenComplaints.ToString(),  Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), (string)null),
-                    ("Returns",        k.TotalReturns.ToString(),    Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), (string)null),
+                    ("Complaints",     k.TotalComplaints.ToString(), Color.FromArgb(185,  28,  28), Color.FromArgb(254, 226, 226), "CMP:All"),
+                    ("Open",           k.OpenComplaints.ToString(),  Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), "CMP:Pending"),
+                    ("Returns",        k.TotalReturns.ToString(),    Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), "RTN:All"),
                     ("Refunded (HK$)", $"{k.TotalRefunded:N0}",      Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254), (string)null),
-                });
+                }, onPillClick);
 
                 dgvCmp.Rows.Clear();
                 foreach (var r in vm.Complaints)
@@ -643,7 +700,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                     ("Refunds (HK$)",     $"{k.TotalRefunds:N0}",         Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), (string)null),
                     ("AR Due (HK$)",      $"{k.AROutstanding:N0}",        Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199), (string)null),
                     ("AP Due (HK$)",      $"{k.APOutstanding:N0}",        Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254), (string)null),
-                });
+                }, null);
 
                 dgv.Rows.Clear();
                 foreach (var r in vm.FinanceRows)
@@ -776,12 +833,20 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         }
 
         // ════════════════════════════════════════════════════════════════
-        //  KPI PILLS
+        //  KPI PILLS  — baseline: ViewOrderForm.RefreshKpi()
+        //
+        //  Changes vs old BuildKpiPills:
+        //  1. Added  Action<string> onPillClick  parameter
+        //  2. Pill Cursor = Hand when filterValue != null (was always Cursors.Default)
+        //  3. clickHandler wired to pill, tlp, AND every child Label
+        //     (identical to ViewOrderForm.RefreshKpi lines 87-91)
+        //  4. Pills with null filterValue keep Cursor.Default and no handler
         // ════════════════════════════════════════════════════════════════
 
         private static void BuildKpiPills(
             Panel pnlKpi,
-            (string label, string count, Color fg, Color bg, string filterValue)[] pills)
+            (string label, string count, Color fg, Color bg, string filterValue)[] pills,
+            Action<string> onPillClick)
         {
             pnlKpi.Controls.Clear();
 
@@ -802,12 +867,14 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
             foreach (var (label, count, fg, bg, filterValue) in pills)
             {
+                bool isClickable = filterValue != null && onPillClick != null;
+
                 var pill = new Panel
                 {
                     BackColor = bg,
                     Size      = new Size(PillW, PillH),
                     Margin    = new Padding(0, 0, Gap, 0),
-                    Cursor    = Cursors.Default
+                    Cursor    = isClickable ? Cursors.Hand : Cursors.Default   // ← FIX: Hand when clickable
                 };
                 pill.Paint += (s, e) =>
                 {
@@ -824,26 +891,44 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                     RowCount        = 1,
                     BackColor       = Color.Transparent,
                     CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                    Padding         = new Padding(10, 0, 8, 0)
+                    Padding         = new Padding(10, 0, 8, 0),
+                    Cursor          = isClickable ? Cursors.Hand : Cursors.Default
                 };
                 tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, NumColW));
                 tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
                 tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
-                tlp.Controls.Add(new Label
+                var lblCount = new Label
                 {
                     Text      = count,
                     Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
                     ForeColor = fg, BackColor = Color.Transparent,
-                    Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, AutoSize = false
-                }, 0, 0);
-                tlp.Controls.Add(new Label
+                    Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, AutoSize = false,
+                    Cursor    = isClickable ? Cursors.Hand : Cursors.Default
+                };
+                var lblLabel = new Label
                 {
                     Text      = label,
                     Font      = new Font("Segoe UI", 12f),
                     ForeColor = fg, BackColor = Color.Transparent,
-                    Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
-                }, 1, 0);
+                    Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false,
+                    Cursor    = isClickable ? Cursors.Hand : Cursors.Default
+                };
+
+                tlp.Controls.Add(lblCount, 0, 0);
+                tlp.Controls.Add(lblLabel, 1, 0);
+
+                // ── Wire click handler to pill + tlp + child Labels ──────────
+                // Identical to ViewOrderForm.RefreshKpi() pattern
+                if (isClickable)
+                {
+                    string localFilterValue = filterValue;
+                    EventHandler clickHandler = (s, e) => onPillClick(localFilterValue);
+                    pill.Click     += clickHandler;
+                    tlp.Click      += clickHandler;
+                    lblCount.Click += clickHandler;
+                    lblLabel.Click += clickHandler;
+                }
 
                 pill.Controls.Add(tlp);
                 flow.Controls.Add(pill);
