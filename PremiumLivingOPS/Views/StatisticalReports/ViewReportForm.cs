@@ -423,18 +423,18 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             splitter.Panel1.Controls.Add(MakeGridCard(label1, dgv1, title));
             splitter.Panel2.Controls.Add(MakeGridCard(label2, dgv2, ""));
 
-            // Defer SplitterDistance: control Height is 0 before layout pass.
-            // Use a one-shot Layout handler so it only fires once.
-            EventHandler setDist = null;
+            // Defer SplitterDistance: Height is 0 before first layout pass.
+            // LayoutEventHandler matches SplitContainer.Layout event signature.
+            LayoutEventHandler setDist = null;
             setDist = (s, e) =>
             {
                 var sc = (SplitContainer)s;
-                sc.Layout -= setDist;          // unsubscribe immediately
+                sc.Layout -= setDist;                         // one-shot: unsubscribe immediately
                 int available = sc.Height - sc.SplitterWidth;
                 int desired   = (int)(available * 0.6);
                 int lo        = sc.Panel1MinSize;
                 int hi        = available - sc.Panel2MinSize;
-                if (hi > lo)                   // only set when range is valid
+                if (hi > lo)                                  // guard: only set when range is valid
                     sc.SplitterDistance = Math.Max(lo, Math.Min(hi, desired));
             };
             splitter.Layout += setDist;
