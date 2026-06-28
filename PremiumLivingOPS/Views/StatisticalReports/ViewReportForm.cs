@@ -1,5 +1,6 @@
 using PremiumLivingOPS.Controllers;
 using PremiumLivingOPS.Models.Entities;
+using PremiumLivingOPS.Models.ViewModels;
 using PremiumLivingOPS.Views.Shared;
 using System;
 using System.Collections.Generic;
@@ -68,6 +69,15 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
         private void ViewReportForm_Load(object sender, EventArgs e)
         {
+            // ── UserBar initialisation (identical pattern to ViewOrderForm) ──
+            // Load a minimal Sales VM purely to populate UserBar on first paint.
+            // NOTE: MenuItemClicked / LogoutClicked are wired in Designer.cs (RULE 4).
+            //       Do NOT subscribe here to avoid duplicate firing.
+            var initVm = _ctrl.GetSalesReportVM();
+            _shell.SetUser(initVm.UserBar.DisplayName, initVm.UserBar.Department);
+            _shell.SetVisibleMenus(initVm.AllowedMenus);
+            _shell.SetBreadcrumb("Statistical Reports  \u203a  View Report");
+
             btnSales.Click        += (s, _) => SwitchReport(ReportType.SalesPerformance);
             btnInventory.Click    += (s, _) => SwitchReport(ReportType.InventoryStatus);
             btnProcurement.Click  += (s, _) => SwitchReport(ReportType.ProcurementSummary);
@@ -169,7 +179,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             Action<DateTime?, DateTime?> load = (from, to) =>
             {
                 var vm = _ctrl.GetSalesReportVM(from, to);
-                ApplyShell(vm, "Sales Performance");
+                ApplyShell(vm, "Statistical Reports  \u203a  View Report");
                 var k = vm.SalesKpi;
 
                 BuildKpiPills(pnlKpi, new[]
@@ -273,7 +283,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             Action load = () =>
             {
                 var vm = _ctrl.GetInventoryReportVM(cboCat.SelectedItem?.ToString(), chkReorder.Checked);
-                ApplyShell(vm, "Inventory Status");
+                ApplyShell(vm, "Statistical Reports  \u203a  View Report");
                 var k = vm.InventoryKpi;
 
                 BuildKpiPills(pnlKpi, new[]
@@ -286,8 +296,8 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
                 dgv.Rows.Clear();
                 foreach (var r in vm.InventoryRows)
-                    dgv.Rows.Add(r.WarehouseItemID, $"{r.ItemID}  —  {r.ItemName}",
-                                 r.ItemCategory, string.IsNullOrEmpty(r.MaterialType) ? "—" : r.MaterialType,
+                    dgv.Rows.Add(r.WarehouseItemID, $"{r.ItemID}  \u2014  {r.ItemName}",
+                                 r.ItemCategory, string.IsNullOrEmpty(r.MaterialType) ? "\u2014" : r.MaterialType,
                                  r.WarehouseLocation, r.CurrentStock, r.ReorderLevel,
                                  r.BelowReorder ? "Low Stock" : "OK");
 
@@ -355,7 +365,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             Action load = () =>
             {
                 var vm = _ctrl.GetProcurementReportVM(cboStatus.SelectedItem?.ToString());
-                ApplyShell(vm, "Procurement Summary");
+                ApplyShell(vm, "Statistical Reports  \u203a  View Report");
                 var k = vm.ProcKpi;
 
                 BuildKpiPills(pnlKpi, new[]
@@ -459,7 +469,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             Action load = () =>
             {
                 var vm = _ctrl.GetLogisticsReportVM(cboStatus.SelectedItem?.ToString());
-                ApplyShell(vm, "Logistics Overview");
+                ApplyShell(vm, "Statistical Reports  \u203a  View Report");
                 var k = vm.LogKpi;
 
                 BuildKpiPills(pnlKpi, new[]
@@ -542,7 +552,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             Action load = () =>
             {
                 var vm = _ctrl.GetAfterServiceReportVM(cboCmp.SelectedItem?.ToString(), cboRtn.SelectedItem?.ToString());
-                ApplyShell(vm, "After-Service Summary");
+                ApplyShell(vm, "Statistical Reports  \u203a  View Report");
                 var k = vm.AfterKpi;
 
                 BuildKpiPills(pnlKpi, new[]
@@ -623,7 +633,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             Action<DateTime?, DateTime?> load = (from, to) =>
             {
                 var vm = _ctrl.GetFinanceReportVM(from, to);
-                ApplyShell(vm, "Finance Overview");
+                ApplyShell(vm, "Statistical Reports  \u203a  View Report");
                 var k = vm.FinanceKpi;
 
                 BuildKpiPills(pnlKpi, new[]
@@ -1098,13 +1108,20 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         }
 
         // ════════════════════════════════════════════════════════════════
-        //  APPSHELL HELPERS
+        //  APPSHELL HELPER  (pattern: ViewOrderForm.ApplyShell)
         // ════════════════════════════════════════════════════════════════
 
-        private void ApplyShell(object vm, string pageTitle)
+        /// <summary>
+        /// Called after every VM reload to keep UserBar in sync.
+        /// Mirrors the exact pattern used by ViewOrderForm, QuotationForm, etc.
+        /// NOTE: MenuItemClicked / LogoutClicked are wired ONCE in Designer.cs (RULE 4).
+        ///       This method must NEVER re-subscribe those events.
+        /// </summary>
+        private void ApplyShell(ViewReportViewModel vm, string breadcrumb)
         {
-            if (this.Controls.ContainsKey("lblPageTitle"))
-                ((Label)this.Controls["lblPageTitle"]).Text = pageTitle;
+            _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
+            _shell.SetVisibleMenus(vm.AllowedMenus);
+            _shell.SetBreadcrumb(breadcrumb);
         }
 
         // ════════════════════════════════════════════════════════════════
