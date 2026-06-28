@@ -906,13 +906,17 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         }
 
         // ════════════════════════════════════════════════════════════════
-        //  EVENT STUBS (subscribed in Designer.cs)
+        //  EVENT STUBS (subscribed in Designer.cs RULE 4)
         // ════════════════════════════════════════════════════════════════
 
         private void OnTopNavMenuItemClicked(string menu, string sub)
             => FormNavigator.NavigateTo(this, menu, sub);
 
         private void btnLogout_Click(object sender, EventArgs e)
-            => FormNavigator.Logout(this);
+        {
+            if (MessageBox.Show("Are you sure you want to logout?",
+                "Logout", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                FormNavigator.NavigateTo(this, "Logout");
+        }
     }
 }
