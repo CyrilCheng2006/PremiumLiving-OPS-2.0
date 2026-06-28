@@ -150,12 +150,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             this.ResumeLayout(false);
         }
 
-        // ── Card border painter (shared utility) ───────────────────────────────
-        private static void PaintCardBorder(object sender, System.Windows.Forms.PaintEventArgs e)
-        {
-            var p = (Panel)sender;
-            using var pen = new System.Drawing.Pen(Color.FromArgb(221, 227, 236), 1);
-            e.Graphics.DrawRectangle(pen, 0, 0, p.Width - 1, p.Height - 1);
-        }
+        // PaintCardBorder is defined in ViewReportForm.cs — removed from here to fix CS0111.
     }
 }
