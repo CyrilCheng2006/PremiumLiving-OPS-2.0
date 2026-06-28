@@ -14,6 +14,9 @@ namespace PremiumLivingOPS.Views.StatisticalReports
     /// View — Statistical Reports  ›  View Report
     ///
     /// Rendering baseline: ViewOrderForm (Order Processing › View Order)
+    /// ─ Tab Bar  :  6 report tabs in a CardPanel 3-layer card at the top of pnlContent.
+    ///               Replaces left-side Sidebar buttons (pnlSidebar.Visible = false in Designer).
+    ///               Active tab highlighted with Palette.Primary; rebuilt on every SwitchReport().
     /// ─ KPI pills:  290 × 60, rounded, Cursor.Hand, click handler wired to pill + tlp + child labels
     ///               identical to ViewOrderForm.RefreshKpi()
     /// ─ Filter bar: single-row FlowLayout (search + DatePicker + Apply/Reset + divider + Chart/Table/Export)
@@ -22,7 +25,14 @@ namespace PremiumLivingOPS.Views.StatisticalReports
     ///
     /// MVC role  : View only — all DB access via StatisticalReportsController.
     /// AppShell  : mandatory chrome (Rule 1-5).
-    /// CardPanel : every content block in 3-layer nested cards.
+    /// CardPanel : every content block in 3-layer nested cards (including Tab Bar).
+    ///
+    /// pnlContent card stack (top → bottom):
+    ///   tabOuter  (DockStyle.Top,    H=64)  ← Tab Bar card          [NEW]
+    ///   aOuter    (DockStyle.Top,    H=86)  ← KPI Pills card
+    ///   bOuter    (DockStyle.Top,    H=70)  ← Filter Bar card
+    ///   cOuter    (DockStyle.Fill)          ← Primary data card
+    ///   dOuter    (DockStyle.Bottom)        ← Secondary data card (Sales / AfterService)
     /// </summary>
     public partial class ViewReportForm : Form
     {
@@ -75,13 +85,8 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             _shell.SetVisibleMenus(initVm.AllowedMenus);
             _shell.SetBreadcrumb("Statistical Reports  \u203a  View Report");
 
-            btnSales.Click        += (s, _) => SwitchReport(ReportType.SalesPerformance);
-            btnInventory.Click    += (s, _) => SwitchReport(ReportType.InventoryStatus);
-            btnProcurement.Click  += (s, _) => SwitchReport(ReportType.ProcurementSummary);
-            btnLogistics.Click    += (s, _) => SwitchReport(ReportType.LogisticsOverview);
-            btnAfterService.Click += (s, _) => SwitchReport(ReportType.AfterServiceSummary);
-            btnFinance.Click      += (s, _) => SwitchReport(ReportType.FinanceOverview);
-
+            // Designer sidebar buttons are hidden (pnlSidebar.Visible = false).
+            // Navigation is now handled by the dynamic Tab Bar built in BuildTabBar().
             SwitchReport(ReportType.SalesPerformance);
         }
 
@@ -92,28 +97,13 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         private void SwitchReport(ReportType rt)
         {
             _activeReport = rt;
-            HighlightSidebarButton(rt);
+            // HighlightSidebarButton is a no-op — Tab Bar is rebuilt by BuildLayout().
             RenderReport(rt);
         }
 
-        private void HighlightSidebarButton(ReportType rt)
-        {
-            var map = new Dictionary<ReportType, Button>
-            {
-                { ReportType.SalesPerformance,    btnSales        },
-                { ReportType.InventoryStatus,     btnInventory    },
-                { ReportType.ProcurementSummary,  btnProcurement  },
-                { ReportType.LogisticsOverview,   btnLogistics    },
-                { ReportType.AfterServiceSummary, btnAfterService },
-                { ReportType.FinanceOverview,      btnFinance      }
-            };
-            foreach (var kv in map)
-            {
-                bool active = kv.Key == rt;
-                kv.Value.BackColor = active ? Palette.Primary : Color.Transparent;
-                kv.Value.ForeColor = active ? Color.White     : Palette.SidebarText;
-            }
-        }
+        // Kept as empty stub; Designer-bound sidebar buttons remain in .Designer.cs
+        // but their panel is hidden. Tab Bar replaces them entirely.
+        private void HighlightSidebarButton(ReportType rt) { }
 
         // ════════════════════════════════════════════════════════════════
         //  RENDER REPORT
@@ -798,6 +788,87 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             aInner.Controls.Add(pnlKpi);
             aOuter.Controls.Add(aInner);
             pnlContent.Controls.Add(aOuter);
+
+            // ── Tab Bar card — always topmost in pnlContent ──────────────
+            BuildTabBar(_activeReport);
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  TAB BAR CARD  (replaces Designer sidebar, CardPanel 3-layer)
+        //
+        //  tabOuter  (Palette.BgPage gray, DockStyle.Top, H=64)
+        //   └─ tabInner  (Color.White, PaintCardBorder)
+        //        └─ wrapper (vertical-centre container)
+        //             └─ FlowLayoutPanel (6 tab buttons, left-to-right)
+        // ════════════════════════════════════════════════════════════════
+
+        private void BuildTabBar(ReportType activeRt)
+        {
+            // ── Layer 1: outer gray wrap ─────────────────────────────────
+            var tabOuter = WrapCard(DockStyle.Top, 64, 0, 0, 0, 8);
+
+            // ── Layer 2: white card with border ──────────────────────────
+            var tabInner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
+            tabInner.Paint += PaintCardBorder;
+
+            // ── Layer 3: horizontal flow of tab buttons ───────────────────
+            var flow = new FlowLayoutPanel
+            {
+                Dock          = DockStyle.Fill,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents  = false,
+                BackColor     = Color.Transparent,
+                Padding       = new Padding(12, 0, 12, 0),
+                AutoScroll    = false
+            };
+
+            var tabDefs = new[]
+            {
+                (ReportType.SalesPerformance,    "\U0001F4CA  Sales"),
+                (ReportType.InventoryStatus,     "\U0001F4E6  Inventory"),
+                (ReportType.ProcurementSummary,  "\U0001F6D2  Procurement"),
+                (ReportType.LogisticsOverview,   "\U0001F69A  Logistics"),
+                (ReportType.AfterServiceSummary, "\U0001F527  After-Service"),
+                (ReportType.FinanceOverview,     "\U0001F4B0  Finance"),
+            };
+
+            foreach (var (rt, label) in tabDefs)
+            {
+                bool active = rt == activeRt;
+                var btn = new Button
+                {
+                    Text      = label,
+                    Font      = new Font("Segoe UI", 11f, active ? FontStyle.Bold : FontStyle.Regular),
+                    ForeColor = active ? Color.White : Color.FromArgb(98, 112, 135),
+                    BackColor = active ? Palette.Primary : Color.Transparent,
+                    FlatStyle = FlatStyle.Flat,
+                    Height    = 40,
+                    AutoSize  = true,
+                    Margin    = new Padding(0, 0, 4, 0),
+                    Cursor    = Cursors.Hand
+                };
+                btn.FlatAppearance.BorderSize = 0;
+                btn.FlatAppearance.MouseOverBackColor = active
+                    ? Palette.PrimaryDark
+                    : Color.FromArgb(240, 244, 249);
+
+                var localRt = rt;
+                btn.Click += (s, e) => SwitchReport(localRt);
+                flow.Controls.Add(btn);
+            }
+
+            // Vertically centre the flow inside tabInner
+            var wrapper = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
+            wrapper.Controls.Add(flow);
+            wrapper.Layout += (s, e) =>
+            {
+                var p = (Panel)s;
+                flow.Top = Math.Max(0, (p.Height - flow.PreferredSize.Height) / 2);
+            };
+
+            tabInner.Controls.Add(wrapper);
+            tabOuter.Controls.Add(tabInner);
+            pnlContent.Controls.Add(tabOuter);
         }
 
         private static Panel WrapCard(DockStyle dock, int height, int padL, int padT, int padR, int padB)
