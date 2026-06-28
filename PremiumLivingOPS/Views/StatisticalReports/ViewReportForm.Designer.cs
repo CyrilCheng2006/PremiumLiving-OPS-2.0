@@ -12,14 +12,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         // ── AppShell (mandatory chrome)
         private AppShell _shell;
 
-        // ── Sidebar report selector buttons
-        internal Button btnSales;
-        internal Button btnInventory;
-        internal Button btnProcurement;
-        internal Button btnLogistics;
-        internal Button btnAfterService;
-        internal Button btnFinance;
-
         // ── Right-side content panel (rebuilt on each report switch)
         internal Panel pnlContent;
 
@@ -48,87 +40,30 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             // ── AppShell (RULE 2) ──────────────────────────────────────────
             _shell = new AppShell();
             _shell.SetPopupContainer(pnlMain);
-            // FIX CS0103: wire via lambda so handler resolution is deferred to runtime
             _shell.MenuItemClicked += (menu, sub) => OnTopNavMenuItemClicked(menu, sub);
             _shell.LogoutClicked   += (s, e)      => BtnLogout_Click(s, e);
 
             // ════════════════════════════════════════════════════════════
-            //  BODY — sidebar (Left) + content (Fill)
+            //  BODY — content panel fills all remaining space
+            //  (Sidebar buttons removed; report selection is handled
+            //   exclusively by the Tab Bar card inside pnlContent)
             // ════════════════════════════════════════════════════════════
-            var pnlBody = new Panel { Dock = DockStyle.Fill, BackColor = Palette.BgPage, Padding = new Padding(16, 12, 16, 16) };
-
-            // ── SIDEBAR ────────────────────────────────────────────────
-            var pnlSidebar = new Panel
+            var pnlBody = new Panel
             {
-                Dock      = DockStyle.Left,
-                Width     = 230,
-                BackColor = Palette.SidebarBg,
-                Padding   = new Padding(0, 12, 0, 12)
+                Dock      = DockStyle.Fill,
+                BackColor = Palette.BgPage,
+                Padding   = new Padding(16, 12, 16, 16)
             };
-
-            var lblSection = new Label
-            {
-                Text      = "REPORTS",
-                Font      = new Font("Segoe UI", 9f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(130, 155, 185),
-                BackColor = Color.Transparent,
-                Dock      = DockStyle.Top,
-                Height    = 36,
-                TextAlign = ContentAlignment.MiddleLeft,
-                Padding   = new Padding(20, 0, 0, 0)
-            };
-
-            Button MakeSidebarBtn(string icon, string label)
-            {
-                var b = new Button
-                {
-                    Text      = $"  {icon}  {label}",
-                    Font      = new Font("Segoe UI", 11f),
-                    ForeColor = Palette.SidebarText,
-                    BackColor = Color.Transparent,
-                    FlatStyle = FlatStyle.Flat,
-                    Dock      = DockStyle.Top,
-                    Height    = 54,
-                    TextAlign = ContentAlignment.MiddleLeft,
-                    Cursor    = Cursors.Hand,
-                    Padding   = new Padding(8, 0, 0, 0)
-                };
-                b.FlatAppearance.BorderSize         = 0;
-                b.FlatAppearance.MouseOverBackColor = Palette.SidebarHover;
-                b.FlatAppearance.MouseDownBackColor = Color.FromArgb(Palette.Primary.R, Palette.Primary.G, Palette.Primary.B, 200);
-                return b;
-            }
-
-            btnFinance      = MakeSidebarBtn("\U0001F4B0", "Finance Overview");
-            btnAfterService = MakeSidebarBtn("\U0001F527", "After-Service");
-            btnLogistics    = MakeSidebarBtn("\U0001F69A", "Logistics");
-            btnProcurement  = MakeSidebarBtn("\U0001F4E6", "Procurement");
-            btnInventory    = MakeSidebarBtn("\U0001F5C4", "Inventory Status");
-            btnSales        = MakeSidebarBtn("\U0001F4CA", "Sales Performance");
-
-            var divider = new Panel { Dock = DockStyle.Top, Height = 1, BackColor = Color.FromArgb(40, 65, 100) };
-
-            var pnlSidebarFill = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            pnlSidebar.Controls.Add(pnlSidebarFill);
-            pnlSidebar.Controls.Add(btnFinance);
-            pnlSidebar.Controls.Add(btnAfterService);
-            pnlSidebar.Controls.Add(btnLogistics);
-            pnlSidebar.Controls.Add(btnProcurement);
-            pnlSidebar.Controls.Add(btnInventory);
-            pnlSidebar.Controls.Add(btnSales);
-            pnlSidebar.Controls.Add(divider);
-            pnlSidebar.Controls.Add(lblSection);
 
             // ── CONTENT PANEL ──────────────────────────────────────────────
             pnlContent = new Panel
             {
                 Dock      = DockStyle.Fill,
                 BackColor = Palette.BgPage,
-                Padding   = new Padding(16, 0, 0, 0)
+                Padding   = new Padding(0)
             };
 
             pnlBody.Controls.Add(pnlContent);
-            pnlBody.Controls.Add(pnlSidebar);
 
             pnlMain.Controls.Add(pnlBody);
             pnlMain.Controls.Add(_shell);
