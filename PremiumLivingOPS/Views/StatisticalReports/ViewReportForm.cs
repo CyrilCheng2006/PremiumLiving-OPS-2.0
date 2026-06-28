@@ -19,7 +19,10 @@ namespace PremiumLivingOPS.Views.StatisticalReports
     ///
     /// Changes (2026-06-29):
     ///   - Filter Bar height ×1.1  → 220 px
-    ///   - DateTimePicker width ×0.7  (percent 32 → 22 each)
+    ///   - DateTimePicker width: Percent 20% each (was 22%)
+    ///   - "to" label: Absolute 44px (was 36px); checkbox col removed entirely
+    ///   - CheckBox removed from BuildDateRangeRow — Apply button controls filter
+    ///   - Both dtpFrom and dtpTo always enabled (no checkbox gating)
     ///   - Chart + Table merged into single toggle button (btnToggleView)
     ///   - Toggle + Export buttons right-aligned in button row
     ///   - KPI bar removed entirely
@@ -246,15 +249,29 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
         // ────────────────────────────────────────────────────────────────
         //  BuildDateRangeRow
-        //  DateTimePicker width: ×0.7 of previous 32% → 22% each
-        //  Freed space redistributed to extra cols / spacer.
+        //  No checkbox — Apply button controls filtering.
+        //  Layout (left → right):
+        //    col 0: "Date Range" label   Absolute 88px  (left anchor)
+        //    col 1: dtpFrom              Percent  20%
+        //    col 2: "to" label           Absolute 44px
+        //    col 3: dtpTo                Percent  20%
+        //    col 4…: extra cols          Percent  36% each
         // ────────────────────────────────────────────────────────────────
         private static Panel BuildDateRangeRow(
-            CheckBox chkEnable,
             DateTimePicker dtpFrom,
             DateTimePicker dtpTo,
             params (string caption, Control ctrl)[] extraCols)
         {
+            var lblTitle = new Label
+            {
+                Text      = "Date Range",
+                Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(98, 112, 135),
+                BackColor = Color.Transparent,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Dock      = DockStyle.Fill
+            };
+
             var lblTo = new Label
             {
                 Text      = "to",
@@ -266,7 +283,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             };
 
             int extraCount = extraCols == null ? 0 : extraCols.Length;
-            int totalCols  = 4 + extraCount;
+            int totalCols  = 4 + extraCount;  // title | dtpFrom | "to" | dtpTo | extras…
 
             var tbl = new TableLayoutPanel
             {
@@ -279,26 +296,25 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             };
             tbl.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
-            // Checkbox: fixed 34px
-            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 34f));
-            // From DTP: 22% (was 32%, ×0.7)
-            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 22f));
-            // "to" label: fixed 36px
-            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 36f));
-            // To DTP: 22% (was 32%, ×0.7)
-            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 22f));
-            // Extra cols share remaining percent
+            // col 0: "Date Range" label — fixed width so it doesn't eat into DTP space
+            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 106f));
+            // col 1: From DTP — 20%
+            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20f));
+            // col 2: "to" label — wider fixed so text is never clipped
+            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 44f));
+            // col 3: To DTP — 20%
+            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20f));
+            // extra cols share remaining percent
             for (int i = 0; i < extraCount; i++)
                 tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 36f));
 
-            chkEnable.Dock = DockStyle.Fill;
-            dtpFrom.Dock   = DockStyle.Fill;
-            dtpTo.Dock     = DockStyle.Fill;
+            dtpFrom.Dock = DockStyle.Fill;
+            dtpTo.Dock   = DockStyle.Fill;
 
-            tbl.Controls.Add(chkEnable, 0, 0);
-            tbl.Controls.Add(dtpFrom,   1, 0);
-            tbl.Controls.Add(lblTo,     2, 0);
-            tbl.Controls.Add(dtpTo,     3, 0);
+            tbl.Controls.Add(lblTitle, 0, 0);
+            tbl.Controls.Add(dtpFrom,  1, 0);
+            tbl.Controls.Add(lblTo,    2, 0);
+            tbl.Controls.Add(dtpTo,    3, 0);
 
             if (extraCols != null)
             {
@@ -442,17 +458,13 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         {
             var dtpFrom       = MakeDatePicker(DateTime.Today.AddMonths(-3));
             var dtpTo         = MakeDatePicker(DateTime.Today);
-            var chkDate       = new CheckBox { Text = "Date Range", Font = new Font("Segoe UI", 11f), ForeColor = Color.FromArgb(98, 112, 135), BackColor = Color.Transparent, AutoSize = false, Dock = DockStyle.Fill };
             var btnApply      = MakePrimaryBtn("Apply");
             var btnReset      = MakeOutlineBtn("Reset");
             var btnToggleView = MakeToggleViewBtn(_salesChart);
             var btnExport     = MakeExportBtn();
 
-            dtpFrom.Enabled = false;
-            chkDate.CheckedChanged += (s, e) => dtpFrom.Enabled = chkDate.Checked;
-
             SetFilterBar("Filter: Sales Performance",
-                BuildDateRangeRow(chkDate, dtpFrom, dtpTo),
+                BuildDateRangeRow(dtpFrom, dtpTo),
                 BuildButtonsRow(btnApply, btnReset, btnToggleView, btnExport));
 
             var dgv = MakeGrid();
@@ -473,7 +485,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
             Panel chartMain = null, chartTop = null;
 
-            Action<DateTime?, DateTime?> load = (from, to) =>
+            Action<DateTime, DateTime> load = (from, to) =>
             {
                 var vm = _ctrl.GetSalesReportVM(from, to);
                 ApplyShell(vm, "Sales Performance");
@@ -499,11 +511,11 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 UpdateToggleBtn(btnToggleView, _salesChart);
             };
 
-            btnApply.Click      += (s, e) => load(chkDate.Checked ? (DateTime?)dtpFrom.Value : null, dtpTo.Value);
-            btnReset.Click      += (s, e) => { chkDate.Checked = false; dtpFrom.Value = DateTime.Today.AddMonths(-3); dtpTo.Value = DateTime.Today; load(null, null); };
+            btnApply.Click      += (s, e) => load(dtpFrom.Value, dtpTo.Value);
+            btnReset.Click      += (s, e) => { dtpFrom.Value = DateTime.Today.AddMonths(-3); dtpTo.Value = DateTime.Today; load(dtpFrom.Value, dtpTo.Value); };
             btnToggleView.Click += (s, e) => { _salesChart = !_salesChart; UpdateToggleBtn(btnToggleView, _salesChart); ToggleChartTable(_salesChart, dgv, chartMain, dgvTop, chartTop); };
             btnExport.Click     += (s, e) => CsvExporter.Export(dgv, "SalesPerformance");
-            load(null, null);
+            load(dtpFrom.Value, dtpTo.Value);
 
             AddGridCard(DockStyle.Bottom, 292, "TOP PRODUCTS BY REVENUE", dgvTop, chartTop, _salesChart, true);
             AddGridCard(DockStyle.Fill,     0, "ORDERS",                  dgv,  chartMain, _salesChart, false);
@@ -777,17 +789,13 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         {
             var dtpFrom       = MakeDatePicker(DateTime.Today.AddMonths(-3));
             var dtpTo         = MakeDatePicker(DateTime.Today);
-            var chkDate       = new CheckBox { Text = "Date Range", Font = new Font("Segoe UI", 11f), ForeColor = Color.FromArgb(98, 112, 135), BackColor = Color.Transparent, AutoSize = false, Dock = DockStyle.Fill };
             var btnApply      = MakePrimaryBtn("Apply");
             var btnReset      = MakeOutlineBtn("Reset");
             var btnToggleView = MakeToggleViewBtn(_financeChart);
             var btnExport     = MakeExportBtn();
 
-            dtpFrom.Enabled = false;
-            chkDate.CheckedChanged += (s, e) => dtpFrom.Enabled = chkDate.Checked;
-
             SetFilterBar("Filter: Finance Overview",
-                BuildDateRangeRow(chkDate, dtpFrom, dtpTo),
+                BuildDateRangeRow(dtpFrom, dtpTo),
                 BuildButtonsRow(btnApply, btnReset, btnToggleView, btnExport));
 
             var dgv = MakeGrid();
@@ -801,7 +809,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
             Panel chartAmounts = null, chartBreakdown = null;
 
-            Action<DateTime?, DateTime?> load = (from, to) =>
+            Action<DateTime, DateTime> load = (from, to) =>
             {
                 var vm = _ctrl.GetFinanceReportVM(from, to);
                 ApplyShell(vm, "Finance Overview");
@@ -831,11 +839,11 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 UpdateToggleBtn(btnToggleView, _financeChart);
             };
 
-            btnApply.Click      += (s, e) => load(chkDate.Checked ? (DateTime?)dtpFrom.Value : null, dtpTo.Value);
-            btnReset.Click      += (s, e) => { chkDate.Checked = false; dtpFrom.Value = DateTime.Today.AddMonths(-3); dtpTo.Value = DateTime.Today; load(null, null); };
+            btnApply.Click      += (s, e) => load(dtpFrom.Value, dtpTo.Value);
+            btnReset.Click      += (s, e) => { dtpFrom.Value = DateTime.Today.AddMonths(-3); dtpTo.Value = DateTime.Today; load(dtpFrom.Value, dtpTo.Value); };
             btnToggleView.Click += (s, e) => { _financeChart = !_financeChart; UpdateToggleBtn(btnToggleView, _financeChart); ToggleChartTable(_financeChart, dgv, chartAmounts, null, chartBreakdown); };
             btnExport.Click     += (s, e) => CsvExporter.Export(dgv, "FinanceOverview");
-            load(null, null);
+            load(dtpFrom.Value, dtpTo.Value);
 
             AddGridCard(DockStyle.Fill, 0, "TRANSACTIONS", dgv, chartAmounts, _financeChart, true);
         }
