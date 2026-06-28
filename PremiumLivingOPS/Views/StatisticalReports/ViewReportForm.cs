@@ -19,8 +19,9 @@ namespace PremiumLivingOPS.Views.StatisticalReports
     ///
     /// Changes (2026-06-29):
     ///   - Filter Bar height ×1.1  → 220 px
-    ///   - DateTimePicker width: Percent 20% each (was 22%)
-    ///   - "to" label: Absolute 44px (was 36px); checkbox col removed entirely
+    ///   - DateTimePicker width: Percent 18% each (was 20%)
+    ///   - "to" label: Absolute 50px (was 44px)
+    ///   - "Date Range" label col: Absolute 100px (was 106px)
     ///   - CheckBox removed from BuildDateRangeRow — Apply button controls filter
     ///   - Both dtpFrom and dtpTo always enabled (no checkbox gating)
     ///   - Chart + Table merged into single toggle button (btnToggleView)
@@ -251,10 +252,10 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         //  BuildDateRangeRow
         //  No checkbox — Apply button controls filtering.
         //  Layout (left → right):
-        //    col 0: "Date Range" label   Absolute 88px  (left anchor)
-        //    col 1: dtpFrom              Percent  20%
-        //    col 2: "to" label           Absolute 44px
-        //    col 3: dtpTo                Percent  20%
+        //    col 0: "Date Range" label   Absolute 100px  (left anchor)
+        //    col 1: dtpFrom              Percent  18%
+        //    col 2: "to" label           Absolute 50px
+        //    col 3: dtpTo                Percent  18%
         //    col 4…: extra cols          Percent  36% each
         // ────────────────────────────────────────────────────────────────
         private static Panel BuildDateRangeRow(
@@ -296,14 +297,14 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             };
             tbl.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
-            // col 0: "Date Range" label — fixed width so it doesn't eat into DTP space
-            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 106f));
-            // col 1: From DTP — 20%
-            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20f));
-            // col 2: "to" label — wider fixed so text is never clipped
-            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 44f));
-            // col 3: To DTP — 20%
-            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20f));
+            // col 0: "Date Range" label — 100px fixed
+            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100f));
+            // col 1: From DTP — 18%
+            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 18f));
+            // col 2: "to" label — 50px fixed
+            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 50f));
+            // col 3: To DTP — 18%
+            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 18f));
             // extra cols share remaining percent
             for (int i = 0; i < extraCount; i++)
                 tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 36f));
