@@ -57,6 +57,8 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             _shell.LogoutClicked   += btnLogout_Click;
 
             // ── Tab bar outer (DockStyle.Top, 69 px) ────────────────────────
+            // Baseline: HandlingGoodsReceivedForm pnlTabOuter
+            //   Height=69, Padding=(20,4,20,0)
             Button MakeTabBtn(string text, int idx)
             {
                 var b = new Button
@@ -113,15 +115,14 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 Dock      = DockStyle.Top,
                 Height    = 69,
                 BackColor = Palette.BgPage,
-                Padding   = new Padding(20, 4, 20, 0)
+                Padding   = new Padding(20, 4, 20, 0)   // ← HGR baseline exact
             };
             pnlTabOuter.Paint += PaintTabUnderline;
             pnlTabOuter.Controls.Add(pnlTabCard);
 
-            // ── KPI bar outer (DockStyle.Top, 96 px) ─────────────────────────
-            // Baseline: ViewProductForm actionOuter — outerHeight=96, outerPadding=(20,12,20,0)
-            // pnlKpi fills the left portion; right side reserved for action buttons in VP
-            // but in VRF the whole inner is the KPI pill area.
+            // ── KPI bar outer (DockStyle.Top, 90 px) ─────────────────────────
+            // Baseline: HandlingGoodsReceivedForm pnlKpiOuter
+            //   Height=90, Padding=(20,8,20,8)
             pnlKpi = new Panel
             {
                 Dock      = DockStyle.Fill,
@@ -135,22 +136,21 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             pnlKpiOuter = new Panel
             {
                 Dock      = DockStyle.Top,
-                Height    = 96,
+                Height    = 90,                          // ← HGR baseline (was 96)
                 BackColor = Palette.BgPage,
-                Padding   = new Padding(20, 12, 20, 0)  // mirrors ViewProductForm actionOuter
+                Padding   = new Padding(20, 8, 20, 8)   // ← HGR baseline (was (20,12,20,0))
             };
             pnlKpiOuter.Controls.Add(pnlKpiInner);
 
-            // ── Filter bar outer (DockStyle.Top, 260 px) ─────────────────────
-            // Baseline: ViewProductForm searchOuter — outerHeight=260, outerPadding=(20,12,20,0)
-            // Inner card built dynamically per-report via SetFilterBar();
-            // the outer is a plain grey wrapper with the same dimensions.
+            // ── Filter bar outer (DockStyle.Top, 300 px) ─────────────────────
+            // Baseline: HandlingGoodsReceivedForm pnlSearchOuter
+            //   Height=300, Padding=(20,14,20,8)
             pnlFilterOuter = new Panel
             {
                 Dock      = DockStyle.Top,
-                Height    = 260,
+                Height    = 300,                         // ← HGR baseline (was 260)
                 BackColor = Palette.BgPage,
-                Padding   = new Padding(20, 12, 20, 0)  // mirrors ViewProductForm searchOuter
+                Padding   = new Padding(20, 14, 20, 8)  // ← HGR baseline (was (20,12,20,0))
             };
             // Content is populated dynamically by each Render*() method via SetFilterBar()
 
