@@ -383,11 +383,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         //  Layout helpers
         // ────────────────────────────────────────────────────────────────────
 
-        /// <summary>
-        /// Single-grid layout:
-        ///   [KPI pills bar  — top, 90px]
-        ///   [Grid card      — fill]
-        /// </summary>
         private void BuildSingleGridLayout(
             string title,
             (string label, string value, Color fg, Color bg)[] pills,
@@ -430,12 +425,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             pnlContent.Controls.Add(root);
         }
 
-        /// <summary>
-        /// Two-grid layout (Sales + After-Service):
-        ///   [KPI pills bar      — top, 90px]
-        ///   [Primary grid card  — 60% fill]
-        ///   [Secondary grid card— 40% fill]
-        /// </summary>
         private void BuildTwoGridLayout(
             string title,
             (string label, string value, Color fg, Color bg)[] pills,
@@ -485,7 +474,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
             var lbl = new Label
             {
-                Text = string.IsNullOrEmpty(mainTitle) ? subTitle : $"{mainTitle}  ›  {subTitle}",
+                Text = string.IsNullOrEmpty(mainTitle) ? subTitle : $"{mainTitle}  \u203a  {subTitle}",
                 Dock = DockStyle.Fill,
                 Font = new Font("Segoe UI", 11f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(15, 31, 53),
@@ -629,6 +618,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         //  AppShell event handlers  (subscribed ONCE in Designer.cs — RULE 4)
         // ────────────────────────────────────────────────────────────────────
         private void OnTopNavMenuItemClicked(string menu, string sub)
-            => NavigationHelper.NavigateTo(this, menu, sub);
+            => FormNavigator.NavigateTo(this, menu, sub);
     }
 }
