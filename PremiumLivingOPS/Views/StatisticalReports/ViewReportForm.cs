@@ -186,6 +186,8 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             chartMain.Visible = chartTop.Visible = _salesChart;
             dgv.Visible = !_salesChart;
 
+            // FIX: declare dgvTop BEFORE the lambdas that capture it
+            var dgvTop = MakeGrid();
             btnChart.Click  += (s, e) => { _salesChart = true;  FlipToggle(btnChart, btnTable, true);  ToggleChartTable(_salesChart, dgv, chartMain, dgvTop, chartTop); };
             btnTable.Click  += (s, e) => { _salesChart = false; FlipToggle(btnChart, btnTable, false); ToggleChartTable(_salesChart, dgv, chartMain, dgvTop, chartTop); };
             btnApply.Click  += (s, e) => MessageBox.Show("Filters applied.");
@@ -198,7 +200,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 dgv,
                 chartMain);
 
-            var dgvTop = MakeGrid();
             dgvTop.Columns.Add("Cust",  "Customer");
             dgvTop.Columns.Add("Spend", "Total Spend");
             dgvTop.Rows.Add("Lee",  "15,600");
@@ -283,8 +284,8 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             chartStock.Visible = chartCategory.Visible = _inventoryChart;
             dgv.Visible = !_inventoryChart;
 
-            btnChart.Click  += (s, e) => { _inventoryChart = true;  FlipToggle(btnChart, btnTable, true);  ToggleChartTable(_inventoryChart, dgv, chartStock, null, chartCategory); };
-            btnTable.Click  += (s, e) => { _inventoryChart = false; FlipToggle(btnChart, btnTable, false); ToggleChartTable(_inventoryChart, dgv, chartStock, null, chartCategory); };
+            btnChart.Click  += (s, e) => { _inventoryChart = true;  FlipToggle(btnChart, btnTable, true);  ToggleChartTable(_inventoryChart, dgv, chartStock, (DataGridView)null, chartCategory); };
+            btnTable.Click  += (s, e) => { _inventoryChart = false; FlipToggle(btnChart, btnTable, false); ToggleChartTable(_inventoryChart, dgv, chartStock, (DataGridView)null, chartCategory); };
             btnApply.Click  += (s, e) => MessageBox.Show("Filters applied.");
             btnReset.Click  += (s, e) => { cboCat.SelectedIndex = 0; chkReorder.Checked = false; };
             btnExport.Click += (s, e) => ExportGridCsv(dgv, "inventory_report.csv");
@@ -353,12 +354,13 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 });
 
             var chartSupplier = CreateBarChartPanel("Top Suppliers by Value", new[] { 92500f, 81200f, 69800f, 61100f }, new[] { "Ikea", "Philips", "Muji", "Sony" }, Color.FromArgb(47,111,237));
-            var chartStatus   = CreateBarChartPanel("PO Status Breakdown", new[] { sent, partial, received }, new[] { "Sent", "Partial", "Received" }, Color.FromArgb(16,185,129));
+            // FIX: explicit float cast for int variables
+            var chartStatus   = CreateBarChartPanel("PO Status Breakdown", new[] { (float)sent, (float)partial, (float)received }, new[] { "Sent", "Partial", "Received" }, Color.FromArgb(16,185,129));
             chartSupplier.Visible = chartStatus.Visible = _procurementChart;
             dgv.Visible = !_procurementChart;
 
-            btnChart.Click  += (s, e) => { _procurementChart = true;  FlipToggle(btnChart, btnTable, true);  ToggleChartTable(_procurementChart, dgv, chartSupplier, null, chartStatus); };
-            btnTable.Click  += (s, e) => { _procurementChart = false; FlipToggle(btnChart, btnTable, false); ToggleChartTable(_procurementChart, dgv, chartSupplier, null, chartStatus); };
+            btnChart.Click  += (s, e) => { _procurementChart = true;  FlipToggle(btnChart, btnTable, true);  ToggleChartTable(_procurementChart, dgv, chartSupplier, (DataGridView)null, chartStatus); };
+            btnTable.Click  += (s, e) => { _procurementChart = false; FlipToggle(btnChart, btnTable, false); ToggleChartTable(_procurementChart, dgv, chartSupplier, (DataGridView)null, chartStatus); };
             btnApply.Click  += (s, e) => MessageBox.Show("Filters applied.");
             btnReset.Click  += (s, e) => cboStatus.SelectedIndex = 0;
             btnExport.Click += (s, e) => ExportGridCsv(dgv, "procurement_report.csv");
@@ -421,12 +423,13 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                         if ((r.Cells[3].Value?.ToString() ?? "") == filter) { r.Selected = true; dgv.FirstDisplayedScrollingRowIndex = r.Index; break; }
                 });
 
-            var chartStatus = CreateBarChartPanel("Delivery Status", new[] { processing, transit, delivered }, new[] { "Processing", "Transit", "Delivered" }, Color.FromArgb(47,111,237));
+            // FIX: explicit float cast for int variables
+            var chartStatus = CreateBarChartPanel("Delivery Status", new[] { (float)processing, (float)transit, (float)delivered }, new[] { "Processing", "Transit", "Delivered" }, Color.FromArgb(47,111,237));
             chartStatus.Visible = _logisticsChart;
             dgv.Visible = !_logisticsChart;
 
-            btnChart.Click  += (s, e) => { _logisticsChart = true;  FlipToggle(btnChart, btnTable, true);  ToggleChartTable(_logisticsChart, dgv, chartStatus, null, null); };
-            btnTable.Click  += (s, e) => { _logisticsChart = false; FlipToggle(btnChart, btnTable, false); ToggleChartTable(_logisticsChart, dgv, chartStatus, null, null); };
+            btnChart.Click  += (s, e) => { _logisticsChart = true;  FlipToggle(btnChart, btnTable, true);  ToggleChartTable(_logisticsChart, dgv, chartStatus, (DataGridView)null, null); };
+            btnTable.Click  += (s, e) => { _logisticsChart = false; FlipToggle(btnChart, btnTable, false); ToggleChartTable(_logisticsChart, dgv, chartStatus, (DataGridView)null, null); };
             btnApply.Click  += (s, e) => MessageBox.Show("Filters applied.");
             btnReset.Click  += (s, e) => cboStatus.SelectedIndex = 0;
             btnExport.Click += (s, e) => ExportGridCsv(dgv, "logistics_report.csv");
@@ -505,8 +508,9 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                         if ((r.Cells[3].Value?.ToString() ?? "") == status) { r.Selected = true; grid.FirstDisplayedScrollingRowIndex = r.Index; break; }
                 });
 
-            var chartCmp = CreateBarChartPanel("Complaint Status", new[] { cmpPending, cmpEsc, Math.Max(0, vm.Complaints.Count - cmpPending - cmpEsc) }, new[] { "Pending", "Escalated", "Completed" }, Color.FromArgb(47,111,237));
-            var chartRtn = CreateBarChartPanel("Return Request Status", new[] { rtnApproved, rtnRejected, Math.Max(0, vm.ReturnRequests.Count - rtnApproved - rtnRejected) }, new[] { "Approved", "Rejected", "Pending" }, Color.FromArgb(16,185,129));
+            // FIX: explicit float cast for int variables
+            var chartCmp = CreateBarChartPanel("Complaint Status", new[] { (float)cmpPending, (float)cmpEsc, (float)Math.Max(0, vm.Complaints.Count - cmpPending - cmpEsc) }, new[] { "Pending", "Escalated", "Completed" }, Color.FromArgb(47,111,237));
+            var chartRtn = CreateBarChartPanel("Return Request Status", new[] { (float)rtnApproved, (float)rtnRejected, (float)Math.Max(0, vm.ReturnRequests.Count - rtnApproved - rtnRejected) }, new[] { "Approved", "Rejected", "Pending" }, Color.FromArgb(16,185,129));
             chartCmp.Visible = chartRtn.Visible = _afterServiceChart;
             dgvCmp.Visible = dgvRtn.Visible = !_afterServiceChart;
 
@@ -583,8 +587,8 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             chartAmounts.Visible = chartBreakdown.Visible = _financeChart;
             dgv.Visible = !_financeChart;
 
-            btnChart.Click  += (s, e) => { _financeChart = true;  FlipToggle(btnChart, btnTable, true);  ToggleChartTable(_financeChart, dgv, chartAmounts, null, chartBreakdown); };
-            btnTable.Click  += (s, e) => { _financeChart = false; FlipToggle(btnChart, btnTable, false); ToggleChartTable(_financeChart, dgv, chartAmounts, null, chartBreakdown); };
+            btnChart.Click  += (s, e) => { _financeChart = true;  FlipToggle(btnChart, btnTable, true);  ToggleChartTable(_financeChart, dgv, chartAmounts, (DataGridView)null, chartBreakdown); };
+            btnTable.Click  += (s, e) => { _financeChart = false; FlipToggle(btnChart, btnTable, false); ToggleChartTable(_financeChart, dgv, chartAmounts, (DataGridView)null, chartBreakdown); };
             btnApply.Click  += (s, e) => MessageBox.Show("Filters applied.");
             btnReset.Click  += (s, e) => { dtpFrom.Value = DateTime.Today.AddMonths(-3); dtpTo.Value = DateTime.Today; };
             btnExport.Click += (s, e) => ExportGridCsv(dgv, "finance_report.csv");
