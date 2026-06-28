@@ -70,10 +70,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
         private void ViewReportForm_Load(object sender, EventArgs e)
         {
-            // ── UserBar initialisation (identical pattern to ViewOrderForm) ──
-            // Load a minimal Sales VM purely to populate UserBar on first paint.
-            // NOTE: MenuItemClicked / LogoutClicked are wired in Designer.cs (RULE 4).
-            //       Do NOT subscribe here to avoid duplicate firing.
             var initVm = _ctrl.GetSalesReportVM();
             _shell.SetUser(initVm.UserBar.DisplayName, initVm.UserBar.Department);
             _shell.SetVisibleMenus(initVm.AllowedMenus);
@@ -278,19 +274,18 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 e.FormattingApplied = true;
             };
 
-            Panel chartStock = null;
+            Panel chartStock    = null;
             Panel chartCategory = null;
 
-            // ── KPI pill click handlers: drive cboCat + chkReorder ────────
-            Action<string> onPillClick = null;
-
-            Action load = () =>
+            // ── FIX CS0165: onPillClick declared INSIDE load, no forward reference ──
+            Action load = null;
+            load = () =>
             {
                 var vm = _ctrl.GetInventoryReportVM(cboCat.SelectedItem?.ToString(), chkReorder.Checked);
                 ApplyShell(vm, "Statistical Reports  \u203a  View Report");
                 var k = vm.InventoryKpi;
 
-                onPillClick = filterKey =>
+                Action<string> onPillClick = filterKey =>
                 {
                     if (filterKey == "BelowReorder")
                     {
@@ -387,7 +382,9 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             Panel chartSupplier = null;
             Panel chartStatus   = null;
 
-            Action load = () =>
+            // ── FIX CS0165: declare load = null first, assign lambda after ──
+            Action load = null;
+            load = () =>
             {
                 var vm = _ctrl.GetProcurementReportVM(cboStatus.SelectedItem?.ToString());
                 ApplyShell(vm, "Statistical Reports  \u203a  View Report");
@@ -498,7 +495,9 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
             Panel chartStatus = null;
 
-            Action load = () =>
+            // ── FIX CS0165: declare load = null first, assign lambda after ──
+            Action load = null;
+            load = () =>
             {
                 var vm = _ctrl.GetLogisticsReportVM(cboStatus.SelectedItem?.ToString());
                 ApplyShell(vm, "Statistical Reports  \u203a  View Report");
@@ -588,7 +587,9 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             Panel chartCmp = null;
             Panel chartRtn = null;
 
-            Action load = () =>
+            // ── FIX CS0165: declare load = null first, assign lambda after ──
+            Action load = null;
+            load = () =>
             {
                 var vm = _ctrl.GetAfterServiceReportVM(cboCmp.SelectedItem?.ToString(), cboRtn.SelectedItem?.ToString());
                 ApplyShell(vm, "Statistical Reports  \u203a  View Report");
@@ -596,7 +597,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
                 Action<string> onPillClick = filterKey =>
                 {
-                    // filterKey encodes "CMP:status" or "RTN:status"
                     if (filterKey != null && filterKey.StartsWith("CMP:"))
                     {
                         string status = filterKey.Substring(4);
@@ -834,13 +834,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
         // ════════════════════════════════════════════════════════════════
         //  KPI PILLS  — baseline: ViewOrderForm.RefreshKpi()
-        //
-        //  Changes vs old BuildKpiPills:
-        //  1. Added  Action<string> onPillClick  parameter
-        //  2. Pill Cursor = Hand when filterValue != null (was always Cursors.Default)
-        //  3. clickHandler wired to pill, tlp, AND every child Label
-        //     (identical to ViewOrderForm.RefreshKpi lines 87-91)
-        //  4. Pills with null filterValue keep Cursor.Default and no handler
         // ════════════════════════════════════════════════════════════════
 
         private static void BuildKpiPills(
@@ -874,7 +867,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                     BackColor = bg,
                     Size      = new Size(PillW, PillH),
                     Margin    = new Padding(0, 0, Gap, 0),
-                    Cursor    = isClickable ? Cursors.Hand : Cursors.Default   // ← FIX: Hand when clickable
+                    Cursor    = isClickable ? Cursors.Hand : Cursors.Default
                 };
                 pill.Paint += (s, e) =>
                 {
@@ -918,8 +911,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 tlp.Controls.Add(lblCount, 0, 0);
                 tlp.Controls.Add(lblLabel, 1, 0);
 
-                // ── Wire click handler to pill + tlp + child Labels ──────────
-                // Identical to ViewOrderForm.RefreshKpi() pattern
                 if (isClickable)
                 {
                     string localFilterValue = filterValue;
@@ -1193,15 +1184,9 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         }
 
         // ════════════════════════════════════════════════════════════════
-        //  APPSHELL HELPER  (pattern: ViewOrderForm.ApplyShell)
+        //  APPSHELL HELPER
         // ════════════════════════════════════════════════════════════════
 
-        /// <summary>
-        /// Called after every VM reload to keep UserBar in sync.
-        /// Mirrors the exact pattern used by ViewOrderForm, QuotationForm, etc.
-        /// NOTE: MenuItemClicked / LogoutClicked are wired ONCE in Designer.cs (RULE 4).
-        ///       This method must NEVER re-subscribe those events.
-        /// </summary>
         private void ApplyShell(ViewReportViewModel vm, string breadcrumb)
         {
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
@@ -1237,7 +1222,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         }
 
         // ════════════════════════════════════════════════════════════════
-        //  NAVIGATION & LOGOUT  (AppShell Rule 4 — required handlers)
+        //  NAVIGATION & LOGOUT  (AppShell Rule 4)
         // ════════════════════════════════════════════════════════════════
 
         private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
