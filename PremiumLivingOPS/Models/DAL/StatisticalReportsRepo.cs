@@ -162,7 +162,15 @@ namespace PremiumLivingOPS.Models.DAL
             }
         }
 
-        public List<InventoryStatusRowEntity> GetInventoryRows(string categoryFilter = null, bool belowReorderOnly = false)
+        /// <summary>
+        /// Returns inventory rows.
+        /// <paramref name="categoryFilter"/>: null/"All" = all; "Product" / "Raw Material" = filtered.
+        /// <paramref name="keyword"/>: searches ItemID and ItemName (case-insensitive LIKE).
+        /// </summary>
+        public List<InventoryStatusRowEntity> GetInventoryRows(
+            string categoryFilter  = null,
+            bool   belowReorderOnly = false,
+            string keyword          = null)
         {
             var list = new List<InventoryStatusRowEntity>();
             using (var conn = DatabaseHelper.GetConnection())
@@ -173,6 +181,9 @@ namespace PremiumLivingOPS.Models.DAL
                     extra += categoryFilter == "Product"
                         ? " AND p.ItemID IS NOT NULL"
                         : " AND rm.ItemID IS NOT NULL";
+                if (!string.IsNullOrWhiteSpace(keyword))
+                    extra += " AND (wi.ItemID LIKE @kw OR i.ItemName LIKE @kw)";
+
                 string sql =
                     $@"SELECT wi.WarehouseItemID, wi.ItemID, i.ItemName,
                               CASE WHEN p.ItemID  IS NOT NULL THEN 'Product'
@@ -190,20 +201,24 @@ namespace PremiumLivingOPS.Models.DAL
                        WHERE  1=1 {extra}
                        ORDER  BY wi.WarehouseItemQuantity ASC";
                 using (var cmd = new MySqlCommand(sql, conn))
-                using (var r   = cmd.ExecuteReader())
-                    while (r.Read())
-                        list.Add(new InventoryStatusRowEntity
-                        {
-                            WarehouseItemID   = r["WarehouseItemID"].ToString(),
-                            ItemID            = r["ItemID"].ToString(),
-                            ItemName          = r["ItemName"].ToString(),
-                            ItemCategory      = r["ItemCategory"].ToString(),
-                            MaterialType      = r["MaterialType"].ToString(),
-                            WarehouseID       = r["WarehouseID"].ToString(),
-                            WarehouseLocation = r["WarehouseLocation"].ToString(),
-                            CurrentStock      = Convert.ToInt32(r["CurrentStock"]),
-                            ReorderLevel      = Convert.ToInt32(r["ReorderLevel"])
-                        });
+                {
+                    if (!string.IsNullOrWhiteSpace(keyword))
+                        cmd.Parameters.AddWithValue("@kw", $"%{keyword.Trim()}%");
+                    using (var r = cmd.ExecuteReader())
+                        while (r.Read())
+                            list.Add(new InventoryStatusRowEntity
+                            {
+                                WarehouseItemID   = r["WarehouseItemID"].ToString(),
+                                ItemID            = r["ItemID"].ToString(),
+                                ItemName          = r["ItemName"].ToString(),
+                                ItemCategory      = r["ItemCategory"].ToString(),
+                                MaterialType      = r["MaterialType"].ToString(),
+                                WarehouseID       = r["WarehouseID"].ToString(),
+                                WarehouseLocation = r["WarehouseLocation"].ToString(),
+                                CurrentStock      = Convert.ToInt32(r["CurrentStock"]),
+                                ReorderLevel      = Convert.ToInt32(r["ReorderLevel"])
+                            });
+                }
             }
             return list;
         }
@@ -240,14 +255,25 @@ namespace PremiumLivingOPS.Models.DAL
             }
         }
 
-        public List<ProcurementRowEntity> GetProcurementRows(string statusFilter = null)
+        /// <summary>
+        /// Valid statusFilter values: null / "All" / "Sent" / "Partially Received" /
+        /// "Received" / "Completed" / "Cancelled"  (matches PurchaseOrder.PurchaseStatus ENUM).
+        /// </summary>
+        public List<ProcurementRowEntity> GetProcurementRows(
+            string   statusFilter = null,
+            DateTime? from        = null,
+            DateTime? to          = null)
         {
             var list = new List<ProcurementRowEntity>();
             using (var conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
-                string where = (!string.IsNullOrEmpty(statusFilter) && statusFilter != "All")
-                    ? " AND po.PurchaseStatus = @status" : "";
+                string where = "WHERE 1=1";
+                if (!string.IsNullOrEmpty(statusFilter) && statusFilter != "All")
+                    where += " AND po.PurchaseStatus = @status";
+                string dateExtra = BuildDateWhere("po.OrderDate", from, to, prefix: "AND");
+                where += dateExtra;
+
                 string sql =
                     $@"SELECT po.PurchaseID, s.SupplierName, po.PurchaseStatus,
                               po.OrderDate, po.POTotalAmount, po.RequestID,
@@ -257,12 +283,13 @@ namespace PremiumLivingOPS.Models.DAL
                                WHERE  pol.PurchaseID = po.PurchaseID) AS MaterialNames
                        FROM   PurchaseOrder po
                        JOIN   Supplier s ON po.SupplierID = s.SupplierID
-                       WHERE  1=1 {where}
+                       {where}
                        ORDER  BY po.OrderDate DESC";
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
                     if (!string.IsNullOrEmpty(statusFilter) && statusFilter != "All")
                         cmd.Parameters.AddWithValue("@status", statusFilter);
+                    AddDateParams(cmd, from, to);
                     using (var r = cmd.ExecuteReader())
                         while (r.Read())
                             list.Add(new ProcurementRowEntity
@@ -314,14 +341,25 @@ namespace PremiumLivingOPS.Models.DAL
             }
         }
 
-        public List<ShipmentRowEntity> GetLogisticsRows(string statusFilter = null)
+        /// <summary>
+        /// Valid statusFilter values: null / "All" / "Pending" / "In Transit" / "Completed"
+        /// (matches Shipment.ShipmentStatus ENUM).
+        /// </summary>
+        public List<ShipmentRowEntity> GetLogisticsRows(
+            string   statusFilter = null,
+            DateTime? from        = null,
+            DateTime? to          = null)
         {
             var list = new List<ShipmentRowEntity>();
             using (var conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
-                string where = (!string.IsNullOrEmpty(statusFilter) && statusFilter != "All")
-                    ? " AND sh.ShipmentStatus = @status" : "";
+                string where = "WHERE 1=1";
+                if (!string.IsNullOrEmpty(statusFilter) && statusFilter != "All")
+                    where += " AND sh.ShipmentStatus = @status";
+                string dateExtra = BuildDateWhere("sh.ShipDate", from, to, prefix: "AND");
+                where += dateExtra;
+
                 string sql =
                     $@"SELECT sh.ShipmentID, sh.OrderID, c.CustomerName,
                               sh.ShipmentStatus, sh.ShipmentType, sh.DeliveryMethod,
@@ -334,26 +372,27 @@ namespace PremiumLivingOPS.Models.DAL
                        FROM   Shipment sh
                        JOIN   `Order`  o ON sh.OrderID = o.OrderID
                        JOIN   Customer c ON o.CustomerID = c.CustomerID
-                       WHERE  1=1 {where}
+                       {where}
                        ORDER  BY sh.ShipDate DESC";
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
                     if (!string.IsNullOrEmpty(statusFilter) && statusFilter != "All")
                         cmd.Parameters.AddWithValue("@status", statusFilter);
+                    AddDateParams(cmd, from, to);
                     using (var r = cmd.ExecuteReader())
                         while (r.Read())
                             list.Add(new ShipmentRowEntity
                             {
-                                ShipmentID     = r["ShipmentID"].ToString(),
-                                OrderID        = r["OrderID"].ToString(),
-                                CustomerName   = r["CustomerName"].ToString(),
-                                ShipmentStatus = r["ShipmentStatus"].ToString(),
-                                ShipmentType   = r["ShipmentType"].ToString(),
-                                DeliveryMethod = r["DeliveryMethod"].ToString(),
-                                ShipDate       = Convert.ToDateTime(r["ShipDate"]),
-                                TotalAmount    = Convert.ToDouble(r["TotalAmount"]),
-                                HasDeliveryNote= Convert.ToInt32(r["HasDN"]) > 0,
-                                HasReplySlip   = Convert.ToInt32(r["HasRS"]) > 0
+                                ShipmentID      = r["ShipmentID"].ToString(),
+                                OrderID         = r["OrderID"].ToString(),
+                                CustomerName    = r["CustomerName"].ToString(),
+                                ShipmentStatus  = r["ShipmentStatus"].ToString(),
+                                ShipmentType    = r["ShipmentType"].ToString(),
+                                DeliveryMethod  = r["DeliveryMethod"].ToString(),
+                                ShipDate        = Convert.ToDateTime(r["ShipDate"]),
+                                TotalAmount     = Convert.ToDouble(r["TotalAmount"]),
+                                HasDeliveryNote = Convert.ToInt32(r["HasDN"]) > 0,
+                                HasReplySlip    = Convert.ToInt32(r["HasRS"]) > 0
                             });
                 }
             }
@@ -390,14 +429,26 @@ namespace PremiumLivingOPS.Models.DAL
             }
         }
 
-        public List<ComplaintRowEntity> GetComplaintRows(string statusFilter = null)
+        /// <summary>
+        /// Valid complaintStatusFilter: null/"All"/"Pending"/"Processing"/"Escalated"/"Completed"
+        /// (matches Complaint.ComplaintStatus ENUM — no "Cancelled").
+        /// </summary>
+        public List<ComplaintRowEntity> GetComplaintRows(
+            string   statusFilter = null,
+            DateTime? from        = null,
+            DateTime? to          = null)
         {
             var list = new List<ComplaintRowEntity>();
             using (var conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
-                string where = (!string.IsNullOrEmpty(statusFilter) && statusFilter != "All")
-                    ? " AND cp.ComplaintStatus = @status" : "";
+                string where = "WHERE 1=1";
+                if (!string.IsNullOrEmpty(statusFilter) && statusFilter != "All")
+                    where += " AND cp.ComplaintStatus = @status";
+                // Complaint has no date column; filter by associated Order.IssuedTime if date range supplied
+                string dateExtra = BuildDateWhere("o.IssuedTime", from, to, prefix: "AND");
+                where += dateExtra;
+
                 string sql =
                     $@"SELECT cp.ComplaintID, cp.OrderID,
                               COALESCE(c.CustomerName,'—') AS CustomerName,
@@ -405,12 +456,13 @@ namespace PremiumLivingOPS.Models.DAL
                        FROM   Complaint cp
                        LEFT JOIN `Order`  o  ON cp.OrderID    = o.OrderID
                        LEFT JOIN Customer c  ON o.CustomerID  = c.CustomerID
-                       WHERE  1=1 {where}
+                       {where}
                        ORDER  BY cp.ComplaintID DESC";
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
                     if (!string.IsNullOrEmpty(statusFilter) && statusFilter != "All")
                         cmd.Parameters.AddWithValue("@status", statusFilter);
+                    AddDateParams(cmd, from, to);
                     using (var r = cmd.ExecuteReader())
                         while (r.Read())
                             list.Add(new ComplaintRowEntity
@@ -426,26 +478,38 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
-        public List<ReturnOrderRowEntity> GetReturnOrderRows(string statusFilter = null)
+        /// <summary>
+        /// Valid returnStatusFilter: null/"All"/"Pending"/"Processing"/"Completed"
+        /// (matches ReturnOrder.ReturnStatus ENUM).
+        /// </summary>
+        public List<ReturnOrderRowEntity> GetReturnOrderRows(
+            string   statusFilter = null,
+            DateTime? from        = null,
+            DateTime? to          = null)
         {
             var list = new List<ReturnOrderRowEntity>();
             using (var conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
-                string where = (!string.IsNullOrEmpty(statusFilter) && statusFilter != "All")
-                    ? " AND rt.ReturnStatus = @status" : "";
+                string where = "WHERE 1=1";
+                if (!string.IsNullOrEmpty(statusFilter) && statusFilter != "All")
+                    where += " AND rt.ReturnStatus = @status";
+                string dateExtra = BuildDateWhere("rt.ReturnDate", from, to, prefix: "AND");
+                where += dateExtra;
+
                 string sql =
                     $@"SELECT rt.ReturnID, rt.OrderID, c.CustomerName,
                               rt.Reason, rt.RefundAmount, rt.ReturnStatus, rt.ReturnDate
                        FROM   ReturnOrder rt
                        JOIN   `Order`   o  ON rt.OrderID   = o.OrderID
                        JOIN   Customer  c  ON o.CustomerID = c.CustomerID
-                       WHERE  1=1 {where}
+                       {where}
                        ORDER  BY rt.ReturnDate DESC";
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
                     if (!string.IsNullOrEmpty(statusFilter) && statusFilter != "All")
                         cmd.Parameters.AddWithValue("@status", statusFilter);
+                    AddDateParams(cmd, from, to);
                     using (var r = cmd.ExecuteReader())
                         while (r.Read())
                             list.Add(new ReturnOrderRowEntity
@@ -472,13 +536,20 @@ namespace PremiumLivingOPS.Models.DAL
             using (var conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
+                // AP Outstanding fix: correlated subquery scoped per PurchaseInvoice
                 const string sql =
                     @"SELECT
                         (SELECT COALESCE(SUM(t.Amount),0) FROM `Transaction` t WHERE t.InvoiceID IS NOT NULL AND t.ReturnID IS NULL)  AS SalesRevenue,
                         (SELECT COALESCE(SUM(t.Amount),0) FROM `Transaction` t WHERE t.PurInvoiceID IS NOT NULL)                      AS ProcSpend,
                         (SELECT COALESCE(SUM(t.Amount),0) FROM `Transaction` t WHERE t.ReturnID IS NOT NULL)                          AS Refunds,
                         (SELECT COALESCE(SUM(i.RemainingBalance),0) FROM Invoice i WHERE i.PaymentStatus = 'Partial')                  AS AROutstanding,
-                        (SELECT COALESCE(SUM(pi.TotalAmount),0) - COALESCE((SELECT SUM(t2.Amount) FROM `Transaction` t2 WHERE t2.PurInvoiceID IS NOT NULL),0)
+                        (SELECT COALESCE(SUM(
+                            pi.TotalAmount - COALESCE((
+                                SELECT SUM(t2.Amount)
+                                FROM `Transaction` t2
+                                WHERE t2.PurInvoiceID = pi.PurInvoiceID
+                            ),0)
+                        ),0)
                          FROM PurchaseInvoice pi WHERE pi.PaymentStatus = 'Partial')                                                   AS APOutstanding";
                 using (var cmd = new MySqlCommand(sql, conn))
                 using (var r   = cmd.ExecuteReader())
@@ -496,14 +567,36 @@ namespace PremiumLivingOPS.Models.DAL
             }
         }
 
-        public List<FinanceTransactionRowEntity> GetFinanceTransactionRows(DateTime? from, DateTime? to)
+        /// <summary>
+        /// Returns finance transaction rows filtered by date range and optionally by docType group.
+        /// <paramref name="docTypeFilter"/>: null/"All" = all;
+        ///   "Revenue"  = Sales Invoice transactions (InvoiceID IS NOT NULL, ReturnID IS NULL);
+        ///   "Expense"  = Purchase Invoice transactions (PurInvoiceID IS NOT NULL);
+        ///   "Refund"   = Return Refund transactions (ReturnID IS NOT NULL).
+        /// </summary>
+        public List<FinanceTransactionRowEntity> GetFinanceTransactionRows(
+            DateTime? from           = null,
+            DateTime? to             = null,
+            string    docTypeFilter  = null)
         {
             var list = new List<FinanceTransactionRowEntity>();
             using (var conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
                 string where = BuildDateWhere("t.TransactionDate", from, to, prefix: "WHERE");
-                string sql   =
+                if (string.IsNullOrEmpty(where)) where = "WHERE 1=1";
+
+                if (!string.IsNullOrEmpty(docTypeFilter) && docTypeFilter != "All")
+                {
+                    switch (docTypeFilter)
+                    {
+                        case "Revenue": where += " AND t.InvoiceID IS NOT NULL AND t.ReturnID IS NULL"; break;
+                        case "Expense": where += " AND t.PurInvoiceID IS NOT NULL"; break;
+                        case "Refund":  where += " AND t.ReturnID IS NOT NULL";    break;
+                    }
+                }
+
+                string sql =
                     $@"SELECT t.TransactionID, t.TransactionType, t.Amount, t.TransactionDate,
                               COALESCE(t.InvoiceID, t.PurInvoiceID, t.ReturnID, '—') AS LinkedDoc,
                               CASE
@@ -543,7 +636,7 @@ namespace PremiumLivingOPS.Models.DAL
             var parts = new List<string>();
             if (from.HasValue) parts.Add($"{col} >= @dateFrom");
             if (to.HasValue)   parts.Add($"{col} <= @dateTo");
-            return $"{prefix} {string.Join(" AND ", parts)}";
+            return $" {prefix} {string.Join(" AND ", parts)}";
         }
 
         private static void AddDateParams(MySqlCommand cmd, DateTime? from, DateTime? to)
