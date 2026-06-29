@@ -64,7 +64,24 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         {
             InitializeComponent();
             _tabButtons = new Button[] { btnTab0, btnTab1, btnTab2, btnTab3, btnTab4, btnTab5 };
-            this.Load += (s, e) => SwitchToReport(0);
+            this.Load += ViewReportForm_Load;
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  LOAD — wire AppShell (mirrors ViewOrderForm_Load pattern)
+        // ════════════════════════════════════════════════════════════════
+
+        private void ViewReportForm_Load(object sender, EventArgs e)
+        {
+            // Designer already subscribed MenuItemClicked / LogoutClicked;
+            // populate UserBar, visible menus and breadcrumb via first VM call.
+            var vm = _ctrl.GetSalesReportVM();
+
+            _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
+            _shell.SetVisibleMenus(vm.AllowedMenus);
+            _shell.SetBreadcrumb("Statistical Reports  \u203a  View Report");
+
+            SwitchToReport(0);
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -965,17 +982,16 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         }
 
         // ════════════════════════════════════════════════════════════════
-        //  NAVIGATION / LOGOUT
+        //  NAVIGATION / LOGOUT  — aligned with ViewOrderForm baseline
         // ════════════════════════════════════════════════════════════════
 
-        private void OnTopNavMenuItemClicked(object sender, string menuItem) { }
+        private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
+            => FormNavigator.NavigateTo(this, menuLabel, subItem);
 
         private void btnLogout_Click(object sender, EventArgs e)
         {
-            this.Hide();
-            // CS0234 fix: correct namespace is Views.Auth (not Views.Authentication)
-            var login = new PremiumLivingOPS.Views.Auth.LoginForm();
-            login.Show();
+            SessionManager.Clear();
+            Application.Restart();
         }
     }
 }
