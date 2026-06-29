@@ -260,9 +260,9 @@ namespace PremiumLivingOPS.Models.DAL
         /// "Received" / "Completed" / "Cancelled"  (matches PurchaseOrder.PurchaseStatus ENUM).
         /// </summary>
         public List<ProcurementRowEntity> GetProcurementRows(
-            string   statusFilter = null,
             DateTime? from        = null,
-            DateTime? to          = null)
+            DateTime? to          = null,
+            string   statusFilter = null)
         {
             var list = new List<ProcurementRowEntity>();
             using (var conn = DatabaseHelper.GetConnection())
@@ -277,10 +277,12 @@ namespace PremiumLivingOPS.Models.DAL
                 string sql =
                     $@"SELECT po.PurchaseID, s.SupplierName, po.PurchaseStatus,
                               po.OrderDate, po.POTotalAmount, po.RequestID,
-                              (SELECT GROUP_CONCAT(DISTINCT i.ItemName ORDER BY i.ItemName SEPARATOR ', ')
+                              (SELECT COUNT(*)
                                FROM   PurchaseOrderLine pol
-                               JOIN   Item i ON pol.RawMaterialItemID = i.ItemID
-                               WHERE  pol.PurchaseID = po.PurchaseID) AS MaterialNames
+                               WHERE  pol.PurchaseID = po.PurchaseID) AS ItemCount,
+                              (SELECT MAX(gr.ReceiptStatus)
+                               FROM   GoodsReceived gr
+                               WHERE  gr.PurchaseID = po.PurchaseID) AS ReceiptStatus
                        FROM   PurchaseOrder po
                        JOIN   Supplier s ON po.SupplierID = s.SupplierID
                        {where}
@@ -294,13 +296,14 @@ namespace PremiumLivingOPS.Models.DAL
                         while (r.Read())
                             list.Add(new ProcurementRowEntity
                             {
-                                PurchaseID     = r["PurchaseID"].ToString(),
-                                SupplierName   = r["SupplierName"].ToString(),
-                                PurchaseStatus = r["PurchaseStatus"].ToString(),
-                                OrderDate      = Convert.ToDateTime(r["OrderDate"]),
-                                POTotalAmount  = Convert.ToDouble(r["POTotalAmount"]),
-                                RequestID      = r["RequestID"].ToString(),
-                                MaterialNames  = r["MaterialNames"] == DBNull.Value ? "—" : r["MaterialNames"].ToString()
+                                PurchaseOrderID = r["PurchaseID"].ToString(),
+                                SupplierName    = r["SupplierName"].ToString(),
+                                PurchaseStatus  = r["PurchaseStatus"].ToString(),
+                                ReceiptStatus   = r["ReceiptStatus"] == DBNull.Value ? "—" : r["ReceiptStatus"].ToString(),
+                                OrderDate       = Convert.ToDateTime(r["OrderDate"]),
+                                TotalAmount     = Convert.ToDouble(r["POTotalAmount"]),
+                                ItemCount       = Convert.ToInt32(r["ItemCount"]),
+                                RequestID       = r["RequestID"] == DBNull.Value ? "—" : r["RequestID"].ToString()
                             });
                 }
             }
@@ -344,13 +347,14 @@ namespace PremiumLivingOPS.Models.DAL
         /// <summary>
         /// Valid statusFilter values: null / "All" / "Pending" / "In Transit" / "Completed"
         /// (matches Shipment.ShipmentStatus ENUM).
+        /// Returns LogisticsRowEntity — aligned to ViewReportForm / LogisticsRowEntity fields.
         /// </summary>
-        public List<ShipmentRowEntity> GetLogisticsRows(
-            string   statusFilter = null,
+        public List<LogisticsRowEntity> GetLogisticsRows(
             DateTime? from        = null,
-            DateTime? to          = null)
+            DateTime? to          = null,
+            string   statusFilter = null)
         {
-            var list = new List<ShipmentRowEntity>();
+            var list = new List<LogisticsRowEntity>();
             using (var conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
@@ -360,10 +364,12 @@ namespace PremiumLivingOPS.Models.DAL
                 string dateExtra = BuildDateWhere("sh.ShipDate", from, to, prefix: "AND");
                 where += dateExtra;
 
+                // DriverName: Shipment may reference a Driver via DeliveryNote or directly.
+                // We attempt LEFT JOIN DeliveryNote → Driver; fall back to empty string if absent.
                 string sql =
                     $@"SELECT sh.ShipmentID, sh.OrderID, c.CustomerName,
-                              sh.ShipmentStatus, sh.ShipmentType, sh.DeliveryMethod,
-                              sh.ShipDate, sh.TotalAmount,
+                              sh.ShipmentStatus, sh.ShipDate,
+                              COALESCE(d.DriverName, '') AS DriverName,
                               (SELECT COUNT(1) FROM DeliveryNote dn WHERE dn.ShipmentID = sh.ShipmentID) AS HasDN,
                               (SELECT COUNT(1)
                                FROM DeliveryNote dn2
@@ -372,7 +378,11 @@ namespace PremiumLivingOPS.Models.DAL
                        FROM   Shipment sh
                        JOIN   `Order`  o ON sh.OrderID = o.OrderID
                        JOIN   Customer c ON o.CustomerID = c.CustomerID
+                       LEFT JOIN DeliveryNote dn3 ON dn3.ShipmentID = sh.ShipmentID
+                       LEFT JOIN Driver d ON d.DriverID = dn3.DriverID
                        {where}
+                       GROUP BY sh.ShipmentID, sh.OrderID, c.CustomerName,
+                                sh.ShipmentStatus, sh.ShipDate, d.DriverName
                        ORDER  BY sh.ShipDate DESC";
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
@@ -381,16 +391,14 @@ namespace PremiumLivingOPS.Models.DAL
                     AddDateParams(cmd, from, to);
                     using (var r = cmd.ExecuteReader())
                         while (r.Read())
-                            list.Add(new ShipmentRowEntity
+                            list.Add(new LogisticsRowEntity
                             {
-                                ShipmentID      = r["ShipmentID"].ToString(),
-                                OrderID         = r["OrderID"].ToString(),
+                                DeliveryOrderID = r["ShipmentID"].ToString(),
+                                SalesOrderID    = r["OrderID"].ToString(),
                                 CustomerName    = r["CustomerName"].ToString(),
-                                ShipmentStatus  = r["ShipmentStatus"].ToString(),
-                                ShipmentType    = r["ShipmentType"].ToString(),
-                                DeliveryMethod  = r["DeliveryMethod"].ToString(),
-                                ShipDate        = Convert.ToDateTime(r["ShipDate"]),
-                                TotalAmount     = Convert.ToDouble(r["TotalAmount"]),
+                                DeliveryStatus  = r["ShipmentStatus"].ToString(),
+                                DriverName      = r["DriverName"].ToString(),
+                                DeliveryDate    = Convert.ToDateTime(r["ShipDate"]),
                                 HasDeliveryNote = Convert.ToInt32(r["HasDN"]) > 0,
                                 HasReplySlip    = Convert.ToInt32(r["HasRS"]) > 0
                             });
@@ -430,13 +438,12 @@ namespace PremiumLivingOPS.Models.DAL
         }
 
         /// <summary>
-        /// Valid complaintStatusFilter: null/"All"/"Pending"/"Processing"/"Escalated"/"Completed"
-        /// (matches Complaint.ComplaintStatus ENUM — no "Cancelled").
+        /// Valid complaintStatusFilter: null/"All"/"Pending"/"Processing"/"Escalated"/"Completed".
         /// </summary>
         public List<ComplaintRowEntity> GetComplaintRows(
-            string   statusFilter = null,
             DateTime? from        = null,
-            DateTime? to          = null)
+            DateTime? to          = null,
+            string   statusFilter = null)
         {
             var list = new List<ComplaintRowEntity>();
             using (var conn = DatabaseHelper.GetConnection())
@@ -445,14 +452,15 @@ namespace PremiumLivingOPS.Models.DAL
                 string where = "WHERE 1=1";
                 if (!string.IsNullOrEmpty(statusFilter) && statusFilter != "All")
                     where += " AND cp.ComplaintStatus = @status";
-                // Complaint has no date column; filter by associated Order.IssuedTime if date range supplied
+                // Filter by associated Order.IssuedTime if date range supplied
                 string dateExtra = BuildDateWhere("o.IssuedTime", from, to, prefix: "AND");
                 where += dateExtra;
 
                 string sql =
                     $@"SELECT cp.ComplaintID, cp.OrderID,
                               COALESCE(c.CustomerName,'—') AS CustomerName,
-                              cp.ComplaintDescription, cp.ComplaintStatus
+                              cp.ComplaintDescription, cp.ComplaintStatus,
+                              o.IssuedTime AS ComplaintDate
                        FROM   Complaint cp
                        LEFT JOIN `Order`  o  ON cp.OrderID    = o.OrderID
                        LEFT JOIN Customer c  ON o.CustomerID  = c.CustomerID
@@ -467,11 +475,14 @@ namespace PremiumLivingOPS.Models.DAL
                         while (r.Read())
                             list.Add(new ComplaintRowEntity
                             {
-                                ComplaintID          = r["ComplaintID"].ToString(),
-                                OrderID              = r["OrderID"] == DBNull.Value ? "—" : r["OrderID"].ToString(),
-                                CustomerName         = r["CustomerName"].ToString(),
-                                ComplaintDescription = r["ComplaintDescription"] == DBNull.Value ? "—" : r["ComplaintDescription"].ToString(),
-                                ComplaintStatus      = r["ComplaintStatus"].ToString()
+                                ComplaintID     = r["ComplaintID"].ToString(),
+                                OrderID         = r["OrderID"] == DBNull.Value ? "—" : r["OrderID"].ToString(),
+                                CustomerName    = r["CustomerName"].ToString(),
+                                Subject         = r["ComplaintDescription"] == DBNull.Value ? "—" : r["ComplaintDescription"].ToString(),
+                                ComplaintStatus = r["ComplaintStatus"].ToString(),
+                                ComplaintDate   = r["ComplaintDate"] == DBNull.Value
+                                                    ? DateTime.MinValue
+                                                    : Convert.ToDateTime(r["ComplaintDate"])
                             });
                 }
             }
@@ -479,13 +490,12 @@ namespace PremiumLivingOPS.Models.DAL
         }
 
         /// <summary>
-        /// Valid returnStatusFilter: null/"All"/"Pending"/"Processing"/"Completed"
-        /// (matches ReturnOrder.ReturnStatus ENUM).
+        /// Valid returnStatusFilter: null/"All"/"Pending"/"Processing"/"Completed".
         /// </summary>
         public List<ReturnOrderRowEntity> GetReturnOrderRows(
-            string   statusFilter = null,
             DateTime? from        = null,
-            DateTime? to          = null)
+            DateTime? to          = null,
+            string   statusFilter = null)
         {
             var list = new List<ReturnOrderRowEntity>();
             using (var conn = DatabaseHelper.GetConnection())
@@ -514,13 +524,13 @@ namespace PremiumLivingOPS.Models.DAL
                         while (r.Read())
                             list.Add(new ReturnOrderRowEntity
                             {
-                                ReturnID     = r["ReturnID"].ToString(),
-                                OrderID      = r["OrderID"].ToString(),
-                                CustomerName = r["CustomerName"].ToString(),
-                                Reason       = r["Reason"] == DBNull.Value ? "—" : r["Reason"].ToString(),
-                                RefundAmount = Convert.ToDouble(r["RefundAmount"]),
-                                ReturnStatus = r["ReturnStatus"].ToString(),
-                                ReturnDate   = Convert.ToDateTime(r["ReturnDate"])
+                                ReturnOrderID = r["ReturnID"].ToString(),
+                                SalesOrderID  = r["OrderID"].ToString(),
+                                CustomerName  = r["CustomerName"].ToString(),
+                                Reason        = r["Reason"] == DBNull.Value ? "—" : r["Reason"].ToString(),
+                                RefundAmount  = Convert.ToDouble(r["RefundAmount"]),
+                                ReturnStatus  = r["ReturnStatus"].ToString(),
+                                ReturnDate    = Convert.ToDateTime(r["ReturnDate"])
                             });
                 }
             }
@@ -536,7 +546,6 @@ namespace PremiumLivingOPS.Models.DAL
             using (var conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
-                // AP Outstanding fix: correlated subquery scoped per PurchaseInvoice
                 const string sql =
                     @"SELECT
                         (SELECT COALESCE(SUM(t.Amount),0) FROM `Transaction` t WHERE t.InvoiceID IS NOT NULL AND t.ReturnID IS NULL)  AS SalesRevenue,
@@ -569,10 +578,6 @@ namespace PremiumLivingOPS.Models.DAL
 
         /// <summary>
         /// Returns finance transaction rows filtered by date range and optionally by docType group.
-        /// <paramref name="docTypeFilter"/>: null/"All" = all;
-        ///   "Revenue"  = Sales Invoice transactions (InvoiceID IS NOT NULL, ReturnID IS NULL);
-        ///   "Expense"  = Purchase Invoice transactions (PurInvoiceID IS NOT NULL);
-        ///   "Refund"   = Return Refund transactions (ReturnID IS NOT NULL).
         /// </summary>
         public List<FinanceTransactionRowEntity> GetFinanceTransactionRows(
             DateTime? from           = null,
