@@ -1097,12 +1097,12 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
             // Return Orders DGV
             var dgvRet = MakeDgv();
-            dgvRet.Columns.Add(new DataGridViewTextBoxColumn { Name = "colRetID",    HeaderText = "RETURN ID",    FillWeight = 15 });
-            dgvRet.Columns.Add(new DataGridViewTextBoxColumn { Name = "colOrderID",  HeaderText = "ORDER ID",     FillWeight = 15 });
-            dgvRet.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCust",     HeaderText = "CUSTOMER",     FillWeight = 20 });
-            dgvRet.Columns.Add(new DataGridViewTextBoxColumn { Name = "colReason",   HeaderText = "REASON",       FillWeight = 22 });
-            dgvRet.Columns.Add(new DataGridViewTextBoxColumn { Name = "colRefund",   HeaderText = "REFUND AMOUNT",FillWeight = 13 });
-            dgvRet.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",   HeaderText = "STATUS",       FillWeight = 15 });
+            dgvRet.Columns.Add(new DataGridViewTextBoxColumn { Name = "colRetID",    HeaderText = "RETURN ID",     FillWeight = 15 });
+            dgvRet.Columns.Add(new DataGridViewTextBoxColumn { Name = "colOrderID",  HeaderText = "ORDER ID",      FillWeight = 15 });
+            dgvRet.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCust",     HeaderText = "CUSTOMER",      FillWeight = 20 });
+            dgvRet.Columns.Add(new DataGridViewTextBoxColumn { Name = "colReason",   HeaderText = "REASON",        FillWeight = 22 });
+            dgvRet.Columns.Add(new DataGridViewTextBoxColumn { Name = "colRefund",   HeaderText = "REFUND AMOUNT", FillWeight = 13 });
+            dgvRet.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",   HeaderText = "STATUS",        FillWeight = 15 });
             dgvRet.CellFormatting += DgvCellFormatting;
 
             LoadAfterServiceData(dgvCmpl, dgvRet, cboCmplStatus, dtpFrom, dtpTo);
@@ -1358,4 +1358,106 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
         // ════════════════════════════════════════════════════════════════
         //  CELL FORMATTING
-        // ══════════════════════════════════
+        // ════════════════════════════════════════════════════════════════
+
+        private void DgvCellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
+        {
+            if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
+            var dgv = sender as DataGridView;
+            if (dgv == null) return;
+
+            var col = dgv.Columns[e.ColumnIndex];
+
+            // Status badge colouring — applies to any column named "colStatus"
+            if (col.Name == "colStatus" && e.Value != null)
+            {
+                string statusText = e.Value.ToString();
+                if (StatusColors.TryGetValue(statusText, out var colors))
+                {
+                    e.CellStyle.BackColor = colors.bg;
+                    e.CellStyle.ForeColor = colors.fg;
+                    e.CellStyle.Font      = new Font("Segoe UI", 11f, FontStyle.Bold);
+                    e.CellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                }
+            }
+
+            // Alternate row shading (skip status column so badge colour is preserved)
+            if (col.Name != "colStatus" && e.RowIndex % 2 == 1)
+            {
+                if (e.CellStyle.BackColor == Color.White || e.CellStyle.BackColor == Color.Empty)
+                    e.CellStyle.BackColor = Color.FromArgb(249, 250, 252);
+            }
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  CARD BORDER PAINT
+        // ════════════════════════════════════════════════════════════════
+
+        private static void PaintCardBorder(object sender, PaintEventArgs e)
+        {
+            var pnl = sender as Panel;
+            if (pnl == null) return;
+            using var pen = new Pen(Color.FromArgb(221, 227, 236), 1f);
+            e.Graphics.DrawRectangle(pen, 0, 0, pnl.Width - 1, pnl.Height - 1);
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  EXPORT
+        // ════════════════════════════════════════════════════════════════
+
+        private static void ExportGrid(DataGridView dgv, string filePrefix)
+        {
+            using var dlg = new SaveFileDialog
+            {
+                Title            = "Export to CSV",
+                Filter           = "CSV files (*.csv)|*.csv",
+                FileName         = $"{filePrefix}_{DateTime.Today:yyyyMMdd}.csv",
+                DefaultExt       = "csv",
+                RestoreDirectory = true
+            };
+            if (dlg.ShowDialog() != DialogResult.OK) return;
+
+            try
+            {
+                using var sw = new System.IO.StreamWriter(dlg.FileName, false, System.Text.Encoding.UTF8);
+
+                // Header row
+                var headers = new List<string>();
+                foreach (DataGridViewColumn col in dgv.Columns)
+                    headers.Add(CsvEscape(col.HeaderText));
+                sw.WriteLine(string.Join(",", headers));
+
+                // Data rows
+                foreach (DataGridViewRow row in dgv.Rows)
+                {
+                    if (row.IsNewRow) continue;
+                    var cells = new List<string>();
+                    foreach (DataGridViewCell cell in row.Cells)
+                        cells.Add(CsvEscape(cell.Value?.ToString() ?? string.Empty));
+                    sw.WriteLine(string.Join(",", cells));
+                }
+
+                MessageBox.Show(
+                    $"Exported {dgv.Rows.Count} row(s) to:\n{dlg.FileName}",
+                    "Export Complete",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    $"Export failed:\n{ex.Message}",
+                    "Export Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+        }
+
+        private static string CsvEscape(string value)
+        {
+            if (value.Contains(',') || value.Contains('"') || value.Contains('\n'))
+                return "\"" + value.Replace("\"", "\"\"") + "\"";
+            return value;
+        }
+    }
+}
