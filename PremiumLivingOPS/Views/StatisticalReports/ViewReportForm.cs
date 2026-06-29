@@ -30,6 +30,10 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         private bool     _financeChart      = false;
         private Button[] _tabButtons;
 
+        // Default date range covers all sample_data (2024-01-01 to today)
+        private static readonly DateTime DefaultDateFrom = new DateTime(2024, 1, 1);
+        private static DateTime DefaultDateTo => DateTime.Today;
+
         private static readonly Dictionary<string, (Color bg, Color fg)> StatusColors =
             new Dictionary<string, (Color, Color)>
             {
@@ -751,8 +755,8 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         // ── 0. Sales Performance ───────────────────────────────────────────────
         private void RenderSales()
         {
-            var dtpFrom = new DateTimePicker { Format = DateTimePickerFormat.Short, Value = DateTime.Today.AddMonths(-3), Font = new Font("Segoe UI", 12f) };
-            var dtpTo   = new DateTimePicker { Format = DateTimePickerFormat.Short, Value = DateTime.Today, Font = new Font("Segoe UI", 12f) };
+            var dtpFrom = new DateTimePicker { Format = DateTimePickerFormat.Short, Value = DefaultDateFrom, Font = new Font("Segoe UI", 12f) };
+            var dtpTo   = new DateTimePicker { Format = DateTimePickerFormat.Short, Value = DefaultDateTo,   Font = new Font("Segoe UI", 12f) };
             // NOTE: Category filter removed — Product.Category ENUM is Sofa/Bed/Table/
             // Chair/Cabinet. Category breakdown is available via the Top Products chart.
 
@@ -784,8 +788,8 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             };
             btnReset.Click += (s, e) =>
             {
-                dtpFrom.Value = DateTime.Today.AddMonths(-3);
-                dtpTo.Value   = DateTime.Today;
+                dtpFrom.Value = DefaultDateFrom;
+                dtpTo.Value   = DefaultDateTo;
                 LoadSalesData(dgv, dtpFrom, dtpTo);
                 SwapContent(dgvCard, chartCard, _salesChart);
             };
@@ -954,8 +958,8 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         // ── 2. Procurement Summary ──────────────────────────────────────────
         private void RenderProcurement()
         {
-            var dtpFrom   = new DateTimePicker { Format = DateTimePickerFormat.Short, Value = DateTime.Today.AddMonths(-3), Font = new Font("Segoe UI", 12f) };
-            var dtpTo     = new DateTimePicker { Format = DateTimePickerFormat.Short, Value = DateTime.Today, Font = new Font("Segoe UI", 12f) };
+            var dtpFrom   = new DateTimePicker { Format = DateTimePickerFormat.Short, Value = DefaultDateFrom, Font = new Font("Segoe UI", 12f) };
+            var dtpTo     = new DateTimePicker { Format = DateTimePickerFormat.Short, Value = DefaultDateTo,   Font = new Font("Segoe UI", 12f) };
             // Status options match PurchaseOrder.PurchaseStatus ENUM exactly
             var cboStatus = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 12f) };
             cboStatus.Items.AddRange(new object[] { "All", "Sent", "Partially Received", "Received", "Completed", "Cancelled" });
@@ -989,7 +993,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             };
             btnReset.Click += (s, e) =>
             {
-                dtpFrom.Value = DateTime.Today.AddMonths(-3); dtpTo.Value = DateTime.Today; cboStatus.SelectedIndex = 0;
+                dtpFrom.Value = DefaultDateFrom; dtpTo.Value = DefaultDateTo; cboStatus.SelectedIndex = 0;
                 LoadProcurementData(dgv, cboStatus, dtpFrom, dtpTo);
                 SwapContent(dgvCard, chartCard, _procurementChart);
             };
@@ -1054,8 +1058,8 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         // ── 3. Logistics Overview ──────────────────────────────────────────
         private void RenderLogistics()
         {
-            var dtpFrom   = new DateTimePicker { Format = DateTimePickerFormat.Short, Value = DateTime.Today.AddMonths(-3), Font = new Font("Segoe UI", 12f) };
-            var dtpTo     = new DateTimePicker { Format = DateTimePickerFormat.Short, Value = DateTime.Today, Font = new Font("Segoe UI", 12f) };
+            var dtpFrom   = new DateTimePicker { Format = DateTimePickerFormat.Short, Value = DefaultDateFrom, Font = new Font("Segoe UI", 12f) };
+            var dtpTo     = new DateTimePicker { Format = DateTimePickerFormat.Short, Value = DefaultDateTo,   Font = new Font("Segoe UI", 12f) };
             // Status options match Shipment.ShipmentStatus ENUM exactly
             var cboStatus = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 12f) };
             cboStatus.Items.AddRange(new object[] { "All", "Pending", "In Transit", "Completed" });
@@ -1093,7 +1097,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             };
             btnReset.Click += (s, e) =>
             {
-                dtpFrom.Value = DateTime.Today.AddMonths(-3); dtpTo.Value = DateTime.Today; cboStatus.SelectedIndex = 0;
+                dtpFrom.Value = DefaultDateFrom; dtpTo.Value = DefaultDateTo; cboStatus.SelectedIndex = 0;
                 LoadLogisticsData(dgv, cboStatus, dtpFrom, dtpTo);
                 SwapContent(dgvCard, chartCard, _logisticsChart);
             };
@@ -1162,8 +1166,8 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         // ── 4. After-Service Summary ────────────────────────────────────────
         private void RenderAfterService()
         {
-            var dtpFrom         = new DateTimePicker { Format = DateTimePickerFormat.Short, Value = DateTime.Today.AddMonths(-3), Font = new Font("Segoe UI", 12f) };
-            var dtpTo           = new DateTimePicker { Format = DateTimePickerFormat.Short, Value = DateTime.Today, Font = new Font("Segoe UI", 12f) };
+            var dtpFrom         = new DateTimePicker { Format = DateTimePickerFormat.Short, Value = DefaultDateFrom, Font = new Font("Segoe UI", 12f) };
+            var dtpTo           = new DateTimePicker { Format = DateTimePickerFormat.Short, Value = DefaultDateTo,   Font = new Font("Segoe UI", 12f) };
             // Complaint status options match Complaint.ComplaintStatus ENUM exactly (no 'Cancelled')
             var cboComplaintSt  = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 12f) };
             cboComplaintSt.Items.AddRange(new object[] { "All", "Pending", "Processing", "Escalated", "Completed" });
@@ -1212,7 +1216,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             };
             btnReset.Click += (s, e) =>
             {
-                dtpFrom.Value = DateTime.Today.AddMonths(-3); dtpTo.Value = DateTime.Today;
+                dtpFrom.Value = DefaultDateFrom; dtpTo.Value = DefaultDateTo;
                 cboComplaintSt.SelectedIndex = 0; cboReturnSt.SelectedIndex = 0;
                 LoadAfterServiceData(dgvComplaints, dgvReturns, cboComplaintSt, cboReturnSt, dtpFrom, dtpTo);
                 SwapContent(dualCard, chartCard, _afterServiceChart);
@@ -1302,8 +1306,8 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         // ── 5. Finance Overview ────────────────────────────────────────────
         private void RenderFinance()
         {
-            var dtpFrom   = new DateTimePicker { Format = DateTimePickerFormat.Short, Value = DateTime.Today.AddMonths(-3), Font = new Font("Segoe UI", 12f) };
-            var dtpTo     = new DateTimePicker { Format = DateTimePickerFormat.Short, Value = DateTime.Today, Font = new Font("Segoe UI", 12f) };
+            var dtpFrom   = new DateTimePicker { Format = DateTimePickerFormat.Short, Value = DefaultDateFrom, Font = new Font("Segoe UI", 12f) };
+            var dtpTo     = new DateTimePicker { Format = DateTimePickerFormat.Short, Value = DefaultDateTo,   Font = new Font("Segoe UI", 12f) };
             // DocType filter maps to Transaction link type:
             //   Revenue = InvoiceID IS NOT NULL (Sales Invoice transactions)
             //   Expense = PurInvoiceID IS NOT NULL (Purchase Invoice transactions)
@@ -1340,7 +1344,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             };
             btnReset.Click += (s, e) =>
             {
-                dtpFrom.Value = DateTime.Today.AddMonths(-3); dtpTo.Value = DateTime.Today; cboType.SelectedIndex = 0;
+                dtpFrom.Value = DefaultDateFrom; dtpTo.Value = DefaultDateTo; cboType.SelectedIndex = 0;
                 LoadFinanceData(dgv, dtpFrom, dtpTo, cboType);
                 SwapContent(dgvCard, chartCard, _financeChart);
             };
