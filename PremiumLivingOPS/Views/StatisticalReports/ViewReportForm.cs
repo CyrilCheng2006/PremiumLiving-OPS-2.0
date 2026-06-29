@@ -1459,5 +1459,18 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 return "\"" + value.Replace("\"", "\"\"") + "\"";
             return value;
         }
+
+        // ════════════════════════════════════════════════════════════════
+        //  NAVIGATION & LOGOUT  (AppShell handlers — required by RULE 4)
+        // ════════════════════════════════════════════════════════════════
+
+        private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
+            => FormNavigator.NavigateTo(this, menuLabel, subItem);
+
+        private void btnLogout_Click(object sender, EventArgs e)
+        {
+            SessionManager.Clear();
+            Application.Restart();
+        }
     }
 }
