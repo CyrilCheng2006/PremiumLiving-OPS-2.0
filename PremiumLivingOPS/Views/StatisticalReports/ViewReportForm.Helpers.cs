@@ -11,60 +11,58 @@ namespace PremiumLivingOPS.Views.StatisticalReports
     // ════════════════════════════════════════════════════════════════════════════
     //  ViewReportForm — Helpers partial
     //
-    //  Resolves all CS0103 "name does not exist in current context" errors that
-    //  arise because the following members are referenced in ViewReportForm.cs
-    //  and ViewReportForm.Designer.cs but were never declared:
+    //  Resolves all CS0103 / CS0117 / CS1503 errors that arose because the
+    //  following members were referenced in ViewReportForm.cs and
+    //  ViewReportForm.Designer.cs but were never declared:
     //
-    //    • Palette            (static colour constants — BgPage, Primary, etc.)
-    //    • PaintCardBorder    (Paint event handler — white card with shadow border)
-    //    • DgvCellFormatting  (CellFormatting handler — status badge colouring)
-    //    • ExportGrid         (CSV export helper)
-    //    • OnTopNavMenuItemClicked  (AppShell MenuItemClicked delegate)
-    //    • btnLogout_Click          (AppShell LogoutClicked delegate)
+    //    • Palette                  (re-exports PremiumLivingOPS.Views.Shared.Palette)
+    //    • PaintCardBorder          (Paint handler — white card with border)
+    //    • DgvCellFormatting        (CellFormatting handler — status badge colour)
+    //    • ExportGrid               (CSV export helper)
+    //    • OnTopNavMenuItemClicked  (AppShell.MenuItemClicked delegate)
+    //    • btnLogout_Click          (AppShell.LogoutClicked delegate)
+    //
+    //  Fix notes for the three new errors:
+    //
+    //    CS1503  FormNavigator.NavigateTo signature is (Form current, string menu, string sub)
+    //            — first arg is the CURRENT form, not a string.
+    //    CS0103  SessionManager does not exist; logout is handled entirely by
+    //            FormNavigator.NavigateTo(this, "Logout") → Application.Restart().
+    //    CS0117  FormNavigator.GoToLogin does not exist; same reason as above.
     // ════════════════════════════════════════════════════════════════════════════
 
     partial class ViewReportForm
     {
         // ────────────────────────────────────────────────────────────────────────
-        //  Palette — design-token colours used by Designer.cs and ViewReportForm.cs
-        //  (mirrors the same Palette class used across the rest of the Views layer)
+        //  Palette — thin wrapper so ViewReportForm.cs can reference "Palette.BgPage"
+        //  without a fully-qualified name.  All values are forwarded directly from
+        //  PremiumLivingOPS.Views.Shared.Palette which is the authoritative source.
         // ────────────────────────────────────────────────────────────────────────
         internal static class Palette
         {
-            /// <summary>Page background — matches the grey shell background.</summary>
-            public static readonly Color BgPage = Color.FromArgb(243, 246, 250);
-
-            /// <summary>Primary accent (indigo) used for active tab underline, etc.</summary>
-            public static readonly Color Primary = Color.FromArgb(55, 48, 163);
-
-            /// <summary>Surface white used for card backgrounds.</summary>
-            public static readonly Color Surface = Color.White;
-
-            /// <summary>Border colour for cards.</summary>
-            public static readonly Color Border = Color.FromArgb(221, 227, 236);
-
-            /// <summary>Muted text (labels, secondary info).</summary>
-            public static readonly Color TextMuted = Color.FromArgb(98, 112, 135);
-
-            /// <summary>Primary text.</summary>
-            public static readonly Color TextPrimary = Color.FromArgb(15, 31, 53);
+            public static Color BgPage      => PremiumLivingOPS.Views.Shared.Palette.BgPage;
+            public static Color Primary     => PremiumLivingOPS.Views.Shared.Palette.Primary;
+            public static Color Surface     => PremiumLivingOPS.Views.Shared.Palette.Surface;
+            public static Color Border      => PremiumLivingOPS.Views.Shared.Palette.Border;
+            public static Color TextMuted   => PremiumLivingOPS.Views.Shared.Palette.TextMuted;
+            public static Color TextPrimary => PremiumLivingOPS.Views.Shared.Palette.TextPrimary;
         }
 
         // ────────────────────────────────────────────────────────────────────────
         //  PaintCardBorder
-        //  Draws a 1 px rounded-corner border + subtle drop-shadow around any Panel
+        //  Draws a 1 px border + subtle inset shadow around any Panel
         //  that registers this as its Paint handler.
         // ────────────────────────────────────────────────────────────────────────
         private void PaintCardBorder(object sender, PaintEventArgs e)
         {
             if (sender is not Panel pnl) return;
 
-            var g   = e.Graphics;
+            var g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
 
             var rect = new Rectangle(0, 0, pnl.Width - 1, pnl.Height - 1);
 
-            // Subtle shadow (2 px inset so it stays inside the panel boundary)
+            // Subtle inset shadow
             using var shadowPen = new Pen(Color.FromArgb(18, 0, 0, 0), 2f);
             g.DrawRectangle(shadowPen,
                 new Rectangle(rect.X + 1, rect.Y + 1, rect.Width - 1, rect.Height - 1));
@@ -78,7 +76,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         //  DgvCellFormatting
         //  Colours the STATUS column cell to match the badge palette defined in
         //  ViewReportForm.cs → StatusColors dictionary.
-        //  Also right-aligns numeric columns (REVENUE, AMOUNT, TOTAL AMOUNT, etc.)
+        //  Also right-aligns numeric columns and centres tick columns.
         // ────────────────────────────────────────────────────────────────────────
         private void DgvCellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
@@ -184,27 +182,34 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         // ────────────────────────────────────────────────────────────────────────
         //  AppShell event handlers
         //  Wired in ViewReportForm_Load (ViewReportForm.cs line 86/87).
+        //
+        //  Correct FormNavigator API (from Views/Shared/FormNavigator.cs):
+        //    NavigateTo(Form current, string menuLabel, string subItem = "")
+        //
+        //  Logout is handled by passing "Logout" as menuLabel — FormNavigator
+        //  calls Application.Restart() internally.  No SessionManager exists.
         // ────────────────────────────────────────────────────────────────────────
 
         /// <summary>
         /// Handles navigation menu item clicks forwarded from AppShell.
-        /// Opens the target form in the same application shell pattern used by
-        /// all other forms in the project.
+        /// Signature matches AppShell.MenuItemClicked: (object sender, string menuTag).
+        /// Calls FormNavigator.NavigateTo(Form current, string menuLabel).
         /// </summary>
         private void OnTopNavMenuItemClicked(object sender, string menuTag)
         {
-            // Use the central navigation helper (same pattern as ViewOrderForm, etc.)
-            FormNavigator.NavigateTo(menuTag, this);
+            // Correct call: first arg = this (current Form), second = menu label.
+            FormNavigator.NavigateTo(this, menuTag);
         }
 
         /// <summary>
         /// Handles the Logout button click forwarded from AppShell.
-        /// Clears the session and returns to the login screen.
+        /// FormNavigator treats "Logout" as a special route and calls
+        /// Application.Restart() — no SessionManager required.
         /// </summary>
         private void btnLogout_Click(object sender, EventArgs e)
         {
-            SessionManager.Logout();
-            FormNavigator.GoToLogin(this);
+            // "Logout" is the reserved route tag; FormNavigator calls Application.Restart().
+            FormNavigator.NavigateTo(this, "Logout");
         }
     }
 }
