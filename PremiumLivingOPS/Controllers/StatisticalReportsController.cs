@@ -50,7 +50,7 @@ namespace PremiumLivingOPS.Controllers
         /// <param name="categoryFilter">null/"All" / "Product" / "Raw Material"</param>
         /// <param name="keyword">Searches ItemID and ItemName (partial match).</param>
         public ViewReportViewModel GetInventoryReportVM(
-            string categoryFilter  = null,
+            string categoryFilter   = null,
             bool   belowReorderOnly = false,
             string keyword          = null)
         {
@@ -68,19 +68,20 @@ namespace PremiumLivingOPS.Controllers
         //  3. PROCUREMENT SUMMARY
         // ════════════════════════════════════════════════════════════════
 
+        // Signature: (from, to, statusFilter) — matches ViewReportForm.cs call order
         /// <param name="statusFilter">null/"All"/"Sent"/"Partially Received"/"Received"/"Completed"/"Cancelled"</param>
         public ViewReportViewModel GetProcurementReportVM(
-            string   statusFilter = null,
             DateTime? from        = null,
-            DateTime? to          = null)
+            DateTime? to          = null,
+            string    statusFilter = null)
         {
             return new ViewReportViewModel
             {
-                UserBar      = MakeUserBar(),
-                AllowedMenus = GetMenus(),
-                ActiveReport = ReportType.ProcurementSummary,
-                ProcKpi      = _repo.GetProcurementKpi(),
-                ProcRows     = _repo.GetProcurementRows(statusFilter, from, to)
+                UserBar         = MakeUserBar(),
+                AllowedMenus    = GetMenus(),
+                ActiveReport    = ReportType.ProcurementSummary,
+                ProcKpi         = _repo.GetProcurementKpi(),
+                ProcurementRows = _repo.GetProcurementRows(statusFilter, from, to)
             };
         }
 
@@ -88,19 +89,20 @@ namespace PremiumLivingOPS.Controllers
         //  4. LOGISTICS OVERVIEW
         // ════════════════════════════════════════════════════════════════
 
-        /// <param name="statusFilter">null/"All"/"Pending"/"In Transit"/"Completed"</param>
+        // Signature: (from, to, statusFilter) — matches ViewReportForm.cs call order
+        /// <param name="statusFilter">null/"All"/"Pending"/"In Transit"/"Delivered"/"Partially Delivered"/"Cancelled"</param>
         public ViewReportViewModel GetLogisticsReportVM(
-            string   statusFilter = null,
             DateTime? from        = null,
-            DateTime? to          = null)
+            DateTime? to          = null,
+            string    statusFilter = null)
         {
             return new ViewReportViewModel
             {
-                UserBar      = MakeUserBar(),
-                AllowedMenus = GetMenus(),
-                ActiveReport = ReportType.LogisticsOverview,
-                LogKpi       = _repo.GetLogisticsKpi(),
-                LogRows      = _repo.GetLogisticsRows(statusFilter, from, to)
+                UserBar       = MakeUserBar(),
+                AllowedMenus  = GetMenus(),
+                ActiveReport  = ReportType.LogisticsOverview,
+                LogKpi        = _repo.GetLogisticsKpi(),
+                LogisticsRows = _repo.GetLogisticsRows(statusFilter, from, to)
             };
         }
 
@@ -108,22 +110,21 @@ namespace PremiumLivingOPS.Controllers
         //  5. AFTER-SERVICE SUMMARY
         // ════════════════════════════════════════════════════════════════
 
-        /// <param name="complaintStatusFilter">null/"All"/"Pending"/"Processing"/"Escalated"/"Completed"</param>
-        /// <param name="returnStatusFilter">null/"All"/"Pending"/"Processing"/"Completed"</param>
+        // Signature: (from, to, complaintStatusFilter) — matches ViewReportForm.cs call order
+        /// <param name="complaintStatusFilter">null/"All"/"Open"/"In Progress"/"Resolved"/"Escalated"/"Closed"</param>
         public ViewReportViewModel GetAfterServiceReportVM(
-            string   complaintStatusFilter = null,
-            string   returnStatusFilter    = null,
             DateTime? from                 = null,
-            DateTime? to                   = null)
+            DateTime? to                   = null,
+            string    complaintStatusFilter = null)
         {
             return new ViewReportViewModel
             {
-                UserBar      = MakeUserBar(),
-                AllowedMenus = GetMenus(),
-                ActiveReport = ReportType.AfterServiceSummary,
-                AfterKpi     = _repo.GetAfterServiceKpi(),
-                Complaints   = _repo.GetComplaintRows(complaintStatusFilter, from, to),
-                Returns      = _repo.GetReturnOrderRows(returnStatusFilter, from, to)
+                UserBar       = MakeUserBar(),
+                AllowedMenus  = GetMenus(),
+                ActiveReport  = ReportType.AfterServiceSummary,
+                AfterKpi      = _repo.GetAfterServiceKpi(),
+                ComplaintRows = _repo.GetComplaintRows(complaintStatusFilter, from, to),
+                ReturnRows    = _repo.GetReturnOrderRows(null, from, to)
             };
         }
 
@@ -131,7 +132,8 @@ namespace PremiumLivingOPS.Controllers
         //  6. FINANCE OVERVIEW
         // ════════════════════════════════════════════════════════════════
 
-        /// <param name="docTypeFilter">null/"All"/"Revenue"/"Expense"/"Refund"</param>
+        // Signature: (from, to, docTypeFilter) — matches ViewReportForm.cs call order
+        /// <param name="docTypeFilter">null/"All"/"Revenue"/"Expense"/"Refund"/"Deposit"/"Installment"/"Full"</param>
         public ViewReportViewModel GetFinanceReportVM(
             DateTime? from          = null,
             DateTime? to            = null,

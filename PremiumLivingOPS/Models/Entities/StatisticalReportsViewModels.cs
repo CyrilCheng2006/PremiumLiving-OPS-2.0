@@ -36,34 +36,34 @@ namespace PremiumLivingOPS.Models.Entities
     /// <summary>KPI summary row for Sales Performance report.</summary>
     public class SalesKpiEntity
     {
-        public int    TotalOrders      { get; set; }
-        public double TotalRevenue     { get; set; }
-        public double AverageOrderValue{ get; set; }
-        public int    DeliveredOrders  { get; set; }
-        public int    PendingOrders    { get; set; }
-        public int    ProcessingOrders { get; set; }
-        public int    CancelledOrders  { get; set; }
+        public int    TotalOrders       { get; set; }
+        public double TotalRevenue      { get; set; }
+        public double AverageOrderValue { get; set; }
+        public int    DeliveredOrders   { get; set; }
+        public int    PendingOrders     { get; set; }
+        public int    ProcessingOrders  { get; set; }
+        public int    CancelledOrders   { get; set; }
     }
 
     /// <summary>One detail row in the Sales Performance grid.</summary>
     public class SalesOrderRowEntity
     {
-        public string OrderID      { get; set; }
-        public string CustomerName { get; set; }
-        public string OrderStatus  { get; set; }
-        public DateTime IssuedTime { get; set; }
-        public double GrandTotal   { get; set; }
-        public int    LineCount    { get; set; }  // number of order lines
+        public string   OrderID      { get; set; }
+        public string   CustomerName { get; set; }
+        public string   OrderStatus  { get; set; }
+        public DateTime IssuedTime   { get; set; }
+        public double   GrandTotal   { get; set; }
+        public int      LineCount    { get; set; }  // number of order lines
     }
 
     /// <summary>Top product by revenue for the sales breakdown panel.</summary>
     public class TopProductEntity
     {
-        public string ItemID      { get; set; }
-        public string ItemName    { get; set; }
-        public string Category    { get; set; }
-        public int    TotalQty    { get; set; }
-        public double TotalRevenue{ get; set; }
+        public string ItemID       { get; set; }
+        public string ItemName     { get; set; }
+        public string Category     { get; set; }
+        public int    TotalQty     { get; set; }
+        public double TotalRevenue { get; set; }
     }
 
     // ════════════════════════════════════════════════════════════════════
@@ -88,10 +88,10 @@ namespace PremiumLivingOPS.Models.Entities
     /// <summary>KPI summary for Inventory report.</summary>
     public class InventoryKpiEntity
     {
-        public int TotalSKUs        { get; set; }
-        public int BelowReorderCount{ get; set; }
-        public int ProductCount     { get; set; }
-        public int RawMaterialCount { get; set; }
+        public int TotalSKUs         { get; set; }
+        public int BelowReorderCount { get; set; }
+        public int ProductCount      { get; set; }
+        public int RawMaterialCount  { get; set; }
     }
 
     // ════════════════════════════════════════════════════════════════════
@@ -101,23 +101,24 @@ namespace PremiumLivingOPS.Models.Entities
     /// <summary>One row in the Procurement Summary grid.</summary>
     public class ProcurementRowEntity
     {
-        public string PurchaseID     { get; set; }
-        public string SupplierName   { get; set; }
-        public string PurchaseStatus { get; set; }
-        public DateTime OrderDate    { get; set; }
-        public double POTotalAmount  { get; set; }
-        public string MaterialNames  { get; set; }  // comma-joined from POLines
-        public string RequestID      { get; set; }
+        public string   PurchaseOrderID  { get; set; }  // was PurchaseID
+        public string   SupplierName     { get; set; }
+        public string   PurchaseStatus   { get; set; }
+        public string   ReceiptStatus    { get; set; }  // added: receipt/delivery status
+        public DateTime OrderDate        { get; set; }
+        public double   TotalAmount      { get; set; }  // was POTotalAmount
+        public int      ItemCount        { get; set; }  // number of PO lines
+        public string   RequestID        { get; set; }
     }
 
     /// <summary>KPI summary for Procurement report.</summary>
     public class ProcurementKpiEntity
     {
-        public int    TotalPOs       { get; set; }
-        public double TotalSpend     { get; set; }
-        public int    CompletedPOs   { get; set; }
-        public int    PendingPOs     { get; set; }
-        public int    UniqueSuppliers{ get; set; }
+        public int    TotalPOs        { get; set; }
+        public double TotalSpend      { get; set; }
+        public int    CompletedPOs    { get; set; }
+        public int    PendingPOs      { get; set; }
+        public int    UniqueSuppliers { get; set; }
     }
 
     // ════════════════════════════════════════════════════════════════════
@@ -125,28 +126,26 @@ namespace PremiumLivingOPS.Models.Entities
     // ════════════════════════════════════════════════════════════════════
 
     /// <summary>One row in the Logistics Overview grid.</summary>
-    public class ShipmentRowEntity
+    public class LogisticsRowEntity
     {
-        public string ShipmentID     { get; set; }
-        public string OrderID        { get; set; }
-        public string CustomerName   { get; set; }
-        public string ShipmentStatus { get; set; }
-        public string ShipmentType   { get; set; }
-        public string DeliveryMethod { get; set; }
-        public DateTime ShipDate     { get; set; }
-        public double TotalAmount    { get; set; }
-        public bool   HasDeliveryNote{ get; set; }
-        public bool   HasReplySlip   { get; set; }
+        public string   DeliveryOrderID  { get; set; }  // was ShipmentID
+        public string   SalesOrderID     { get; set; }  // was OrderID
+        public string   CustomerName     { get; set; }
+        public string   DeliveryStatus   { get; set; }  // was ShipmentStatus
+        public string   DriverName       { get; set; }  // added
+        public DateTime DeliveryDate     { get; set; }  // was ShipDate
+        public bool     HasDeliveryNote  { get; set; }
+        public bool     HasReplySlip     { get; set; }
     }
 
     /// <summary>KPI summary for Logistics report.</summary>
     public class LogisticsKpiEntity
     {
-        public int TotalShipments   { get; set; }
-        public int Completed        { get; set; }
-        public int InTransit        { get; set; }
-        public int Pending          { get; set; }
-        public int WithReplySlip    { get; set; }
+        public int TotalShipments { get; set; }
+        public int Completed      { get; set; }
+        public int InTransit      { get; set; }
+        public int Pending        { get; set; }
+        public int WithReplySlip  { get; set; }
     }
 
     // ════════════════════════════════════════════════════════════════════
@@ -157,17 +156,18 @@ namespace PremiumLivingOPS.Models.Entities
     public class ComplaintRowEntity
     {
         public string   ComplaintID          { get; set; }
-        public string   OrderID              { get; set; }
         public string   CustomerName         { get; set; }
-        public string   ComplaintDescription { get; set; }
+        public string   Subject              { get; set; }  // was ComplaintDescription
         public string   ComplaintStatus      { get; set; }
+        public DateTime ComplaintDate        { get; set; }  // added
+        public string   OrderID              { get; set; }
     }
 
     /// <summary>One return order row.</summary>
     public class ReturnOrderRowEntity
     {
-        public string   ReturnID      { get; set; }
-        public string   OrderID       { get; set; }
+        public string   ReturnOrderID { get; set; }  // was ReturnID
+        public string   SalesOrderID  { get; set; }  // was OrderID
         public string   CustomerName  { get; set; }
         public string   Reason        { get; set; }
         public double   RefundAmount  { get; set; }
@@ -195,18 +195,20 @@ namespace PremiumLivingOPS.Models.Entities
         public string   TransactionType { get; set; }
         public double   Amount          { get; set; }
         public DateTime TransactionDate { get; set; }
-        public string   LinkedDocument  { get; set; }  // InvoiceID or PurInvoiceID or ReturnID
         public string   DocumentType    { get; set; }  // "Sales Invoice" / "Purchase Invoice" / "Return"
+        public string   PaymentMethod   { get; set; }  // added
+        public string   ApprovalStatus  { get; set; }  // added
+        public string   LinkedDocument  { get; set; }
     }
 
     /// <summary>KPI summary for Finance report.</summary>
     public class FinanceKpiEntity
     {
-        public double TotalSalesRevenue  { get; set; }
+        public double TotalSalesRevenue     { get; set; }
         public double TotalProcurementSpend { get; set; }
-        public double TotalRefunds       { get; set; }
-        public double AROutstanding      { get; set; }
-        public double APOutstanding      { get; set; }
+        public double TotalRefunds          { get; set; }
+        public double AROutstanding         { get; set; }
+        public double APOutstanding         { get; set; }
     }
 
     // ════════════════════════════════════════════════════════════════════
@@ -225,29 +227,29 @@ namespace PremiumLivingOPS.Models.Entities
 
         // ── Per-report data payloads ─────────────────────────────────
         // 1. Sales
-        public SalesKpiEntity                  SalesKpi      { get; set; }
-        public List<SalesOrderRowEntity>       SalesRows     { get; set; }
-        public List<TopProductEntity>          TopProducts   { get; set; }
+        public SalesKpiEntity                    SalesKpi      { get; set; }
+        public List<SalesOrderRowEntity>         SalesRows     { get; set; }
+        public List<TopProductEntity>            TopProducts   { get; set; }
 
         // 2. Inventory
-        public InventoryKpiEntity              InventoryKpi  { get; set; }
-        public List<InventoryStatusRowEntity>  InventoryRows { get; set; }
+        public InventoryKpiEntity                InventoryKpi  { get; set; }
+        public List<InventoryStatusRowEntity>    InventoryRows { get; set; }
 
-        // 3. Procurement
-        public ProcurementKpiEntity            ProcKpi       { get; set; }
-        public List<ProcurementRowEntity>      ProcRows      { get; set; }
+        // 3. Procurement — property name aligned to ViewReportForm.cs usage
+        public ProcurementKpiEntity              ProcKpi          { get; set; }
+        public List<ProcurementRowEntity>        ProcurementRows  { get; set; }
 
-        // 4. Logistics
-        public LogisticsKpiEntity              LogKpi        { get; set; }
-        public List<ShipmentRowEntity>         LogRows       { get; set; }
+        // 4. Logistics — property name aligned to ViewReportForm.cs usage
+        public LogisticsKpiEntity                LogKpi          { get; set; }
+        public List<LogisticsRowEntity>          LogisticsRows   { get; set; }
 
-        // 5. After-Service
-        public AfterServiceKpiEntity           AfterKpi      { get; set; }
-        public List<ComplaintRowEntity>        Complaints    { get; set; }
-        public List<ReturnOrderRowEntity>      Returns       { get; set; }
+        // 5. After-Service — property names aligned to ViewReportForm.cs usage
+        public AfterServiceKpiEntity             AfterKpi      { get; set; }
+        public List<ComplaintRowEntity>          ComplaintRows { get; set; }
+        public List<ReturnOrderRowEntity>        ReturnRows    { get; set; }
 
         // 6. Finance
-        public FinanceKpiEntity                FinanceKpi    { get; set; }
+        public FinanceKpiEntity                  FinanceKpi  { get; set; }
         public List<FinanceTransactionRowEntity> FinanceRows { get; set; }
     }
 }
