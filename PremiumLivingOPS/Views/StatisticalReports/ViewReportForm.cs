@@ -710,16 +710,8 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 }
             };
 
-            // ── FIX: suppress the default DataGridView error dialog ──────────
-            // Without this handler the grid shows a modal error popup whenever
-            // a cell-formatting or data-type exception occurs (e.g. on the
-            // Inventory Status tab where numeric columns are rendered).
-            dgv.DataError += (sender, e) =>
-            {
-                // Silently swallow — the offending cell will simply show an
-                // empty string rather than crashing with a dialog box.
-                e.Cancel = true;
-            };
+            // Suppress the default DataGridView error dialog
+            dgv.DataError += (sender, e) => { e.Cancel = true; };
 
             return dgv;
         }
@@ -773,8 +765,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         {
             var dtpFrom = new DateTimePicker { Format = DateTimePickerFormat.Short, Value = DefaultDateFrom, Font = new Font("Segoe UI", 12f) };
             var dtpTo   = new DateTimePicker { Format = DateTimePickerFormat.Short, Value = DefaultDateTo,   Font = new Font("Segoe UI", 12f) };
-            // NOTE: Category filter removed — Product.Category ENUM is Sofa/Bed/Table/
-            // Chair/Cabinet. Category breakdown is available via the Top Products chart.
 
             var btnApply  = MakePrimaryBtn("\U0001F50D  Apply");
             var btnReset  = MakeOutlineBtn("\u21BA  Reset");
@@ -869,8 +859,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         private void RenderInventory()
         {
             var txtKeyword  = new TextBox { Font = new Font("Segoe UI", 12f), BorderStyle = BorderStyle.FixedSingle, PlaceholderText = "Item ID / Item Name" };
-            // Category options match ItemCategory derived from schema JOIN:
-            // "Product" (p.ItemID IS NOT NULL) or "Raw Material" (rm.ItemID IS NOT NULL)
             var cboCategory = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 12f) };
             cboCategory.Items.AddRange(new object[] { "All", "Product", "Raw Material" });
             cboCategory.SelectedIndex = 0;
@@ -943,9 +931,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                         r.ItemCategory,
                         string.IsNullOrEmpty(r.MaterialType) ? "\u2014" : r.MaterialType,
                         r.WarehouseLocation,
-                        // FIX: explicitly convert numeric fields to string so
-                        // DataGridView never encounters a type mismatch that
-                        // would fire the DataError event.
                         r.CurrentStock.ToString(),
                         r.ReorderLevel.ToString());
             }
@@ -965,7 +950,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                     {
                         string key = r.ItemCategory ?? "Unknown";
                         if (!stockByCategory.ContainsKey(key)) stockByCategory[key] = 0;
-                        // FIX: use Convert.ToDouble for safe numeric accumulation
                         stockByCategory[key] += Convert.ToDouble(r.CurrentStock);
                     }
             }
@@ -981,8 +965,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         {
             var dtpFrom   = new DateTimePicker { Format = DateTimePickerFormat.Short, Value = DefaultDateFrom, Font = new Font("Segoe UI", 12f) };
             var dtpTo     = new DateTimePicker { Format = DateTimePickerFormat.Short, Value = DefaultDateTo,   Font = new Font("Segoe UI", 12f) };
-            // Status options match PurchaseOrder.PurchaseStatus ENUM exactly:
-            // Sent / Partially Received / Received / Completed / Cancelled
             var cboStatus = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 12f) };
             cboStatus.Items.AddRange(new object[] { "All", "Sent", "Partially Received", "Received", "Completed", "Cancelled" });
             cboStatus.SelectedIndex = 0;
@@ -1084,8 +1066,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         {
             var dtpFrom   = new DateTimePicker { Format = DateTimePickerFormat.Short, Value = DefaultDateFrom, Font = new Font("Segoe UI", 12f) };
             var dtpTo     = new DateTimePicker { Format = DateTimePickerFormat.Short, Value = DefaultDateTo,   Font = new Font("Segoe UI", 12f) };
-            // Status options match DeliveryOrder.DeliveryStatus ENUM exactly:
-            // Pending / Processing / In Transit / Delivered / Partially Delivered / Cancelled
             var cboStatus = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 12f) };
             cboStatus.Items.AddRange(new object[] { "All", "Pending", "Processing", "In Transit", "Delivered", "Partially Delivered", "Cancelled" });
             cboStatus.SelectedIndex = 0;
@@ -1185,7 +1165,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         {
             var dtpFrom   = new DateTimePicker { Format = DateTimePickerFormat.Short, Value = DefaultDateFrom, Font = new Font("Segoe UI", 12f) };
             var dtpTo     = new DateTimePicker { Format = DateTimePickerFormat.Short, Value = DefaultDateTo,   Font = new Font("Segoe UI", 12f) };
-            // Complaint status: Open / In Progress / Resolved / Escalated / Closed
             var cboCmpStatus = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 12f) };
             cboCmpStatus.Items.AddRange(new object[] { "All", "Open", "In Progress", "Resolved", "Escalated", "Closed" });
             cboCmpStatus.SelectedIndex = 0;
@@ -1196,7 +1175,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             var btnExport = MakeExportBtn("\U0001F4E4  Export");
             ApplyToggleStyle(btnToggle, _afterServiceChart);
 
-            // Complaints DGV
             var dgvC = MakeDgv();
             dgvC.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCDate",    HeaderText = "DATE",          FillWeight = 14 });
             dgvC.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCID",      HeaderText = "COMPLAINT ID",  FillWeight = 16 });
@@ -1205,7 +1183,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             dgvC.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCStatus",  HeaderText = "STATUS",        FillWeight = 13 });
             dgvC.CellFormatting += DgvCellFormatting;
 
-            // Return Orders DGV
             var dgvR = MakeDgv();
             dgvR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colRDate",    HeaderText = "DATE",          FillWeight = 14 });
             dgvR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colRID",      HeaderText = "RETURN ID",     FillWeight = 16 });
@@ -1307,7 +1284,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         {
             var dtpFrom   = new DateTimePicker { Format = DateTimePickerFormat.Short, Value = DefaultDateFrom, Font = new Font("Segoe UI", 12f) };
             var dtpTo     = new DateTimePicker { Format = DateTimePickerFormat.Short, Value = DefaultDateTo,   Font = new Font("Segoe UI", 12f) };
-            // TransactionType: Revenue / Expense / Refund / Deposit / Installment / Full
             var cboTxType = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 12f) };
             cboTxType.Items.AddRange(new object[] { "All", "Revenue", "Expense", "Refund", "Deposit", "Installment", "Full" });
             cboTxType.SelectedIndex = 0;
@@ -1402,90 +1378,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 new List<string>(amtByDocType.Keys).ToArray(),
                 new List<double>(amtByDocType.Values).ToArray(),
                 ChartStyle.Column);
-        }
-
-        // ════════════════════════════════════════════════════════════════
-        //  CELL FORMATTING  (status badge colouring)
-        // ════════════════════════════════════════════════════════════════
-
-        private void DgvCellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
-        {
-            if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
-            var dgv = sender as DataGridView;
-            if (dgv == null) return;
-            var col = dgv.Columns[e.ColumnIndex];
-
-            bool isStatusCol =
-                col.Name == "colStatus"   ||
-                col.Name == "colRtStatus" ||
-                col.Name == "colPoStatus" ||
-                col.Name == "colCStatus"  ||
-                col.Name == "colRStatus"  ||
-                col.Name == "colTxType";
-
-            if (!isStatusCol) return;
-
-            string val = e.Value?.ToString() ?? string.Empty;
-            if (StatusColors.TryGetValue(val, out var colors))
-            {
-                e.CellStyle.BackColor = colors.bg;
-                e.CellStyle.ForeColor = colors.fg;
-                e.CellStyle.Font      = new Font("Segoe UI", 11f, FontStyle.Bold);
-                e.CellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-            }
-        }
-
-        // ════════════════════════════════════════════════════════════════
-        //  EXPORT  (CSV)
-        // ════════════════════════════════════════════════════════════════
-
-        private static void ExportGrid(DataGridView dgv, string baseName)
-        {
-            using var dlg = new SaveFileDialog
-            {
-                Filter   = "CSV files (*.csv)|*.csv",
-                FileName = $"{baseName}_{DateTime.Now:yyyyMMdd_HHmmss}.csv"
-            };
-            if (dlg.ShowDialog() != DialogResult.OK) return;
-
-            try
-            {
-                var sb = new System.Text.StringBuilder();
-                var headers = new List<string>();
-                foreach (DataGridViewColumn col in dgv.Columns)
-                    headers.Add($"\"{col.HeaderText}\"");
-                sb.AppendLine(string.Join(",", headers));
-
-                foreach (DataGridViewRow row in dgv.Rows)
-                {
-                    if (row.IsNewRow) continue;
-                    var cells = new List<string>();
-                    foreach (DataGridViewCell cell in row.Cells)
-                        cells.Add($"\"{(cell.Value?.ToString() ?? string.Empty).Replace("\"", "\"\"")}\"");
-                    sb.AppendLine(string.Join(",", cells));
-                }
-
-                System.IO.File.WriteAllText(dlg.FileName, sb.ToString(), System.Text.Encoding.UTF8);
-                MessageBox.Show($"Exported successfully to:\n{dlg.FileName}", "Export",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Export failed: {ex.Message}", "Export Error",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
-        // ════════════════════════════════════════════════════════════════
-        //  CARD BORDER PAINT
-        // ════════════════════════════════════════════════════════════════
-
-        private static void PaintCardBorder(object sender, PaintEventArgs e)
-        {
-            var pnl = sender as Panel;
-            if (pnl == null) return;
-            using var pen = new Pen(Color.FromArgb(221, 227, 236), 1f);
-            e.Graphics.DrawRectangle(pen, 0, 0, pnl.Width - 1, pnl.Height - 1);
         }
     }
 }
