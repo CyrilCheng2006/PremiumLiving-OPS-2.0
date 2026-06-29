@@ -46,14 +46,12 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             var pnlMain = new Panel { Dock = DockStyle.Fill, BackColor = Palette.BgPage };
 
             // ── AppShell ──────────────────────────────────────────────────────
+            // NOTE: MenuItemClicked and LogoutClicked are wired in ViewReportForm_Load,
+            //       NOT here — consistent with ViewOrderForm pattern.
             _shell = new AppShell();
             _shell.SetPopupContainer(pnlMain);
-            _shell.MenuItemClicked += OnTopNavMenuItemClicked;
-            _shell.LogoutClicked   += btnLogout_Click;
 
             // ── Tab bar outer (DockStyle.Top, 69 px) ─────────────────────────
-            // Baseline: HandlingGoodsReceivedForm pnlTabOuter
-            //   Height=69, Padding=(20,4,20,0)
             Button MakeTabBtn(string text, int idx)
             {
                 var b = new Button
@@ -110,22 +108,18 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 Dock      = DockStyle.Top,
                 Height    = 69,
                 BackColor = Palette.BgPage,
-                Padding   = new Padding(20, 4, 20, 0)   // HGR baseline exact
+                Padding   = new Padding(20, 4, 20, 0)
             };
             pnlTabOuter.Paint += PaintTabUnderline;
             pnlTabOuter.Controls.Add(pnlTabCard);
 
             // ── Filter bar outer (DockStyle.Top, 300 px) ─────────────────────
-            // Mirrors HGR pnlSearchOuter exactly:
-            //   Height=300, Padding=(20,14,20,8)
-            //   tblCard: Row0=60(title) Row1=125(fields) Row2=65(buttons)
-            //   tblCard Padding=(18,14,18,14)
             pnlFilterOuter = new Panel
             {
                 Dock      = DockStyle.Top,
                 Height    = 300,
                 BackColor = Palette.BgPage,
-                Padding   = new Padding(20, 14, 20, 8)   // HGR baseline exact
+                Padding   = new Padding(20, 14, 20, 8)
             };
 
             // ── Report content host (DockStyle.Fill) ──────────────────────────

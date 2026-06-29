@@ -58,11 +58,15 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         }
 
         // ════════════════════════════════════════════════════════════════
-        //  LOAD
+        //  LOAD  — mirrors ViewOrderForm_Load pattern exactly
         // ════════════════════════════════════════════════════════════════
 
         private void ViewReportForm_Load(object sender, EventArgs e)
         {
+            // Wire navigation/logout here (not in Designer) — same as ViewOrderForm
+            _shell.MenuItemClicked += OnTopNavMenuItemClicked;
+            _shell.LogoutClicked   += btnLogout_Click;
+
             var vm = _ctrl.GetSalesReportVM();
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
@@ -365,10 +369,8 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         }
 
         /// <summary>
-        /// Builds a white card containing a System.Windows.Forms.DataVisualization
-        /// Chart with a bar series populated from <paramref name="labels"/> /
-        /// <paramref name="values"/>.  The chart title and series name come from
-        /// <paramref name="chartTitle"/> / <paramref name="seriesName"/>.
+        /// Builds a white card containing a WinForms Chart (DataVisualization).
+        /// Requires NuGet: System.Windows.Forms.DataVisualization
         /// </summary>
         private Panel BuildChartCard(
             string chartTitle,
@@ -407,12 +409,12 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
             var series = new Series(seriesName)
             {
-                ChartType    = chartType,
-                ChartArea    = "main",
-                Color        = Color.FromArgb(55, 48, 163),
-                IsValueShownAsLabel = true,
-                Font         = new Font("Segoe UI", 9f),
-                LabelForeColor = Color.FromArgb(15, 31, 53)
+                ChartType             = chartType,
+                ChartArea             = "main",
+                Color                 = Color.FromArgb(55, 48, 163),
+                IsValueShownAsLabel   = true,
+                Font                  = new Font("Segoe UI", 9f),
+                LabelForeColor        = Color.FromArgb(15, 31, 53)
             };
 
             int count = Math.Min(labels?.Length ?? 0, values?.Length ?? 0);
@@ -573,14 +575,12 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
             LoadSalesData(dgv, dtpFrom, dtpTo);
 
-            // Build chart from same data
             var dgvCard   = BuildGridCard(dgv);
             var chartCard = BuildSalesChartCard(dtpFrom, dtpTo);
 
             btnApply.Click += (s, e) =>
             {
                 LoadSalesData(dgv, dtpFrom, dtpTo);
-                // Rebuild chart with new date range if chart is showing
                 if (_salesChart)
                 {
                     pnlContent.SuspendLayout();
@@ -607,7 +607,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 ApplyToggleStyle(btnToggle, _salesChart);
                 if (_salesChart)
                 {
-                    // Rebuild chart with current filters each time
                     pnlContent.SuspendLayout();
                     pnlContent.Controls.Clear();
                     pnlContent.Controls.Add(BuildSalesChartCard(dtpFrom, dtpTo));
@@ -629,7 +628,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
         private Panel BuildSalesChartCard(DateTimePicker dtpFrom, DateTimePicker dtpTo)
         {
-            // Aggregate revenue by status from VM
             var revenueByStatus = new Dictionary<string, double>();
             try
             {
