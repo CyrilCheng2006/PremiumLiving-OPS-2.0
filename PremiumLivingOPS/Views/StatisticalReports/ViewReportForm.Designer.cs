@@ -115,17 +115,17 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             pnlTabOuter.Paint += PaintTabUnderline;
             pnlTabOuter.Controls.Add(pnlTabCard);
 
-            // ── Filter bar outer (DockStyle.Top, 240 px) ─────────────────────
-            // Row budget:  row0(52) + row1(66) + row2(72) = 190 px
-            // tblCard.Padding top(10)+bottom(10)           =  20 px  → need 210 px inside card
-            // pnlFilterOuter.Padding top(14)+bottom(8)     =  22 px  → need 232 px outer
-            // Height = 240  →  card = 240−22 = 218 px  →  rows usable = 218−20 = 198 px  ✓ (+8 px breathing room)
+            // ── Filter bar outer (DockStyle.Top, 300 px) ─────────────────────
+            // Mirrors HGR pnlSearchOuter exactly:
+            //   Height=300, Padding=(20,14,20,8)
+            //   tblCard: Row0=60(title) Row1=125(fields) Row2=65(buttons)
+            //   tblCard Padding=(18,14,18,14)
             pnlFilterOuter = new Panel
             {
                 Dock      = DockStyle.Top,
-                Height    = 240,
+                Height    = 300,
                 BackColor = Palette.BgPage,
-                Padding   = new Padding(20, 14, 20, 8)   // HGR baseline
+                Padding   = new Padding(20, 14, 20, 8)   // HGR baseline exact
             };
 
             // ── Report content host (DockStyle.Fill) ──────────────────────────
