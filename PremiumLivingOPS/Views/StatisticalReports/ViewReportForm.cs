@@ -56,6 +56,9 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 { "Deposit",             (Color.FromArgb(209, 250, 229), Color.FromArgb(  6,  95,  70)) },
                 { "Installment",         (Color.FromArgb(219, 234, 254), Color.FromArgb( 29,  78, 216)) },
                 { "Full",                (Color.FromArgb(220, 252, 231), Color.FromArgb( 22, 101,  52)) },
+                { "Sales Invoice",       (Color.FromArgb(209, 250, 229), Color.FromArgb(  6,  95,  70)) },
+                { "Purchase Invoice",    (Color.FromArgb(254, 226, 226), Color.FromArgb(185,  28,  28)) },
+                { "Return Refund",       (Color.FromArgb(254, 243, 199), Color.FromArgb(146,  64,  14)) },
             };
 
         // Palette of bar/segment colours used by the GDI+ chart
@@ -853,7 +856,8 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         private void RenderInventory()
         {
             var txtKeyword  = new TextBox { Font = new Font("Segoe UI", 12f), BorderStyle = BorderStyle.FixedSingle, PlaceholderText = "Item ID / Item Name" };
-            // Category maps to item type: "Product" or "Raw Material" (matches schema)
+            // Category options match ItemCategory derived from schema JOIN:
+            // "Product" (p.ItemID IS NOT NULL) or "Raw Material" (rm.ItemID IS NOT NULL)
             var cboCategory = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 12f) };
             cboCategory.Items.AddRange(new object[] { "All", "Product", "Raw Material" });
             cboCategory.SelectedIndex = 0;
@@ -866,14 +870,14 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             ApplyToggleStyle(btnToggle, _inventoryChart);
 
             var dgv = MakeDgv();
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colWHItemID",    HeaderText = "WH ITEM ID",    FillWeight = 13 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colItemID",      HeaderText = "ITEM ID",       FillWeight = 13 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colName",        HeaderText = "ITEM NAME",     FillWeight = 20 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCategory",    HeaderText = "CATEGORY",      FillWeight = 12 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colMatType",     HeaderText = "MATERIAL TYPE", FillWeight = 12 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colWH",          HeaderText = "WAREHOUSE",     FillWeight = 15 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStock",       HeaderText = "CURRENT STOCK", FillWeight = 10 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colReorder",     HeaderText = "REORDER LEVEL", FillWeight = 10 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colWHItemID",  HeaderText = "WH ITEM ID",    FillWeight = 12 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colItemID",    HeaderText = "ITEM ID",       FillWeight = 12 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colName",      HeaderText = "ITEM NAME",     FillWeight = 20 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCategory",  HeaderText = "CATEGORY",      FillWeight = 11 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colMatType",   HeaderText = "MATERIAL TYPE", FillWeight = 11 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colWH",        HeaderText = "WAREHOUSE",     FillWeight = 14 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStock",     HeaderText = "CURRENT STOCK", FillWeight = 10 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colReorder",   HeaderText = "REORDER LEVEL", FillWeight = 10 });
             dgv.CellFormatting += DgvCellFormatting;
 
             LoadInventoryData(dgv, cboCategory, chkBelowReorder, txtKeyword);
@@ -924,7 +928,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                         r.ItemID,
                         r.ItemName,
                         r.ItemCategory,
-                        string.IsNullOrEmpty(r.MaterialType) ? "—" : r.MaterialType,
+                        string.IsNullOrEmpty(r.MaterialType) ? "\u2014" : r.MaterialType,
                         r.WarehouseLocation,
                         r.CurrentStock,
                         r.ReorderLevel);
@@ -960,7 +964,8 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         {
             var dtpFrom   = new DateTimePicker { Format = DateTimePickerFormat.Short, Value = DefaultDateFrom, Font = new Font("Segoe UI", 12f) };
             var dtpTo     = new DateTimePicker { Format = DateTimePickerFormat.Short, Value = DefaultDateTo,   Font = new Font("Segoe UI", 12f) };
-            // Status options match PurchaseOrder.PurchaseStatus ENUM exactly
+            // Status options match PurchaseOrder.PurchaseStatus ENUM exactly:
+            // Sent / Partially Received / Received / Completed / Cancelled
             var cboStatus = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 12f) };
             cboStatus.Items.AddRange(new object[] { "All", "Sent", "Partially Received", "Received", "Completed", "Cancelled" });
             cboStatus.SelectedIndex = 0;
@@ -1007,7 +1012,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             btnExport.Click += (s, e) => ExportGrid(dgv, "ProcurementSummary");
 
             SetFilterBar("Procurement Summary",
-                BuildDateRangeRow(dtpFrom, dtpTo, ("PO Status", cboStatus)),
+                BuildDateRangeRow(dtpFrom, dtpTo, ("Status", cboStatus)),
                 BuildButtonsRow(btnApply, btnReset, btnToggle, btnExport));
 
             SwapContent(dgvCard, chartCard, _procurementChart);
@@ -1035,7 +1040,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
         private Panel BuildProcurementChartCard(ComboBox cboStatus, DateTimePicker dtpFrom, DateTimePicker dtpTo)
         {
-            var amtByStatus = new Dictionary<string, double>();
+            var spendBySupplier = new Dictionary<string, double>();
             try
             {
                 string st = cboStatus.SelectedIndex == 0 ? null : cboStatus.SelectedItem?.ToString();
@@ -1043,24 +1048,25 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 if (vm.ProcRows != null)
                     foreach (var r in vm.ProcRows)
                     {
-                        string key = r.PurchaseStatus ?? "Unknown";
-                        if (!amtByStatus.ContainsKey(key)) amtByStatus[key] = 0;
-                        amtByStatus[key] += r.POTotalAmount;
+                        string key = r.SupplierName ?? "Unknown";
+                        if (!spendBySupplier.ContainsKey(key)) spendBySupplier[key] = 0;
+                        spendBySupplier[key] += r.POTotalAmount;
                     }
             }
             catch { }
-            return BuildChartCard("Procurement Amount by Status",
-                new List<string>(amtByStatus.Keys).ToArray(),
-                new List<double>(amtByStatus.Values).ToArray(),
-                ChartStyle.Pie);
+            return BuildChartCard("Procurement Spend by Supplier",
+                new List<string>(spendBySupplier.Keys).ToArray(),
+                new List<double>(spendBySupplier.Values).ToArray(),
+                ChartStyle.Bar);
         }
 
-        // ── 3. Logistics Overview ──────────────────────────────────────────
+        // ── 3. Logistics Overview ───────────────────────────────────────────
         private void RenderLogistics()
         {
             var dtpFrom   = new DateTimePicker { Format = DateTimePickerFormat.Short, Value = DefaultDateFrom, Font = new Font("Segoe UI", 12f) };
             var dtpTo     = new DateTimePicker { Format = DateTimePickerFormat.Short, Value = DefaultDateTo,   Font = new Font("Segoe UI", 12f) };
-            // Status options match Shipment.ShipmentStatus ENUM exactly
+            // Status options match Shipment.ShipmentStatus ENUM exactly:
+            // Pending / In Transit / Completed
             var cboStatus = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 12f) };
             cboStatus.Items.AddRange(new object[] { "All", "Pending", "In Transit", "Completed" });
             cboStatus.SelectedIndex = 0;
@@ -1072,16 +1078,16 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             ApplyToggleStyle(btnToggle, _logisticsChart);
 
             var dgv = MakeDgv();
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colShipID",  HeaderText = "SHIPMENT ID", FillWeight = 14 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colOrderID", HeaderText = "ORDER ID",    FillWeight = 12 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCust",    HeaderText = "CUSTOMER",    FillWeight = 16 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colType",    HeaderText = "SHIP TYPE",   FillWeight = 10 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colMethod",  HeaderText = "METHOD",      FillWeight = 11 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDate",    HeaderText = "SHIP DATE",   FillWeight = 11 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colAmt",     HeaderText = "AMOUNT",      FillWeight = 10 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",  HeaderText = "STATUS",      FillWeight = 10 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colHasDN",   HeaderText = "DN",          FillWeight =  6 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colHasRS",   HeaderText = "RS",          FillWeight =  6 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colShipID",   HeaderText = "SHIPMENT ID", FillWeight = 13 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colOrderID",  HeaderText = "ORDER ID",    FillWeight = 13 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCust",     HeaderText = "CUSTOMER",    FillWeight = 18 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colType",     HeaderText = "SHIP TYPE",   FillWeight = 10 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colMethod",   HeaderText = "METHOD",      FillWeight = 11 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDate",     HeaderText = "SHIP DATE",   FillWeight = 11 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colAmt",      HeaderText = "AMOUNT",      FillWeight = 10 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",   HeaderText = "STATUS",      FillWeight = 11 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colHasDN",    HeaderText = "HAS DN",      FillWeight =  7 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colHasRS",    HeaderText = "HAS RS",      FillWeight =  6 });
             dgv.CellFormatting += DgvCellFormatting;
 
             LoadLogisticsData(dgv, cboStatus, dtpFrom, dtpTo);
@@ -1135,15 +1141,15 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                         r.ShipDate.ToString("yyyy-MM-dd"),
                         r.TotalAmount.ToString("N2"),
                         r.ShipmentStatus,
-                        r.HasDeliveryNote ? "✔" : "—",
-                        r.HasReplySlip    ? "✔" : "—");
+                        r.HasDeliveryNote ? "Yes" : "No",
+                        r.HasReplySlip    ? "Yes" : "No");
             }
             catch { }
         }
 
         private Panel BuildLogisticsChartCard(ComboBox cboStatus, DateTimePicker dtpFrom, DateTimePicker dtpTo)
         {
-            var cntByStatus = new Dictionary<string, double>();
+            var countByStatus = new Dictionary<string, double>();
             try
             {
                 string st = cboStatus.SelectedIndex == 0 ? null : cboStatus.SelectedItem?.ToString();
@@ -1152,30 +1158,32 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                     foreach (var r in vm.LogRows)
                     {
                         string key = r.ShipmentStatus ?? "Unknown";
-                        if (!cntByStatus.ContainsKey(key)) cntByStatus[key] = 0;
-                        cntByStatus[key]++;
+                        if (!countByStatus.ContainsKey(key)) countByStatus[key] = 0;
+                        countByStatus[key]++;
                     }
             }
             catch { }
             return BuildChartCard("Shipments by Status",
-                new List<string>(cntByStatus.Keys).ToArray(),
-                new List<double>(cntByStatus.Values).ToArray(),
+                new List<string>(countByStatus.Keys).ToArray(),
+                new List<double>(countByStatus.Values).ToArray(),
                 ChartStyle.Pie);
         }
 
         // ── 4. After-Service Summary ────────────────────────────────────────
         private void RenderAfterService()
         {
-            var dtpFrom         = new DateTimePicker { Format = DateTimePickerFormat.Short, Value = DefaultDateFrom, Font = new Font("Segoe UI", 12f) };
-            var dtpTo           = new DateTimePicker { Format = DateTimePickerFormat.Short, Value = DefaultDateTo,   Font = new Font("Segoe UI", 12f) };
-            // Complaint status options match Complaint.ComplaintStatus ENUM exactly (no 'Cancelled')
-            var cboComplaintSt  = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 12f) };
-            cboComplaintSt.Items.AddRange(new object[] { "All", "Pending", "Processing", "Escalated", "Completed" });
-            cboComplaintSt.SelectedIndex = 0;
-            // Return status options match ReturnOrder.ReturnStatus ENUM exactly
-            var cboReturnSt     = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 12f) };
-            cboReturnSt.Items.AddRange(new object[] { "All", "Pending", "Processing", "Completed" });
-            cboReturnSt.SelectedIndex = 0;
+            var dtpFrom = new DateTimePicker { Format = DateTimePickerFormat.Short, Value = DefaultDateFrom, Font = new Font("Segoe UI", 12f) };
+            var dtpTo   = new DateTimePicker { Format = DateTimePickerFormat.Short, Value = DefaultDateTo,   Font = new Font("Segoe UI", 12f) };
+            // Complaint status matches Complaint.ComplaintStatus ENUM:
+            // Pending / Processing / Escalated / Completed  (no "Cancelled")
+            var cboCpStatus = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 12f) };
+            cboCpStatus.Items.AddRange(new object[] { "All", "Pending", "Processing", "Escalated", "Completed" });
+            cboCpStatus.SelectedIndex = 0;
+            // Return status matches ReturnOrder.ReturnStatus ENUM:
+            // Pending / Processing / Completed
+            var cboRtStatus = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 12f) };
+            cboRtStatus.Items.AddRange(new object[] { "All", "Pending", "Processing", "Completed" });
+            cboRtStatus.SelectedIndex = 0;
 
             var btnApply  = MakePrimaryBtn("\U0001F50D  Apply");
             var btnReset  = MakeOutlineBtn("\u21BA  Reset");
@@ -1184,78 +1192,75 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             ApplyToggleStyle(btnToggle, _afterServiceChart);
 
             // Complaints DGV
-            var dgvComplaints = MakeDgv();
-            dgvComplaints.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCmpID",   HeaderText = "COMPLAINT ID",  FillWeight = 18 });
-            dgvComplaints.Columns.Add(new DataGridViewTextBoxColumn { Name = "colOrderID", HeaderText = "ORDER ID",      FillWeight = 15 });
-            dgvComplaints.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCust",    HeaderText = "CUSTOMER",      FillWeight = 25 });
-            dgvComplaints.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDesc",    HeaderText = "DESCRIPTION",   FillWeight = 27 });
-            dgvComplaints.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",  HeaderText = "STATUS",        FillWeight = 15 });
-            dgvComplaints.CellFormatting += DgvCellFormatting;
+            var dgvCp = MakeDgv();
+            dgvCp.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCpID",   HeaderText = "COMPLAINT ID", FillWeight = 18 });
+            dgvCp.Columns.Add(new DataGridViewTextBoxColumn { Name = "colOrdID",  HeaderText = "ORDER ID",     FillWeight = 18 });
+            dgvCp.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCust",   HeaderText = "CUSTOMER",     FillWeight = 24 });
+            dgvCp.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDesc",   HeaderText = "DESCRIPTION",  FillWeight = 25 });
+            dgvCp.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus", HeaderText = "STATUS",       FillWeight = 15 });
+            dgvCp.CellFormatting += DgvCellFormatting;
 
             // Return Orders DGV
-            var dgvReturns = MakeDgv();
-            dgvReturns.Columns.Add(new DataGridViewTextBoxColumn { Name = "colRetID",    HeaderText = "RETURN ID",     FillWeight = 15 });
-            dgvReturns.Columns.Add(new DataGridViewTextBoxColumn { Name = "colOrderID",  HeaderText = "ORDER ID",      FillWeight = 14 });
-            dgvReturns.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCust",     HeaderText = "CUSTOMER",      FillWeight = 20 });
-            dgvReturns.Columns.Add(new DataGridViewTextBoxColumn { Name = "colReason",   HeaderText = "REASON",        FillWeight = 22 });
-            dgvReturns.Columns.Add(new DataGridViewTextBoxColumn { Name = "colRefund",   HeaderText = "REFUND",        FillWeight = 12 });
-            dgvReturns.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDate",     HeaderText = "RETURN DATE",   FillWeight = 12 });
-            dgvReturns.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",   HeaderText = "STATUS",        FillWeight = 12 });
-            dgvReturns.CellFormatting += DgvCellFormatting;
+            var dgvRt = MakeDgv();
+            dgvRt.Columns.Add(new DataGridViewTextBoxColumn { Name = "colRtID",     HeaderText = "RETURN ID",    FillWeight = 15 });
+            dgvRt.Columns.Add(new DataGridViewTextBoxColumn { Name = "colOrdID",    HeaderText = "ORDER ID",     FillWeight = 15 });
+            dgvRt.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCust",     HeaderText = "CUSTOMER",     FillWeight = 20 });
+            dgvRt.Columns.Add(new DataGridViewTextBoxColumn { Name = "colReason",   HeaderText = "REASON",       FillWeight = 22 });
+            dgvRt.Columns.Add(new DataGridViewTextBoxColumn { Name = "colRefund",   HeaderText = "REFUND",       FillWeight = 13 });
+            dgvRt.Columns.Add(new DataGridViewTextBoxColumn { Name = "colRtDate",   HeaderText = "RETURN DATE",  FillWeight = 13 });
+            dgvRt.Columns.Add(new DataGridViewTextBoxColumn { Name = "colRtStatus", HeaderText = "STATUS",       FillWeight = 12 });
+            dgvRt.CellFormatting += DgvCellFormatting;
 
-            LoadAfterServiceData(dgvComplaints, dgvReturns, cboComplaintSt, cboReturnSt, dtpFrom, dtpTo);
+            LoadAfterServiceData(dgvCp, dgvRt, cboCpStatus, cboRtStatus, dtpFrom, dtpTo);
 
-            var dualCard  = BuildAfterServiceDualCard(dgvComplaints, dgvReturns);
-            var chartCard = BuildAfterServiceChartCard(cboComplaintSt, cboReturnSt, dtpFrom, dtpTo);
+            var dgvCard   = BuildAfterServiceDualCard(dgvCp, dgvRt);
+            var chartCard = BuildAfterServiceChartCard(cboCpStatus, cboRtStatus, dtpFrom, dtpTo);
 
             btnApply.Click += (s, e) =>
             {
-                LoadAfterServiceData(dgvComplaints, dgvReturns, cboComplaintSt, cboReturnSt, dtpFrom, dtpTo);
-                if (_afterServiceChart) { pnlContent.SuspendLayout(); pnlContent.Controls.Clear(); pnlContent.Controls.Add(BuildAfterServiceChartCard(cboComplaintSt, cboReturnSt, dtpFrom, dtpTo)); pnlContent.ResumeLayout(true); }
-                else SwapContent(dualCard, chartCard, false);
+                LoadAfterServiceData(dgvCp, dgvRt, cboCpStatus, cboRtStatus, dtpFrom, dtpTo);
+                if (_afterServiceChart) { pnlContent.SuspendLayout(); pnlContent.Controls.Clear(); pnlContent.Controls.Add(BuildAfterServiceChartCard(cboCpStatus, cboRtStatus, dtpFrom, dtpTo)); pnlContent.ResumeLayout(true); }
+                else SwapContent(dgvCard, chartCard, false);
             };
             btnReset.Click += (s, e) =>
             {
                 dtpFrom.Value = DefaultDateFrom; dtpTo.Value = DefaultDateTo;
-                cboComplaintSt.SelectedIndex = 0; cboReturnSt.SelectedIndex = 0;
-                LoadAfterServiceData(dgvComplaints, dgvReturns, cboComplaintSt, cboReturnSt, dtpFrom, dtpTo);
-                SwapContent(dualCard, chartCard, _afterServiceChart);
+                cboCpStatus.SelectedIndex = 0; cboRtStatus.SelectedIndex = 0;
+                LoadAfterServiceData(dgvCp, dgvRt, cboCpStatus, cboRtStatus, dtpFrom, dtpTo);
+                SwapContent(dgvCard, chartCard, _afterServiceChart);
             };
             btnToggle.Click += (s, e) =>
             {
                 _afterServiceChart = !_afterServiceChart;
                 ApplyToggleStyle(btnToggle, _afterServiceChart);
-                if (_afterServiceChart) { pnlContent.SuspendLayout(); pnlContent.Controls.Clear(); pnlContent.Controls.Add(BuildAfterServiceChartCard(cboComplaintSt, cboReturnSt, dtpFrom, dtpTo)); pnlContent.ResumeLayout(true); }
-                else SwapContent(dualCard, chartCard, false);
+                if (_afterServiceChart) { pnlContent.SuspendLayout(); pnlContent.Controls.Clear(); pnlContent.Controls.Add(BuildAfterServiceChartCard(cboCpStatus, cboRtStatus, dtpFrom, dtpTo)); pnlContent.ResumeLayout(true); }
+                else SwapContent(dgvCard, chartCard, false);
             };
-            btnExport.Click += (s, e) => ExportGrid(dgvComplaints, "AfterService_Complaints");
+            btnExport.Click += (s, e) => ExportGrid(dgvCp, "AfterService_Complaints");
 
             SetFilterBar("After-Service Summary",
-                BuildDateRangeRow(dtpFrom, dtpTo, ("Complaint Status", cboComplaintSt), ("Return Status", cboReturnSt)),
+                BuildDateRangeRow(dtpFrom, dtpTo, ("Complaint Status", cboCpStatus), ("Return Status", cboRtStatus)),
                 BuildButtonsRow(btnApply, btnReset, btnToggle, btnExport));
 
-            SwapContent(dualCard, chartCard, _afterServiceChart);
+            SwapContent(dgvCard, chartCard, _afterServiceChart);
         }
 
         private void LoadAfterServiceData(
-            DataGridView dgvComplaints,
-            DataGridView dgvReturns,
-            ComboBox cboComplaintSt,
-            ComboBox cboReturnSt,
-            DateTimePicker dtpFrom,
-            DateTimePicker dtpTo)
+            DataGridView dgvCp, DataGridView dgvRt,
+            ComboBox cboCpStatus, ComboBox cboRtStatus,
+            DateTimePicker dtpFrom, DateTimePicker dtpTo)
         {
-            dgvComplaints.Rows.Clear();
-            dgvReturns.Rows.Clear();
+            dgvCp.Rows.Clear();
+            dgvRt.Rows.Clear();
             try
             {
-                string cst = cboComplaintSt.SelectedIndex == 0 ? null : cboComplaintSt.SelectedItem?.ToString();
-                string rst = cboReturnSt.SelectedIndex == 0    ? null : cboReturnSt.SelectedItem?.ToString();
-                var vm = _ctrl.GetAfterServiceReportVM(cst, rst, dtpFrom.Value, dtpTo.Value);
+                string cpSt = cboCpStatus.SelectedIndex == 0 ? null : cboCpStatus.SelectedItem?.ToString();
+                string rtSt = cboRtStatus.SelectedIndex == 0 ? null : cboRtStatus.SelectedItem?.ToString();
+                var vm = _ctrl.GetAfterServiceReportVM(cpSt, rtSt, dtpFrom.Value, dtpTo.Value);
 
                 if (vm.Complaints != null)
                     foreach (var r in vm.Complaints)
-                        dgvComplaints.Rows.Add(
+                        dgvCp.Rows.Add(
                             r.ComplaintID,
                             r.OrderID,
                             r.CustomerName,
@@ -1264,7 +1269,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
                 if (vm.Returns != null)
                     foreach (var r in vm.Returns)
-                        dgvReturns.Rows.Add(
+                        dgvRt.Rows.Add(
                             r.ReturnID,
                             r.OrderID,
                             r.CustomerName,
@@ -1277,42 +1282,40 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         }
 
         private Panel BuildAfterServiceChartCard(
-            ComboBox cboComplaintSt,
-            ComboBox cboReturnSt,
-            DateTimePicker dtpFrom,
-            DateTimePicker dtpTo)
+            ComboBox cboCpStatus, ComboBox cboRtStatus,
+            DateTimePicker dtpFrom, DateTimePicker dtpTo)
         {
-            var cntByStatus = new Dictionary<string, double>();
+            var countByCpStatus = new Dictionary<string, double>();
             try
             {
-                string cst = cboComplaintSt.SelectedIndex == 0 ? null : cboComplaintSt.SelectedItem?.ToString();
-                string rst = cboReturnSt.SelectedIndex == 0    ? null : cboReturnSt.SelectedItem?.ToString();
-                var vm = _ctrl.GetAfterServiceReportVM(cst, rst, dtpFrom.Value, dtpTo.Value);
+                string cpSt = cboCpStatus.SelectedIndex == 0 ? null : cboCpStatus.SelectedItem?.ToString();
+                string rtSt = cboRtStatus.SelectedIndex == 0 ? null : cboRtStatus.SelectedItem?.ToString();
+                var vm = _ctrl.GetAfterServiceReportVM(cpSt, rtSt, dtpFrom.Value, dtpTo.Value);
                 if (vm.Complaints != null)
                     foreach (var r in vm.Complaints)
                     {
                         string key = r.ComplaintStatus ?? "Unknown";
-                        if (!cntByStatus.ContainsKey(key)) cntByStatus[key] = 0;
-                        cntByStatus[key]++;
+                        if (!countByCpStatus.ContainsKey(key)) countByCpStatus[key] = 0;
+                        countByCpStatus[key]++;
                     }
             }
             catch { }
             return BuildChartCard("Complaints by Status",
-                new List<string>(cntByStatus.Keys).ToArray(),
-                new List<double>(cntByStatus.Values).ToArray(),
-                ChartStyle.Bar);
+                new List<string>(countByCpStatus.Keys).ToArray(),
+                new List<double>(countByCpStatus.Values).ToArray(),
+                ChartStyle.Pie);
         }
 
-        // ── 5. Finance Overview ────────────────────────────────────────────
+        // ── 5. Finance Overview ─────────────────────────────────────────────
         private void RenderFinance()
         {
-            var dtpFrom   = new DateTimePicker { Format = DateTimePickerFormat.Short, Value = DefaultDateFrom, Font = new Font("Segoe UI", 12f) };
-            var dtpTo     = new DateTimePicker { Format = DateTimePickerFormat.Short, Value = DefaultDateTo,   Font = new Font("Segoe UI", 12f) };
-            // DocType filter maps to Transaction link type:
-            //   Revenue = InvoiceID IS NOT NULL (Sales Invoice transactions)
-            //   Expense = PurInvoiceID IS NOT NULL (Purchase Invoice transactions)
-            //   Refund  = ReturnID IS NOT NULL (Return Refund transactions)
-            var cboType   = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 12f) };
+            var dtpFrom  = new DateTimePicker { Format = DateTimePickerFormat.Short, Value = DefaultDateFrom, Font = new Font("Segoe UI", 12f) };
+            var dtpTo    = new DateTimePicker { Format = DateTimePickerFormat.Short, Value = DefaultDateTo,   Font = new Font("Segoe UI", 12f) };
+            // Type filter mapped to docTypeFilter in Repo:
+            // "Revenue"  = InvoiceID IS NOT NULL (Sales Invoice txns)
+            // "Expense"  = PurInvoiceID IS NOT NULL (Purchase Invoice txns)
+            // "Refund"   = ReturnID IS NOT NULL
+            var cboType  = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 12f) };
             cboType.Items.AddRange(new object[] { "All", "Revenue", "Expense", "Refund" });
             cboType.SelectedIndex = 0;
 
@@ -1323,12 +1326,12 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             ApplyToggleStyle(btnToggle, _financeChart);
 
             var dgv = MakeDgv();
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTxnID",  HeaderText = "TXN ID",   FillWeight = 18 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDate",   HeaderText = "DATE",     FillWeight = 14 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colType",   HeaderText = "TYPE",     FillWeight = 13 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDoc",    HeaderText = "DOCUMENT", FillWeight = 18 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDocTyp", HeaderText = "DOC TYPE", FillWeight = 18 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colAmt",    HeaderText = "AMOUNT",   FillWeight = 14 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTxnID",   HeaderText = "TXN ID",   FillWeight = 18 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDate",    HeaderText = "DATE",     FillWeight = 15 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colType",    HeaderText = "TYPE",     FillWeight = 13 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDoc",     HeaderText = "DOCUMENT", FillWeight = 18 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDocType", HeaderText = "DOC TYPE", FillWeight = 18 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colAmt",     HeaderText = "AMOUNT",   FillWeight = 15 });
             dgv.CellFormatting += DgvCellFormatting;
 
             LoadFinanceData(dgv, dtpFrom, dtpTo, cboType);
@@ -1358,7 +1361,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             btnExport.Click += (s, e) => ExportGrid(dgv, "FinanceOverview");
 
             SetFilterBar("Finance Overview",
-                BuildDateRangeRow(dtpFrom, dtpTo, ("Transaction Type", cboType)),
+                BuildDateRangeRow(dtpFrom, dtpTo, ("Type", cboType)),
                 BuildButtonsRow(btnApply, btnReset, btnToggle, btnExport));
 
             SwapContent(dgvCard, chartCard, _financeChart);
@@ -1403,7 +1406,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             return BuildChartCard("Transaction Amount by Doc Type",
                 new List<string>(amtByDocType.Keys).ToArray(),
                 new List<double>(amtByDocType.Values).ToArray(),
-                ChartStyle.Bar);
+                ChartStyle.Column);
         }
     }
 }
