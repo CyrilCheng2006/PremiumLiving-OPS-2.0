@@ -258,6 +258,14 @@ namespace PremiumLivingOPS.Models.DAL
         /// <summary>
         /// Valid statusFilter values: null / "All" / "Sent" / "Partially Received" /
         /// "Received" / "Completed" / "Cancelled"  (matches PurchaseOrder.PurchaseStatus ENUM).
+        ///
+        /// FIX: ReceiptStatus is now derived from the Receipt table (schema-compliant).
+        ///      The original code referenced a non-existent GoodsReceived table which
+        ///      caused a runtime SQL error preventing any data from being displayed.
+        ///      ReceiptStatus values:
+        ///        'Fully Received'     — all Receipt rows have Outstanding_QTY = 0 or NULL
+        ///        'Partially Received' — at least one Receipt row with Outstanding_QTY > 0
+        ///        'Not Received'       — no Receipt rows exist for this PurchaseOrder
         /// </summary>
         public List<ProcurementRowEntity> GetProcurementRows(
             DateTime? from        = null,
@@ -280,9 +288,17 @@ namespace PremiumLivingOPS.Models.DAL
                               (SELECT COUNT(*)
                                FROM   PurchaseOrderLine pol
                                WHERE  pol.PurchaseID = po.PurchaseID) AS ItemCount,
-                              (SELECT MAX(gr.ReceiptStatus)
-                               FROM   GoodsReceived gr
-                               WHERE  gr.PurchaseID = po.PurchaseID) AS ReceiptStatus
+                              CASE
+                                WHEN NOT EXISTS (
+                                    SELECT 1 FROM Receipt rc WHERE rc.PurchaseID = po.PurchaseID
+                                ) THEN 'Not Received'
+                                WHEN EXISTS (
+                                    SELECT 1 FROM Receipt rc
+                                    WHERE  rc.PurchaseID = po.PurchaseID
+                                    AND    rc.Outstanding_QTY > 0
+                                ) THEN 'Partially Received'
+                                ELSE 'Fully Received'
+                              END AS ReceiptStatus
                        FROM   PurchaseOrder po
                        JOIN   Supplier s ON po.SupplierID = s.SupplierID
                        {where}
@@ -299,7 +315,7 @@ namespace PremiumLivingOPS.Models.DAL
                                 PurchaseOrderID = r["PurchaseID"].ToString(),
                                 SupplierName    = r["SupplierName"].ToString(),
                                 PurchaseStatus  = r["PurchaseStatus"].ToString(),
-                                ReceiptStatus   = r["ReceiptStatus"] == DBNull.Value ? "—" : r["ReceiptStatus"].ToString(),
+                                ReceiptStatus   = r["ReceiptStatus"].ToString(),
                                 OrderDate       = Convert.ToDateTime(r["OrderDate"]),
                                 TotalAmount     = Convert.ToDouble(r["POTotalAmount"]),
                                 ItemCount       = Convert.ToInt32(r["ItemCount"]),
@@ -348,6 +364,12 @@ namespace PremiumLivingOPS.Models.DAL
         /// Valid statusFilter values: null / "All" / "Pending" / "In Transit" / "Completed"
         /// (matches Shipment.ShipmentStatus ENUM).
         /// Returns LogisticsRowEntity — aligned to ViewReportForm / LogisticsRowEntity fields.
+        ///
+        /// FIX: Removed JOIN to non-existent Driver table and non-existent DriverID column
+        ///      in DeliveryNote. The schema (Database/schema.sql) has no Driver table and
+        ///      DeliveryNote has no DriverID column. The original JOIN caused a runtime
+        ///      SQL error preventing any data from being displayed.
+        ///      DriverName now returns '' (empty string) as the schema has no driver data.
         /// </summary>
         public List<LogisticsRowEntity> GetLogisticsRows(
             DateTime? from        = null,
@@ -364,12 +386,10 @@ namespace PremiumLivingOPS.Models.DAL
                 string dateExtra = BuildDateWhere("sh.ShipDate", from, to, prefix: "AND");
                 where += dateExtra;
 
-                // DriverName: Shipment may reference a Driver via DeliveryNote or directly.
-                // We attempt LEFT JOIN DeliveryNote → Driver; fall back to empty string if absent.
                 string sql =
                     $@"SELECT sh.ShipmentID, sh.OrderID, c.CustomerName,
                               sh.ShipmentStatus, sh.ShipDate,
-                              COALESCE(d.DriverName, '') AS DriverName,
+                              '' AS DriverName,
                               (SELECT COUNT(1) FROM DeliveryNote dn WHERE dn.ShipmentID = sh.ShipmentID) AS HasDN,
                               (SELECT COUNT(1)
                                FROM DeliveryNote dn2
@@ -378,11 +398,7 @@ namespace PremiumLivingOPS.Models.DAL
                        FROM   Shipment sh
                        JOIN   `Order`  o ON sh.OrderID = o.OrderID
                        JOIN   Customer c ON o.CustomerID = c.CustomerID
-                       LEFT JOIN DeliveryNote dn3 ON dn3.ShipmentID = sh.ShipmentID
-                       LEFT JOIN Driver d ON d.DriverID = dn3.DriverID
                        {where}
-                       GROUP BY sh.ShipmentID, sh.OrderID, c.CustomerName,
-                                sh.ShipmentStatus, sh.ShipDate, d.DriverName
                        ORDER  BY sh.ShipDate DESC";
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
