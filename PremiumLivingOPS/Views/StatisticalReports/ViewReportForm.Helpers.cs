@@ -11,47 +11,48 @@ namespace PremiumLivingOPS.Views.StatisticalReports
     // ════════════════════════════════════════════════════════════════════════════
     //  ViewReportForm — Helpers partial
     //
-    //  Resolves all CS0103 / CS0117 / CS1503 errors that arose because the
-    //  following members were referenced in ViewReportForm.cs and
-    //  ViewReportForm.Designer.cs but were never declared:
+    //  Resolves CS0103 / CS0117 / CS1503 errors.
     //
-    //    • Palette                  (re-exports PremiumLivingOPS.Views.Shared.Palette)
-    //    • PaintCardBorder          (Paint handler — white card with border)
-    //    • DgvCellFormatting        (CellFormatting handler — status badge colour)
-    //    • ExportGrid               (CSV export helper)
-    //    • OnTopNavMenuItemClicked  (AppShell.MenuItemClicked delegate)
-    //    • btnLogout_Click          (AppShell.LogoutClicked delegate)
-    //
-    //  Fix notes for the three new errors:
-    //
-    //    CS1503  FormNavigator.NavigateTo signature is (Form current, string menu, string sub)
-    //            — first arg is the CURRENT form, not a string.
-    //    CS0103  SessionManager does not exist; logout is handled entirely by
-    //            FormNavigator.NavigateTo(this, "Logout") → Application.Restart().
-    //    CS0117  FormNavigator.GoToLogin does not exist; same reason as above.
+    //  Palette alias mapping (Shared.Palette actual names):
+    //    Surface     → BgCard       (Color.White)
+    //    Border      → BorderColor  (221, 227, 236)
+    //    TextPrimary → TextMain     (15,  31,  53)
+    //    TextMuted   → TextMuted    (same name, no change needed)
+    //    BgPage      → BgPage       (same name, no change needed)
+    //    Primary     → Primary      (same name, no change needed)
     // ════════════════════════════════════════════════════════════════════════════
 
     partial class ViewReportForm
     {
         // ────────────────────────────────────────────────────────────────────────
-        //  Palette — thin wrapper so ViewReportForm.cs can reference "Palette.BgPage"
-        //  without a fully-qualified name.  All values are forwarded directly from
-        //  PremiumLivingOPS.Views.Shared.Palette which is the authoritative source.
+        //  Palette — aliases mapped to actual Shared.Palette property names.
+        //
+        //  Shared.Palette (authoritative source) defines:
+        //    BgPage, BgCard, BorderColor, Primary, PrimaryDark,
+        //    Danger, Success, Warning, Info, TextMain, TextMuted, ...
+        //
+        //  ViewReportForm.cs references: BgPage, Primary, Surface, Border,
+        //  TextMuted, TextPrimary.  The three that differ are mapped below.
         // ────────────────────────────────────────────────────────────────────────
         internal static class Palette
         {
-            public static Color BgPage      => PremiumLivingOPS.Views.Shared.Palette.BgPage;
-            public static Color Primary     => PremiumLivingOPS.Views.Shared.Palette.Primary;
-            public static Color Surface     => PremiumLivingOPS.Views.Shared.Palette.Surface;
-            public static Color Border      => PremiumLivingOPS.Views.Shared.Palette.Border;
-            public static Color TextMuted   => PremiumLivingOPS.Views.Shared.Palette.TextMuted;
-            public static Color TextPrimary => PremiumLivingOPS.Views.Shared.Palette.TextPrimary;
+            // Direct forwards (same name in Shared.Palette)
+            public static Color BgPage    => PremiumLivingOPS.Views.Shared.Palette.BgPage;
+            public static Color Primary   => PremiumLivingOPS.Views.Shared.Palette.Primary;
+            public static Color TextMuted => PremiumLivingOPS.Views.Shared.Palette.TextMuted;
+
+            // Renamed forwards
+            // Shared.Palette.BgCard      → local alias "Surface"
+            public static Color Surface     => PremiumLivingOPS.Views.Shared.Palette.BgCard;
+            // Shared.Palette.BorderColor  → local alias "Border"
+            public static Color Border      => PremiumLivingOPS.Views.Shared.Palette.BorderColor;
+            // Shared.Palette.TextMain     → local alias "TextPrimary"
+            public static Color TextPrimary => PremiumLivingOPS.Views.Shared.Palette.TextMain;
         }
 
         // ────────────────────────────────────────────────────────────────────────
         //  PaintCardBorder
-        //  Draws a 1 px border + subtle inset shadow around any Panel
-        //  that registers this as its Paint handler.
+        //  Draws a 1 px border + subtle inset shadow around any Panel.
         // ────────────────────────────────────────────────────────────────────────
         private void PaintCardBorder(object sender, PaintEventArgs e)
         {
@@ -67,16 +68,15 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             g.DrawRectangle(shadowPen,
                 new Rectangle(rect.X + 1, rect.Y + 1, rect.Width - 1, rect.Height - 1));
 
-            // Main 1 px border
+            // Main 1 px border — uses the "Border" alias above
             using var borderPen = new Pen(Palette.Border, 1f);
             g.DrawRectangle(borderPen, rect);
         }
 
         // ────────────────────────────────────────────────────────────────────────
         //  DgvCellFormatting
-        //  Colours the STATUS column cell to match the badge palette defined in
-        //  ViewReportForm.cs → StatusColors dictionary.
-        //  Also right-aligns numeric columns and centres tick columns.
+        //  Applies status badge colours, right-aligns numeric cols,
+        //  centre-aligns tick columns (DN / RS).
         // ────────────────────────────────────────────────────────────────────────
         private void DgvCellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
@@ -117,9 +117,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         }
 
         // ────────────────────────────────────────────────────────────────────────
-        //  ExportGrid
-        //  Exports all visible rows of a DataGridView to a CSV file chosen via
-        //  SaveFileDialog.  Invoked by every tab's "Export" button.
+        //  ExportGrid — exports all visible rows to a UTF-8 CSV file.
         // ────────────────────────────────────────────────────────────────────────
         private static void ExportGrid(DataGridView dgv, string defaultName)
         {
@@ -181,34 +179,17 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
         // ────────────────────────────────────────────────────────────────────────
         //  AppShell event handlers
-        //  Wired in ViewReportForm_Load (ViewReportForm.cs line 86/87).
         //
-        //  Correct FormNavigator API (from Views/Shared/FormNavigator.cs):
-        //    NavigateTo(Form current, string menuLabel, string subItem = "")
-        //
-        //  Logout is handled by passing "Logout" as menuLabel — FormNavigator
-        //  calls Application.Restart() internally.  No SessionManager exists.
+        //  FormNavigator.NavigateTo(Form current, string menuLabel, string subItem="")
+        //  Logout route: pass "Logout" → FormNavigator calls Application.Restart().
         // ────────────────────────────────────────────────────────────────────────
-
-        /// <summary>
-        /// Handles navigation menu item clicks forwarded from AppShell.
-        /// Signature matches AppShell.MenuItemClicked: (object sender, string menuTag).
-        /// Calls FormNavigator.NavigateTo(Form current, string menuLabel).
-        /// </summary>
         private void OnTopNavMenuItemClicked(object sender, string menuTag)
         {
-            // Correct call: first arg = this (current Form), second = menu label.
             FormNavigator.NavigateTo(this, menuTag);
         }
 
-        /// <summary>
-        /// Handles the Logout button click forwarded from AppShell.
-        /// FormNavigator treats "Logout" as a special route and calls
-        /// Application.Restart() — no SessionManager required.
-        /// </summary>
         private void btnLogout_Click(object sender, EventArgs e)
         {
-            // "Logout" is the reserved route tag; FormNavigator calls Application.Restart().
             FormNavigator.NavigateTo(this, "Logout");
         }
     }
