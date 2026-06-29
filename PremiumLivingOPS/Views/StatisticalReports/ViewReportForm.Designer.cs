@@ -134,12 +134,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             this.Controls.Add(pnlMain);
             this.ResumeLayout(false);
         }
-
-        private static void PaintCardBorder(object sender, System.Windows.Forms.PaintEventArgs e)
-        {
-            var p = (Panel)sender;
-            using var pen = new System.Drawing.Pen(Color.FromArgb(221, 227, 236), 1f);
-            e.Graphics.DrawRectangle(pen, 0, 0, p.Width - 1, p.Height - 1);
-        }
+        // PaintCardBorder is defined in ViewReportForm.cs (partial class) — do NOT redeclare here.
     }
 }
