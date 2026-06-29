@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
-using System.Windows.Forms.DataVisualization.Charting;
 using PremiumLivingOPS.Controllers;
 using PremiumLivingOPS.Models.Entities;
 using PremiumLivingOPS.Views.Shared;
@@ -16,6 +15,8 @@ namespace PremiumLivingOPS.Views.StatisticalReports
     /// Chart/Table toggle: btnToggle flips _xxxChart flag, then calls
     /// SwapContent(dgvCard, chartCard, flag) which physically replaces the
     /// control in pnlContent so the view actually changes.
+    ///
+    /// Charts are rendered with pure GDI+ (no DataVisualization NuGet required).
     /// </summary>
     public partial class ViewReportForm : Form
     {
@@ -49,6 +50,22 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 { "Expense",             (Color.FromArgb(254, 226, 226), Color.FromArgb(185,  28,  28)) },
                 { "Refund",              (Color.FromArgb(254, 243, 199), Color.FromArgb(146,  64,  14)) },
             };
+
+        // Palette of bar/segment colours used by the GDI+ chart
+        private static readonly Color[] ChartPalette = new Color[]
+        {
+            Color.FromArgb( 55,  48, 163),  // indigo
+            Color.FromArgb(  6,  95,  70),  // green
+            Color.FromArgb(185,  28,  28),  // red
+            Color.FromArgb(146,  64,  14),  // amber
+            Color.FromArgb( 29,  78, 216),  // blue
+            Color.FromArgb( 91,  33, 182),  // purple
+            Color.FromArgb(  3, 105, 161),  // sky
+            Color.FromArgb( 22, 101,  52),  // emerald
+        };
+
+        // Supported chart styles passed to BuildChartCard
+        private enum ChartStyle { Bar, Column, Pie }
 
         public ViewReportForm()
         {
@@ -369,76 +386,275 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         }
 
         /// <summary>
-        /// Builds a white card containing a WinForms Chart (DataVisualization).
-        /// Requires NuGet: System.Windows.Forms.DataVisualization
+        /// Builds a white card containing a pure GDI+ chart panel.
+        /// No DataVisualization / NuGet package required.
         /// </summary>
         private Panel BuildChartCard(
             string chartTitle,
-            string seriesName,
             string[] labels,
             double[] values,
-            SeriesChartType chartType = SeriesChartType.Bar)
+            ChartStyle style = ChartStyle.Bar)
         {
-            var chart = new Chart { Dock = DockStyle.Fill, BackColor = Color.White };
-
-            var area = new ChartArea("main")
+            var chartPanel = new GdiChartPanel(chartTitle, labels, values, style, ChartPalette)
             {
-                BackColor    = Color.White,
-                BorderColor  = Color.FromArgb(221, 227, 236),
-                BorderWidth  = 1
+                Dock      = DockStyle.Fill,
+                BackColor = Color.White
             };
-            area.AxisX.LabelStyle.Font      = new Font("Segoe UI", 10f);
-            area.AxisX.LabelStyle.ForeColor = Color.FromArgb(98, 112, 135);
-            area.AxisX.LineColor            = Color.FromArgb(221, 227, 236);
-            area.AxisX.MajorGrid.LineColor  = Color.FromArgb(240, 243, 248);
-            area.AxisY.LabelStyle.Font      = new Font("Segoe UI", 10f);
-            area.AxisY.LabelStyle.ForeColor = Color.FromArgb(98, 112, 135);
-            area.AxisY.LineColor            = Color.FromArgb(221, 227, 236);
-            area.AxisY.MajorGrid.LineColor  = Color.FromArgb(240, 243, 248);
-            chart.ChartAreas.Add(area);
-
-            var title = new Title
-            {
-                Text      = chartTitle,
-                Font      = new Font("Segoe UI", 13f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(15, 31, 53),
-                Docking   = Docking.Top,
-                Alignment = ContentAlignment.MiddleLeft
-            };
-            chart.Titles.Add(title);
-
-            var series = new Series(seriesName)
-            {
-                ChartType             = chartType,
-                ChartArea             = "main",
-                Color                 = Color.FromArgb(55, 48, 163),
-                IsValueShownAsLabel   = true,
-                Font                  = new Font("Segoe UI", 9f),
-                LabelForeColor        = Color.FromArgb(15, 31, 53)
-            };
-
-            int count = Math.Min(labels?.Length ?? 0, values?.Length ?? 0);
-            for (int i = 0; i < count; i++)
-                series.Points.AddXY(labels[i], values[i]);
-
-            chart.Series.Add(series);
-
-            var legend = new Legend
-            {
-                Font      = new Font("Segoe UI", 10f),
-                ForeColor = Color.FromArgb(98, 112, 135),
-                BackColor = Color.White,
-                Docking   = Docking.Bottom
-            };
-            chart.Legends.Add(legend);
 
             var inner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
             inner.Paint += PaintCardBorder;
-            inner.Controls.Add(chart);
+            inner.Controls.Add(chartPanel);
 
             var outer = new Panel { Dock = DockStyle.Fill, BackColor = Palette.BgPage, Padding = new Padding(20, 6, 20, 10) };
             outer.Controls.Add(inner);
             return outer;
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  GDI+ CHART PANEL  (inner private class — no extra file needed)
+        // ════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// A lightweight Panel that paints Bar, Column or Pie charts
+        /// using only System.Drawing — no DataVisualization dependency.
+        /// </summary>
+        private sealed class GdiChartPanel : Panel
+        {
+            private readonly string   _title;
+            private readonly string[] _labels;
+            private readonly double[] _values;
+            private readonly ChartStyle _style;
+            private readonly Color[]  _palette;
+
+            public GdiChartPanel(string title, string[] labels, double[] values,
+                                 ChartStyle style, Color[] palette)
+            {
+                _title   = title ?? string.Empty;
+                _labels  = labels  ?? Array.Empty<string>();
+                _values  = values  ?? Array.Empty<double>();
+                _style   = style;
+                _palette = palette;
+                DoubleBuffered = true;
+                ResizeRedraw   = true;
+            }
+
+            protected override void OnPaint(PaintEventArgs e)
+            {
+                base.OnPaint(e);
+                var g = e.Graphics;
+                g.SmoothingMode     = SmoothingMode.AntiAlias;
+                g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+
+                int n = Math.Min(_labels.Length, _values.Length);
+                if (n == 0)
+                {
+                    DrawEmpty(g);
+                    return;
+                }
+
+                // Title
+                var titleFont = new Font("Segoe UI", 13f, FontStyle.Bold);
+                var titleBrush = new SolidBrush(Color.FromArgb(15, 31, 53));
+                g.DrawString(_title, titleFont, titleBrush, new PointF(20, 14));
+                float titleH = titleFont.GetHeight(g) + 20;
+
+                var plotRect = new RectangleF(
+                    60, titleH,
+                    Width  - 80,
+                    Height - titleH - 60);
+
+                switch (_style)
+                {
+                    case ChartStyle.Pie:
+                        DrawPie(g, plotRect, n);
+                        break;
+                    case ChartStyle.Column:
+                        DrawBars(g, plotRect, n, vertical: true);
+                        break;
+                    default: // Bar
+                        DrawBars(g, plotRect, n, vertical: false);
+                        break;
+                }
+
+                titleFont.Dispose();
+                titleBrush.Dispose();
+            }
+
+            private void DrawEmpty(Graphics g)
+            {
+                var f = new Font("Segoe UI", 11f);
+                var b = new SolidBrush(Color.FromArgb(150, 150, 150));
+                string msg = "No data available";
+                var sz  = g.MeasureString(msg, f);
+                g.DrawString(msg, f, b, (Width - sz.Width) / 2f, (Height - sz.Height) / 2f);
+                f.Dispose(); b.Dispose();
+            }
+
+            private void DrawBars(Graphics g, RectangleF plotRect, int n, bool vertical)
+            {
+                double max = 0;
+                foreach (var v in _values) if (v > max) max = v;
+                if (max == 0) max = 1;
+
+                var axisColor = Color.FromArgb(221, 227, 236);
+                var gridPen   = new Pen(axisColor, 1f);
+                var axisFont  = new Font("Segoe UI", 9f);
+                var axisBrush = new SolidBrush(Color.FromArgb(98, 112, 135));
+                var valFont   = new Font("Segoe UI", 8f, FontStyle.Bold);
+
+                const int GridLines = 4;
+                if (vertical)
+                {
+                    // Column chart — bars go upward
+                    float barAreaW = plotRect.Width  - 40;
+                    float barAreaH = plotRect.Height - 20;
+                    float barX0    = plotRect.Left   + 40;
+                    float barY0    = plotRect.Top;
+
+                    // Grid lines (horizontal)
+                    for (int i = 0; i <= GridLines; i++)
+                    {
+                        float y = barY0 + barAreaH - (barAreaH * i / GridLines);
+                        g.DrawLine(gridPen, barX0, y, barX0 + barAreaW, y);
+                        double val = max * i / GridLines;
+                        string lbl = val >= 1000 ? $"{val / 1000:N1}k" : $"{val:N0}";
+                        var sz = g.MeasureString(lbl, axisFont);
+                        g.DrawString(lbl, axisFont, axisBrush, barX0 - sz.Width - 4, y - sz.Height / 2f);
+                    }
+
+                    float gap      = barAreaW / (n * 1.4f + 0.4f) * 0.4f;
+                    float barWidth = (barAreaW - gap * (n + 1)) / n;
+                    barWidth = Math.Max(4, barWidth);
+
+                    for (int i = 0; i < n; i++)
+                    {
+                        float barH  = (float)(barAreaH * (_values[i] / max));
+                        float bx    = barX0 + gap * (i + 1) + barWidth * i;
+                        float by    = barY0 + barAreaH - barH;
+                        var   color = _palette[i % _palette.Length];
+
+                        using var brush = new SolidBrush(color);
+                        g.FillRectangle(brush, bx, by, barWidth, barH);
+
+                        // X label
+                        string xl   = _labels[i];
+                        var    xlSz = g.MeasureString(xl, axisFont);
+                        float  xlX  = bx + (barWidth - xlSz.Width) / 2f;
+                        float  xlY  = barY0 + barAreaH + 4;
+                        g.DrawString(xl, axisFont, axisBrush, xlX, xlY);
+
+                        // Value label on bar
+                        string vl   = _values[i] >= 1000 ? $"{_values[i] / 1000:N1}k" : $"{_values[i]:N0}";
+                        var    vlSz = g.MeasureString(vl, valFont);
+                        if (barH > vlSz.Height + 4)
+                        {
+                            using var wBrush = new SolidBrush(Color.White);
+                            g.DrawString(vl, valFont, wBrush, bx + (barWidth - vlSz.Width) / 2f, by + 4);
+                        }
+                    }
+                }
+                else
+                {
+                    // Bar chart — bars go rightward
+                    float barAreaW = plotRect.Width  - 50;
+                    float barAreaH = plotRect.Height - 10;
+                    float barX0    = plotRect.Left   + 50;
+                    float barY0    = plotRect.Top;
+
+                    // Grid lines (vertical)
+                    for (int i = 0; i <= GridLines; i++)
+                    {
+                        float x = barX0 + barAreaW * i / GridLines;
+                        g.DrawLine(gridPen, x, barY0, x, barY0 + barAreaH);
+                        double val = max * i / GridLines;
+                        string lbl = val >= 1000 ? $"{val / 1000:N1}k" : $"{val:N0}";
+                        var sz = g.MeasureString(lbl, axisFont);
+                        g.DrawString(lbl, axisFont, axisBrush, x - sz.Width / 2f, barY0 + barAreaH + 2);
+                    }
+
+                    float gap      = barAreaH / (n * 1.4f + 0.4f) * 0.4f;
+                    float barHeight = (barAreaH - gap * (n + 1)) / n;
+                    barHeight = Math.Max(4, barHeight);
+
+                    for (int i = 0; i < n; i++)
+                    {
+                        float barW = (float)(barAreaW * (_values[i] / max));
+                        float bx   = barX0;
+                        float by   = barY0 + gap * (i + 1) + barHeight * i;
+                        var   color = _palette[i % _palette.Length];
+
+                        using var brush = new SolidBrush(color);
+                        g.FillRectangle(brush, bx, by, barW, barHeight);
+
+                        // Y label (left side)
+                        string yl   = _labels[i];
+                        var    ylSz = g.MeasureString(yl, axisFont);
+                        g.DrawString(yl, axisFont, axisBrush,
+                            barX0 - ylSz.Width - 4,
+                            by + (barHeight - ylSz.Height) / 2f);
+
+                        // Value label
+                        string vl   = _values[i] >= 1000 ? $"{_values[i] / 1000:N1}k" : $"{_values[i]:N0}";
+                        var    vlSz = g.MeasureString(vl, valFont);
+                        if (barW > vlSz.Width + 8)
+                        {
+                            using var wBrush = new SolidBrush(Color.White);
+                            g.DrawString(vl, valFont, wBrush,
+                                bx + barW - vlSz.Width - 6,
+                                by + (barHeight - vlSz.Height) / 2f);
+                        }
+                    }
+                }
+
+                gridPen.Dispose();
+                axisFont.Dispose();
+                axisBrush.Dispose();
+                valFont.Dispose();
+            }
+
+            private void DrawPie(Graphics g, RectangleF plotRect, int n)
+            {
+                double total = 0;
+                foreach (var v in _values) total += v;
+                if (total == 0) { DrawEmpty(g); return; }
+
+                float legW   = 160;
+                float pieW   = Math.Min(plotRect.Width - legW - 20, plotRect.Height - 20);
+                float pieH   = pieW;
+                float pieX   = plotRect.Left + (plotRect.Width - legW - 20 - pieW) / 2f;
+                float pieY   = plotRect.Top  + (plotRect.Height - pieH) / 2f;
+                var   pieRect = new RectangleF(pieX, pieY, pieW, pieH);
+
+                var   labelFont  = new Font("Segoe UI", 9f);
+                var   labelBrush = new SolidBrush(Color.FromArgb(15, 31, 53));
+
+                float startAngle = -90f;
+                for (int i = 0; i < n; i++)
+                {
+                    float sweep = (float)(_values[i] / total * 360.0);
+                    using var brush = new SolidBrush(_palette[i % _palette.Length]);
+                    g.FillPie(brush, pieRect.X, pieRect.Y, pieRect.Width, pieRect.Height, startAngle, sweep);
+                    using var pen = new Pen(Color.White, 1.5f);
+                    g.DrawPie(pen, pieRect.X, pieRect.Y, pieRect.Width, pieRect.Height, startAngle, sweep);
+                    startAngle += sweep;
+                }
+
+                // Legend
+                float legX = pieX + pieW + 20;
+                float legY = plotRect.Top + 10;
+                for (int i = 0; i < n; i++)
+                {
+                    float pct = (float)(_values[i] / total * 100.0);
+                    using var dotBrush = new SolidBrush(_palette[i % _palette.Length]);
+                    g.FillEllipse(dotBrush, legX, legY + 3, 12, 12);
+                    string txt = $"{_labels[i]}  {pct:N1}%";
+                    g.DrawString(txt, labelFont, labelBrush, legX + 18, legY);
+                    legY += labelFont.GetHeight(g) + 8;
+                }
+
+                labelFont.Dispose();
+                labelBrush.Dispose();
+            }
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -642,9 +858,10 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             }
             catch { }
 
-            var labels = new List<string>(revenueByStatus.Keys).ToArray();
-            var values = new List<double>(revenueByStatus.Values).ToArray();
-            return BuildChartCard("Sales Revenue by Status", "Revenue (HKD)", labels, values, SeriesChartType.Bar);
+            return BuildChartCard("Sales Revenue by Status",
+                new List<string>(revenueByStatus.Keys).ToArray(),
+                new List<double>(revenueByStatus.Values).ToArray(),
+                ChartStyle.Bar);
         }
 
         // ── 1. Inventory Status ─────────────────────────────────────────
@@ -717,9 +934,10 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             }
             catch { }
 
-            var labels = new List<string>(stockByCategory.Keys).ToArray();
-            var values = new List<double>(stockByCategory.Values).ToArray();
-            return BuildChartCard("Current Stock by Category", "Stock Units", labels, values, SeriesChartType.Column);
+            return BuildChartCard("Current Stock by Category",
+                new List<string>(stockByCategory.Keys).ToArray(),
+                new List<double>(stockByCategory.Values).ToArray(),
+                ChartStyle.Column);
         }
 
         // ── 2. Procurement Summary ───────────────────────────────────────
@@ -791,9 +1009,10 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             }
             catch { }
 
-            var labels = new List<string>(amtByStatus.Keys).ToArray();
-            var values = new List<double>(amtByStatus.Values).ToArray();
-            return BuildChartCard("Procurement Amount by Status", "Amount (HKD)", labels, values, SeriesChartType.Pie);
+            return BuildChartCard("Procurement Amount by Status",
+                new List<string>(amtByStatus.Keys).ToArray(),
+                new List<double>(amtByStatus.Values).ToArray(),
+                ChartStyle.Pie);
         }
 
         // ── 3. Logistics Overview ────────────────────────────────────────
@@ -867,9 +1086,10 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             }
             catch { }
 
-            var labels = new List<string>(countByStatus.Keys).ToArray();
-            var values = new List<double>(countByStatus.Values).ToArray();
-            return BuildChartCard("Shipments by Status", "Count", labels, values, SeriesChartType.Doughnut);
+            return BuildChartCard("Shipments by Status",
+                new List<string>(countByStatus.Keys).ToArray(),
+                new List<double>(countByStatus.Values).ToArray(),
+                ChartStyle.Pie);
         }
 
         // ── 4. After-Service Summary ─────────────────────────────────────
@@ -940,9 +1160,10 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             }
             catch { }
 
-            var labels = new List<string>(countByStatus.Keys).ToArray();
-            var values = new List<double>(countByStatus.Values).ToArray();
-            return BuildChartCard("Complaints by Status", "Count", labels, values, SeriesChartType.Pie);
+            return BuildChartCard("Complaints by Status",
+                new List<string>(countByStatus.Keys).ToArray(),
+                new List<double>(countByStatus.Values).ToArray(),
+                ChartStyle.Pie);
         }
 
         // ── 5. Finance Overview ──────────────────────────────────────────
@@ -1013,9 +1234,10 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             }
             catch { }
 
-            var labels = new List<string>(amtByType.Keys).ToArray();
-            var values = new List<double>(amtByType.Values).ToArray();
-            return BuildChartCard("Finance by Transaction Type", "Amount (HKD)", labels, values, SeriesChartType.Column);
+            return BuildChartCard("Finance by Transaction Type",
+                new List<string>(amtByType.Keys).ToArray(),
+                new List<double>(amtByType.Values).ToArray(),
+                ChartStyle.Column);
         }
 
         // ════════════════════════════════════════════════════════════════
