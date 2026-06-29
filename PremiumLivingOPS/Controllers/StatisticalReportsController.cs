@@ -13,7 +13,7 @@ namespace PremiumLivingOPS.Controllers
     {
         private readonly StatisticalReportsRepo _repo = new StatisticalReportsRepo();
 
-        // ── Common helpers ──────────────────────────────────────────────────────────────
+        // ── Common helpers ──────────────────────────────────────────────────────────────────────
         private UserBarViewModel MakeUserBar()
         {
             var u = SessionManager.CurrentUser;
@@ -68,7 +68,6 @@ namespace PremiumLivingOPS.Controllers
         //  3. PROCUREMENT SUMMARY
         // ════════════════════════════════════════════════════════════════
 
-        // Signature: (from, to, statusFilter) — matches ViewReportForm.cs call order
         /// <param name="statusFilter">null/"All"/"Sent"/"Partially Received"/"Received"/"Completed"/"Cancelled"</param>
         public ViewReportViewModel GetProcurementReportVM(
             DateTime? from        = null,
@@ -81,7 +80,7 @@ namespace PremiumLivingOPS.Controllers
                 AllowedMenus    = GetMenus(),
                 ActiveReport    = ReportType.ProcurementSummary,
                 ProcKpi         = _repo.GetProcurementKpi(),
-                ProcurementRows = _repo.GetProcurementRows(statusFilter, from, to)
+                ProcurementRows = _repo.GetProcurementRows(from, to, statusFilter)
             };
         }
 
@@ -89,8 +88,7 @@ namespace PremiumLivingOPS.Controllers
         //  4. LOGISTICS OVERVIEW
         // ════════════════════════════════════════════════════════════════
 
-        // Signature: (from, to, statusFilter) — matches ViewReportForm.cs call order
-        /// <param name="statusFilter">null/"All"/"Pending"/"In Transit"/"Delivered"/"Partially Delivered"/"Cancelled"</param>
+        /// <param name="statusFilter">null/"All"/"Pending"/"In Transit"/"Completed"</param>
         public ViewReportViewModel GetLogisticsReportVM(
             DateTime? from        = null,
             DateTime? to          = null,
@@ -102,7 +100,7 @@ namespace PremiumLivingOPS.Controllers
                 AllowedMenus  = GetMenus(),
                 ActiveReport  = ReportType.LogisticsOverview,
                 LogKpi        = _repo.GetLogisticsKpi(),
-                LogisticsRows = _repo.GetLogisticsRows(statusFilter, from, to)
+                LogisticsRows = _repo.GetLogisticsRows(from, to, statusFilter)
             };
         }
 
@@ -110,8 +108,7 @@ namespace PremiumLivingOPS.Controllers
         //  5. AFTER-SERVICE SUMMARY
         // ════════════════════════════════════════════════════════════════
 
-        // Signature: (from, to, complaintStatusFilter) — matches ViewReportForm.cs call order
-        /// <param name="complaintStatusFilter">null/"All"/"Open"/"In Progress"/"Resolved"/"Escalated"/"Closed"</param>
+        /// <param name="complaintStatusFilter">null/"All"/"Pending"/"Processing"/"Escalated"/"Completed"</param>
         public ViewReportViewModel GetAfterServiceReportVM(
             DateTime? from                 = null,
             DateTime? to                   = null,
@@ -123,8 +120,8 @@ namespace PremiumLivingOPS.Controllers
                 AllowedMenus  = GetMenus(),
                 ActiveReport  = ReportType.AfterServiceSummary,
                 AfterKpi      = _repo.GetAfterServiceKpi(),
-                ComplaintRows = _repo.GetComplaintRows(complaintStatusFilter, from, to),
-                ReturnRows    = _repo.GetReturnOrderRows(null, from, to)
+                ComplaintRows = _repo.GetComplaintRows(from, to, complaintStatusFilter),
+                ReturnRows    = _repo.GetReturnOrderRows(from, to, null)
             };
         }
 
@@ -132,8 +129,7 @@ namespace PremiumLivingOPS.Controllers
         //  6. FINANCE OVERVIEW
         // ════════════════════════════════════════════════════════════════
 
-        // Signature: (from, to, docTypeFilter) — matches ViewReportForm.cs call order
-        /// <param name="docTypeFilter">null/"All"/"Revenue"/"Expense"/"Refund"/"Deposit"/"Installment"/"Full"</param>
+        /// <param name="docTypeFilter">null/"All"/"Revenue"/"Expense"/"Refund"</param>
         public ViewReportViewModel GetFinanceReportVM(
             DateTime? from          = null,
             DateTime? to            = null,
