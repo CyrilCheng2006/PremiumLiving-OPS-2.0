@@ -13,7 +13,7 @@ namespace PremiumLivingOPS.Controllers
     {
         private readonly StatisticalReportsRepo _repo = new StatisticalReportsRepo();
 
-        // ── Common helpers ──────────────────────────────────────────────
+        // ── Common helpers ──────────────────────────────────────────────────────────────
         private UserBarViewModel MakeUserBar()
         {
             var u = SessionManager.CurrentUser;
@@ -47,7 +47,12 @@ namespace PremiumLivingOPS.Controllers
         //  2. INVENTORY STATUS
         // ════════════════════════════════════════════════════════════════
 
-        public ViewReportViewModel GetInventoryReportVM(string categoryFilter = null, bool belowReorderOnly = false)
+        /// <param name="categoryFilter">null/"All" / "Product" / "Raw Material"</param>
+        /// <param name="keyword">Searches ItemID and ItemName (partial match).</param>
+        public ViewReportViewModel GetInventoryReportVM(
+            string categoryFilter  = null,
+            bool   belowReorderOnly = false,
+            string keyword          = null)
         {
             return new ViewReportViewModel
             {
@@ -55,7 +60,7 @@ namespace PremiumLivingOPS.Controllers
                 AllowedMenus  = GetMenus(),
                 ActiveReport  = ReportType.InventoryStatus,
                 InventoryKpi  = _repo.GetInventoryKpi(),
-                InventoryRows = _repo.GetInventoryRows(categoryFilter, belowReorderOnly)
+                InventoryRows = _repo.GetInventoryRows(categoryFilter, belowReorderOnly, keyword)
             };
         }
 
@@ -63,7 +68,11 @@ namespace PremiumLivingOPS.Controllers
         //  3. PROCUREMENT SUMMARY
         // ════════════════════════════════════════════════════════════════
 
-        public ViewReportViewModel GetProcurementReportVM(string statusFilter = null)
+        /// <param name="statusFilter">null/"All"/"Sent"/"Partially Received"/"Received"/"Completed"/"Cancelled"</param>
+        public ViewReportViewModel GetProcurementReportVM(
+            string   statusFilter = null,
+            DateTime? from        = null,
+            DateTime? to          = null)
         {
             return new ViewReportViewModel
             {
@@ -71,7 +80,7 @@ namespace PremiumLivingOPS.Controllers
                 AllowedMenus = GetMenus(),
                 ActiveReport = ReportType.ProcurementSummary,
                 ProcKpi      = _repo.GetProcurementKpi(),
-                ProcRows     = _repo.GetProcurementRows(statusFilter)
+                ProcRows     = _repo.GetProcurementRows(statusFilter, from, to)
             };
         }
 
@@ -79,7 +88,11 @@ namespace PremiumLivingOPS.Controllers
         //  4. LOGISTICS OVERVIEW
         // ════════════════════════════════════════════════════════════════
 
-        public ViewReportViewModel GetLogisticsReportVM(string statusFilter = null)
+        /// <param name="statusFilter">null/"All"/"Pending"/"In Transit"/"Completed"</param>
+        public ViewReportViewModel GetLogisticsReportVM(
+            string   statusFilter = null,
+            DateTime? from        = null,
+            DateTime? to          = null)
         {
             return new ViewReportViewModel
             {
@@ -87,7 +100,7 @@ namespace PremiumLivingOPS.Controllers
                 AllowedMenus = GetMenus(),
                 ActiveReport = ReportType.LogisticsOverview,
                 LogKpi       = _repo.GetLogisticsKpi(),
-                LogRows      = _repo.GetLogisticsRows(statusFilter)
+                LogRows      = _repo.GetLogisticsRows(statusFilter, from, to)
             };
         }
 
@@ -95,9 +108,13 @@ namespace PremiumLivingOPS.Controllers
         //  5. AFTER-SERVICE SUMMARY
         // ════════════════════════════════════════════════════════════════
 
+        /// <param name="complaintStatusFilter">null/"All"/"Pending"/"Processing"/"Escalated"/"Completed"</param>
+        /// <param name="returnStatusFilter">null/"All"/"Pending"/"Processing"/"Completed"</param>
         public ViewReportViewModel GetAfterServiceReportVM(
-            string complaintStatusFilter = null,
-            string returnStatusFilter    = null)
+            string   complaintStatusFilter = null,
+            string   returnStatusFilter    = null,
+            DateTime? from                 = null,
+            DateTime? to                   = null)
         {
             return new ViewReportViewModel
             {
@@ -105,8 +122,8 @@ namespace PremiumLivingOPS.Controllers
                 AllowedMenus = GetMenus(),
                 ActiveReport = ReportType.AfterServiceSummary,
                 AfterKpi     = _repo.GetAfterServiceKpi(),
-                Complaints   = _repo.GetComplaintRows(complaintStatusFilter),
-                Returns      = _repo.GetReturnOrderRows(returnStatusFilter)
+                Complaints   = _repo.GetComplaintRows(complaintStatusFilter, from, to),
+                Returns      = _repo.GetReturnOrderRows(returnStatusFilter, from, to)
             };
         }
 
@@ -114,7 +131,11 @@ namespace PremiumLivingOPS.Controllers
         //  6. FINANCE OVERVIEW
         // ════════════════════════════════════════════════════════════════
 
-        public ViewReportViewModel GetFinanceReportVM(DateTime? from = null, DateTime? to = null)
+        /// <param name="docTypeFilter">null/"All"/"Revenue"/"Expense"/"Refund"</param>
+        public ViewReportViewModel GetFinanceReportVM(
+            DateTime? from          = null,
+            DateTime? to            = null,
+            string    docTypeFilter = null)
         {
             return new ViewReportViewModel
             {
@@ -122,7 +143,7 @@ namespace PremiumLivingOPS.Controllers
                 AllowedMenus = GetMenus(),
                 ActiveReport = ReportType.FinanceOverview,
                 FinanceKpi   = _repo.GetFinanceKpi(),
-                FinanceRows  = _repo.GetFinanceTransactionRows(from, to)
+                FinanceRows  = _repo.GetFinanceTransactionRows(from, to, docTypeFilter)
             };
         }
     }
