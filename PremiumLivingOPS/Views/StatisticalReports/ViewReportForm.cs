@@ -103,6 +103,19 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         }
 
         // ════════════════════════════════════════════════════════════════
+        //  APPSHELL EVENT HANDLERS  (RULE 4)
+        // ════════════════════════════════════════════════════════════════
+
+        private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
+            => FormNavigator.NavigateTo(this, menuLabel, subItem);
+
+        private void btnLogout_Click(object sender, EventArgs e)
+        {
+            SessionManager.Clear();
+            Application.Restart();
+        }
+
+        // ════════════════════════════════════════════════════════════════
         //  REPORT SWITCHER
         // ════════════════════════════════════════════════════════════════
 
@@ -170,6 +183,82 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             int y    = pnlTabOuter.Height - 4;
             using var brush = new SolidBrush(Palette.Primary);
             e.Graphics.FillRectangle(brush, x, y, w, 4);
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  CARD BORDER PAINT  (used by Designer.cs and all card panels)
+        // ════════════════════════════════════════════════════════════════
+
+        private static void PaintCardBorder(object sender, PaintEventArgs e)
+        {
+            var p = (Panel)sender;
+            using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
+            e.Graphics.DrawRectangle(pen, 0, 0, p.Width - 1, p.Height - 1);
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  DGV CELL FORMATTING  (status badge colouring)
+        // ════════════════════════════════════════════════════════════════
+
+        private void DgvCellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
+        {
+            if (e.RowIndex < 0) return;
+            var dgv = (DataGridView)sender;
+            if (e.ColumnIndex < 0 || e.ColumnIndex >= dgv.Columns.Count) return;
+            string colName = dgv.Columns[e.ColumnIndex].Name;
+            if ((colName == "colStatus" || colName == "colPayStatus") && e.Value != null)
+            {
+                if (StatusColors.TryGetValue(e.Value.ToString(), out var c))
+                {
+                    e.CellStyle.BackColor          = c.bg;
+                    e.CellStyle.ForeColor          = c.fg;
+                    e.CellStyle.SelectionBackColor = c.bg;
+                    e.CellStyle.SelectionForeColor = c.fg;
+                    e.CellStyle.Font               = new Font("Segoe UI", 11f, FontStyle.Bold);
+                    e.CellStyle.Alignment          = DataGridViewContentAlignment.MiddleCenter;
+                }
+                e.FormattingApplied = true;
+            }
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  CSV EXPORT
+        // ════════════════════════════════════════════════════════════════
+
+        private static void ExportGrid(DataGridView dgv, string reportName)
+        {
+            try
+            {
+                using var dlg = new SaveFileDialog
+                {
+                    Filter   = "CSV Files (*.csv)|*.csv",
+                    FileName = $"{reportName}_{DateTime.Now:yyyyMMdd_HHmmss}.csv"
+                };
+                if (dlg.ShowDialog() != DialogResult.OK) return;
+
+                var sb = new System.Text.StringBuilder();
+                // Header row
+                var headers = new List<string>();
+                foreach (DataGridViewColumn col in dgv.Columns)
+                    if (col.Visible) headers.Add($"\"{col.HeaderText}\"");
+                sb.AppendLine(string.Join(",", headers));
+                // Data rows
+                foreach (DataGridViewRow row in dgv.Rows)
+                {
+                    if (row.IsNewRow) continue;
+                    var cells = new List<string>();
+                    foreach (DataGridViewCell cell in row.Cells)
+                        if (dgv.Columns[cell.ColumnIndex].Visible)
+                            cells.Add($"\"{cell.Value?.ToString()?.Replace("\"", "\"\"")}\"");
+                    sb.AppendLine(string.Join(",", cells));
+                }
+                System.IO.File.WriteAllText(dlg.FileName, sb.ToString(), System.Text.Encoding.UTF8);
+                MessageBox.Show("Exported successfully.", "Export", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Export failed: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -1145,7 +1234,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             return BuildChartCard("Deliveries by Status",
                 new List<string>(countByStatus.Keys).ToArray(),
                 new List<double>(countByStatus.Values).ToArray(),
-                ChartStyle.Column);
+                ChartStyle.Pie);
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -1154,11 +1243,8 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
         private void RenderAfterService()
         {
-            var dtpFrom      = new DateTimePicker { Format = DateTimePickerFormat.Short, Value = DefaultDateFrom, Font = new Font("Segoe UI", 12f) };
-            var dtpTo        = new DateTimePicker { Format = DateTimePickerFormat.Short, Value = DefaultDateTo,   Font = new Font("Segoe UI", 12f) };
-            var cboCmpStatus = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 12f) };
-            cboCmpStatus.Items.AddRange(new object[] { "All", "Pending", "Processing", "Escalated", "Completed", "Cancelled" });
-            cboCmpStatus.SelectedIndex = 0;
+            var dtpFrom   = new DateTimePicker { Format = DateTimePickerFormat.Short, Value = DefaultDateFrom, Font = new Font("Segoe UI", 12f) };
+            var dtpTo     = new DateTimePicker { Format = DateTimePickerFormat.Short, Value = DefaultDateTo,   Font = new Font("Segoe UI", 12f) };
 
             var btnApply  = MakePrimaryBtn("\U0001F50D  Apply");
             var btnReset  = MakeOutlineBtn("\u21BA  Reset");
@@ -1166,84 +1252,91 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             var btnExport = MakeExportBtn("\U0001F4E4  Export");
             ApplyToggleStyle(btnToggle, _afterServiceChart);
 
-            // Complaints DGV
+            // Complaints grid
             var dgvC = MakeDgv();
-            dgvC.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDate",     HeaderText = "DATE",     FillWeight = 13 });
-            dgvC.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCmpID",    HeaderText = "COMPLAINT ID", FillWeight = 16 });
-            dgvC.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCustomer", HeaderText = "CUSTOMER", FillWeight = 22 });
-            dgvC.Columns.Add(new DataGridViewTextBoxColumn { Name = "colSubject",  HeaderText = "SUBJECT",  FillWeight = 28 });
-            dgvC.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",   HeaderText = "STATUS",   FillWeight = 14 });
+            dgvC.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDate",       HeaderText = "DATE",         FillWeight = 14 });
+            dgvC.Columns.Add(new DataGridViewTextBoxColumn { Name = "colComplaintID",HeaderText = "COMPLAINT ID", FillWeight = 16 });
+            dgvC.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCustomer",   HeaderText = "CUSTOMER",     FillWeight = 22 });
+            dgvC.Columns.Add(new DataGridViewTextBoxColumn { Name = "colSubject",    HeaderText = "SUBJECT",      FillWeight = 24 });
+            dgvC.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",     HeaderText = "STATUS",       FillWeight = 14 });
             dgvC.CellFormatting += DgvCellFormatting;
 
-            // Returns DGV
+            // Returns grid
             var dgvR = MakeDgv();
-            dgvR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDate",     HeaderText = "DATE",          FillWeight = 12 });
-            dgvR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colReturnID", HeaderText = "RETURN ID",     FillWeight = 15 });
-            dgvR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colSOID",     HeaderText = "SO ID",         FillWeight = 14 });
-            dgvR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCustomer", HeaderText = "CUSTOMER",      FillWeight = 20 });
-            dgvR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colReason",   HeaderText = "REASON",        FillWeight = 22 });
-            dgvR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",   HeaderText = "STATUS",        FillWeight = 14 });
+            dgvR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colReturnDate", HeaderText = "RETURN DATE",  FillWeight = 14 });
+            dgvR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colReturnID",   HeaderText = "RETURN ID",    FillWeight = 14 });
+            dgvR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colSOID",       HeaderText = "SO ID",        FillWeight = 14 });
+            dgvR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCustomer",   HeaderText = "CUSTOMER",     FillWeight = 20 });
+            dgvR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colReason",     HeaderText = "REASON",       FillWeight = 22 });
+            dgvR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",     HeaderText = "STATUS",       FillWeight = 14 });
             dgvR.CellFormatting += DgvCellFormatting;
 
-            LoadAfterServiceData(dgvC, dgvR, dtpFrom, dtpTo, cboCmpStatus);
+            LoadAfterServiceData(dgvC, dgvR, dtpFrom, dtpTo);
 
             var dgvCard   = BuildGridCard2(dgvC, dgvR);
-            var chartCard = BuildAfterServiceChartCard(dtpFrom, dtpTo, cboCmpStatus);
+            var chartCard = BuildAfterServiceChartCard(dtpFrom, dtpTo);
 
             btnApply.Click += (s, e) =>
             {
-                LoadAfterServiceData(dgvC, dgvR, dtpFrom, dtpTo, cboCmpStatus);
-                if (_afterServiceChart) { pnlContent.SuspendLayout(); pnlContent.Controls.Clear(); pnlContent.Controls.Add(BuildAfterServiceChartCard(dtpFrom, dtpTo, cboCmpStatus)); pnlContent.ResumeLayout(true); }
+                LoadAfterServiceData(dgvC, dgvR, dtpFrom, dtpTo);
+                if (_afterServiceChart) { pnlContent.SuspendLayout(); pnlContent.Controls.Clear(); pnlContent.Controls.Add(BuildAfterServiceChartCard(dtpFrom, dtpTo)); pnlContent.ResumeLayout(true); }
                 else SwapContent(dgvCard, chartCard, false);
             };
             btnReset.Click += (s, e) =>
             {
-                dtpFrom.Value = DefaultDateFrom; dtpTo.Value = DefaultDateTo; cboCmpStatus.SelectedIndex = 0;
-                LoadAfterServiceData(dgvC, dgvR, dtpFrom, dtpTo, cboCmpStatus);
+                dtpFrom.Value = DefaultDateFrom; dtpTo.Value = DefaultDateTo;
+                LoadAfterServiceData(dgvC, dgvR, dtpFrom, dtpTo);
                 SwapContent(dgvCard, chartCard, _afterServiceChart);
             };
             btnToggle.Click += (s, e) =>
             {
                 _afterServiceChart = !_afterServiceChart;
                 ApplyToggleStyle(btnToggle, _afterServiceChart);
-                if (_afterServiceChart) { pnlContent.SuspendLayout(); pnlContent.Controls.Clear(); pnlContent.Controls.Add(BuildAfterServiceChartCard(dtpFrom, dtpTo, cboCmpStatus)); pnlContent.ResumeLayout(true); }
+                if (_afterServiceChart) { pnlContent.SuspendLayout(); pnlContent.Controls.Clear(); pnlContent.Controls.Add(BuildAfterServiceChartCard(dtpFrom, dtpTo)); pnlContent.ResumeLayout(true); }
                 else SwapContent(dgvCard, chartCard, false);
             };
             btnExport.Click += (s, e) => ExportGrid(dgvC, "AfterServiceComplaints");
 
             SetFilterBar("After-Service Summary",
-                BuildDateRangeRow(dtpFrom, dtpTo, ("Complaint Status", cboCmpStatus)),
+                BuildDateRangeRow(dtpFrom, dtpTo),
                 BuildButtonsRow(btnApply, btnReset, btnToggle, btnExport));
 
             SwapContent(dgvCard, chartCard, _afterServiceChart);
         }
 
         private void LoadAfterServiceData(DataGridView dgvC, DataGridView dgvR,
-            DateTimePicker dtpFrom, DateTimePicker dtpTo, ComboBox cboCmpStatus)
+                                          DateTimePicker dtpFrom, DateTimePicker dtpTo)
         {
             dgvC.Rows.Clear();
             dgvR.Rows.Clear();
             try
             {
-                string cmpStatus = cboCmpStatus.SelectedIndex == 0 ? null : cboCmpStatus.SelectedItem?.ToString();
-                var vm = _ctrl.GetAfterServiceReportVM(dtpFrom.Value, dtpTo.Value, cmpStatus);
+                var vm = _ctrl.GetAfterServiceReportVM(dtpFrom.Value, dtpTo.Value);
+
+                // Complaints — use ComplaintDate and ComplaintStatus (correct property names)
                 if (vm.ComplaintRows != null)
                     foreach (var r in vm.ComplaintRows)
-                        dgvC.Rows.Add(r.ComplaintDate.ToString("yyyy-MM-dd"), r.ComplaintID, r.CustomerName, r.Subject, r.ComplaintStatus);
+                        dgvC.Rows.Add(r.ComplaintDate.ToString("yyyy-MM-dd"),
+                                      r.ComplaintID, r.CustomerName, r.Subject,
+                                      r.ComplaintStatus);
+
+                // Returns — use ReturnStatus (correct property name)
                 if (vm.ReturnRows != null)
                     foreach (var r in vm.ReturnRows)
-                        dgvR.Rows.Add(r.ReturnDate.ToString("yyyy-MM-dd"), r.ReturnOrderID, r.SalesOrderID, r.CustomerName, r.Reason, r.ReturnStatus);
+                        dgvR.Rows.Add(r.ReturnDate.ToString("yyyy-MM-dd"),
+                                      r.ReturnOrderID, r.SalesOrderID, r.CustomerName,
+                                      r.Reason, r.ReturnStatus);
             }
             catch { }
         }
 
-        private Panel BuildAfterServiceChartCard(DateTimePicker dtpFrom, DateTimePicker dtpTo, ComboBox cboCmpStatus)
+        private Panel BuildAfterServiceChartCard(DateTimePicker dtpFrom, DateTimePicker dtpTo)
         {
             var countByStatus = new Dictionary<string, double>();
             try
             {
-                string cmpStatus = cboCmpStatus.SelectedIndex == 0 ? null : cboCmpStatus.SelectedItem?.ToString();
-                var vm = _ctrl.GetAfterServiceReportVM(dtpFrom.Value, dtpTo.Value, cmpStatus);
+                var vm = _ctrl.GetAfterServiceReportVM(dtpFrom.Value, dtpTo.Value);
+                // Use ComplaintStatus (correct property name)
                 if (vm.ComplaintRows != null)
                     foreach (var r in vm.ComplaintRows)
                     {
@@ -1275,13 +1368,13 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             ApplyToggleStyle(btnToggle, _financeChart);
 
             var dgv = MakeDgv();
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDate",      HeaderText = "DATE",          FillWeight = 13 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colInvoiceID", HeaderText = "TRANSACTION ID",FillWeight = 16 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colType",      HeaderText = "TYPE",          FillWeight = 16 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colParty",     HeaderText = "DOCUMENT",      FillWeight = 22 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colAmount",    HeaderText = "AMOUNT",        FillWeight = 13 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPayMethod", HeaderText = "PAYMENT METHOD",FillWeight = 13 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",    HeaderText = "STATUS",        FillWeight = 10 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDate",       HeaderText = "DATE",            FillWeight = 14 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTxnID",      HeaderText = "TRANSACTION ID",  FillWeight = 18 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDocType",    HeaderText = "DOCUMENT TYPE",   FillWeight = 18 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLinkedDoc",  HeaderText = "LINKED DOC",      FillWeight = 18 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colAmount",     HeaderText = "AMOUNT",          FillWeight = 12 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colMethod",     HeaderText = "PAYMENT METHOD",  FillWeight = 14 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPayStatus",  HeaderText = "STATUS",          FillWeight = 12 });
             dgv.CellFormatting += DgvCellFormatting;
 
             LoadFinanceData(dgv, dtpFrom, dtpTo, cboType);
@@ -1311,7 +1404,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             btnExport.Click += (s, e) => ExportGrid(dgv, "FinanceOverview");
 
             SetFilterBar("Finance Overview",
-                BuildDateRangeRow(dtpFrom, dtpTo, ("Invoice Type", cboType)),
+                BuildDateRangeRow(dtpFrom, dtpTo, ("Document Type", cboType)),
                 BuildButtonsRow(btnApply, btnReset, btnToggle, btnExport));
 
             SwapContent(dgvCard, chartCard, _financeChart);
@@ -1322,9 +1415,12 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             dgv.Rows.Clear();
             try
             {
-                string type = cboType.SelectedIndex == 0 ? null : cboType.SelectedItem?.ToString();
-                var vm = _ctrl.GetFinanceReportVM(dtpFrom.Value, dtpTo.Value, type);
+                string docType = cboType.SelectedIndex == 0 ? null : cboType.SelectedItem?.ToString();
+                var vm = _ctrl.GetFinanceReportVM(dtpFrom.Value, dtpTo.Value, docType);
                 if (vm.FinanceRows == null) return;
+                // Use correct property names from FinanceTransactionRowEntity:
+                // TransactionDate, TransactionID, DocumentType, LinkedDocument,
+                // Amount, PaymentMethod, ApprovalStatus
                 foreach (var r in vm.FinanceRows)
                     dgv.Rows.Add(
                         r.TransactionDate.ToString("yyyy-MM-dd"),
@@ -1340,106 +1436,25 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
         private Panel BuildFinanceChartCard(DateTimePicker dtpFrom, DateTimePicker dtpTo, ComboBox cboType)
         {
-            var amountByType = new Dictionary<string, double>();
+            var amountByDocType = new Dictionary<string, double>();
             try
             {
-                string type = cboType.SelectedIndex == 0 ? null : cboType.SelectedItem?.ToString();
-                var vm = _ctrl.GetFinanceReportVM(dtpFrom.Value, dtpTo.Value, type);
+                string docType = cboType.SelectedIndex == 0 ? null : cboType.SelectedItem?.ToString();
+                var vm = _ctrl.GetFinanceReportVM(dtpFrom.Value, dtpTo.Value, docType);
+                // Use DocumentType (correct property name)
                 if (vm.FinanceRows != null)
                     foreach (var r in vm.FinanceRows)
                     {
                         string key = r.DocumentType ?? "Unknown";
-                        if (!amountByType.ContainsKey(key)) amountByType[key] = 0;
-                        amountByType[key] += r.Amount;
+                        if (!amountByDocType.ContainsKey(key)) amountByDocType[key] = 0;
+                        amountByDocType[key] += r.Amount;
                     }
             }
             catch { }
-            return BuildChartCard("Invoice Amount by Type",
-                new List<string>(amountByType.Keys).ToArray(),
-                new List<double>(amountByType.Values).ToArray(),
-                ChartStyle.Pie);
+            return BuildChartCard("Amount by Document Type",
+                new List<string>(amountByDocType.Keys).ToArray(),
+                new List<double>(amountByDocType.Values).ToArray(),
+                ChartStyle.Column);
         }
-
-        // ════════════════════════════════════════════════════════════════
-        //  Card Border Paint (used by Designer.cs via partial class)
-        // ════════════════════════════════════════════════════════════════
-        private static void PaintCardBorder(object sender, PaintEventArgs e)
-        {
-            var p = (Panel)sender;
-            using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
-            e.Graphics.DrawRectangle(pen, 0, 0, p.Width - 1, p.Height - 1);
-        }
-
-        // ════════════════════════════════════════════════════════════════
-        //  DataGridView Cell Formatting (status badge colouring)
-        // ════════════════════════════════════════════════════════════════
-        private void DgvCellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
-        {
-            if (e.RowIndex < 0) return;
-            var dgv = (DataGridView)sender;
-            if (e.ColumnIndex < 0 || e.ColumnIndex >= dgv.Columns.Count) return;
-            string colName = dgv.Columns[e.ColumnIndex].Name;
-            if ((colName == "colStatus" || colName == "colPayStatus") && e.Value != null)
-            {
-                if (StatusColors.TryGetValue(e.Value.ToString(), out var c))
-                {
-                    e.CellStyle.BackColor          = c.bg;
-                    e.CellStyle.ForeColor          = c.fg;
-                    e.CellStyle.SelectionBackColor = c.bg;
-                    e.CellStyle.SelectionForeColor = c.fg;
-                    e.CellStyle.Font      = new Font("Segoe UI", 11f, FontStyle.Bold);
-                    e.CellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-                }
-                e.FormattingApplied = true;
-            }
-        }
-
-        // ════════════════════════════════════════════════════════════════
-        //  CSV Export
-        // ════════════════════════════════════════════════════════════════
-        private static void ExportGrid(DataGridView dgv, string reportName)
-        {
-            try
-            {
-                using var dlg = new SaveFileDialog
-                {
-                    Filter   = "CSV Files (*.csv)|*.csv",
-                    FileName = $"{reportName}_{DateTime.Now:yyyyMMdd_HHmmss}.csv"
-                };
-                if (dlg.ShowDialog() != DialogResult.OK) return;
-
-                var sb = new System.Text.StringBuilder();
-                var headers = new List<string>();
-                foreach (DataGridViewColumn col in dgv.Columns)
-                    if (col.Visible) headers.Add($"\"{col.HeaderText}\"");
-                sb.AppendLine(string.Join(",", headers));
-
-                foreach (DataGridViewRow row in dgv.Rows)
-                {
-                    if (row.IsNewRow) continue;
-                    var cells = new List<string>();
-                    foreach (DataGridViewCell cell in row.Cells)
-                        if (dgv.Columns[cell.ColumnIndex].Visible)
-                            cells.Add($"\"{cell.Value?.ToString()?.Replace("\"", "\"\"")}\"");
-                    sb.AppendLine(string.Join(",", cells));
-                }
-                System.IO.File.WriteAllText(dlg.FileName, sb.ToString(), System.Text.Encoding.UTF8);
-                MessageBox.Show("Exported successfully.", "Export", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Export failed: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
-        // ════════════════════════════════════════════════════════════════
-        //  Navigation / Logout  (AppShell RULE 4 handlers)
-        // ════════════════════════════════════════════════════════════════
-        private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
-            => FormNavigator.NavigateTo(this, menuLabel, subItem);
-
-        private void btnLogout_Click(object sender, EventArgs e)
-        { SessionManager.Clear(); Application.Restart(); }
-
     }
 }
