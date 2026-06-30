@@ -34,24 +34,25 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             this.SuspendLayout();
 
             // ── Form properties ───────────────────────────────────────────────
-            this.Text                = "Statistical Reports · View Report";
-            this.Size                = new Size(1440, 900);
-            this.MinimumSize         = new Size(1200, 720);
-            this.StartPosition       = FormStartPosition.CenterScreen;
-            this.BackColor           = Palette.BgPage;
-            this.WindowState         = FormWindowState.Maximized;
-            this.Font                = new Font("Segoe UI", 13f);
-            this.AutoScaleMode       = System.Windows.Forms.AutoScaleMode.Font;
-            this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
+            this.Text          = "Statistical Reports · View Report";
+            this.Size          = new Size(1440, 900);
+            this.MinimumSize   = new Size(1200, 720);
+            this.StartPosition = FormStartPosition.CenterScreen;
+            this.BackColor     = Palette.BgPage;
+            this.WindowState   = FormWindowState.Maximized;
+            this.Font          = new Font("Segoe UI", 13f);
 
             // ── Root panel ────────────────────────────────────────────────────
             var pnlMain = new Panel { Dock = DockStyle.Fill, BackColor = Palette.BgPage };
 
-            // ── AppShell — constructed after pnlMain, wired exactly like ViewOrderForm ──
-            _shell = new AppShell();
-            _shell.SetPopupContainer(pnlMain);                               // RULE 2 — called immediately after construction
-            _shell.MenuItemClicked += OnTopNavMenuItemClicked;               // RULE 4
-            _shell.LogoutClicked   += btnLogout_Click;                       // RULE 4
+            // ── AppShell — wired exactly like StaffListForm ───────────────────────
+            _shell             = new AppShell();
+            _shell.Dock        = DockStyle.Top;
+            _shell.Height      = AppShell.TotalHeight;
+            _shell.MinimumSize = new Size(0, AppShell.TotalHeight);
+            _shell.SetPopupContainer(pnlMain);
+            _shell.MenuItemClicked += OnTopNavMenuItemClicked;
+            _shell.LogoutClicked   += btnLogout_Click;
 
             // ── Report content host (DockStyle.Fill) ──────────────────────────
             pnlContent = new Panel { Dock = DockStyle.Fill, BackColor = Palette.BgPage };
@@ -65,7 +66,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 Padding   = new Padding(20, 14, 20, 8)
             };
 
-            // ── Tab bar outer (DockStyle.Top, 69 px) ────────────────────────
+            // ── Tab bar (DockStyle.Top, 69 px) ──────────────────────────────
             Button MakeTabBtn(string text, int idx)
             {
                 var b = new Button
@@ -127,18 +128,22 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             pnlTabOuter.Paint += PaintTabUnderline;
             pnlTabOuter.Controls.Add(pnlTabCard);
 
-            // ── Assemble pnlMain (RULE 5) ─────────────────────────────────────
-            // DockStyle.Fill added first, then DockStyle.Top panels bottom-to-top,
-            // _shell added LAST so it wins the topmost Top slot (NavBar + UserBar visible).
-            pnlMain.Controls.Add(pnlContent);     // DockStyle.Fill — added first
-            pnlMain.Controls.Add(pnlFilterOuter); // DockStyle.Top  — above content
-            pnlMain.Controls.Add(pnlTabOuter);    // DockStyle.Top  — above filter bar
-            pnlMain.Controls.Add(_shell);          // DockStyle.Top  — LAST = topmost chrome (RULE 5)
+            // ── Assemble pnlMain ────────────────────────────────────────────────
+            // Fill first, then Top panels bottom-to-top, _shell LAST.
+            pnlMain.Controls.Add(pnlContent);     // Fill  — report area
+            pnlMain.Controls.Add(pnlFilterOuter); // Top   — filter bar
+            pnlMain.Controls.Add(pnlTabOuter);    // Top   — tab bar
+            pnlMain.Controls.Add(_shell);         // Top   — AppShell LAST (topmost)
 
             this.Controls.Add(pnlMain);
             this.ResumeLayout(false);
             this.PerformLayout();
+
+            // ── Post-layout height re-enforcement (same as StaffListForm) ────
+            _shell.Height      = AppShell.TotalHeight;
+            _shell.MinimumSize = new Size(0, AppShell.TotalHeight);
         }
+
         // PaintCardBorder is defined in ViewReportForm.cs (partial class) — do NOT redeclare here.
     }
 }
