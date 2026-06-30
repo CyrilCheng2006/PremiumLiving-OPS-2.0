@@ -16,22 +16,13 @@ namespace PremiumLivingOPS.Models.DAL
         //  1. SALES PERFORMANCE
         // ════════════════════════════════════════════════════════════════
 
-        /// <param name="statusFilter">null/"All"/"Pending"/"Processing"/"Delivered"/"Partially Delivered"/"Cancelled"</param>
-        public SalesKpiEntity GetSalesKpi(
-            DateTime? from         = null,
-            DateTime? to           = null,
-            string    statusFilter = null)
+        public SalesKpiEntity GetSalesKpi(DateTime? from, DateTime? to)
         {
             using (var conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
-                string where  = "WHERE 1=1";
-                if (!string.IsNullOrEmpty(statusFilter) && statusFilter != "All")
-                    where += " AND o.OrderStatus = @status";
-                string dateExtra = BuildDateWhere("o.IssuedTime", from, to, prefix: "AND");
-                where += dateExtra;
-
-                string sql =
+                string where  = BuildDateWhere("o.IssuedTime", from, to, prefix: "WHERE");
+                string sql    =
                     $@"SELECT
                          COUNT(*) AS TotalOrders,
                          COALESCE(SUM(o.GrandTotal),0) AS TotalRevenue,
@@ -44,8 +35,6 @@ namespace PremiumLivingOPS.Models.DAL
                        {where}";
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
-                    if (!string.IsNullOrEmpty(statusFilter) && statusFilter != "All")
-                        cmd.Parameters.AddWithValue("@status", statusFilter);
                     AddDateParams(cmd, from, to);
                     using (var r = cmd.ExecuteReader())
                     {
@@ -65,23 +54,14 @@ namespace PremiumLivingOPS.Models.DAL
             }
         }
 
-        /// <param name="statusFilter">null/"All"/"Pending"/"Processing"/"Delivered"/"Partially Delivered"/"Cancelled"</param>
-        public List<SalesOrderRowEntity> GetSalesRows(
-            DateTime? from         = null,
-            DateTime? to           = null,
-            string    statusFilter = null)
+        public List<SalesOrderRowEntity> GetSalesRows(DateTime? from, DateTime? to)
         {
             var list = new List<SalesOrderRowEntity>();
             using (var conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
-                string where = "WHERE 1=1";
-                if (!string.IsNullOrEmpty(statusFilter) && statusFilter != "All")
-                    where += " AND o.OrderStatus = @status";
-                string dateExtra = BuildDateWhere("o.IssuedTime", from, to, prefix: "AND");
-                where += dateExtra;
-
-                string sql =
+                string where = BuildDateWhere("o.IssuedTime", from, to, prefix: "WHERE");
+                string sql   =
                     $@"SELECT o.OrderID, c.CustomerName, o.OrderStatus,
                               o.IssuedTime, o.GrandTotal,
                               (SELECT COUNT(*) FROM OrderLine ol WHERE ol.OrderID = o.OrderID) AS LineCount
@@ -91,8 +71,6 @@ namespace PremiumLivingOPS.Models.DAL
                        ORDER BY o.IssuedTime DESC";
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
-                    if (!string.IsNullOrEmpty(statusFilter) && statusFilter != "All")
-                        cmd.Parameters.AddWithValue("@status", statusFilter);
                     AddDateParams(cmd, from, to);
                     using (var r = cmd.ExecuteReader())
                         while (r.Read())
@@ -277,6 +255,18 @@ namespace PremiumLivingOPS.Models.DAL
             }
         }
 
+        /// <summary>
+        /// Valid statusFilter values: null / "All" / "Sent" / "Partially Received" /
+        /// "Received" / "Completed" / "Cancelled"  (matches PurchaseOrder.PurchaseStatus ENUM).
+        ///
+        /// FIX: ReceiptStatus is now derived from the Receipt table (schema-compliant).
+        ///      The original code referenced a non-existent GoodsReceived table which
+        ///      caused a runtime SQL error preventing any data from being displayed.
+        ///      ReceiptStatus values:
+        ///        'Fully Received'     — all Receipt rows have Outstanding_QTY = 0 or NULL
+        ///        'Partially Received' — at least one Receipt row with Outstanding_QTY > 0
+        ///        'Not Received'       — no Receipt rows exist for this PurchaseOrder
+        /// </summary>
         public List<ProcurementRowEntity> GetProcurementRows(
             DateTime? from        = null,
             DateTime? to          = null,
@@ -370,6 +360,17 @@ namespace PremiumLivingOPS.Models.DAL
             }
         }
 
+        /// <summary>
+        /// Valid statusFilter values: null / "All" / "Pending" / "In Transit" / "Completed"
+        /// (matches Shipment.ShipmentStatus ENUM).
+        /// Returns LogisticsRowEntity — aligned to ViewReportForm / LogisticsRowEntity fields.
+        ///
+        /// FIX: Removed JOIN to non-existent Driver table and non-existent DriverID column
+        ///      in DeliveryNote. The schema (Database/schema.sql) has no Driver table and
+        ///      DeliveryNote has no DriverID column. The original JOIN caused a runtime
+        ///      SQL error preventing any data from being displayed.
+        ///      DriverName now returns '' (empty string) as the schema has no driver data.
+        /// </summary>
         public List<LogisticsRowEntity> GetLogisticsRows(
             DateTime? from        = null,
             DateTime? to          = null,
@@ -452,6 +453,9 @@ namespace PremiumLivingOPS.Models.DAL
             }
         }
 
+        /// <summary>
+        /// Valid complaintStatusFilter: null/"All"/"Pending"/"Processing"/"Escalated"/"Completed".
+        /// </summary>
         public List<ComplaintRowEntity> GetComplaintRows(
             DateTime? from        = null,
             DateTime? to          = null,
@@ -464,6 +468,7 @@ namespace PremiumLivingOPS.Models.DAL
                 string where = "WHERE 1=1";
                 if (!string.IsNullOrEmpty(statusFilter) && statusFilter != "All")
                     where += " AND cp.ComplaintStatus = @status";
+                // Filter by associated Order.IssuedTime if date range supplied
                 string dateExtra = BuildDateWhere("o.IssuedTime", from, to, prefix: "AND");
                 where += dateExtra;
 
@@ -500,6 +505,9 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
+        /// <summary>
+        /// Valid returnStatusFilter: null/"All"/"Pending"/"Processing"/"Completed".
+        /// </summary>
         public List<ReturnOrderRowEntity> GetReturnOrderRows(
             DateTime? from        = null,
             DateTime? to          = null,
@@ -584,6 +592,9 @@ namespace PremiumLivingOPS.Models.DAL
             }
         }
 
+        /// <summary>
+        /// Returns finance transaction rows filtered by date range and optionally by docType group.
+        /// </summary>
         public List<FinanceTransactionRowEntity> GetFinanceTransactionRows(
             DateTime? from           = null,
             DateTime? to             = null,
