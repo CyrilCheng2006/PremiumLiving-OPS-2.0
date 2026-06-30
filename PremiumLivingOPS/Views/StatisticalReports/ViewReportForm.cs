@@ -604,7 +604,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                         string vl = _values[i] >= 1000 ? $"{_values[i] / 1000:N1}k" : $"{_values[i]:N0}";
                         var vlSz  = g.MeasureString(vl, valFont);
                         if (barW > vlSz.Width + 8)
-                        { using var wb = new SolidBrush(Color.White); g.DrawString(vl, valFont, wb, bx + barW - vlSz.Width - 6, by + (barHeight - vlSz.Height) / 2f); }
+                        { using var wb = new SolidBrush(Color.White); g.DrawString(vl, valFont, wb, bx + barW - vlSz.Width - 6, by + (barHeight - ylSz.Height) / 2f); }
                     }
                 }
 
@@ -1286,13 +1286,13 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             ApplyToggleStyle(btnToggle, _financeChart);
 
             var dgv = MakeDgv();
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDate",      HeaderText = "DATE",         FillWeight = 13 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colInvoiceID", HeaderText = "INVOICE ID",   FillWeight = 16 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colType",      HeaderText = "TYPE",         FillWeight = 16 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colParty",     HeaderText = "PARTY",        FillWeight = 22 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colAmount",    HeaderText = "AMOUNT",       FillWeight = 13 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDate",      HeaderText = "DATE",          FillWeight = 13 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colInvoiceID", HeaderText = "INVOICE ID",    FillWeight = 16 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colType",      HeaderText = "TYPE",          FillWeight = 16 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colParty",     HeaderText = "PARTY",         FillWeight = 22 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colAmount",    HeaderText = "AMOUNT",        FillWeight = 13 });
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPayMethod", HeaderText = "PAYMENT METHOD",FillWeight = 13 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",    HeaderText = "STATUS",       FillWeight = 10 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",    HeaderText = "STATUS",        FillWeight = 10 });
             dgv.CellFormatting += DgvCellFormatting;
 
             LoadFinanceData(dgv, dtpFrom, dtpTo, cboType);
@@ -1405,7 +1405,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 // Header
                 var headers = new List<string>();
                 foreach (DataGridViewColumn col in dgv.Columns)
-                    headers.Add($"\"{col.HeaderText}\"");
+                    headers.Add("\"" + col.HeaderText + "\"");
                 sw.WriteLine(string.Join(",", headers));
 
                 // Rows
@@ -1414,12 +1414,17 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                     if (row.IsNewRow) continue;
                     var cells = new List<string>();
                     foreach (DataGridViewCell cell in row.Cells)
-                        cells.Add($"\"{cell.Value?.ToString()?.Replace("\"", "'\"') ?? ""}\"");
+                    {
+                        string cellVal = cell.Value != null
+                            ? cell.Value.ToString().Replace("\"", "\"\"")
+                            : string.Empty;
+                        cells.Add("\"" + cellVal + "\"");
+                    }
                     sw.WriteLine(string.Join(",", cells));
                 }
 
                 MessageBox.Show(
-                    $"Exported to:\n{path}",
+                    "Exported to:\n" + path,
                     "Export Successful",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
@@ -1427,7 +1432,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             catch (Exception ex)
             {
                 MessageBox.Show(
-                    $"Export failed:\n{ex.Message}",
+                    "Export failed:\n" + ex.Message,
                     "Export Error",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
