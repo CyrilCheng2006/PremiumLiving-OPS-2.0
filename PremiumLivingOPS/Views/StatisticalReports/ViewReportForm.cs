@@ -93,8 +93,9 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
         private void ViewReportForm_Load(object sender, EventArgs e)
         {
-            _shell.MenuItemClicked += OnTopNavMenuItemClicked;
-            _shell.LogoutClicked   += btnLogout_Click;
+            // NOTE: MenuItemClicked and LogoutClicked are subscribed in
+            // InitializeComponent (Designer.cs) per AppShell RULE 4.
+            // Do NOT re-subscribe here to avoid duplicate-fire.
 
             var vm = _ctrl.GetSalesReportVM();
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
@@ -1192,7 +1193,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             dgvR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colROrder",   HeaderText = "ORDER ID",      FillWeight = 16 });
             dgvR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colRCust",    HeaderText = "CUSTOMER",      FillWeight = 22 });
             dgvR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colRReason",  HeaderText = "REASON",        FillWeight = 22 });
-            dgvR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colRStatus",  HeaderText = "STATUS",        FillWeight = 13 });
+            dgvR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colRStatus",  HeaderText = "STATUS",        FillWeight = 10 });
             dgvR.CellFormatting += DgvCellFormatting;
 
             LoadAfterServiceData(dgvC, dgvR, dtpFrom, dtpTo, cboCmpStatus);
@@ -1237,25 +1238,12 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             {
                 string cmpStatus = cboCmpStatus.SelectedIndex == 0 ? null : cboCmpStatus.SelectedItem?.ToString();
                 var vm = _ctrl.GetAfterServiceReportVM(dtpFrom.Value, dtpTo.Value, cmpStatus);
-
                 if (vm.ComplaintRows != null)
                     foreach (var r in vm.ComplaintRows)
-                        dgvC.Rows.Add(
-                            r.ComplaintDate.ToString("yyyy-MM-dd"),
-                            r.ComplaintID,
-                            r.CustomerName,
-                            r.Subject,
-                            r.ComplaintStatus);
-
+                        dgvC.Rows.Add(r.CreatedAt.ToString("yyyy-MM-dd"), r.ComplaintID, r.CustomerName, r.Subject, r.Status);
                 if (vm.ReturnRows != null)
                     foreach (var r in vm.ReturnRows)
-                        dgvR.Rows.Add(
-                            r.ReturnDate.ToString("yyyy-MM-dd"),
-                            r.ReturnOrderID,
-                            r.SalesOrderID,
-                            r.CustomerName,
-                            r.Reason,
-                            r.ReturnStatus);
+                        dgvR.Rows.Add(r.ReturnDate.ToString("yyyy-MM-dd"), r.ReturnOrderID, r.SalesOrderID, r.CustomerName, r.Reason, r.Status);
             }
             catch { }
         }
@@ -1270,7 +1258,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 if (vm.ComplaintRows != null)
                     foreach (var r in vm.ComplaintRows)
                     {
-                        string key = r.ComplaintStatus ?? "Unknown";
+                        string key = r.Status ?? "Unknown";
                         if (!countByStatus.ContainsKey(key)) countByStatus[key] = 0;
                         countByStatus[key]++;
                     }
@@ -1288,11 +1276,8 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             var dtpFrom   = new DateTimePicker { Format = DateTimePickerFormat.Short, Value = DefaultDateFrom, Font = new Font("Segoe UI", 12f) };
             var dtpTo     = new DateTimePicker { Format = DateTimePickerFormat.Short, Value = DefaultDateTo,   Font = new Font("Segoe UI", 12f) };
             var cboType   = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 12f) };
-            cboType.Items.AddRange(new object[] { "All", "Revenue", "Expense", "Refund", "Deposit", "Installment" });
+            cboType.Items.AddRange(new object[] { "All", "Sales Invoice", "Purchase Invoice", "Return Refund" });
             cboType.SelectedIndex = 0;
-            var cboDocType = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 12f) };
-            cboDocType.Items.AddRange(new object[] { "All", "Sales Invoice", "Purchase Invoice", "Return Refund" });
-            cboDocType.SelectedIndex = 0;
 
             var btnApply  = MakePrimaryBtn("\U0001F50D  Apply");
             var btnReset  = MakeOutlineBtn("\u21BA  Reset");
@@ -1301,91 +1286,173 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             ApplyToggleStyle(btnToggle, _financeChart);
 
             var dgv = MakeDgv();
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDate",    HeaderText = "DATE",            FillWeight = 13 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTxn",     HeaderText = "TRANSACTION ID",  FillWeight = 16 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDocType", HeaderText = "DOC TYPE",        FillWeight = 14 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colType",    HeaderText = "TYPE",            FillWeight = 11 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colAmt",     HeaderText = "AMOUNT",          FillWeight = 13 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",  HeaderText = "STATUS",          FillWeight = 13 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPayment", HeaderText = "PAYMENT METHOD",  FillWeight = 16 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDate",      HeaderText = "DATE",         FillWeight = 13 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colInvoiceID", HeaderText = "INVOICE ID",   FillWeight = 16 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colType",      HeaderText = "TYPE",         FillWeight = 16 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colParty",     HeaderText = "PARTY",        FillWeight = 22 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colAmount",    HeaderText = "AMOUNT",       FillWeight = 13 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPayMethod", HeaderText = "PAYMENT METHOD",FillWeight = 13 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",    HeaderText = "STATUS",       FillWeight = 10 });
             dgv.CellFormatting += DgvCellFormatting;
 
-            LoadFinanceData(dgv, dtpFrom, dtpTo, cboType, cboDocType);
+            LoadFinanceData(dgv, dtpFrom, dtpTo, cboType);
 
             var dgvCard   = BuildGridCard(dgv);
-            var chartCard = BuildFinanceChartCard(dtpFrom, dtpTo, cboType, cboDocType);
+            var chartCard = BuildFinanceChartCard(dtpFrom, dtpTo, cboType);
 
             btnApply.Click += (s, e) =>
             {
-                LoadFinanceData(dgv, dtpFrom, dtpTo, cboType, cboDocType);
-                if (_financeChart) { pnlContent.SuspendLayout(); pnlContent.Controls.Clear(); pnlContent.Controls.Add(BuildFinanceChartCard(dtpFrom, dtpTo, cboType, cboDocType)); pnlContent.ResumeLayout(true); }
+                LoadFinanceData(dgv, dtpFrom, dtpTo, cboType);
+                if (_financeChart) { pnlContent.SuspendLayout(); pnlContent.Controls.Clear(); pnlContent.Controls.Add(BuildFinanceChartCard(dtpFrom, dtpTo, cboType)); pnlContent.ResumeLayout(true); }
                 else SwapContent(dgvCard, chartCard, false);
             };
             btnReset.Click += (s, e) =>
             {
-                dtpFrom.Value = DefaultDateFrom; dtpTo.Value = DefaultDateTo; cboType.SelectedIndex = 0; cboDocType.SelectedIndex = 0;
-                LoadFinanceData(dgv, dtpFrom, dtpTo, cboType, cboDocType);
+                dtpFrom.Value = DefaultDateFrom; dtpTo.Value = DefaultDateTo; cboType.SelectedIndex = 0;
+                LoadFinanceData(dgv, dtpFrom, dtpTo, cboType);
                 SwapContent(dgvCard, chartCard, _financeChart);
             };
             btnToggle.Click += (s, e) =>
             {
                 _financeChart = !_financeChart;
                 ApplyToggleStyle(btnToggle, _financeChart);
-                if (_financeChart) { pnlContent.SuspendLayout(); pnlContent.Controls.Clear(); pnlContent.Controls.Add(BuildFinanceChartCard(dtpFrom, dtpTo, cboType, cboDocType)); pnlContent.ResumeLayout(true); }
+                if (_financeChart) { pnlContent.SuspendLayout(); pnlContent.Controls.Clear(); pnlContent.Controls.Add(BuildFinanceChartCard(dtpFrom, dtpTo, cboType)); pnlContent.ResumeLayout(true); }
                 else SwapContent(dgvCard, chartCard, false);
             };
             btnExport.Click += (s, e) => ExportGrid(dgv, "FinanceOverview");
 
             SetFilterBar("Finance Overview",
-                BuildDateRangeRow(dtpFrom, dtpTo, ("Transaction Type", cboType), ("Document Type", cboDocType)),
+                BuildDateRangeRow(dtpFrom, dtpTo, ("Invoice Type", cboType)),
                 BuildButtonsRow(btnApply, btnReset, btnToggle, btnExport));
 
             SwapContent(dgvCard, chartCard, _financeChart);
         }
 
-        private void LoadFinanceData(DataGridView dgv, DateTimePicker dtpFrom, DateTimePicker dtpTo, ComboBox cboType, ComboBox cboDocType)
+        private void LoadFinanceData(DataGridView dgv, DateTimePicker dtpFrom, DateTimePicker dtpTo, ComboBox cboType)
         {
             dgv.Rows.Clear();
             try
             {
-                string type    = cboType.SelectedIndex    == 0 ? null : cboType.SelectedItem?.ToString();
-                string docType = cboDocType.SelectedIndex == 0 ? null : cboDocType.SelectedItem?.ToString();
-                var vm = _ctrl.GetFinanceReportVM(dtpFrom.Value, dtpTo.Value, type, docType);
+                string type = cboType.SelectedIndex == 0 ? null : cboType.SelectedItem?.ToString();
+                var vm = _ctrl.GetFinanceReportVM(dtpFrom.Value, dtpTo.Value, type);
                 if (vm.FinanceRows == null) return;
                 foreach (var r in vm.FinanceRows)
                     dgv.Rows.Add(
-                        r.TransactionDate.ToString("yyyy-MM-dd"),
-                        r.TransactionID,
-                        r.DocumentType,
-                        r.TransactionType,
+                        r.InvoiceDate.ToString("yyyy-MM-dd"),
+                        r.InvoiceID,
+                        r.InvoiceType,
+                        r.PartyName,
                         r.Amount.ToString("N2"),
-                        r.PaymentStatus,
-                        r.PaymentMethod);
+                        r.PaymentMethod,
+                        r.PaymentStatus);
             }
             catch { }
         }
 
-        private Panel BuildFinanceChartCard(DateTimePicker dtpFrom, DateTimePicker dtpTo, ComboBox cboType, ComboBox cboDocType)
+        private Panel BuildFinanceChartCard(DateTimePicker dtpFrom, DateTimePicker dtpTo, ComboBox cboType)
         {
-            var amtByDocType = new Dictionary<string, double>();
+            var amountByType = new Dictionary<string, double>();
             try
             {
-                string type    = cboType.SelectedIndex    == 0 ? null : cboType.SelectedItem?.ToString();
-                string docType = cboDocType.SelectedIndex == 0 ? null : cboDocType.SelectedItem?.ToString();
-                var vm = _ctrl.GetFinanceReportVM(dtpFrom.Value, dtpTo.Value, type, docType);
+                string type = cboType.SelectedIndex == 0 ? null : cboType.SelectedItem?.ToString();
+                var vm = _ctrl.GetFinanceReportVM(dtpFrom.Value, dtpTo.Value, type);
                 if (vm.FinanceRows != null)
                     foreach (var r in vm.FinanceRows)
                     {
-                        string key = r.DocumentType ?? "Unknown";
-                        if (!amtByDocType.ContainsKey(key)) amtByDocType[key] = 0;
-                        amtByDocType[key] += r.Amount;
+                        string key = r.InvoiceType ?? "Unknown";
+                        if (!amountByType.ContainsKey(key)) amountByType[key] = 0;
+                        amountByType[key] += r.Amount;
                     }
             }
             catch { }
-            return BuildChartCard("Transaction Amount by Doc Type",
-                new List<string>(amtByDocType.Keys).ToArray(),
-                new List<double>(amtByDocType.Values).ToArray(),
-                ChartStyle.Column);
+            return BuildChartCard("Invoice Amount by Type",
+                new List<string>(amountByType.Keys).ToArray(),
+                new List<double>(amountByType.Values).ToArray(),
+                ChartStyle.Pie);
         }
+
+        // ════════════════════════════════════════════════════════════════
+        //  DGV CELL FORMATTING (status badges)
+        // ════════════════════════════════════════════════════════════════
+
+        private void DgvCellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
+        {
+            if (e.Value == null) return;
+            string val = e.Value.ToString();
+            if (StatusColors.TryGetValue(val, out var colors))
+            {
+                e.CellStyle.BackColor          = colors.bg;
+                e.CellStyle.ForeColor          = colors.fg;
+                e.CellStyle.SelectionBackColor = colors.bg;
+                e.CellStyle.SelectionForeColor = colors.fg;
+            }
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  EXPORT
+        // ════════════════════════════════════════════════════════════════
+
+        private void ExportGrid(DataGridView dgv, string baseName)
+        {
+            try
+            {
+                string path = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
+                    $"{baseName}_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+
+                using var sw = new StreamWriter(path, false, System.Text.Encoding.UTF8);
+
+                // Header
+                var headers = new List<string>();
+                foreach (DataGridViewColumn col in dgv.Columns)
+                    headers.Add($"\"{col.HeaderText}\"");
+                sw.WriteLine(string.Join(",", headers));
+
+                // Rows
+                foreach (DataGridViewRow row in dgv.Rows)
+                {
+                    if (row.IsNewRow) continue;
+                    var cells = new List<string>();
+                    foreach (DataGridViewCell cell in row.Cells)
+                        cells.Add($"\"{cell.Value?.ToString()?.Replace("\"", "'\"') ?? ""}\"");
+                    sw.WriteLine(string.Join(",", cells));
+                }
+
+                MessageBox.Show(
+                    $"Exported to:\n{path}",
+                    "Export Successful",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    $"Export failed:\n{ex.Message}",
+                    "Export Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  PAINT — card border
+        // ════════════════════════════════════════════════════════════════
+
+        private void PaintCardBorder(object sender, PaintEventArgs e)
+        {
+            var ctrl = (Control)sender;
+            using var pen = new Pen(Color.FromArgb(221, 227, 236), 1f);
+            e.Graphics.DrawRectangle(pen, 0, 0, ctrl.Width - 1, ctrl.Height - 1);
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  TOP NAV BAR — navigation + logout
+        // ════════════════════════════════════════════════════════════════
+
+        private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
+            => FormNavigator.NavigateTo(this, menuLabel, subItem);
+
+        private void btnLogout_Click(object sender, EventArgs e)
+            => FormNavigator.Logout(this);
     }
 }

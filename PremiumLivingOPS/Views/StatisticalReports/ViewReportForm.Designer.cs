@@ -31,7 +31,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
         private void InitializeComponent()
         {
-            this.SuspendLayout();
+            this.SuspendLayout();                                        // RULE 1
 
             // ── Form ──────────────────────────────────────────────────────────
             this.Text          = "Statistical Reports · View Report";
@@ -41,14 +41,19 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             this.BackColor     = Palette.BgPage;
             this.WindowState   = FormWindowState.Maximized;
             this.Font          = new Font("Segoe UI", 13f);
+            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
 
             // ── pnlMain (Fill) ────────────────────────────────────────────────
             var pnlMain = new Panel { Dock = DockStyle.Fill, BackColor = Palette.BgPage };
 
-            // ── AppShell ──────────────────────────────────────────────────────
-            // NOTE: MenuItemClicked and LogoutClicked are wired in ViewReportForm_Load,
-            //       NOT here — consistent with ViewOrderForm pattern.
-            _shell = new AppShell();
+            // ── AppShell (RULE 2) ─────────────────────────────────────────────
+            _shell             = new AppShell();                         // RULE 2
+            _shell.Dock        = DockStyle.Top;                          // RULE 2 — explicit
+            _shell.Height      = AppShell.TotalHeight;                   // RULE 2
+            _shell.MinimumSize = new System.Drawing.Size(0, AppShell.TotalHeight); // RULE 2
+            _shell.MenuItemClicked += OnTopNavMenuItemClicked;           // RULE 4
+            _shell.LogoutClicked   += btnLogout_Click;                   // RULE 4
             _shell.SetPopupContainer(pnlMain);
 
             // ── Tab bar outer (DockStyle.Top, 69 px) ─────────────────────────
@@ -129,10 +134,14 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             pnlMain.Controls.Add(pnlContent);      // Fill — first
             pnlMain.Controls.Add(pnlTabOuter);     // Top
             pnlMain.Controls.Add(pnlFilterOuter);  // Top
-            pnlMain.Controls.Add(_shell);           // Top — LAST = topmost chrome
+            pnlMain.Controls.Add(_shell);           // Top — LAST = topmost chrome (RULE 5)
 
             this.Controls.Add(pnlMain);
             this.ResumeLayout(false);
+            this.PerformLayout();
+            // ── Post-layout height re-enforcement (RULE 3) ────────────────────
+            _shell.Height      = AppShell.TotalHeight;
+            _shell.MinimumSize = new System.Drawing.Size(0, AppShell.TotalHeight);
         }
         // PaintCardBorder is defined in ViewReportForm.cs (partial class) — do NOT redeclare here.
     }
