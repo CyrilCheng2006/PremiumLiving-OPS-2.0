@@ -32,7 +32,7 @@ namespace PremiumLivingOPS.Views.Shared
     {
         public static void NavigateTo(Form current, string menuLabel, string subItem = "")
         {
-            // ── Logout ─────────────────────────────────────────────────────────────────
+            // ── Logout ──────────────────────────────────────────────────────────────────────
             if (string.Equals(menuLabel, "Logout", StringComparison.OrdinalIgnoreCase))
             {
                 // Application.Run(new LoginForm()) makes the original LoginForm
@@ -87,7 +87,7 @@ namespace PremiumLivingOPS.Views.Shared
             };
         }
 
-        // ── Routing table ────────────────────────────────────────────────────────────────────────
+        // ── Routing table ────────────────────────────────────────────────────────────────────────────────
         private static Form Resolve(string menu, string sub)
         {
             menu = menu?.Trim() ?? "";
@@ -98,7 +98,7 @@ namespace PremiumLivingOPS.Views.Shared
                 case "Dashboard":
                     return new Dashboard.DashboardForm();
 
-                // ── Order Processing ───────────────────────────────────────────────────
+                // ── Order Processing ─────────────────────────────────────────────────────
                 case "Order Processing":
                     switch (sub)
                     {
@@ -109,7 +109,7 @@ namespace PremiumLivingOPS.Views.Shared
                         default:             return new ViewOrderForm();
                     }
 
-                // ── Inventory Control ───────────────────────────────────────────────────
+                // ── Inventory Control ─────────────────────────────────────────────────────
                 case "Inventory Control":
                     switch (sub)
                     {
@@ -123,7 +123,7 @@ namespace PremiumLivingOPS.Views.Shared
                             return new ViewProductForm();
                     }
 
-                // ── Production Processing ────────────────────────────────────────────────
+                // ── Production Processing ──────────────────────────────────────────────────
                 case "Production Processing":
                     switch (sub)
                     {
@@ -132,7 +132,7 @@ namespace PremiumLivingOPS.Views.Shared
                         default:                            return new SearchMaterialRequestForm();
                     }
 
-                // ── Raw Material (Procurement) ─────────────────────────────────────────────
+                // ── Raw Material (Procurement) ───────────────────────────────────────────────
                 case "Raw Material":
                     switch (sub)
                     {
@@ -141,7 +141,7 @@ namespace PremiumLivingOPS.Views.Shared
                         default:                   return new SearchProcurementForm();
                     }
 
-                // ── Logistics Processing ──────────────────────────────────────────────────
+                // ── Logistics Processing ──────────────────────────────────────────────────────
                 case "Logistics Processing":
                     switch (sub)
                     {
@@ -153,7 +153,7 @@ namespace PremiumLivingOPS.Views.Shared
                             return new ViewShipmentForm();
                     }
 
-                // ── After-Service ─────────────────────────────────────────────────────────
+                // ── After-Service ───────────────────────────────────────────────────────────
                 case "After-Service":
                     switch (sub)
                     {
@@ -165,7 +165,7 @@ namespace PremiumLivingOPS.Views.Shared
                         default:                     return new CreateInvoiceForm();
                     }
 
-                // ── Master Data Maintenance ──────────────────────────────────────────────
+                // ── Master Data Maintenance ───────────────────────────────────────────────────
                 case "Master Data Maintenance":
                     switch (sub)
                     {
@@ -174,7 +174,7 @@ namespace PremiumLivingOPS.Views.Shared
                         default:              return new SupplierListForm();
                     }
 
-                // ── Statistical Reports ──────────────────────────────────────────────────
+                // ── Statistical Reports ───────────────────────────────────────────────────────
                 case "Statistical Reports":
                     switch (sub)
                     {
@@ -182,7 +182,7 @@ namespace PremiumLivingOPS.Views.Shared
                         default: return new ViewReportForm();
                     }
 
-                // ── System Control ─────────────────────────────────────────────────────────
+                // ── System Control ───────────────────────────────────────────────────────────
                 case "System Control":
                     switch (sub)
                     {
