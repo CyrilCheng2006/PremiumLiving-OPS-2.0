@@ -1,152 +1,97 @@
+using System;
+using System.Collections.Generic;
 using PremiumLivingOPS.Models.DAL;
 using PremiumLivingOPS.Models.Entities;
-using PremiumLivingOPS.Models.ViewModels;
-using System;
 
 namespace PremiumLivingOPS.Controllers
 {
-    /// <summary>
-    /// Controller (middle layer) for Statistical Reports module.
-    /// Views never access StatisticalReportsRepo or the DB directly.
-    /// </summary>
     public class StatisticalReportsController
     {
         private readonly StatisticalReportsRepo _repo = new StatisticalReportsRepo();
 
-        // ── Common helpers ──────────────────────────────────────────────────────────────────────
-        private UserBarViewModel MakeUserBar()
+        // ─── Shared helpers ───────────────────────────────────────────────────
+
+        private ViewReportViewModel BaseVM()
         {
-            var u = SessionManager.CurrentUser;
-            return new UserBarViewModel
+            return new ViewReportViewModel
             {
-                DisplayName = u?.StaffName  ?? "Unknown",
-                Department  = u?.Department ?? ""
+                UserBar      = new UserBarEntity  { DisplayName = "Admin", Department = "Management" },
+                AllowedMenus = new List<string>   { "Dashboard", "Sales", "Procurement", "Logistics", "Inventory", "Staff", "After-Service", "Finance", "Statistical Reports" }
             };
         }
-        private string[] GetMenus()
-            => NavAccessPolicy.GetAllowedMenus(SessionManager.CurrentUser?.Department);
 
-        // ════════════════════════════════════════════════════════════════
-        //  1. SALES PERFORMANCE
-        // ════════════════════════════════════════════════════════════════
+        // ─── 1. Sales ─────────────────────────────────────────────────────────
 
-        /// <param name="statusFilter">null/"All"/"Pending"/"Processing"/"Delivered"/"Partially Delivered"/"Cancelled"</param>
-        public ViewReportViewModel GetSalesReportVM(
+        public ViewReportViewModel GetSalesReportVM(DateTime? from = null, DateTime? to = null)
+        {
+            var vm = BaseVM();
+            vm.SalesKpi     = _repo.GetSalesKpi(from, to);
+            vm.SalesRows    = _repo.GetSalesRows(from, to);
+            vm.TopProducts  = _repo.GetTopProducts(from, to);
+            return vm;
+        }
+
+        // ─── 2. Inventory ─────────────────────────────────────────────────────
+
+        public ViewReportViewModel GetInventoryReportVM()
+        {
+            var vm = BaseVM();
+            vm.InventoryKpi  = _repo.GetInventoryKpi();
+            vm.InventoryRows = _repo.GetInventoryRows();
+            return vm;
+        }
+
+        // ─── 3. Procurement ───────────────────────────────────────────────────
+
+        public ViewReportViewModel GetProcurementReportVM(
             DateTime? from         = null,
             DateTime? to           = null,
             string    statusFilter = null)
         {
-            return new ViewReportViewModel
-            {
-                UserBar      = MakeUserBar(),
-                AllowedMenus = GetMenus(),
-                ActiveReport = ReportType.SalesPerformance,
-                SalesKpi     = _repo.GetSalesKpi(from, to, statusFilter),
-                SalesRows    = _repo.GetSalesRows(from, to, statusFilter),
-                TopProducts  = _repo.GetTopProducts(from, to)
-            };
+            var vm = BaseVM();
+            vm.ProcKpi         = _repo.GetProcurementKpi(from, to);
+            vm.ProcurementRows = _repo.GetProcurementRows(from, to, statusFilter);
+            return vm;
         }
 
-        // ════════════════════════════════════════════════════════════════
-        //  2. INVENTORY STATUS
-        // ════════════════════════════════════════════════════════════════
+        // ─── 4. Logistics ─────────────────────────────────────────────────────
 
-        /// <param name="categoryFilter">null/"All" / "Product" / "Raw Material"</param>
-        /// <param name="keyword">Searches ItemID and ItemName (partial match).</param>
-        public ViewReportViewModel GetInventoryReportVM(
-            string categoryFilter   = null,
-            bool   belowReorderOnly = false,
-            string keyword          = null)
-        {
-            return new ViewReportViewModel
-            {
-                UserBar       = MakeUserBar(),
-                AllowedMenus  = GetMenus(),
-                ActiveReport  = ReportType.InventoryStatus,
-                InventoryKpi  = _repo.GetInventoryKpi(),
-                InventoryRows = _repo.GetInventoryRows(categoryFilter, belowReorderOnly, keyword)
-            };
-        }
-
-        // ════════════════════════════════════════════════════════════════
-        //  3. PROCUREMENT SUMMARY
-        // ════════════════════════════════════════════════════════════════
-
-        /// <param name="statusFilter">null/"All"/"Sent"/"Partially Received"/"Received"/"Completed"/"Cancelled"</param>
-        public ViewReportViewModel GetProcurementReportVM(
-            DateTime? from        = null,
-            DateTime? to          = null,
-            string    statusFilter = null)
-        {
-            return new ViewReportViewModel
-            {
-                UserBar         = MakeUserBar(),
-                AllowedMenus    = GetMenus(),
-                ActiveReport    = ReportType.ProcurementSummary,
-                ProcKpi         = _repo.GetProcurementKpi(),
-                ProcurementRows = _repo.GetProcurementRows(from, to, statusFilter)
-            };
-        }
-
-        // ════════════════════════════════════════════════════════════════
-        //  4. LOGISTICS OVERVIEW
-        // ════════════════════════════════════════════════════════════════
-
-        /// <param name="statusFilter">null/"All"/"Pending"/"In Transit"/"Completed"</param>
         public ViewReportViewModel GetLogisticsReportVM(
-            DateTime? from        = null,
-            DateTime? to          = null,
+            DateTime? from         = null,
+            DateTime? to           = null,
             string    statusFilter = null)
         {
-            return new ViewReportViewModel
-            {
-                UserBar       = MakeUserBar(),
-                AllowedMenus  = GetMenus(),
-                ActiveReport  = ReportType.LogisticsOverview,
-                LogKpi        = _repo.GetLogisticsKpi(),
-                LogisticsRows = _repo.GetLogisticsRows(from, to, statusFilter)
-            };
+            var vm = BaseVM();
+            vm.LogKpi         = _repo.GetLogisticsKpi(from, to);
+            vm.LogisticsRows  = _repo.GetLogisticsRows(from, to, statusFilter);
+            return vm;
         }
 
-        // ════════════════════════════════════════════════════════════════
-        //  5. AFTER-SERVICE SUMMARY
-        // ════════════════════════════════════════════════════════════════
+        // ─── 5. After-Service ─────────────────────────────────────────────────
 
-        /// <param name="complaintStatusFilter">null/"All"/"Pending"/"Processing"/"Escalated"/"Completed"</param>
         public ViewReportViewModel GetAfterServiceReportVM(
-            DateTime? from                 = null,
-            DateTime? to                   = null,
-            string    complaintStatusFilter = null)
+            DateTime? from              = null,
+            DateTime? to                = null,
+            string    complaintFilter   = null)
         {
-            return new ViewReportViewModel
-            {
-                UserBar       = MakeUserBar(),
-                AllowedMenus  = GetMenus(),
-                ActiveReport  = ReportType.AfterServiceSummary,
-                AfterKpi      = _repo.GetAfterServiceKpi(),
-                ComplaintRows = _repo.GetComplaintRows(from, to, complaintStatusFilter),
-                ReturnRows    = _repo.GetReturnOrderRows(from, to, null)
-            };
+            var vm = BaseVM();
+            vm.AfterKpi      = _repo.GetAfterServiceKpi(from, to);
+            vm.ComplaintRows = _repo.GetComplaintRows(from, to, complaintFilter);
+            vm.ReturnRows    = _repo.GetReturnOrderRows(from, to);
+            return vm;
         }
 
-        // ════════════════════════════════════════════════════════════════
-        //  6. FINANCE OVERVIEW
-        // ════════════════════════════════════════════════════════════════
+        // ─── 6. Finance ───────────────────────────────────────────────────────
 
-        /// <param name="docTypeFilter">null/"All"/"Revenue"/"Expense"/"Refund"</param>
         public ViewReportViewModel GetFinanceReportVM(
-            DateTime? from          = null,
-            DateTime? to            = null,
-            string    docTypeFilter = null)
+            DateTime? from         = null,
+            DateTime? to           = null,
+            string    typeFilter   = null)
         {
-            return new ViewReportViewModel
-            {
-                UserBar      = MakeUserBar(),
-                AllowedMenus = GetMenus(),
-                ActiveReport = ReportType.FinanceOverview,
-                FinanceKpi   = _repo.GetFinanceKpi(),
-                FinanceRows  = _repo.GetFinanceTransactionRows(from, to, docTypeFilter)
-            };
+            var vm = BaseVM();
+            vm.FinanceKpi  = _repo.GetFinanceKpi(from, to);
+            vm.FinanceRows = _repo.GetFinanceRows(from, to, typeFilter);
+            return vm;
         }
     }
 }

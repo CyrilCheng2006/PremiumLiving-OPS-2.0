@@ -96,7 +96,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             var vm = _ctrl.GetSalesReportVM();
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
-            _shell.SetBreadcrumb("Statistical Reports  \u203a  View Report");
+            _shell.SetBreadcrumb("Statistical Reports  ›  View Report");
             SwitchToReport(0);
         }
 
@@ -259,32 +259,52 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 ColumnCount     = n,
                 RowCount        = 1,
                 BackColor       = Color.Transparent,
-                CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+                CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                Padding         = Padding.Empty
             };
             for (int i = 0; i < n; i++)
                 tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f / n));
             tbl.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
             for (int i = 0; i < cols.Length; i++)
-                tbl.Controls.Add(MakeCell(cols[i].caption, cols[i].ctrl, i < cols.Length - 1), i, 0);
-            var pnl = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            pnl.Controls.Add(tbl);
-            return pnl;
+            {
+                bool last = i == cols.Length - 1;
+                tbl.Controls.Add(MakeCell(cols[i].caption, cols[i].ctrl, !last), i, 0);
+            }
+            return tbl;
         }
 
-        private static Button MakeFilterButton(string text, Color bg, Color fg)
+        private static Panel BuildDateRangeRow(
+            DateTimePicker dtpFrom, DateTimePicker dtpTo,
+            params (string caption, Control ctrl)[] extraCols)
         {
-            var btn = new Button
+            int extraCount = extraCols == null ? 0 : extraCols.Length;
+            int totalCols  = 3 + extraCount;
+            float extraPct = extraCount > 0 ? 36f / extraCount : 0f;
+
+            var tbl = new TableLayoutPanel
             {
-                Text      = text,
-                Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
-                ForeColor = fg,
-                BackColor = bg,
-                FlatStyle = FlatStyle.Flat,
-                Height    = 42,
-                Cursor    = Cursors.Hand
+                Dock            = DockStyle.Fill,
+                ColumnCount     = totalCols,
+                RowCount        = 1,
+                BackColor       = Color.Transparent,
+                CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                Padding         = Padding.Empty
             };
-            btn.FlatAppearance.BorderSize = 0;
-            return btn;
+            tbl.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 28f));
+            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  8f));
+            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 28f));
+            for (int i = 0; i < extraCount; i++)
+                tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, extraPct));
+
+            tbl.Controls.Add(MakeCell("Date From", dtpFrom, true),  0, 0);
+            tbl.Controls.Add(MakeCell("Date To",   dtpTo,   extraCount > 0), 2, 0);
+
+            if (extraCols != null)
+                for (int i = 0; i < extraCols.Length; i++)
+                    tbl.Controls.Add(MakeCell(extraCols[i].caption, extraCols[i].ctrl, i < extraCols.Length - 1), 3 + i, 0);
+
+            return tbl;
         }
 
         private static DateTimePicker MakeDatePicker(DateTime value)
