@@ -31,10 +31,10 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
         private void InitializeComponent()
         {
-            this.SuspendLayout();
+            this.SuspendLayout();                                        // RULE 1 — FIRST statement
 
             // ── Form properties ───────────────────────────────────────────────
-            this.Text          = "Statistical Reports · View Report";
+            this.Text          = "Statistical Reports \u00b7 View Report";
             this.Size          = new Size(1440, 900);
             this.MinimumSize   = new Size(1200, 720);
             this.StartPosition = FormStartPosition.CenterScreen;
@@ -45,14 +45,14 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             // ── Root panel ────────────────────────────────────────────────────
             var pnlMain = new Panel { Dock = DockStyle.Fill, BackColor = Palette.BgPage };
 
-            // ── AppShell — wired exactly like StaffListForm ───────────────────────
+            // ── AppShell — wired exactly like StaffListForm (RULE 2) ──────────
             _shell             = new AppShell();
             _shell.Dock        = DockStyle.Top;
             _shell.Height      = AppShell.TotalHeight;
             _shell.MinimumSize = new Size(0, AppShell.TotalHeight);
             _shell.SetPopupContainer(pnlMain);
-            _shell.MenuItemClicked += OnTopNavMenuItemClicked;
-            _shell.LogoutClicked   += btnLogout_Click;
+            _shell.MenuItemClicked += OnTopNavMenuItemClicked;           // RULE 4 — subscribe once here
+            _shell.LogoutClicked   += btnLogout_Click;                   // RULE 4 — subscribe once here
 
             // ── Report content host (DockStyle.Fill) ──────────────────────────
             pnlContent = new Panel { Dock = DockStyle.Fill, BackColor = Palette.BgPage };
@@ -128,18 +128,22 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             pnlTabOuter.Paint += PaintTabUnderline;
             pnlTabOuter.Controls.Add(pnlTabCard);
 
-            // ── Assemble pnlMain ────────────────────────────────────────────────
-            // Fill first, then Top panels bottom-to-top, _shell LAST.
+            // ── Assemble pnlMain (RULE 5 — Fill first, Top panels, _shell LAST) ──
             pnlMain.Controls.Add(pnlContent);     // Fill  — report area
             pnlMain.Controls.Add(pnlFilterOuter); // Top   — filter bar
             pnlMain.Controls.Add(pnlTabOuter);    // Top   — tab bar
             pnlMain.Controls.Add(_shell);         // Top   — AppShell LAST (topmost)
 
+            // ── AutoScale — set before ResumeLayout to prevent DPI rescale
+            //    crushing _shell.Height (same as StaffListForm — RULE 3 fix) ──
+            this.AutoScaleMode       = AutoScaleMode.Font;
+            this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
+
             this.Controls.Add(pnlMain);
             this.ResumeLayout(false);
             this.PerformLayout();
 
-            // ── Post-layout height re-enforcement (same as StaffListForm) ────
+            // ── Post-layout height re-enforcement (RULE 3) ───────────────────
             _shell.Height      = AppShell.TotalHeight;
             _shell.MinimumSize = new Size(0, AppShell.TotalHeight);
         }
