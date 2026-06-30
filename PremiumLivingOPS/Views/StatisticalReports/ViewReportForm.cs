@@ -2,10 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
-using System.IO;
 using System.Windows.Forms;
 using PremiumLivingOPS.Controllers;
-using PremiumLivingOPS.Models.Entities;
 using PremiumLivingOPS.Views.Shared;
 
 namespace PremiumLivingOPS.Views.StatisticalReports
@@ -1370,94 +1368,5 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 new List<double>(amountByType.Values).ToArray(),
                 ChartStyle.Pie);
         }
-
-        // ════════════════════════════════════════════════════════════════
-        //  DGV CELL FORMATTING (status badges)
-        // ════════════════════════════════════════════════════════════════
-
-        private void DgvCellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
-        {
-            if (e.Value == null) return;
-            string val = e.Value.ToString();
-            if (StatusColors.TryGetValue(val, out var colors))
-            {
-                e.CellStyle.BackColor          = colors.bg;
-                e.CellStyle.ForeColor          = colors.fg;
-                e.CellStyle.SelectionBackColor = colors.bg;
-                e.CellStyle.SelectionForeColor = colors.fg;
-            }
-        }
-
-        // ════════════════════════════════════════════════════════════════
-        //  EXPORT
-        // ════════════════════════════════════════════════════════════════
-
-        private void ExportGrid(DataGridView dgv, string baseName)
-        {
-            try
-            {
-                string path = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
-                    $"{baseName}_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
-
-                using var sw = new StreamWriter(path, false, System.Text.Encoding.UTF8);
-
-                // Header
-                var headers = new List<string>();
-                foreach (DataGridViewColumn col in dgv.Columns)
-                    headers.Add("\"" + col.HeaderText + "\"");
-                sw.WriteLine(string.Join(",", headers));
-
-                // Rows
-                foreach (DataGridViewRow row in dgv.Rows)
-                {
-                    if (row.IsNewRow) continue;
-                    var cells = new List<string>();
-                    foreach (DataGridViewCell cell in row.Cells)
-                    {
-                        string cellVal = cell.Value != null
-                            ? cell.Value.ToString().Replace("\"", "\"\"")
-                            : string.Empty;
-                        cells.Add("\"" + cellVal + "\"");
-                    }
-                    sw.WriteLine(string.Join(",", cells));
-                }
-
-                MessageBox.Show(
-                    "Exported to:\n" + path,
-                    "Export Successful",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Information);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(
-                    "Export failed:\n" + ex.Message,
-                    "Export Error",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Error);
-            }
-        }
-
-        // ════════════════════════════════════════════════════════════════
-        //  PAINT — card border
-        // ════════════════════════════════════════════════════════════════
-
-        private void PaintCardBorder(object sender, PaintEventArgs e)
-        {
-            var ctrl = (Control)sender;
-            using var pen = new Pen(Color.FromArgb(221, 227, 236), 1f);
-            e.Graphics.DrawRectangle(pen, 0, 0, ctrl.Width - 1, ctrl.Height - 1);
-        }
-
-        // ════════════════════════════════════════════════════════════════
-        //  TOP NAV BAR — navigation + logout
-        // ════════════════════════════════════════════════════════════════
-
-        private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
-            => FormNavigator.NavigateTo(this, menuLabel, subItem);
-
-        private void btnLogout_Click(object sender, EventArgs e)
-            => FormNavigator.Logout(this);
     }
 }
