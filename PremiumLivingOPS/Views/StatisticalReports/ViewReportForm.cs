@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.IO;
 using System.Windows.Forms;
 using PremiumLivingOPS.Controllers;
 using PremiumLivingOPS.Models.Entities;
@@ -46,6 +47,8 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 { "In Transit",          (Color.FromArgb(219, 234, 254), Color.FromArgb( 29,  78, 216)) },
                 { "Sent",                (Color.FromArgb(219, 234, 254), Color.FromArgb( 29,  78, 216)) },
                 { "Partially Received",  (Color.FromArgb(237, 233, 254), Color.FromArgb( 91,  33, 182)) },
+                { "Fully Received",      (Color.FromArgb(209, 250, 229), Color.FromArgb(  6,  95,  70)) },
+                { "Not Received",        (Color.FromArgb(254, 243, 199), Color.FromArgb(146,  64,  14)) },
                 { "Received",            (Color.FromArgb(209, 250, 229), Color.FromArgb(  6,  95,  70)) },
                 { "Escalated",           (Color.FromArgb(254, 226, 226), Color.FromArgb(185,  28,  28)) },
                 { "Approved",            (Color.FromArgb(209, 250, 229), Color.FromArgb(  6,  95,  70)) },
@@ -966,7 +969,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             var dtpFrom   = new DateTimePicker { Format = DateTimePickerFormat.Short, Value = DefaultDateFrom, Font = new Font("Segoe UI", 12f) };
             var dtpTo     = new DateTimePicker { Format = DateTimePickerFormat.Short, Value = DefaultDateTo,   Font = new Font("Segoe UI", 12f) };
             var cboStatus = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 12f) };
-            cboStatus.Items.AddRange(new object[] { "All", "Sent", "Partially Received", "Received", "Completed", "Cancelled" });
+            cboStatus.Items.AddRange(new object[] { "All", "Sent", "Partially Received", "Fully Received", "Not Received", "Completed", "Cancelled" });
             cboStatus.SelectedIndex = 0;
 
             var btnApply  = MakePrimaryBtn("\U0001F50D  Apply");
@@ -1378,6 +1381,100 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 new List<string>(amtByDocType.Keys).ToArray(),
                 new List<double>(amtByDocType.Values).ToArray(),
                 ChartStyle.Column);
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  CELL FORMATTING — status badge colours
+        // ════════════════════════════════════════════════════════════════
+
+        private void DgvCellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
+        {
+            var dgv = (DataGridView)sender;
+            var col = dgv.Columns[e.ColumnIndex];
+
+            // Apply badge styling only to known "status" columns
+            bool isStatusCol = col.Name.EndsWith("Status", StringComparison.OrdinalIgnoreCase)
+                            || col.Name == "colRtStatus"
+                            || col.Name == "colPoStatus";
+
+            if (!isStatusCol || e.Value == null) return;
+
+            string val = e.Value.ToString();
+            if (StatusColors.TryGetValue(val, out var colors))
+            {
+                e.CellStyle.ForeColor          = colors.fg;
+                e.CellStyle.BackColor          = colors.bg;
+                e.CellStyle.SelectionForeColor = colors.fg;
+                e.CellStyle.SelectionBackColor = colors.bg;
+                e.CellStyle.Font               = new Font("Segoe UI", 11f, FontStyle.Bold);
+                e.CellStyle.Alignment          = DataGridViewContentAlignment.MiddleCenter;
+                e.FormattingApplied            = true;
+            }
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  EXPORT GRID → CSV
+        // ════════════════════════════════════════════════════════════════
+
+        private void ExportGrid(DataGridView dgv, string filePrefix)
+        {
+            try
+            {
+                using var dlg = new SaveFileDialog
+                {
+                    Filter   = "CSV files (*.csv)|*.csv",
+                    FileName = $"{filePrefix}_{DateTime.Now:yyyyMMdd_HHmmss}.csv"
+                };
+                if (dlg.ShowDialog() != DialogResult.OK) return;
+
+                using var sw = new StreamWriter(dlg.FileName, false, System.Text.Encoding.UTF8);
+
+                // Header row
+                var headers = new List<string>();
+                foreach (DataGridViewColumn col in dgv.Columns)
+                    headers.Add($"\"{col.HeaderText}\"");
+                sw.WriteLine(string.Join(",", headers));
+
+                // Data rows
+                foreach (DataGridViewRow row in dgv.Rows)
+                {
+                    if (row.IsNewRow) continue;
+                    var cells = new List<string>();
+                    foreach (DataGridViewCell cell in row.Cells)
+                        cells.Add($"\"{(cell.Value ?? string.Empty).ToString().Replace("\"", "\"\"")}\"");
+                    sw.WriteLine(string.Join(",", cells));
+                }
+
+                MessageBox.Show("Export complete.", "Export", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Export failed:\n{ex.Message}", "Export Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  PAINT HELPERS
+        // ════════════════════════════════════════════════════════════════
+
+        private static void PaintCardBorder(object sender, PaintEventArgs e)
+        {
+            var p = (Panel)sender;
+            using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
+            e.Graphics.DrawRectangle(pen, 0, 0, p.Width - 1, p.Height - 1);
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  TOP NAV — identical pattern to ViewOrderForm (reference)
+        // ════════════════════════════════════════════════════════════════
+
+        private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
+            => FormNavigator.NavigateTo(this, menuLabel, subItem);
+
+        private void btnLogout_Click(object sender, EventArgs e)
+        {
+            SessionManager.Clear();
+            Application.Restart();
         }
     }
 }
