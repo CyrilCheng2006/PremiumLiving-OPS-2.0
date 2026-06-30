@@ -30,15 +30,19 @@ namespace PremiumLivingOPS.Controllers
         //  1. SALES PERFORMANCE
         // ════════════════════════════════════════════════════════════════
 
-        public ViewReportViewModel GetSalesReportVM(DateTime? from = null, DateTime? to = null)
+        /// <param name="statusFilter">null/"All"/"Pending"/"Processing"/"Delivered"/"Partially Delivered"/"Cancelled"</param>
+        public ViewReportViewModel GetSalesReportVM(
+            DateTime? from         = null,
+            DateTime? to           = null,
+            string    statusFilter = null)
         {
             return new ViewReportViewModel
             {
                 UserBar      = MakeUserBar(),
                 AllowedMenus = GetMenus(),
                 ActiveReport = ReportType.SalesPerformance,
-                SalesKpi     = _repo.GetSalesKpi(from, to),
-                SalesRows    = _repo.GetSalesRows(from, to),
+                SalesKpi     = _repo.GetSalesKpi(from, to, statusFilter),
+                SalesRows    = _repo.GetSalesRows(from, to, statusFilter),
                 TopProducts  = _repo.GetTopProducts(from, to)
             };
         }
