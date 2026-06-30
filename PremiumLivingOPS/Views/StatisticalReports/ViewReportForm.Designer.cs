@@ -13,8 +13,8 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         private AppShell _shell;
 
         // Tab bar
-        private Panel             pnlTabOuter;
-        private TableLayoutPanel  tblTabs;
+        private Panel            pnlTabOuter;
+        private TableLayoutPanel tblTabs;
         private Button btnTab0, btnTab1, btnTab2, btnTab3, btnTab4, btnTab5;
 
         // Filter bar — outer grey wrapper only; card content built per-report
@@ -31,32 +31,44 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
         private void InitializeComponent()
         {
-            this.SuspendLayout();                                        // RULE 1
+            this.SuspendLayout();                                            // RULE 1
 
-            // ── Form ──────────────────────────────────────────────────────────
-            this.Text          = "Statistical Reports · View Report";
-            this.Size          = new Size(1440, 900);
-            this.MinimumSize   = new Size(1200, 720);
-            this.StartPosition = FormStartPosition.CenterScreen;
-            this.BackColor     = Palette.BgPage;
-            this.WindowState   = FormWindowState.Maximized;
-            this.Font          = new Font("Segoe UI", 13f);
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
+            // ── Form ─────────────────────────────────────────────────────────────
+            this.Text                    = "Statistical Reports · View Report";
+            this.Size                    = new Size(1440, 900);
+            this.MinimumSize             = new Size(1200, 720);
+            this.StartPosition           = FormStartPosition.CenterScreen;
+            this.BackColor               = Palette.BgPage;
+            this.WindowState             = FormWindowState.Maximized;
+            this.Font                    = new Font("Segoe UI", 13f);
+            this.AutoScaleMode           = System.Windows.Forms.AutoScaleMode.Font;
+            this.AutoScaleDimensions     = new System.Drawing.SizeF(7F, 15F);
 
-            // ── pnlMain (Fill) ────────────────────────────────────────────────
+            // ── Root panel ────────────────────────────────────────────────────
             var pnlMain = new Panel { Dock = DockStyle.Fill, BackColor = Palette.BgPage };
 
-            // ── AppShell (RULE 2) ─────────────────────────────────────────────
-            _shell             = new AppShell();                         // RULE 2
-            _shell.Dock        = DockStyle.Top;                          // RULE 2 — explicit
-            _shell.Height      = AppShell.TotalHeight;                   // RULE 2
+            // ── AppShell (RULE 2) ───────────────────────────────────────────────
+            _shell             = new AppShell();                             // RULE 2
+            _shell.Dock        = DockStyle.Top;                              // RULE 2 — explicit
+            _shell.Height      = AppShell.TotalHeight;                       // RULE 2
             _shell.MinimumSize = new System.Drawing.Size(0, AppShell.TotalHeight); // RULE 2
-            _shell.MenuItemClicked += OnTopNavMenuItemClicked;           // RULE 4
-            _shell.LogoutClicked   += btnLogout_Click;                   // RULE 4
+            _shell.MenuItemClicked += OnTopNavMenuItemClicked;               // RULE 4
+            _shell.LogoutClicked   += btnLogout_Click;                       // RULE 4
             _shell.SetPopupContainer(pnlMain);
 
-            // ── Tab bar outer (DockStyle.Top, 69 px) ─────────────────────────
+            // ── Report content host (DockStyle.Fill) ──────────────────────────────
+            pnlContent = new Panel { Dock = DockStyle.Fill, BackColor = Palette.BgPage };
+
+            // ── Filter bar outer (DockStyle.Top, 300 px) ─────────────────────────
+            pnlFilterOuter = new Panel
+            {
+                Dock      = DockStyle.Top,
+                Height    = 300,
+                BackColor = Palette.BgPage,
+                Padding   = new Padding(20, 14, 20, 8)
+            };
+
+            // ── Tab bar outer (DockStyle.Top, 69 px) ────────────────────────────
             Button MakeTabBtn(string text, int idx)
             {
                 var b = new Button
@@ -118,37 +130,19 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             pnlTabOuter.Paint += PaintTabUnderline;
             pnlTabOuter.Controls.Add(pnlTabCard);
 
-            // ── Filter bar outer (DockStyle.Top, 300 px) ─────────────────────
-            pnlFilterOuter = new Panel
-            {
-                Dock      = DockStyle.Top,
-                Height    = 300,
-                BackColor = Palette.BgPage,
-                Padding   = new Padding(20, 14, 20, 8)
-            };
-
-            // ── Report content host (DockStyle.Fill) ──────────────────────────
-            pnlContent = new Panel { Dock = DockStyle.Fill, BackColor = Palette.BgPage };
-
-            // ── pnlPage: inner host for all page content (RULE 5 pattern) ─────
-            // Mirrors ViewOrderForm: all content panels live inside pnlPage (Fill),
-            // so _shell remains the ONLY DockStyle.Top child of pnlMain.
-            // DockStyle.Top controls inside pnlPage stack bottom-to-top by add order:
-            //   add Fill first, then Top panels from bottom to top, last = topmost.
-            var pnlPage = new Panel { Dock = DockStyle.Fill, BackColor = Palette.BgPage };
-            pnlPage.Controls.Add(pnlContent);     // Fill  — added first
-            pnlPage.Controls.Add(pnlFilterOuter); // Top   — sits above content
-            pnlPage.Controls.Add(pnlTabOuter);    // Top   — sits above filter bar (topmost)
-
-            // ── Assemble pnlMain (RULE 5) ─────────────────────────────────────
-            // Fill first, then the single Top chrome (_shell) last = wins top slot.
-            pnlMain.Controls.Add(pnlPage);   // DockStyle.Fill — all page content
-            pnlMain.Controls.Add(_shell);    // DockStyle.Top  — LAST = topmost chrome (RULE 5)
+            // ── Assemble pnlMain ──────────────────────────────────────────────────
+            // Mirrors ViewShipmentForm exactly:
+            //   Fill first, then Top panels bottom-to-top, _shell added LAST
+            //   so it wins the topmost Top slot and both NavBar + UserBar are visible.
+            pnlMain.Controls.Add(pnlContent);     // DockStyle.Fill — added first
+            pnlMain.Controls.Add(pnlFilterOuter); // DockStyle.Top  — above content
+            pnlMain.Controls.Add(pnlTabOuter);    // DockStyle.Top  — above filter bar
+            pnlMain.Controls.Add(_shell);          // DockStyle.Top  — LAST = topmost chrome (RULE 5)
 
             this.Controls.Add(pnlMain);
             this.ResumeLayout(false);
             this.PerformLayout();
-            // ── Post-layout height re-enforcement (RULE 3) ────────────────────
+            // ── Post-layout height re-enforcement (RULE 3) ─────────────────────
             _shell.Height      = AppShell.TotalHeight;
             _shell.MinimumSize = new System.Drawing.Size(0, AppShell.TotalHeight);
         }
