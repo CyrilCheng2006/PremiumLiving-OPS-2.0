@@ -1287,9 +1287,12 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         {
             var dtpFrom   = new DateTimePicker { Format = DateTimePickerFormat.Short, Value = DefaultDateFrom, Font = new Font("Segoe UI", 12f) };
             var dtpTo     = new DateTimePicker { Format = DateTimePickerFormat.Short, Value = DefaultDateTo,   Font = new Font("Segoe UI", 12f) };
-            var cboTxType = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 12f) };
-            cboTxType.Items.AddRange(new object[] { "All", "Revenue", "Expense", "Refund", "Deposit", "Installment", "Full" });
-            cboTxType.SelectedIndex = 0;
+            var cboType   = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 12f) };
+            cboType.Items.AddRange(new object[] { "All", "Revenue", "Expense", "Refund", "Deposit", "Installment" });
+            cboType.SelectedIndex = 0;
+            var cboDocType = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 12f) };
+            cboDocType.Items.AddRange(new object[] { "All", "Sales Invoice", "Purchase Invoice", "Return Refund" });
+            cboDocType.SelectedIndex = 0;
 
             var btnApply  = MakePrimaryBtn("\U0001F50D  Apply");
             var btnReset  = MakeOutlineBtn("\u21BA  Reset");
@@ -1298,55 +1301,56 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             ApplyToggleStyle(btnToggle, _financeChart);
 
             var dgv = MakeDgv();
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDate",    HeaderText = "DATE",          FillWeight = 13 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTxID",    HeaderText = "TRANSACTION ID",FillWeight = 16 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDocType", HeaderText = "DOC TYPE",      FillWeight = 14 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTxType",  HeaderText = "TX TYPE",       FillWeight = 12 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colAmount",  HeaderText = "AMOUNT",        FillWeight = 14 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colMethod",  HeaderText = "PAYMENT METHOD",FillWeight = 16 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",  HeaderText = "STATUS",        FillWeight = 12 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDate",    HeaderText = "DATE",            FillWeight = 13 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTxn",     HeaderText = "TRANSACTION ID",  FillWeight = 16 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDocType", HeaderText = "DOC TYPE",        FillWeight = 14 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colType",    HeaderText = "TYPE",            FillWeight = 11 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colAmt",     HeaderText = "AMOUNT",          FillWeight = 13 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",  HeaderText = "STATUS",          FillWeight = 13 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPayment", HeaderText = "PAYMENT METHOD",  FillWeight = 16 });
             dgv.CellFormatting += DgvCellFormatting;
 
-            LoadFinanceData(dgv, dtpFrom, dtpTo, cboTxType);
+            LoadFinanceData(dgv, dtpFrom, dtpTo, cboType, cboDocType);
 
             var dgvCard   = BuildGridCard(dgv);
-            var chartCard = BuildFinanceChartCard(dtpFrom, dtpTo, cboTxType);
+            var chartCard = BuildFinanceChartCard(dtpFrom, dtpTo, cboType, cboDocType);
 
             btnApply.Click += (s, e) =>
             {
-                LoadFinanceData(dgv, dtpFrom, dtpTo, cboTxType);
-                if (_financeChart) { pnlContent.SuspendLayout(); pnlContent.Controls.Clear(); pnlContent.Controls.Add(BuildFinanceChartCard(dtpFrom, dtpTo, cboTxType)); pnlContent.ResumeLayout(true); }
+                LoadFinanceData(dgv, dtpFrom, dtpTo, cboType, cboDocType);
+                if (_financeChart) { pnlContent.SuspendLayout(); pnlContent.Controls.Clear(); pnlContent.Controls.Add(BuildFinanceChartCard(dtpFrom, dtpTo, cboType, cboDocType)); pnlContent.ResumeLayout(true); }
                 else SwapContent(dgvCard, chartCard, false);
             };
             btnReset.Click += (s, e) =>
             {
-                dtpFrom.Value = DefaultDateFrom; dtpTo.Value = DefaultDateTo; cboTxType.SelectedIndex = 0;
-                LoadFinanceData(dgv, dtpFrom, dtpTo, cboTxType);
+                dtpFrom.Value = DefaultDateFrom; dtpTo.Value = DefaultDateTo; cboType.SelectedIndex = 0; cboDocType.SelectedIndex = 0;
+                LoadFinanceData(dgv, dtpFrom, dtpTo, cboType, cboDocType);
                 SwapContent(dgvCard, chartCard, _financeChart);
             };
             btnToggle.Click += (s, e) =>
             {
                 _financeChart = !_financeChart;
                 ApplyToggleStyle(btnToggle, _financeChart);
-                if (_financeChart) { pnlContent.SuspendLayout(); pnlContent.Controls.Clear(); pnlContent.Controls.Add(BuildFinanceChartCard(dtpFrom, dtpTo, cboTxType)); pnlContent.ResumeLayout(true); }
+                if (_financeChart) { pnlContent.SuspendLayout(); pnlContent.Controls.Clear(); pnlContent.Controls.Add(BuildFinanceChartCard(dtpFrom, dtpTo, cboType, cboDocType)); pnlContent.ResumeLayout(true); }
                 else SwapContent(dgvCard, chartCard, false);
             };
             btnExport.Click += (s, e) => ExportGrid(dgv, "FinanceOverview");
 
             SetFilterBar("Finance Overview",
-                BuildDateRangeRow(dtpFrom, dtpTo, ("Transaction Type", cboTxType)),
+                BuildDateRangeRow(dtpFrom, dtpTo, ("Transaction Type", cboType), ("Document Type", cboDocType)),
                 BuildButtonsRow(btnApply, btnReset, btnToggle, btnExport));
 
             SwapContent(dgvCard, chartCard, _financeChart);
         }
 
-        private void LoadFinanceData(DataGridView dgv, DateTimePicker dtpFrom, DateTimePicker dtpTo, ComboBox cboTxType)
+        private void LoadFinanceData(DataGridView dgv, DateTimePicker dtpFrom, DateTimePicker dtpTo, ComboBox cboType, ComboBox cboDocType)
         {
             dgv.Rows.Clear();
             try
             {
-                string txType = cboTxType.SelectedIndex == 0 ? null : cboTxType.SelectedItem?.ToString();
-                var vm = _ctrl.GetFinanceReportVM(dtpFrom.Value, dtpTo.Value, txType);
+                string type    = cboType.SelectedIndex    == 0 ? null : cboType.SelectedItem?.ToString();
+                string docType = cboDocType.SelectedIndex == 0 ? null : cboDocType.SelectedItem?.ToString();
+                var vm = _ctrl.GetFinanceReportVM(dtpFrom.Value, dtpTo.Value, type, docType);
                 if (vm.FinanceRows == null) return;
                 foreach (var r in vm.FinanceRows)
                     dgv.Rows.Add(
@@ -1355,19 +1359,20 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                         r.DocumentType,
                         r.TransactionType,
                         r.Amount.ToString("N2"),
-                        r.PaymentMethod,
-                        r.ApprovalStatus);
+                        r.PaymentStatus,
+                        r.PaymentMethod);
             }
             catch { }
         }
 
-        private Panel BuildFinanceChartCard(DateTimePicker dtpFrom, DateTimePicker dtpTo, ComboBox cboTxType)
+        private Panel BuildFinanceChartCard(DateTimePicker dtpFrom, DateTimePicker dtpTo, ComboBox cboType, ComboBox cboDocType)
         {
             var amtByDocType = new Dictionary<string, double>();
             try
             {
-                string txType = cboTxType.SelectedIndex == 0 ? null : cboTxType.SelectedItem?.ToString();
-                var vm = _ctrl.GetFinanceReportVM(dtpFrom.Value, dtpTo.Value, txType);
+                string type    = cboType.SelectedIndex    == 0 ? null : cboType.SelectedItem?.ToString();
+                string docType = cboDocType.SelectedIndex == 0 ? null : cboDocType.SelectedItem?.ToString();
+                var vm = _ctrl.GetFinanceReportVM(dtpFrom.Value, dtpTo.Value, type, docType);
                 if (vm.FinanceRows != null)
                     foreach (var r in vm.FinanceRows)
                     {
@@ -1381,100 +1386,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 new List<string>(amtByDocType.Keys).ToArray(),
                 new List<double>(amtByDocType.Values).ToArray(),
                 ChartStyle.Column);
-        }
-
-        // ════════════════════════════════════════════════════════════════
-        //  CELL FORMATTING — status badge colours
-        // ════════════════════════════════════════════════════════════════
-
-        private void DgvCellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
-        {
-            var dgv = (DataGridView)sender;
-            var col = dgv.Columns[e.ColumnIndex];
-
-            // Apply badge styling only to known "status" columns
-            bool isStatusCol = col.Name.EndsWith("Status", StringComparison.OrdinalIgnoreCase)
-                            || col.Name == "colRtStatus"
-                            || col.Name == "colPoStatus";
-
-            if (!isStatusCol || e.Value == null) return;
-
-            string val = e.Value.ToString();
-            if (StatusColors.TryGetValue(val, out var colors))
-            {
-                e.CellStyle.ForeColor          = colors.fg;
-                e.CellStyle.BackColor          = colors.bg;
-                e.CellStyle.SelectionForeColor = colors.fg;
-                e.CellStyle.SelectionBackColor = colors.bg;
-                e.CellStyle.Font               = new Font("Segoe UI", 11f, FontStyle.Bold);
-                e.CellStyle.Alignment          = DataGridViewContentAlignment.MiddleCenter;
-                e.FormattingApplied            = true;
-            }
-        }
-
-        // ════════════════════════════════════════════════════════════════
-        //  EXPORT GRID → CSV
-        // ════════════════════════════════════════════════════════════════
-
-        private void ExportGrid(DataGridView dgv, string filePrefix)
-        {
-            try
-            {
-                using var dlg = new SaveFileDialog
-                {
-                    Filter   = "CSV files (*.csv)|*.csv",
-                    FileName = $"{filePrefix}_{DateTime.Now:yyyyMMdd_HHmmss}.csv"
-                };
-                if (dlg.ShowDialog() != DialogResult.OK) return;
-
-                using var sw = new StreamWriter(dlg.FileName, false, System.Text.Encoding.UTF8);
-
-                // Header row
-                var headers = new List<string>();
-                foreach (DataGridViewColumn col in dgv.Columns)
-                    headers.Add($"\"{col.HeaderText}\"");
-                sw.WriteLine(string.Join(",", headers));
-
-                // Data rows
-                foreach (DataGridViewRow row in dgv.Rows)
-                {
-                    if (row.IsNewRow) continue;
-                    var cells = new List<string>();
-                    foreach (DataGridViewCell cell in row.Cells)
-                        cells.Add($"\"{(cell.Value ?? string.Empty).ToString().Replace("\"", "\"\"")}\"");
-                    sw.WriteLine(string.Join(",", cells));
-                }
-
-                MessageBox.Show("Export complete.", "Export", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Export failed:\n{ex.Message}", "Export Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
-        // ════════════════════════════════════════════════════════════════
-        //  PAINT HELPERS
-        // ════════════════════════════════════════════════════════════════
-
-        private static void PaintCardBorder(object sender, PaintEventArgs e)
-        {
-            var p = (Panel)sender;
-            using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
-            e.Graphics.DrawRectangle(pen, 0, 0, p.Width - 1, p.Height - 1);
-        }
-
-        // ════════════════════════════════════════════════════════════════
-        //  TOP NAV — identical pattern to ViewOrderForm (reference)
-        // ════════════════════════════════════════════════════════════════
-
-        private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
-            => FormNavigator.NavigateTo(this, menuLabel, subItem);
-
-        private void btnLogout_Click(object sender, EventArgs e)
-        {
-            SessionManager.Clear();
-            Application.Restart();
         }
     }
 }
