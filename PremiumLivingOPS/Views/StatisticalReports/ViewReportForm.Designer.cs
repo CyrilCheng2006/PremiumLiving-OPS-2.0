@@ -130,11 +130,20 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             // ── Report content host (DockStyle.Fill) ──────────────────────────
             pnlContent = new Panel { Dock = DockStyle.Fill, BackColor = Palette.BgPage };
 
-            // ── Assemble ──────────────────────────────────────────────────────
-            pnlMain.Controls.Add(pnlContent);      // Fill — first
-            pnlMain.Controls.Add(pnlTabOuter);     // Top
-            pnlMain.Controls.Add(pnlFilterOuter);  // Top
-            pnlMain.Controls.Add(_shell);           // Top — LAST = topmost chrome (RULE 5)
+            // ── pnlPage: inner host for all page content (RULE 5 pattern) ─────
+            // Mirrors ViewOrderForm: all content panels live inside pnlPage (Fill),
+            // so _shell remains the ONLY DockStyle.Top child of pnlMain.
+            // DockStyle.Top controls inside pnlPage stack bottom-to-top by add order:
+            //   add Fill first, then Top panels from bottom to top, last = topmost.
+            var pnlPage = new Panel { Dock = DockStyle.Fill, BackColor = Palette.BgPage };
+            pnlPage.Controls.Add(pnlContent);     // Fill  — added first
+            pnlPage.Controls.Add(pnlFilterOuter); // Top   — sits above content
+            pnlPage.Controls.Add(pnlTabOuter);    // Top   — sits above filter bar (topmost)
+
+            // ── Assemble pnlMain (RULE 5) ─────────────────────────────────────
+            // Fill first, then the single Top chrome (_shell) last = wins top slot.
+            pnlMain.Controls.Add(pnlPage);   // DockStyle.Fill — all page content
+            pnlMain.Controls.Add(_shell);    // DockStyle.Top  — LAST = topmost chrome (RULE 5)
 
             this.Controls.Add(pnlMain);
             this.ResumeLayout(false);
