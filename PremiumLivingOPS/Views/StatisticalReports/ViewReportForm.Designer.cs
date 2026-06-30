@@ -33,28 +33,28 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         {
             this.SuspendLayout();                                            // RULE 1
 
-            // ── Form ─────────────────────────────────────────────────────────────
-            this.Text                    = "Statistical Reports · View Report";
-            this.Size                    = new Size(1440, 900);
-            this.MinimumSize             = new Size(1200, 720);
-            this.StartPosition           = FormStartPosition.CenterScreen;
-            this.BackColor               = Palette.BgPage;
-            this.WindowState             = FormWindowState.Maximized;
-            this.Font                    = new Font("Segoe UI", 13f);
-            this.AutoScaleMode           = System.Windows.Forms.AutoScaleMode.Font;
-            this.AutoScaleDimensions     = new System.Drawing.SizeF(7F, 15F);
-
-            // ── Root panel ────────────────────────────────────────────────────
-            var pnlMain = new Panel { Dock = DockStyle.Fill, BackColor = Palette.BgPage };
-
-            // ── AppShell (RULE 2) ───────────────────────────────────────────────
+            // ── AppShell — constructed first, INSIDE SuspendLayout scope (RULE 2) ──
             _shell             = new AppShell();                             // RULE 2
             _shell.Dock        = DockStyle.Top;                              // RULE 2 — explicit
             _shell.Height      = AppShell.TotalHeight;                       // RULE 2
             _shell.MinimumSize = new System.Drawing.Size(0, AppShell.TotalHeight); // RULE 2
             _shell.MenuItemClicked += OnTopNavMenuItemClicked;               // RULE 4
             _shell.LogoutClicked   += btnLogout_Click;                       // RULE 4
-            _shell.SetPopupContainer(pnlMain);
+
+            // ── Root panel ────────────────────────────────────────────────────
+            var pnlMain = new Panel { Dock = DockStyle.Fill, BackColor = Palette.BgPage };
+            _shell.SetPopupContainer(pnlMain);                               // after pnlMain created
+
+            // ── Form ─────────────────────────────────────────────────────────────
+            this.Text                = "Statistical Reports · View Report";
+            this.Size                = new Size(1440, 900);
+            this.MinimumSize         = new Size(1200, 720);
+            this.StartPosition       = FormStartPosition.CenterScreen;
+            this.BackColor           = Palette.BgPage;
+            this.WindowState         = FormWindowState.Maximized;
+            this.Font                = new Font("Segoe UI", 13f);
+            this.AutoScaleMode       = System.Windows.Forms.AutoScaleMode.Font;
+            this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
 
             // ── Report content host (DockStyle.Fill) ──────────────────────────────
             pnlContent = new Panel { Dock = DockStyle.Fill, BackColor = Palette.BgPage };
@@ -130,10 +130,9 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             pnlTabOuter.Paint += PaintTabUnderline;
             pnlTabOuter.Controls.Add(pnlTabCard);
 
-            // ── Assemble pnlMain ──────────────────────────────────────────────────
-            // Mirrors ViewShipmentForm exactly:
-            //   Fill first, then Top panels bottom-to-top, _shell added LAST
-            //   so it wins the topmost Top slot and both NavBar + UserBar are visible.
+            // ── Assemble pnlMain (RULE 5) ─────────────────────────────────────────
+            // DockStyle.Fill added first, then DockStyle.Top panels bottom-to-top,
+            // _shell added LAST so it wins the topmost Top slot (NavBar + UserBar visible).
             pnlMain.Controls.Add(pnlContent);     // DockStyle.Fill — added first
             pnlMain.Controls.Add(pnlFilterOuter); // DockStyle.Top  — above content
             pnlMain.Controls.Add(pnlTabOuter);    // DockStyle.Top  — above filter bar
@@ -142,6 +141,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             this.Controls.Add(pnlMain);
             this.ResumeLayout(false);
             this.PerformLayout();
+
             // ── Post-layout height re-enforcement (RULE 3) ─────────────────────
             _shell.Height      = AppShell.TotalHeight;
             _shell.MinimumSize = new System.Drawing.Size(0, AppShell.TotalHeight);
