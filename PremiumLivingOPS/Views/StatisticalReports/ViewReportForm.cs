@@ -96,7 +96,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             var vm = _ctrl.GetSalesReportVM();
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
-            _shell.SetBreadcrumb("Statistical Reports  \u203a  View Report");
+            _shell.SetBreadcrumb("Statistical Reports  ›  View Report");
             SwitchToReport(0);
         }
 
@@ -813,7 +813,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 tbl.Controls.Add(dgv, 0, 2);
 
                 dgvCard = WrapInContentCard(tbl);
-                chartCard = null;   // rebuilt lazily on first toggle
+                chartCard = null;
                 _salesChart = false;
                 SwapContent(dgvCard, chartCard, false);
             }
@@ -846,7 +846,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         private void RenderInventory()
         {
             var cmbCategory = MakeComboBox(new[] { "All", "Product", "Raw Material" });
-            var cmbWarehouse = MakeComboBox(new[] { "All" }); // populated after load
+            var cmbWarehouse = MakeComboBox(new[] { "All" });
             var chkBelowReorder = new CheckBox
             {
                 Text      = "Below Reorder Level Only",
@@ -1041,7 +1041,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                     btnToggle.Text = _procurementChart ? "View Table" : "View Chart";
                     if (chartCard == null)
                     {
-                        // Bar chart: spend grouped by supplier
                         var grp = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
                         foreach (var r in rows) { grp.TryGetValue(r.SupplierName, out double v); grp[r.SupplierName] = v + r.TotalAmount; }
                         var lbls = new List<string>(grp.Keys).ToArray();
@@ -1138,8 +1137,8 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                     dgv.Rows.Add(r.DeliveryOrderID, r.SalesOrderID, r.CustomerName,
                         r.DeliveryStatus, r.DriverName,
                         r.DeliveryDate.ToString("yyyy-MM-dd"),
-                        r.HasDeliveryNote ? "\u2713" : "\u2014",
-                        r.HasReplySlip    ? "\u2713" : "\u2014");
+                        r.HasDeliveryNote ? "✓" : "—",
+                        r.HasReplySlip    ? "✓" : "—");
 
                 var btnToggle = MakeAmberBtn("View Chart");
                 var btnExport = MakeExportBtn("Export CSV");
@@ -1368,127 +1367,4 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTxDate",   HeaderText = "Date",           FillWeight = 12 });
                 dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTxAmt",    HeaderText = "Amount",         FillWeight = 14 });
                 dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTxMethod", HeaderText = "Method",         FillWeight = 12 });
-                dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTxStatus", HeaderText = "Status",         FillWeight = 12 });
-                dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTxRef",    HeaderText = "Reference",      FillWeight = 12 });
-
-                foreach (var r in rows)
-                    dgv.Rows.Add(r.TransactionID, r.TransactionType, r.InvoiceType,
-                        r.TransactionDate.ToString("yyyy-MM-dd"),
-                        $"HKD {r.Amount:N0}", r.PaymentMethod, r.PaymentStatus, r.ReferenceID);
-
-                var btnToggle = MakeAmberBtn("View Chart");
-                var btnExport = MakeExportBtn("Export CSV");
-                btnExport.Click += (s, e) => ExportGrid(dgv, "FinanceSummary");
-                btnToggle.Click += (s, e) =>
-                {
-                    _financeChart = !_financeChart;
-                    btnToggle.Text = _financeChart ? "View Table" : "View Chart";
-                    if (chartCard == null)
-                    {
-                        chartCard = WrapInContentCard(BuildChartCard(
-                            "Revenue vs Expenses",
-                            new[] { "Revenue", "Expenses", "Net Profit" },
-                            new double[] { kpi.TotalRevenue, kpi.TotalExpenses, Math.Abs(kpi.NetProfit) },
-                            ChartStyle.Column));
-                    }
-                    SwapContent(dgvCard, chartCard, _financeChart);
-                };
-
-                var tbl = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 3, ColumnCount = 1, BackColor = Color.White };
-                tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 100f));
-                tbl.RowStyles.Add(new RowStyle(SizeType.Absolute,  52f));
-                tbl.RowStyles.Add(new RowStyle(SizeType.Percent,  100f));
-                tbl.Controls.Add(kpiRow, 0, 0);
-                tbl.Controls.Add(BuildSectionHeader("Transaction List", btnToggle, btnExport), 0, 1);
-                tbl.Controls.Add(dgv, 0, 2);
-
-                dgvCard   = WrapInContentCard(tbl);
-                chartCard = null;
-                _financeChart = false;
-                SwapContent(dgvCard, chartCard, false);
-            }
-
-            btnSearch.Click += (s, e) => LoadData();
-            btnReset.Click  += (s, e) =>
-            {
-                dtFrom.Value = DefaultDateFrom;
-                dtTo.Value   = DefaultDateTo;
-                cmbTxType.SelectedIndex = 0;
-                LoadData();
-            };
-
-            LoadData();
-        }
-
-        // ════════════════════════════════════════════════════════════════
-        //  CELL FORMATTING  (status badge colouring)
-        // ════════════════════════════════════════════════════════════════
-
-        private void DgvCellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
-        {
-            if (e.Value == null) return;
-            string val = e.Value.ToString();
-            if (StatusColors.TryGetValue(val, out var c))
-            {
-                e.CellStyle.BackColor = c.bg;
-                e.CellStyle.ForeColor = c.fg;
-                e.CellStyle.Font      = new Font("Segoe UI", 10f, FontStyle.Bold);
-            }
-        }
-
-        // ════════════════════════════════════════════════════════════════
-        //  EXPORT CSV
-        // ════════════════════════════════════════════════════════════════
-
-        private static void ExportGrid(DataGridView dgv, string prefix)
-        {
-            if (dgv == null || dgv.Rows.Count == 0) return;
-            using var dlg = new SaveFileDialog
-            {
-                Filter   = "CSV files (*.csv)|*.csv",
-                FileName = $"{prefix}_{DateTime.Now:yyyyMMdd_HHmmss}.csv"
-            };
-            if (dlg.ShowDialog() != DialogResult.OK) return;
-
-            var sb = new System.Text.StringBuilder();
-            var headers = new List<string>();
-            foreach (DataGridViewColumn col in dgv.Columns) headers.Add(col.HeaderText);
-            sb.AppendLine(string.Join(",", headers));
-
-            foreach (DataGridViewRow row in dgv.Rows)
-            {
-                if (row.IsNewRow) continue;
-                var cells = new List<string>();
-                foreach (DataGridViewCell cell in row.Cells)
-                    cells.Add($"\"{cell.Value?.ToString()?.Replace("\"", "\"\"")}\"");
-                sb.AppendLine(string.Join(",", cells));
-            }
-            System.IO.File.WriteAllText(dlg.FileName, sb.ToString(), System.Text.Encoding.UTF8);
-        }
-
-        // ════════════════════════════════════════════════════════════════
-        //  CARD BORDER PAINT
-        // ════════════════════════════════════════════════════════════════
-
-        private static void PaintCardBorder(object sender, PaintEventArgs e)
-        {
-            var ctrl = (Control)sender;
-            using var pen = new Pen(Color.FromArgb(221, 227, 236), 1f);
-            e.Graphics.DrawRectangle(pen, 0, 0, ctrl.Width - 1, ctrl.Height - 1);
-        }
-
-        // ════════════════════════════════════════════════════════════════
-        //  TOP-NAV + LOGOUT WIRING
-        // ════════════════════════════════════════════════════════════════
-
-        private void OnTopNavMenuItemClicked(string menuKey)
-        {
-            FormNavigator.Navigate(this, menuKey);
-        }
-
-        private void btnLogout_Click(object sender, EventArgs e)
-        {
-            FormNavigator.Logout(this);
-        }
-    }
-}
+                dgv.Colum
