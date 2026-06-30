@@ -18,7 +18,7 @@ using System.Collections.Generic;
 
 namespace PremiumLivingOPS.Models.Entities
 {
-    // ── Report type catalogue ───────────────────────────────────────────
+    // ── Report type catalogue ──────────────────────────────────────────────────
     public enum ReportType
     {
         SalesPerformance    = 0,
@@ -29,9 +29,9 @@ namespace PremiumLivingOPS.Models.Entities
         FinanceOverview     = 5
     }
 
-    // ════════════════════════════════════════════════════════════════════
+    // ════════════════════════════════════════════════════════════════
     //  1. SALES PERFORMANCE
-    // ════════════════════════════════════════════════════════════════════
+    // ════════════════════════════════════════════════════════════════
 
     /// <summary>KPI summary row for Sales Performance report.</summary>
     public class SalesKpiEntity
@@ -53,7 +53,7 @@ namespace PremiumLivingOPS.Models.Entities
         public string   OrderStatus  { get; set; }
         public DateTime IssuedTime   { get; set; }
         public double   GrandTotal   { get; set; }
-        public int      LineCount    { get; set; }
+        public int      LineCount    { get; set; }  // number of order lines
     }
 
     /// <summary>Top product by revenue for the sales breakdown panel.</summary>
@@ -66,9 +66,9 @@ namespace PremiumLivingOPS.Models.Entities
         public double TotalRevenue { get; set; }
     }
 
-    // ════════════════════════════════════════════════════════════════════
+    // ════════════════════════════════════════════════════════════════
     //  2. INVENTORY STATUS
-    // ════════════════════════════════════════════════════════════════════
+    // ════════════════════════════════════════════════════════════════
 
     /// <summary>One row in the Inventory Status grid.</summary>
     public class InventoryStatusRowEntity
@@ -83,12 +83,6 @@ namespace PremiumLivingOPS.Models.Entities
         public int    CurrentStock      { get; set; }
         public int    ReorderLevel      { get; set; }
         public bool   BelowReorder      => CurrentStock <= ReorderLevel;
-
-        // ── Aliases for ViewReportForm.cs compatibility ──────────────
-        /// <summary>Alias for ItemCategory — used by ViewReportForm.cs</summary>
-        public string Category    => ItemCategory;
-        /// <summary>Alias for WarehouseLocation — used by ViewReportForm.cs</summary>
-        public string WarehouseName => WarehouseLocation;
     }
 
     /// <summary>KPI summary for Inventory report.</summary>
@@ -100,29 +94,21 @@ namespace PremiumLivingOPS.Models.Entities
         public int RawMaterialCount  { get; set; }
     }
 
-    // ════════════════════════════════════════════════════════════════════
+    // ════════════════════════════════════════════════════════════════
     //  3. PROCUREMENT SUMMARY
-    // ════════════════════════════════════════════════════════════════════
+    // ════════════════════════════════════════════════════════════════
 
     /// <summary>One row in the Procurement Summary grid.</summary>
     public class ProcurementRowEntity
     {
-        public string   PurchaseOrderID  { get; set; }
+        public string   PurchaseOrderID  { get; set; }  // was PurchaseID
         public string   SupplierName     { get; set; }
         public string   PurchaseStatus   { get; set; }
-        public string   ReceiptStatus    { get; set; }
+        public string   ReceiptStatus    { get; set; }  // added: receipt/delivery status
         public DateTime OrderDate        { get; set; }
-        public double   TotalAmount      { get; set; }
-        public int      ItemCount        { get; set; }
+        public double   TotalAmount      { get; set; }  // was POTotalAmount
+        public int      ItemCount        { get; set; }  // number of PO lines
         public string   RequestID        { get; set; }
-
-        // ── Aliases for ViewReportForm.cs compatibility ──────────────
-        /// <summary>Alias for PurchaseOrderID — used by ViewReportForm.cs</summary>
-        public string POID     => PurchaseOrderID;
-        /// <summary>Alias for PurchaseStatus — used by ViewReportForm.cs</summary>
-        public string POStatus => PurchaseStatus;
-        /// <summary>Alias for ItemCount — used by ViewReportForm.cs</summary>
-        public int    LineCount => ItemCount;
     }
 
     /// <summary>KPI summary for Procurement report.</summary>
@@ -135,29 +121,21 @@ namespace PremiumLivingOPS.Models.Entities
         public int    UniqueSuppliers { get; set; }
     }
 
-    // ════════════════════════════════════════════════════════════════════
+    // ════════════════════════════════════════════════════════════════
     //  4. LOGISTICS OVERVIEW
-    // ════════════════════════════════════════════════════════════════════
+    // ════════════════════════════════════════════════════════════════
 
     /// <summary>One row in the Logistics Overview grid.</summary>
     public class LogisticsRowEntity
     {
-        public string   DeliveryOrderID  { get; set; }
-        public string   SalesOrderID     { get; set; }
+        public string   DeliveryOrderID  { get; set; }  // was ShipmentID
+        public string   SalesOrderID     { get; set; }  // was OrderID
         public string   CustomerName     { get; set; }
-        public string   DeliveryStatus   { get; set; }
-        public string   DriverName       { get; set; }
-        public DateTime DeliveryDate     { get; set; }
+        public string   DeliveryStatus   { get; set; }  // was ShipmentStatus
+        public string   DriverName       { get; set; }  // added
+        public DateTime DeliveryDate     { get; set; }  // was ShipDate
         public bool     HasDeliveryNote  { get; set; }
         public bool     HasReplySlip     { get; set; }
-        /// <summary>Shipment/carrier tracking reference number.</summary>
-        public string   TrackingNumber   { get; set; }
-
-        // ── Aliases for ViewReportForm.cs compatibility ──────────────
-        /// <summary>Alias for DeliveryDate — used by ViewReportForm.cs</summary>
-        public DateTime CreatedDate  => DeliveryDate;
-        /// <summary>Alias for DriverName — used by ViewReportForm.cs</summary>
-        public string   CarrierName  => DriverName;
     }
 
     /// <summary>KPI summary for Logistics report.</summary>
@@ -170,58 +148,31 @@ namespace PremiumLivingOPS.Models.Entities
         public int WithReplySlip  { get; set; }
     }
 
-    // ════════════════════════════════════════════════════════════════════
+    // ════════════════════════════════════════════════════════════════
     //  5. AFTER-SERVICE SUMMARY
-    // ════════════════════════════════════════════════════════════════════
+    // ════════════════════════════════════════════════════════════════
 
-    /// <summary>One complaint row (original entity, retained for backward compatibility).</summary>
+    /// <summary>One complaint row.</summary>
     public class ComplaintRowEntity
     {
-        public string   ComplaintID     { get; set; }
-        public string   CustomerName    { get; set; }
-        public string   Subject         { get; set; }
-        public string   ComplaintStatus { get; set; }
-        public DateTime ComplaintDate   { get; set; }
-        public string   OrderID         { get; set; }
+        public string   ComplaintID          { get; set; }
+        public string   CustomerName         { get; set; }
+        public string   Subject              { get; set; }  // was ComplaintDescription
+        public string   ComplaintStatus      { get; set; }
+        public DateTime ComplaintDate        { get; set; }  // added
+        public string   OrderID              { get; set; }
     }
 
-    /// <summary>One return order row (original entity, retained for backward compatibility).</summary>
+    /// <summary>One return order row.</summary>
     public class ReturnOrderRowEntity
     {
-        public string   ReturnOrderID { get; set; }
-        public string   SalesOrderID  { get; set; }
+        public string   ReturnOrderID { get; set; }  // was ReturnID
+        public string   SalesOrderID  { get; set; }  // was OrderID
         public string   CustomerName  { get; set; }
         public string   Reason        { get; set; }
         public double   RefundAmount  { get; set; }
         public string   ReturnStatus  { get; set; }
         public DateTime ReturnDate    { get; set; }
-    }
-
-    /// <summary>
-    /// Service request row — used by ViewReportForm.cs (vm.ServiceRows).
-    /// Maps to the after-service request / complaint table in the DB.
-    /// </summary>
-    public class ServiceRequestRowEntity
-    {
-        public string   RequestID     { get; set; }
-        public string   CustomerName  { get; set; }
-        public string   RequestStatus { get; set; }
-        public DateTime RequestDate   { get; set; }
-        public string   ServiceType   { get; set; }
-        public string   Description   { get; set; }
-    }
-
-    /// <summary>
-    /// Follow-up row — used by ViewReportForm.cs (vm.FollowUpRows).
-    /// Maps to the after-service follow-up / note table in the DB.
-    /// </summary>
-    public class ServiceFollowUpRowEntity
-    {
-        public string   FollowUpID   { get; set; }
-        public string   RequestID    { get; set; }
-        public DateTime FollowUpDate { get; set; }
-        public string   StaffName    { get; set; }
-        public string   Note         { get; set; }
     }
 
     /// <summary>KPI summary for After-Service report.</summary>
@@ -233,33 +184,21 @@ namespace PremiumLivingOPS.Models.Entities
         public double TotalRefunded   { get; set; }
     }
 
-    // ════════════════════════════════════════════════════════════════════
+    // ════════════════════════════════════════════════════════════════
     //  6. FINANCE OVERVIEW
-    // ════════════════════════════════════════════════════════════════════
+    // ════════════════════════════════════════════════════════════════
 
-    /// <summary>One finance document / transaction row.</summary>
+    /// <summary>One transaction row.</summary>
     public class FinanceTransactionRowEntity
     {
         public string   TransactionID   { get; set; }
         public string   TransactionType { get; set; }
         public double   Amount          { get; set; }
         public DateTime TransactionDate { get; set; }
-        public string   DocumentType    { get; set; }
-        public string   PaymentMethod   { get; set; }
-        public string   ApprovalStatus  { get; set; }
+        public string   DocumentType    { get; set; }  // "Sales Invoice" / "Purchase Invoice" / "Return"
+        public string   PaymentMethod   { get; set; }  // added
+        public string   ApprovalStatus  { get; set; }  // added
         public string   LinkedDocument  { get; set; }
-        /// <summary>Due / settlement date of the document.</summary>
-        public DateTime DueDate         { get; set; }
-        /// <summary>Currency code, e.g. "HKD", "USD".</summary>
-        public string   Currency        { get; set; }
-
-        // ── Aliases for ViewReportForm.cs compatibility ──────────────
-        /// <summary>Alias for TransactionID — used by ViewReportForm.cs</summary>
-        public string   DocumentID    => TransactionID;
-        /// <summary>Alias for ApprovalStatus — used by ViewReportForm.cs</summary>
-        public string   PaymentStatus => ApprovalStatus;
-        /// <summary>Alias for TransactionDate — used by ViewReportForm.cs</summary>
-        public DateTime IssueDate     => TransactionDate;
     }
 
     /// <summary>KPI summary for Finance report.</summary>
@@ -272,9 +211,9 @@ namespace PremiumLivingOPS.Models.Entities
         public double APOutstanding         { get; set; }
     }
 
-    // ════════════════════════════════════════════════════════════════════
+    // ════════════════════════════════════════════════════════════════
     //  PAGE-LEVEL VIEWMODEL
-    // ════════════════════════════════════════════════════════════════════
+    // ════════════════════════════════════════════════════════════════
 
     /// <summary>
     /// Passed from StatisticalReportsController to ViewReportForm.
@@ -286,41 +225,30 @@ namespace PremiumLivingOPS.Models.Entities
         public string[]         AllowedMenus { get; set; }
         public ReportType       ActiveReport { get; set; }
 
-        // ── 1. Sales ─────────────────────────────────────────────────
-        public SalesKpiEntity                    SalesKpi     { get; set; }
-        public List<SalesOrderRowEntity>         SalesRows    { get; set; }
-        public List<TopProductEntity>            TopProducts  { get; set; }
+        // ── Per-report data payloads ──────────────────────────────────
+        // 1. Sales
+        public SalesKpiEntity                    SalesKpi      { get; set; }
+        public List<SalesOrderRowEntity>         SalesRows     { get; set; }
+        public List<TopProductEntity>            TopProducts   { get; set; }
 
-        // ── 2. Inventory ─────────────────────────────────────────────
+        // 2. Inventory
         public InventoryKpiEntity                InventoryKpi  { get; set; }
         public List<InventoryStatusRowEntity>    InventoryRows { get; set; }
 
-        // ── 3. Procurement ───────────────────────────────────────────
-        public ProcurementKpiEntity              ProcKpi         { get; set; }
-        public List<ProcurementRowEntity>        ProcurementRows { get; set; }
+        // 3. Procurement — property name aligned to ViewReportForm.cs usage
+        public ProcurementKpiEntity              ProcKpi          { get; set; }
+        public List<ProcurementRowEntity>        ProcurementRows  { get; set; }
 
-        // ── 4. Logistics ─────────────────────────────────────────────
-        public LogisticsKpiEntity                LogKpi        { get; set; }
-        public List<LogisticsRowEntity>          LogisticsRows { get; set; }
+        // 4. Logistics — property name aligned to ViewReportForm.cs usage
+        public LogisticsKpiEntity                LogKpi          { get; set; }
+        public List<LogisticsRowEntity>          LogisticsRows   { get; set; }
 
-        // ── 5. After-Service ─────────────────────────────────────────
+        // 5. After-Service — property names aligned to ViewReportForm.cs usage
         public AfterServiceKpiEntity             AfterKpi      { get; set; }
-        /// <summary>
-        /// Service request rows — used by ViewReportForm.cs as vm.ServiceRows.
-        /// Populated by StatisticalReportsController.GetAfterServiceReportVM().
-        /// </summary>
-        public List<ServiceRequestRowEntity>     ServiceRows   { get; set; }
-        /// <summary>
-        /// Follow-up note rows — used by ViewReportForm.cs as vm.FollowUpRows.
-        /// Populated by StatisticalReportsController.GetAfterServiceReportVM().
-        /// </summary>
-        public List<ServiceFollowUpRowEntity>    FollowUpRows  { get; set; }
-
-        // Retained for backward compatibility with existing controller code
         public List<ComplaintRowEntity>          ComplaintRows { get; set; }
         public List<ReturnOrderRowEntity>        ReturnRows    { get; set; }
 
-        // ── 6. Finance ───────────────────────────────────────────────
+        // 6. Finance
         public FinanceKpiEntity                  FinanceKpi  { get; set; }
         public List<FinanceTransactionRowEntity> FinanceRows { get; set; }
     }

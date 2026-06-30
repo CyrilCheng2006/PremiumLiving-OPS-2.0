@@ -27,19 +27,12 @@ namespace PremiumLivingOPS.Views.Shared
     ///   The correct WinForms pattern is Application.Restart():
     ///   it cleanly ends the current process and spawns a fresh instance
     ///   which starts at Program.Main() → Application.Run(new LoginForm()).
-    ///
-    /// Same-Type Navigation:
-    ///   When the target form is the same type as the current form (e.g.
-    ///   clicking "Statistical Reports › View Report" while already on
-    ///   ViewReportForm, or switching sub-pages within the same module),
-    ///   we still perform a full navigation so the Top Nav Bar always
-    ///   responds correctly.  The old form is hidden and closed as usual.
     /// </summary>
     public static class FormNavigator
     {
         public static void NavigateTo(Form current, string menuLabel, string subItem = "")
         {
-            // ── Logout ─────────────────────────────────────────────────────────────
+            // ── Logout ─────────────────────────────────────────────────────────────────
             if (string.Equals(menuLabel, "Logout", StringComparison.OrdinalIgnoreCase))
             {
                 // Application.Run(new LoginForm()) makes the original LoginForm
@@ -69,12 +62,12 @@ namespace PremiumLivingOPS.Views.Shared
                 return;
             }
 
-            // NOTE: Same-type navigation is intentionally NOT short-circuited here.
-            // Previously, navigating to the same form type (e.g. ViewReportForm →
-            // ViewReportForm via Top Nav Bar) would silently Dispose the target and
-            // return, making the Top Nav Bar appear broken on those pages.
-            // We now always perform a full hide-show transition so every menu item
-            // is guaranteed to respond, regardless of the current page type.
+            // Already on the same page — nothing to do.
+            if (target.GetType() == current.GetType())
+            {
+                target.Dispose();
+                return;
+            }
 
             // Inherit window position and state so the transition feels seamless.
             target.StartPosition = FormStartPosition.Manual;
@@ -94,7 +87,7 @@ namespace PremiumLivingOPS.Views.Shared
             };
         }
 
-        // ── Routing table ───────────────────────────────────────────────────────────────
+        // ── Routing table ────────────────────────────────────────────────────────────────────────
         private static Form Resolve(string menu, string sub)
         {
             menu = menu?.Trim() ?? "";
@@ -105,7 +98,7 @@ namespace PremiumLivingOPS.Views.Shared
                 case "Dashboard":
                     return new Dashboard.DashboardForm();
 
-                // ── Order Processing ───────────────────────────────────────────────
+                // ── Order Processing ───────────────────────────────────────────────────
                 case "Order Processing":
                     switch (sub)
                     {
@@ -116,7 +109,7 @@ namespace PremiumLivingOPS.Views.Shared
                         default:             return new ViewOrderForm();
                     }
 
-                // ── Inventory Control ───────────────────────────────────────────────
+                // ── Inventory Control ───────────────────────────────────────────────────
                 case "Inventory Control":
                     switch (sub)
                     {
@@ -130,7 +123,7 @@ namespace PremiumLivingOPS.Views.Shared
                             return new ViewProductForm();
                     }
 
-                // ── Production Processing ──────────────────────────────────────────
+                // ── Production Processing ────────────────────────────────────────────────
                 case "Production Processing":
                     switch (sub)
                     {
@@ -139,7 +132,7 @@ namespace PremiumLivingOPS.Views.Shared
                         default:                            return new SearchMaterialRequestForm();
                     }
 
-                // ── Raw Material (Procurement) ─────────────────────────────────────
+                // ── Raw Material (Procurement) ─────────────────────────────────────────────
                 case "Raw Material":
                     switch (sub)
                     {
@@ -148,7 +141,7 @@ namespace PremiumLivingOPS.Views.Shared
                         default:                   return new SearchProcurementForm();
                     }
 
-                // ── Logistics Processing ────────────────────────────────────────────
+                // ── Logistics Processing ──────────────────────────────────────────────────
                 case "Logistics Processing":
                     switch (sub)
                     {
@@ -160,7 +153,7 @@ namespace PremiumLivingOPS.Views.Shared
                             return new ViewShipmentForm();
                     }
 
-                // ── After-Service ───────────────────────────────────────────────────
+                // ── After-Service ─────────────────────────────────────────────────────────
                 case "After-Service":
                     switch (sub)
                     {
@@ -172,7 +165,7 @@ namespace PremiumLivingOPS.Views.Shared
                         default:                     return new CreateInvoiceForm();
                     }
 
-                // ── Master Data Maintenance ─────────────────────────────────────────
+                // ── Master Data Maintenance ──────────────────────────────────────────────
                 case "Master Data Maintenance":
                     switch (sub)
                     {
@@ -181,7 +174,7 @@ namespace PremiumLivingOPS.Views.Shared
                         default:              return new SupplierListForm();
                     }
 
-                // ── Statistical Reports ─────────────────────────────────────────────
+                // ── Statistical Reports ──────────────────────────────────────────────────
                 case "Statistical Reports":
                     switch (sub)
                     {
@@ -189,7 +182,7 @@ namespace PremiumLivingOPS.Views.Shared
                         default: return new ViewReportForm();
                     }
 
-                // ── System Control ──────────────────────────────────────────────────
+                // ── System Control ─────────────────────────────────────────────────────────
                 case "System Control":
                     switch (sub)
                     {
