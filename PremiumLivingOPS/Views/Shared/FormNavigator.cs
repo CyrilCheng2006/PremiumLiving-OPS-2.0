@@ -27,6 +27,13 @@ namespace PremiumLivingOPS.Views.Shared
     ///   The correct WinForms pattern is Application.Restart():
     ///   it cleanly ends the current process and spawns a fresh instance
     ///   which starts at Program.Main() → Application.Run(new LoginForm()).
+    ///
+    /// Same-Type Navigation:
+    ///   When the target form is the same type as the current form (e.g.
+    ///   clicking "Statistical Reports › View Report" while already on
+    ///   ViewReportForm, or switching sub-pages within the same module),
+    ///   we still perform a full navigation so the Top Nav Bar always
+    ///   responds correctly.  The old form is hidden and closed as usual.
     /// </summary>
     public static class FormNavigator
     {
@@ -62,12 +69,12 @@ namespace PremiumLivingOPS.Views.Shared
                 return;
             }
 
-            // Already on the same page — nothing to do.
-            if (target.GetType() == current.GetType())
-            {
-                target.Dispose();
-                return;
-            }
+            // NOTE: Same-type navigation is intentionally NOT short-circuited here.
+            // Previously, navigating to the same form type (e.g. ViewReportForm →
+            // ViewReportForm via Top Nav Bar) would silently Dispose the target and
+            // return, making the Top Nav Bar appear broken on those pages.
+            // We now always perform a full hide-show transition so every menu item
+            // is guaranteed to respond, regardless of the current page type.
 
             // Inherit window position and state so the transition feels seamless.
             target.StartPosition = FormStartPosition.Manual;
