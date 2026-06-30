@@ -664,8 +664,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             return outer;
         }
 
-        private static Panel BuildButtonsRow(Button btnApply, Button btnReset, Button btnToggleView, Button btnExport);
-
         private static Panel BuildGridCard2(DataGridView dgvTop, DataGridView dgvBottom)
         {
             var inner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
