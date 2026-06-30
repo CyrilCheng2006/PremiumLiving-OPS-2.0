@@ -96,7 +96,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             var vm = _ctrl.GetSalesReportVM();
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
-            _shell.SetBreadcrumb("Statistical Reports  ›  View Report");
+            _shell.SetBreadcrumb("Statistical Reports  \u203a  View Report");
             SwitchToReport(0);
         }
 
@@ -331,6 +331,66 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             else if (cmb.Items.Count > 0)
                 cmb.SelectedIndex = 0;
             return cmb;
+        }
+
+        private static Button MakePrimaryBtn(string text)
+        {
+            return new Button
+            {
+                Text      = text,
+                Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
+                BackColor = Palette.Primary,
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Height    = 36,
+                Cursor    = Cursors.Hand
+            };
+        }
+
+        private static Button MakeOutlineBtn(string text)
+        {
+            var btn = new Button
+            {
+                Text      = text,
+                Font      = new Font("Segoe UI", 10f),
+                BackColor = Color.FromArgb(241, 244, 249),
+                ForeColor = Color.FromArgb(15, 31, 53),
+                FlatStyle = FlatStyle.Flat,
+                Height    = 36,
+                Cursor    = Cursors.Hand
+            };
+            btn.FlatAppearance.BorderColor = Color.FromArgb(221, 227, 236);
+            return btn;
+        }
+
+        private static Button MakeAmberBtn(string text)
+        {
+            return new Button
+            {
+                Text      = text,
+                Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
+                BackColor = Color.FromArgb(235, 241, 255),
+                ForeColor = Palette.Primary,
+                FlatStyle = FlatStyle.Flat,
+                Height    = 36,
+                Cursor    = Cursors.Hand
+            };
+        }
+
+        private static Button MakeExportBtn(string text)
+        {
+            var btn = new Button
+            {
+                Text      = text,
+                Font      = new Font("Segoe UI", 10f),
+                BackColor = Color.FromArgb(241, 244, 249),
+                ForeColor = Color.FromArgb(15, 31, 53),
+                FlatStyle = FlatStyle.Flat,
+                Height    = 36,
+                Cursor    = Cursors.Hand
+            };
+            btn.FlatAppearance.BorderColor = Color.FromArgb(221, 227, 236);
+            return btn;
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -680,8 +740,8 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             var dtTo   = MakeDatePicker(DefaultDateTo);
             var cmbStatus = MakeComboBox(new[] { "All", "Pending", "Processing", "Delivered", "Partially Delivered", "Cancelled" });
 
-            var btnSearch = MakeFilterButton("Search", Palette.Primary, Color.White);
-            var btnReset  = MakeFilterButton("Reset",  Color.FromArgb(241, 244, 249), Color.FromArgb(15, 31, 53));
+            var btnSearch = MakePrimaryBtn("Search");
+            var btnReset  = MakeOutlineBtn("Reset");
 
             var btnRow = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             btnSearch.Width = 110; btnSearch.Anchor = AnchorStyles.Left | AnchorStyles.Bottom;
@@ -736,8 +796,8 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 tbl.RowStyles.Add(new RowStyle(SizeType.Absolute,  52f));
                 tbl.RowStyles.Add(new RowStyle(SizeType.Percent,  100f));
 
-                var btnToggle = MakeFilterButton("View Chart", Color.FromArgb(235, 241, 255), Palette.Primary);
-                var btnExport = MakeFilterButton("Export CSV", Color.FromArgb(241, 244, 249), Color.FromArgb(15, 31, 53));
+                var btnToggle = MakeAmberBtn("View Chart");
+                var btnExport = MakeExportBtn("Export CSV");
 
                 btnExport.Click += (s, e) => ExportGrid(dgv, "SalesPerformance");
                 btnToggle.Click += (s, e) =>
@@ -796,8 +856,8 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 Checked   = false
             };
 
-            var btnSearch = MakeFilterButton("Search", Palette.Primary, Color.White);
-            var btnReset  = MakeFilterButton("Reset",  Color.FromArgb(241, 244, 249), Color.FromArgb(15, 31, 53));
+            var btnSearch = MakePrimaryBtn("Search");
+            var btnReset  = MakeOutlineBtn("Reset");
 
             var btnRow = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             btnSearch.Width = 110; btnSearch.Anchor = AnchorStyles.Left | AnchorStyles.Bottom;
@@ -865,8 +925,8 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                             r.CurrentStock, r.ReorderLevel,
                             r.BelowReorder ? "⚠ Low" : "OK");
 
-                    var btnToggle = MakeFilterButton("View Chart", Color.FromArgb(235, 241, 255), Palette.Primary);
-                    var btnExport = MakeFilterButton("Export CSV", Color.FromArgb(241, 244, 249), Color.FromArgb(15, 31, 53));
+                    var btnToggle = MakeAmberBtn("View Chart");
+                    var btnExport = MakeExportBtn("Export CSV");
                     btnExport.Click += (s, e) => ExportGrid(dgv, "InventoryStatus");
                     btnToggle.Click += (s, e) =>
                     {
@@ -920,8 +980,8 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             var dtTo      = MakeDatePicker(DefaultDateTo);
             var cmbStatus = MakeComboBox(new[] { "All", "Pending", "Processing", "Completed", "Cancelled" });
 
-            var btnSearch = MakeFilterButton("Search", Palette.Primary, Color.White);
-            var btnReset  = MakeFilterButton("Reset",  Color.FromArgb(241, 244, 249), Color.FromArgb(15, 31, 53));
+            var btnSearch = MakePrimaryBtn("Search");
+            var btnReset  = MakeOutlineBtn("Reset");
 
             var btnRow = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             btnSearch.Width = 110; btnSearch.Anchor = AnchorStyles.Left | AnchorStyles.Bottom;
@@ -972,8 +1032,8 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                         r.ReceiptStatus, r.OrderDate.ToString("yyyy-MM-dd"),
                         $"HKD {r.TotalAmount:N0}", r.ItemCount, r.RequestID);
 
-                var btnToggle = MakeFilterButton("View Chart", Color.FromArgb(235, 241, 255), Palette.Primary);
-                var btnExport = MakeFilterButton("Export CSV", Color.FromArgb(241, 244, 249), Color.FromArgb(15, 31, 53));
+                var btnToggle = MakeAmberBtn("View Chart");
+                var btnExport = MakeExportBtn("Export CSV");
                 btnExport.Click += (s, e) => ExportGrid(dgv, "ProcurementSummary");
                 btnToggle.Click += (s, e) =>
                 {
@@ -1027,8 +1087,8 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             var dtTo      = MakeDatePicker(DefaultDateTo);
             var cmbStatus = MakeComboBox(new[] { "All", "Pending", "In Transit", "Delivered", "Cancelled" });
 
-            var btnSearch = MakeFilterButton("Search", Palette.Primary, Color.White);
-            var btnReset  = MakeFilterButton("Reset",  Color.FromArgb(241, 244, 249), Color.FromArgb(15, 31, 53));
+            var btnSearch = MakePrimaryBtn("Search");
+            var btnReset  = MakeOutlineBtn("Reset");
 
             var btnRow = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             btnSearch.Width = 110; btnSearch.Anchor = AnchorStyles.Left | AnchorStyles.Bottom;
@@ -1078,11 +1138,11 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                     dgv.Rows.Add(r.DeliveryOrderID, r.SalesOrderID, r.CustomerName,
                         r.DeliveryStatus, r.DriverName,
                         r.DeliveryDate.ToString("yyyy-MM-dd"),
-                        r.HasDeliveryNote ? "✓" : "—",
-                        r.HasReplySlip    ? "✓" : "—");
+                        r.HasDeliveryNote ? "\u2713" : "\u2014",
+                        r.HasReplySlip    ? "\u2713" : "\u2014");
 
-                var btnToggle = MakeFilterButton("View Chart", Color.FromArgb(235, 241, 255), Palette.Primary);
-                var btnExport = MakeFilterButton("Export CSV", Color.FromArgb(241, 244, 249), Color.FromArgb(15, 31, 53));
+                var btnToggle = MakeAmberBtn("View Chart");
+                var btnExport = MakeExportBtn("Export CSV");
                 btnExport.Click += (s, e) => ExportGrid(dgv, "LogisticsOverview");
                 btnToggle.Click += (s, e) =>
                 {
@@ -1126,17 +1186,17 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         }
 
         // ════════════════════════════════════════════════════════════════
-        //  5. AFTER-SERVICE SUMMARY
+        //  5. AFTER-SERVICE ANALYSIS
         // ════════════════════════════════════════════════════════════════
 
         private void RenderAfterService()
         {
-            var dtFrom          = MakeDatePicker(DefaultDateFrom);
-            var dtTo            = MakeDatePicker(DefaultDateTo);
-            var cmbComplaintSt  = MakeComboBox(new[] { "All", "Pending", "In Progress", "Resolved", "Escalated" });
+            var dtFrom    = MakeDatePicker(DefaultDateFrom);
+            var dtTo      = MakeDatePicker(DefaultDateTo);
+            var cmbType   = MakeComboBox(new[] { "All", "Complaint", "Return" });
 
-            var btnSearch = MakeFilterButton("Search", Palette.Primary, Color.White);
-            var btnReset  = MakeFilterButton("Reset",  Color.FromArgb(241, 244, 249), Color.FromArgb(15, 31, 53));
+            var btnSearch = MakePrimaryBtn("Search");
+            var btnReset  = MakeOutlineBtn("Reset");
 
             var btnRow = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             btnSearch.Width = 110; btnSearch.Anchor = AnchorStyles.Left | AnchorStyles.Bottom;
@@ -1146,66 +1206,62 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             btnRow.Controls.Add(btnSearch);
             btnRow.Controls.Add(btnReset);
 
-            SetFilterBar("After-Service Summary",
+            SetFilterBar("After-Service Analysis",
                 BuildFieldsRow(
-                    ("Date From",         dtFrom),
-                    ("Date To",           dtTo),
-                    ("Complaint Status",  cmbComplaintSt)),
+                    ("Date From", dtFrom),
+                    ("Date To",   dtTo),
+                    ("Type",      cmbType)),
                 btnRow);
 
-            DataGridView dgvC  = null;
-            DataGridView dgvR  = null;
-            Panel dgvCard      = null;
-            Panel chartCard    = null;
+            DataGridView dgvComplaints = null;
+            DataGridView dgvReturns    = null;
+            Panel dgvCard   = null;
+            Panel chartCard = null;
 
             void LoadData()
             {
                 var vm = _ctrl.GetAfterServiceReportVM(dtFrom.Value, dtTo.Value,
-                    cmbComplaintSt.SelectedItem?.ToString() == "All" ? null : cmbComplaintSt.SelectedItem?.ToString());
+                    cmbType.SelectedItem?.ToString() == "All" ? null : cmbType.SelectedItem?.ToString());
 
-                var kpi      = vm.AfterKpi      ?? new AfterServiceKpiEntity();
-                var compRows = vm.ComplaintRows  ?? new List<ComplaintRowEntity>();
-                var retRows  = vm.ReturnRows     ?? new List<ReturnOrderRowEntity>();
+                var kpi        = vm.AfterServiceKpi  ?? new AfterServiceKpiEntity();
+                var complaints = vm.ComplaintRows     ?? new List<ComplaintRowEntity>();
+                var returns    = vm.ReturnRows        ?? new List<ReturnRowEntity>();
 
                 var kpiRow = BuildKpiRow(
-                    ("Total Complaints",  kpi.TotalComplaints.ToString(), Color.FromArgb(185, 28, 28)),
-                    ("Open Complaints",   kpi.OpenComplaints.ToString(),  Color.FromArgb(146, 64, 14)),
-                    ("Total Returns",     kpi.TotalReturns.ToString(),    Color.FromArgb(91, 33, 182)),
-                    ("Total Refunded",    $"HKD {kpi.TotalRefunded:N0}", Color.FromArgb(29, 78, 216)));
+                    ("Total Complaints",   kpi.TotalComplaints.ToString(),  Color.FromArgb(185, 28, 28)),
+                    ("Total Returns",      kpi.TotalReturns.ToString(),     Color.FromArgb(146, 64, 14)),
+                    ("Escalated",          kpi.EscalatedComplaints.ToString(), Color.FromArgb(91, 33, 182)),
+                    ("Resolved",           kpi.ResolvedComplaints.ToString(), Color.FromArgb(6, 95, 70)));
 
-                // Complaints grid
-                dgvC = BuildDgv();
-                dgvC.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCmpID",    HeaderText = "Complaint ID",   FillWeight = 14 });
-                dgvC.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCustomer", HeaderText = "Customer",       FillWeight = 22 });
-                dgvC.Columns.Add(new DataGridViewTextBoxColumn { Name = "colSubject",  HeaderText = "Subject",        FillWeight = 28 });
-                dgvC.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCStatus",  HeaderText = "Status",         FillWeight = 12 });
-                dgvC.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDate",     HeaderText = "Date",           FillWeight = 12 });
-                dgvC.Columns.Add(new DataGridViewTextBoxColumn { Name = "colOrderID",  HeaderText = "Order ID",       FillWeight = 12 });
-                foreach (var r in compRows)
-                    dgvC.Rows.Add(r.ComplaintID, r.CustomerName, r.Subject,
-                        r.ComplaintStatus, r.ComplaintDate.ToString("yyyy-MM-dd"), r.OrderID);
+                dgvComplaints = BuildDgv();
+                dgvComplaints.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCmpID",      HeaderText = "Complaint ID",  FillWeight = 14 });
+                dgvComplaints.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCmpCust",    HeaderText = "Customer",      FillWeight = 22 });
+                dgvComplaints.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCmpStatus",  HeaderText = "Status",        FillWeight = 14 });
+                dgvComplaints.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCmpDate",    HeaderText = "Date",          FillWeight = 12 });
+                dgvComplaints.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCmpSubject", HeaderText = "Subject",       FillWeight = 26 });
+                dgvComplaints.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCmpSO",      HeaderText = "Sales Order",   FillWeight = 12 });
 
-                // Returns grid
-                dgvR = BuildDgv();
-                dgvR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colRetID",    HeaderText = "Return ID",      FillWeight = 14 });
-                dgvR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colSoID",     HeaderText = "Sales Order",    FillWeight = 14 });
-                dgvR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCustomer", HeaderText = "Customer",       FillWeight = 20 });
-                dgvR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colReason",   HeaderText = "Reason",         FillWeight = 22 });
-                dgvR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colRefund",   HeaderText = "Refund Amount",  FillWeight = 14 });
-                dgvR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colRStatus",  HeaderText = "Status",         FillWeight = 10 });
-                dgvR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDate",     HeaderText = "Date",           FillWeight = 10 });
-                foreach (var r in retRows)
-                    dgvR.Rows.Add(r.ReturnOrderID, r.SalesOrderID, r.CustomerName,
-                        r.Reason, $"HKD {r.RefundAmount:N0}", r.ReturnStatus,
-                        r.ReturnDate.ToString("yyyy-MM-dd"));
+                foreach (var r in complaints)
+                    dgvComplaints.Rows.Add(r.ComplaintID, r.CustomerName, r.ComplaintStatus,
+                        r.ComplaintDate.ToString("yyyy-MM-dd"), r.Subject, r.SalesOrderID);
 
-                var btnToggle = MakeFilterButton("View Chart", Color.FromArgb(235, 241, 255), Palette.Primary);
-                var btnExportC = MakeFilterButton("Export Complaints", Color.FromArgb(241, 244, 249), Color.FromArgb(15, 31, 53));
-                var btnExportR = MakeFilterButton("Export Returns",    Color.FromArgb(241, 244, 249), Color.FromArgb(15, 31, 53));
-                btnExportC.Width = 160;
-                btnExportR.Width = 150;
-                btnExportC.Click += (s, e) => ExportGrid(dgvC, "Complaints");
-                btnExportR.Click += (s, e) => ExportGrid(dgvR, "ReturnOrders");
+                dgvReturns = BuildDgv();
+                dgvReturns.Columns.Add(new DataGridViewTextBoxColumn { Name = "colRetID",     HeaderText = "Return ID",     FillWeight = 14 });
+                dgvReturns.Columns.Add(new DataGridViewTextBoxColumn { Name = "colRetCust",   HeaderText = "Customer",      FillWeight = 22 });
+                dgvReturns.Columns.Add(new DataGridViewTextBoxColumn { Name = "colRetStatus", HeaderText = "Status",        FillWeight = 14 });
+                dgvReturns.Columns.Add(new DataGridViewTextBoxColumn { Name = "colRetDate",   HeaderText = "Return Date",   FillWeight = 12 });
+                dgvReturns.Columns.Add(new DataGridViewTextBoxColumn { Name = "colRetReason", HeaderText = "Reason",        FillWeight = 26 });
+                dgvReturns.Columns.Add(new DataGridViewTextBoxColumn { Name = "colRetAmt",    HeaderText = "Refund Amt",    FillWeight = 12 });
+
+                foreach (var r in returns)
+                    dgvReturns.Rows.Add(r.ReturnID, r.CustomerName, r.ReturnStatus,
+                        r.ReturnDate.ToString("yyyy-MM-dd"), r.ReturnReason, $"HKD {r.RefundAmount:N0}");
+
+                var btnToggle  = MakeAmberBtn("View Chart");
+                var btnExportC = MakeExportBtn("Export Complaints");
+                var btnExportR = MakeExportBtn("Export Returns");
+                btnExportC.Click += (s, e) => ExportGrid(dgvComplaints, "Complaints");
+                btnExportR.Click += (s, e) => ExportGrid(dgvReturns,    "Returns");
                 btnToggle.Click += (s, e) =>
                 {
                     _afterServiceChart = !_afterServiceChart;
@@ -1214,34 +1270,33 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                     {
                         chartCard = WrapInContentCard(BuildChartCard(
                             "After-Service Overview",
-                            new[] { "Total Complaints", "Open Complaints", "Total Returns" },
-                            new double[] { kpi.TotalComplaints, kpi.OpenComplaints, kpi.TotalReturns },
+                            new[] { "Complaints", "Returns", "Escalated", "Resolved" },
+                            new double[] { kpi.TotalComplaints, kpi.TotalReturns, kpi.EscalatedComplaints, kpi.ResolvedComplaints },
                             ChartStyle.Column));
                     }
                     SwapContent(dgvCard, chartCard, _afterServiceChart);
                 };
 
-                // Two-section layout: Complaints on top, Returns on bottom
-                var tbl = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 5, ColumnCount = 1, BackColor = Color.White };
-                tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 100f));  // KPI
-                tbl.RowStyles.Add(new RowStyle(SizeType.Absolute,  52f));  // Complaints header
-                tbl.RowStyles.Add(new RowStyle(SizeType.Percent,   50f));  // Complaints grid
-                tbl.RowStyles.Add(new RowStyle(SizeType.Absolute,  52f));  // Returns header
-                tbl.RowStyles.Add(new RowStyle(SizeType.Percent,   50f));  // Returns grid
+                var splitTbl = new TableLayoutPanel
+                {
+                    Dock        = DockStyle.Fill,
+                    RowCount    = 5,
+                    ColumnCount = 1,
+                    BackColor   = Color.White
+                };
+                splitTbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 100f));
+                splitTbl.RowStyles.Add(new RowStyle(SizeType.Absolute,  52f));
+                splitTbl.RowStyles.Add(new RowStyle(SizeType.Percent,   50f));
+                splitTbl.RowStyles.Add(new RowStyle(SizeType.Absolute,  52f));
+                splitTbl.RowStyles.Add(new RowStyle(SizeType.Percent,   50f));
 
-                var btnExportPanel = new Panel { Dock = DockStyle.Right, Width = 330, BackColor = Color.Transparent };
-                btnExportC.Dock = DockStyle.Right;
-                btnExportR.Dock = DockStyle.Right;
-                btnExportPanel.Controls.Add(btnExportR);
-                btnExportPanel.Controls.Add(btnExportC);
+                splitTbl.Controls.Add(kpiRow, 0, 0);
+                splitTbl.Controls.Add(BuildSectionHeader("Complaints", btnToggle, btnExportC), 0, 1);
+                splitTbl.Controls.Add(dgvComplaints, 0, 2);
+                splitTbl.Controls.Add(BuildSectionHeader("Returns", null, btnExportR), 0, 3);
+                splitTbl.Controls.Add(dgvReturns, 0, 4);
 
-                tbl.Controls.Add(kpiRow, 0, 0);
-                tbl.Controls.Add(BuildSectionHeader("Complaint List",    btnToggle, btnExportC), 0, 1);
-                tbl.Controls.Add(dgvC, 0, 2);
-                tbl.Controls.Add(BuildSectionHeader("Return Order List", null,       btnExportR), 0, 3);
-                tbl.Controls.Add(dgvR, 0, 4);
-
-                dgvCard   = WrapInContentCard(tbl);
+                dgvCard   = WrapInContentCard(splitTbl);
                 chartCard = null;
                 _afterServiceChart = false;
                 SwapContent(dgvCard, chartCard, false);
@@ -1252,7 +1307,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             {
                 dtFrom.Value = DefaultDateFrom;
                 dtTo.Value   = DefaultDateTo;
-                cmbComplaintSt.SelectedIndex = 0;
+                cmbType.SelectedIndex = 0;
                 LoadData();
             };
 
@@ -1260,17 +1315,17 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         }
 
         // ════════════════════════════════════════════════════════════════
-        //  6. FINANCE OVERVIEW
+        //  6. FINANCE SUMMARY
         // ════════════════════════════════════════════════════════════════
 
         private void RenderFinance()
         {
-            var dtFrom    = MakeDatePicker(DefaultDateFrom);
-            var dtTo      = MakeDatePicker(DefaultDateTo);
-            var cmbType   = MakeComboBox(new[] { "All", "Revenue", "Expense", "Refund" });
+            var dtFrom      = MakeDatePicker(DefaultDateFrom);
+            var dtTo        = MakeDatePicker(DefaultDateTo);
+            var cmbTxType   = MakeComboBox(new[] { "All", "Revenue", "Expense", "Refund" });
 
-            var btnSearch = MakeFilterButton("Search", Palette.Primary, Color.White);
-            var btnReset  = MakeFilterButton("Reset",  Color.FromArgb(241, 244, 249), Color.FromArgb(15, 31, 53));
+            var btnSearch = MakePrimaryBtn("Search");
+            var btnReset  = MakeOutlineBtn("Reset");
 
             var btnRow = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             btnSearch.Width = 110; btnSearch.Anchor = AnchorStyles.Left | AnchorStyles.Bottom;
@@ -1280,11 +1335,11 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             btnRow.Controls.Add(btnSearch);
             btnRow.Controls.Add(btnReset);
 
-            SetFilterBar("Finance Overview",
+            SetFilterBar("Finance Summary",
                 BuildFieldsRow(
-                    ("Date From",          dtFrom),
-                    ("Date To",            dtTo),
-                    ("Transaction Type",   cmbType)),
+                    ("Date From",        dtFrom),
+                    ("Date To",          dtTo),
+                    ("Transaction Type", cmbTxType)),
                 btnRow);
 
             DataGridView dgv = null;
@@ -1294,36 +1349,36 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             void LoadData()
             {
                 var vm = _ctrl.GetFinanceReportVM(dtFrom.Value, dtTo.Value,
-                    cmbType.SelectedItem?.ToString() == "All" ? null : cmbType.SelectedItem?.ToString());
+                    cmbTxType.SelectedItem?.ToString() == "All" ? null : cmbTxType.SelectedItem?.ToString());
 
-                var kpi  = vm.FinanceKpi ?? new FinanceKpiEntity();
-                var rows = vm.FinanceRows ?? new List<FinanceTransactionRowEntity>();
+                var kpi  = vm.FinanceKpi  ?? new FinanceKpiEntity();
+                var rows = vm.FinanceRows ?? new List<FinanceRowEntity>();
 
                 var kpiRow = BuildKpiRow(
-                    ("Sales Revenue",    $"HKD {kpi.TotalSalesRevenue:N0}",     Color.FromArgb(6,   95,  70)),
-                    ("Procurement Spend",$"HKD {kpi.TotalProcurementSpend:N0}", Color.FromArgb(185, 28,  28)),
-                    ("Total Refunds",    $"HKD {kpi.TotalRefunds:N0}",          Color.FromArgb(146, 64,  14)),
-                    ("AR Outstanding",   $"HKD {kpi.AROutstanding:N0}",         Color.FromArgb(29,  78, 216)),
-                    ("AP Outstanding",   $"HKD {kpi.APOutstanding:N0}",         Color.FromArgb(91,  33, 182)));
+                    ("Total Revenue",  $"HKD {kpi.TotalRevenue:N0}",  Color.FromArgb(6, 95, 70)),
+                    ("Total Expenses", $"HKD {kpi.TotalExpenses:N0}", Color.FromArgb(185, 28, 28)),
+                    ("Net Profit",     $"HKD {kpi.NetProfit:N0}",     kpi.NetProfit >= 0 ? Color.FromArgb(6, 95, 70) : Color.FromArgb(185, 28, 28)),
+                    ("Transactions",   kpi.TotalTransactions.ToString(), Color.FromArgb(29, 78, 216)),
+                    ("Refunds",        $"HKD {kpi.TotalRefunds:N0}",  Color.FromArgb(146, 64, 14)));
 
                 dgv = BuildDgv();
-                dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTxID",   HeaderText = "Transaction ID",  FillWeight = 14 });
-                dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus", HeaderText = "Type",            FillWeight = 12 });
-                dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colAmt",    HeaderText = "Amount",          FillWeight = 14 });
-                dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDate",   HeaderText = "Date",            FillWeight = 12 });
-                dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDoc",    HeaderText = "Document Type",   FillWeight = 16 });
-                dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colMethod", HeaderText = "Payment Method",  FillWeight = 14 });
-                dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colAppr",   HeaderText = "Approval",        FillWeight = 10 });
-                dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLinked", HeaderText = "Linked Document", FillWeight = 14 });
+                dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTxID",     HeaderText = "Tx ID",          FillWeight = 12 });
+                dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTxType",   HeaderText = "Type",           FillWeight = 12 });
+                dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTxInvType",HeaderText = "Invoice Type",   FillWeight = 14 });
+                dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTxDate",   HeaderText = "Date",           FillWeight = 12 });
+                dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTxAmt",    HeaderText = "Amount",         FillWeight = 14 });
+                dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTxMethod", HeaderText = "Method",         FillWeight = 12 });
+                dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTxStatus", HeaderText = "Status",         FillWeight = 12 });
+                dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTxRef",    HeaderText = "Reference",      FillWeight = 12 });
 
                 foreach (var r in rows)
-                    dgv.Rows.Add(r.TransactionID, r.TransactionType,
-                        $"HKD {r.Amount:N0}", r.TransactionDate.ToString("yyyy-MM-dd"),
-                        r.DocumentType, r.PaymentMethod, r.ApprovalStatus, r.LinkedDocument);
+                    dgv.Rows.Add(r.TransactionID, r.TransactionType, r.InvoiceType,
+                        r.TransactionDate.ToString("yyyy-MM-dd"),
+                        $"HKD {r.Amount:N0}", r.PaymentMethod, r.PaymentStatus, r.ReferenceID);
 
-                var btnToggle = MakeFilterButton("View Chart", Color.FromArgb(235, 241, 255), Palette.Primary);
-                var btnExport = MakeFilterButton("Export CSV", Color.FromArgb(241, 244, 249), Color.FromArgb(15, 31, 53));
-                btnExport.Click += (s, e) => ExportGrid(dgv, "FinanceOverview");
+                var btnToggle = MakeAmberBtn("View Chart");
+                var btnExport = MakeExportBtn("Export CSV");
+                btnExport.Click += (s, e) => ExportGrid(dgv, "FinanceSummary");
                 btnToggle.Click += (s, e) =>
                 {
                     _financeChart = !_financeChart;
@@ -1331,9 +1386,9 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                     if (chartCard == null)
                     {
                         chartCard = WrapInContentCard(BuildChartCard(
-                            "Finance Overview",
-                            new[] { "Sales Revenue", "Procurement Spend", "Total Refunds", "AR Outstanding", "AP Outstanding" },
-                            new double[] { kpi.TotalSalesRevenue, kpi.TotalProcurementSpend, kpi.TotalRefunds, kpi.AROutstanding, kpi.APOutstanding },
+                            "Revenue vs Expenses",
+                            new[] { "Revenue", "Expenses", "Net Profit" },
+                            new double[] { kpi.TotalRevenue, kpi.TotalExpenses, Math.Abs(kpi.NetProfit) },
                             ChartStyle.Column));
                     }
                     SwapContent(dgvCard, chartCard, _financeChart);
@@ -1358,11 +1413,82 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             {
                 dtFrom.Value = DefaultDateFrom;
                 dtTo.Value   = DefaultDateTo;
-                cmbType.SelectedIndex = 0;
+                cmbTxType.SelectedIndex = 0;
                 LoadData();
             };
 
             LoadData();
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  CELL FORMATTING  (status badge colouring)
+        // ════════════════════════════════════════════════════════════════
+
+        private void DgvCellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
+        {
+            if (e.Value == null) return;
+            string val = e.Value.ToString();
+            if (StatusColors.TryGetValue(val, out var c))
+            {
+                e.CellStyle.BackColor = c.bg;
+                e.CellStyle.ForeColor = c.fg;
+                e.CellStyle.Font      = new Font("Segoe UI", 10f, FontStyle.Bold);
+            }
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  EXPORT CSV
+        // ════════════════════════════════════════════════════════════════
+
+        private static void ExportGrid(DataGridView dgv, string prefix)
+        {
+            if (dgv == null || dgv.Rows.Count == 0) return;
+            using var dlg = new SaveFileDialog
+            {
+                Filter   = "CSV files (*.csv)|*.csv",
+                FileName = $"{prefix}_{DateTime.Now:yyyyMMdd_HHmmss}.csv"
+            };
+            if (dlg.ShowDialog() != DialogResult.OK) return;
+
+            var sb = new System.Text.StringBuilder();
+            var headers = new List<string>();
+            foreach (DataGridViewColumn col in dgv.Columns) headers.Add(col.HeaderText);
+            sb.AppendLine(string.Join(",", headers));
+
+            foreach (DataGridViewRow row in dgv.Rows)
+            {
+                if (row.IsNewRow) continue;
+                var cells = new List<string>();
+                foreach (DataGridViewCell cell in row.Cells)
+                    cells.Add($"\"{cell.Value?.ToString()?.Replace("\"", "\"\"")}\"");
+                sb.AppendLine(string.Join(",", cells));
+            }
+            System.IO.File.WriteAllText(dlg.FileName, sb.ToString(), System.Text.Encoding.UTF8);
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  CARD BORDER PAINT
+        // ════════════════════════════════════════════════════════════════
+
+        private static void PaintCardBorder(object sender, PaintEventArgs e)
+        {
+            var ctrl = (Control)sender;
+            using var pen = new Pen(Color.FromArgb(221, 227, 236), 1f);
+            e.Graphics.DrawRectangle(pen, 0, 0, ctrl.Width - 1, ctrl.Height - 1);
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  TOP-NAV + LOGOUT WIRING
+        // ════════════════════════════════════════════════════════════════
+
+        private void OnTopNavMenuItemClicked(string menuKey)
+        {
+            FormNavigator.Navigate(this, menuKey);
+        }
+
+        private void btnLogout_Click(object sender, EventArgs e)
+        {
+            FormNavigator.Logout(this);
         }
     }
 }
