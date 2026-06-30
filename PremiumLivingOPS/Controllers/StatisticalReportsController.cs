@@ -13,7 +13,7 @@ namespace PremiumLivingOPS.Controllers
     {
         private readonly StatisticalReportsRepo _repo = new StatisticalReportsRepo();
 
-        // ── Common helpers ────────────────────────────────────────────────────────────────────────
+        // ── Common helpers ──────────────────────────────────────────────────────────────────────
         private UserBarViewModel MakeUserBar()
         {
             var u = SessionManager.CurrentUser;
