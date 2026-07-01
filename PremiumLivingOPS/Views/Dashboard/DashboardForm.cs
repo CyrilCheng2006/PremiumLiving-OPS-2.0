@@ -12,13 +12,12 @@ namespace PremiumLivingOPS.Views.Dashboard
     /// <summary>
     /// Dashboard View — responsibility is UI binding only.
     ///
-    /// Chrome (TopNavBar + UserBar) is now provided by AppShell (_shell),
+    /// Chrome (TopNavBar + UserBar) is provided by AppShell (_shell),
     /// declared in DashboardForm.Designer.cs and bound here via BindViewModel().
-    /// Any future form that needs the same chrome simply declares its own AppShell.
     /// </summary>
     public partial class DashboardForm : Form
     {
-        // ── Palette ──────────────────────────────────────────────────────────
+        // ── Palette ─────────────────────────────────────────────────────
         internal static class Palette
         {
             public static readonly Color BgPage       = Color.FromArgb(240, 244, 249);
@@ -79,17 +78,18 @@ namespace PremiumLivingOPS.Views.Dashboard
             }
         }
 
-        // ── Fonts ────────────────────────────────────────────────────────────
-        private static readonly Font FontBody      = new Font("Segoe UI", 16f,   FontStyle.Regular);
-        private static readonly Font FontBodyBold  = new Font("Segoe UI", 16f,   FontStyle.Bold);
-        private static readonly Font FontSmall     = new Font("Segoe UI", 13.6f, FontStyle.Regular);
-        private static readonly Font FontSmallBold = new Font("Segoe UI", 13.6f, FontStyle.Bold);
+        // ── Fonts ─────────────────────────────────────────────────────
+        // All Activity panel fonts now match the DataGridView standard (12.8f)
+        private static readonly Font FontBody      = new Font("Segoe UI", 12.8f, FontStyle.Regular);
+        private static readonly Font FontBodyBold  = new Font("Segoe UI", 12.8f, FontStyle.Bold);
+        private static readonly Font FontSmall     = new Font("Segoe UI", 11.2f, FontStyle.Regular);
+        private static readonly Font FontSmallBold = new Font("Segoe UI", 11.2f, FontStyle.Bold);
 
-        // ── Fields ───────────────────────────────────────────────────────────
+        // ── Fields ─────────────────────────────────────────────────────
         private readonly DashboardController _controller;
         private Panel _activeNavItem;
 
-        // ── Constructor ──────────────────────────────────────────────────────
+        // ── Constructor ───────────────────────────────────────────────
         public DashboardForm()
         {
             _controller = new DashboardController();
@@ -97,30 +97,26 @@ namespace PremiumLivingOPS.Views.Dashboard
             BindViewModel();
         }
 
-        // ── ViewModel binding ────────────────────────────────────────────────
+        // ── ViewModel binding ────────────────────────────────────────────
         private void BindViewModel()
         {
             DashboardViewModel vm = _controller.LoadDashboard();
 
-            // 1. Shell chrome (TopNavBar + UserBar)
+            // 1. Shell chrome
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
             _shell.SetBreadcrumb("Dashboard");
-
-            // Wire up nav and logout.
-            // Breadcrumb is updated automatically inside AppShell;
-            // OnTopNavMenuItemClicked handles page navigation logic.
             _shell.MenuItemClicked += OnTopNavMenuItemClicked;
             _shell.LogoutClicked   += btnLogout_Click;
 
-            lblPageSub.Text = "Premium Living Furniture Co.  ·  Overview as of " +
+            lblPageSub.Text = "Premium Living Furniture Co.  \u00b7  Overview as of " +
                               DateTime.Now.ToString("d MMMM yyyy");
 
             // 2. Low-stock alert banner
             int lowCount = vm.LowStock.Count;
             pnlAlert.Visible = lowCount > 0;
             if (lowCount > 0)
-                lblAlert.Text = $"⚠️  {lowCount} item(s) are currently below minimum stock threshold.";
+                lblAlert.Text = $"\u26a0\ufe0f  {lowCount} item(s) are currently below minimum stock threshold.";
 
             // 3. KPI cards
             Panel[] kpiPanels = { kpiOrders, kpiDelivered, kpiQuotations, kpiLowStock,
@@ -165,7 +161,7 @@ namespace PremiumLivingOPS.Views.Dashboard
                             row.BoldText, row.NormalText, row.TimeLabel);
         }
 
-        // ── Helpers ───────────────────────────────────────────────────────────
+        // ── Helpers ─────────────────────────────────────────────────────
         private void SetKpiCard(Panel card, DashboardKpi kpi)
         {
             Color accent = Palette.FromKey(kpi.AccentKey);
@@ -193,6 +189,11 @@ namespace PremiumLivingOPS.Views.Dashboard
             }
         }
 
+        /// <summary>
+        /// Adds one activity row to pnlActivity.
+        /// Fonts are now Segoe UI 12.8f (Regular/Bold) to match DataGridView.
+        /// Time label uses Segoe UI 11.2f to keep visual hierarchy.
+        /// </summary>
         private void AddActivity(Color dotColor, string boldText, string normalText, string time)
         {
             Panel row = new Panel
@@ -204,15 +205,31 @@ namespace PremiumLivingOPS.Views.Dashboard
             Panel dot = new Panel { Width = 13, Height = 13, BackColor = dotColor, Location = new Point(0, 18) };
             dot.Region = MakeCircleRegion(13, 13);
 
-            Label lblBold = new Label { Text = boldText, Font = FontBodyBold,
-                ForeColor = Palette.TextMain, AutoSize = true, Location = new Point(21, 14) };
-            Label lblNorm = new Label { Text = normalText, Font = FontBody,
-                ForeColor = Palette.TextMain, AutoSize = true,
-                Location = new Point(21 + TextRenderer.MeasureText(boldText, FontBodyBold).Width, 14) };
-            Label lblTime = new Label { Text = time, Font = FontSmall,
-                ForeColor = Palette.TextMuted, AutoSize = true,
-                Anchor = AnchorStyles.Top | AnchorStyles.Right,
-                TextAlign = ContentAlignment.TopRight };
+            Label lblBold = new Label
+            {
+                Text      = boldText,
+                Font      = FontBodyBold,          // 12.8f Bold
+                ForeColor = Palette.TextMain,
+                AutoSize  = true,
+                Location  = new Point(21, 14)
+            };
+            Label lblNorm = new Label
+            {
+                Text      = normalText,
+                Font      = FontBody,               // 12.8f Regular
+                ForeColor = Palette.TextMain,
+                AutoSize  = true,
+                Location  = new Point(21 + TextRenderer.MeasureText(boldText, FontBodyBold).Width, 14)
+            };
+            Label lblTime = new Label
+            {
+                Text      = time,
+                Font      = FontSmall,              // 11.2f Regular
+                ForeColor = Palette.TextMuted,
+                AutoSize  = true,
+                Anchor    = AnchorStyles.Top | AnchorStyles.Right,
+                TextAlign = ContentAlignment.TopRight
+            };
             lblTime.Location = new Point(pnlActivity.Width - lblTime.PreferredWidth - 6, 16);
 
             row.Controls.Add(dot);
@@ -234,19 +251,11 @@ namespace PremiumLivingOPS.Views.Dashboard
             return new Region(p);
         }
 
-        // ── Nav / logout ──────────────────────────────────────────────────────
-        /// <summary>
-        /// Called by AppShell whenever a nav item is clicked.
-        /// Delegates to FormNavigator which owns the full routing table.
-        /// FormNavigator shows "Coming Soon" only for unimplemented modules.
-        /// </summary>
+        // ── Nav / logout ───────────────────────────────────────────────
         private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
         {
-            // Already on Dashboard — do nothing.
             if (menuLabel == "Dashboard" && string.IsNullOrEmpty(subItem))
                 return;
-
-            // All other clicks: FormNavigator handles routing + Coming Soon.
             FormNavigator.NavigateTo(this, menuLabel, subItem);
         }
 
@@ -280,7 +289,7 @@ namespace PremiumLivingOPS.Views.Dashboard
             }
         }
 
-        // ── Cell painting ─────────────────────────────────────────────────────
+        // ── Cell painting ───────────────────────────────────────────────
         private void PaintStatusCell(object sender, DataGridViewCellPaintingEventArgs e, int statusColIndex)
         {
             if (e.RowIndex < 0 || e.ColumnIndex != statusColIndex) return;
