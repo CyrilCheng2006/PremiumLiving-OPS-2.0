@@ -7,27 +7,191 @@ namespace PremiumLivingOPS.Models.DAL
 {
     /// <summary>
     /// DAL for Production Processing module.
-    /// Covers: MaterialRequest (read + write), RawMaterial (lookup),
-    ///         WarehouseItem (lookup), Order (lookup).
     ///
     /// RequestID naming scheme (Plan A — Batch Prefix Grouping)
     /// ─────────────────────────────────────────────────
     ///   Batch Prefix (shown to user) : MRQ-YYMMDD-NNN        (max 17 chars)
     ///   DB RequestID  (PK, per line) : MRQ-YYMMDD-NNN-NN     (max 20 chars)
-    ///
-    ///   e.g. Batch prefix  = MRQ-260701-001
-    ///        Line 1 DB PK  = MRQ-260701-001-01
-    ///        Line 2 DB PK  = MRQ-260701-001-02
-    ///
-    ///   Query all lines of a batch:
-    ///     WHERE RequestID LIKE 'MRQ-260701-001-%'
-    ///   or
-    ///     WHERE RequestID LIKE CONCAT(@batchPrefix, '-%')
     /// </summary>
     public class ProductionProcessingRepo
     {
         // ════════════════════════════════════════════════════════════════
-        //  SEARCH RAW MATERIAL REQUEST — read
+        //  SEARCH RAW MATERIAL REQUEST — Batch-grouped (new)
+        // ════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Returns one MaterialRequestBatchEntity per BatchPrefix.
+        /// Aggregates all -NN lines with the same prefix.
+        /// </summary>
+        public List<MaterialRequestBatchEntity> SearchMaterialRequestBatches(
+            string keyword     = null,
+            string urgency     = null,
+            string triggerType = null)
+        {
+            var list = new List<MaterialRequestBatchEntity>();
+            using (var conn = DatabaseHelper.GetConnection())
+            {
+                conn.Open();
+
+                // Build the base SQL that aggregates lines into batches.
+                // BatchPrefix = everything before the last "-NN" suffix.
+                // For IDs without a -NN suffix (old format) the whole ID is the prefix.
+                var sql =
+                    @"SELECT
+                        /* Derive batch prefix: strip trailing -NN if present */
+                        CASE
+                          WHEN mr.RequestID REGEXP '^MRQ-[0-9]{6}-[0-9]{3}-[0-9]{2}$'
+                            THEN SUBSTRING(mr.RequestID, 1, CHAR_LENGTH(mr.RequestID) - 3)
+                          ELSE mr.RequestID
+                        END                                        AS BatchPrefix,
+                        MIN(mr.OrderID)                            AS OrderID,
+                        MIN(mr.UrgencyLevel)                       AS UrgencyLevel,
+                        MIN(mr.TriggerType)                        AS TriggerType,
+                        COUNT(*)                                   AS TotalLines,
+                        SUM(mr.RequestedQty)                       AS TotalRequestedQty,
+                        MIN(w.WarehouseLocation)                   AS WarehouseLocation,
+                        MIN(wi.WarehouseItemQuantity)              AS CurrentStock,
+                        MIN(wi.ReorderLevel)                       AS ReorderLevel,
+                        MAX(CASE WHEN po.PurchaseID IS NOT NULL THEN 1 ELSE 0 END) AS IsLinkedToPO
+                      FROM   MaterialRequest mr
+                      JOIN   RawMaterial  rm  ON mr.RawMaterialItemID = rm.ItemID
+                      JOIN   Item         i   ON rm.ItemID            = i.ItemID
+                      JOIN   WarehouseItem wi  ON mr.WarehouseItemID  = wi.WarehouseItemID
+                      JOIN   Warehouse    w   ON wi.WarehouseID       = w.WarehouseID
+                      LEFT JOIN PurchaseOrder po ON po.RequestID      = mr.RequestID
+                      WHERE  1=1";
+
+                if (!string.IsNullOrEmpty(keyword))
+                    sql += " AND (mr.RequestID LIKE @kw OR i.ItemName LIKE @kw OR mr.RawMaterialItemID LIKE @kw)";
+                if (!string.IsNullOrEmpty(urgency) && urgency != "All")
+                    sql += " AND mr.UrgencyLevel = @urgency";
+                if (!string.IsNullOrEmpty(triggerType) && triggerType != "All")
+                    sql += " AND mr.TriggerType = @trigger";
+
+                sql +=
+                    @" GROUP BY
+                        CASE
+                          WHEN mr.RequestID REGEXP '^MRQ-[0-9]{6}-[0-9]{3}-[0-9]{2}$'
+                            THEN SUBSTRING(mr.RequestID, 1, CHAR_LENGTH(mr.RequestID) - 3)
+                          ELSE mr.RequestID
+                        END
+                       ORDER BY BatchPrefix DESC";
+
+                using (var cmd = new MySqlCommand(sql, conn))
+                {
+                    if (!string.IsNullOrEmpty(keyword))
+                        cmd.Parameters.AddWithValue("@kw", "%" + keyword + "%");
+                    if (!string.IsNullOrEmpty(urgency) && urgency != "All")
+                        cmd.Parameters.AddWithValue("@urgency", urgency);
+                    if (!string.IsNullOrEmpty(triggerType) && triggerType != "All")
+                        cmd.Parameters.AddWithValue("@trigger", triggerType);
+
+                    using (var r = cmd.ExecuteReader())
+                        while (r.Read())
+                            list.Add(new MaterialRequestBatchEntity
+                            {
+                                BatchPrefix       = r["BatchPrefix"].ToString(),
+                                OrderID           = r["OrderID"]     == DBNull.Value ? null : r["OrderID"].ToString(),
+                                UrgencyLevel      = r["UrgencyLevel"].ToString(),
+                                TriggerType       = r["TriggerType"].ToString(),
+                                TotalLines        = Convert.ToInt32(r["TotalLines"]),
+                                TotalRequestedQty = Convert.ToInt32(r["TotalRequestedQty"]),
+                                WarehouseLocation = r["WarehouseLocation"].ToString(),
+                                CurrentStock      = Convert.ToInt32(r["CurrentStock"]),
+                                ReorderLevel      = Convert.ToInt32(r["ReorderLevel"]),
+                                IsLinkedToPO      = Convert.ToInt32(r["IsLinkedToPO"]) > 0
+                            });
+                }
+            }
+            return list;
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  GET MATERIAL REQUEST BATCH DETAIL (new)
+        // ════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Returns the batch header + all line items for a given BatchPrefix.
+        /// batchPrefix is either the full old-style ID or the new MRQ-YYMMDD-NNN prefix.
+        /// </summary>
+        public MaterialRequestBatchDetailEntity GetMaterialRequestBatchDetail(string batchPrefix)
+        {
+            var detail = new MaterialRequestBatchDetailEntity { BatchPrefix = batchPrefix };
+
+            using (var conn = DatabaseHelper.GetConnection())
+            {
+                conn.Open();
+
+                // Fetch all lines whose RequestID starts with batchPrefix
+                // (covers both new MRQ-YYMMDD-NNN-NN and old single-row IDs)
+                const string sqlLines =
+                    @"SELECT mr.RequestID, mr.OrderID,
+                             mr.RawMaterialItemID,
+                             i.ItemName           AS RawMaterialName,
+                             rm.MaterialType,
+                             mr.WarehouseItemID,
+                             wi.WarehouseID,
+                             w.WarehouseLocation,
+                             mr.RequestedQty,
+                             mr.UrgencyLevel, mr.TriggerType,
+                             wi.WarehouseItemQuantity AS CurrentStock,
+                             wi.ReorderLevel,
+                             po.PurchaseID,
+                             po.PurchaseStatus,
+                             po.POTotalAmount
+                      FROM   MaterialRequest mr
+                      JOIN   RawMaterial  rm  ON mr.RawMaterialItemID = rm.ItemID
+                      JOIN   Item         i   ON rm.ItemID            = i.ItemID
+                      JOIN   WarehouseItem wi  ON mr.WarehouseItemID  = wi.WarehouseItemID
+                      JOIN   Warehouse    w   ON wi.WarehouseID       = w.WarehouseID
+                      LEFT JOIN PurchaseOrder po ON po.RequestID      = mr.RequestID
+                      WHERE  mr.RequestID LIKE @prefix
+                      ORDER  BY mr.RequestID";
+
+                using (var cmd = new MySqlCommand(sqlLines, conn))
+                {
+                    // Match exact prefix OR prefix + '-NN'
+                    cmd.Parameters.AddWithValue("@prefix", batchPrefix + "%");
+
+                    using (var r = cmd.ExecuteReader())
+                    {
+                        bool first = true;
+                        while (r.Read())
+                        {
+                            if (first)
+                            {
+                                detail.OrderID       = r["OrderID"]      == DBNull.Value ? null : r["OrderID"].ToString();
+                                detail.UrgencyLevel  = r["UrgencyLevel"].ToString();
+                                detail.TriggerType   = r["TriggerType"].ToString();
+                                detail.PurchaseID    = r["PurchaseID"]   == DBNull.Value ? null : r["PurchaseID"].ToString();
+                                detail.PurchaseStatus = r["PurchaseStatus"] == DBNull.Value ? null : r["PurchaseStatus"].ToString();
+                                detail.POTotalAmount = r["POTotalAmount"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(r["POTotalAmount"]);
+                                first = false;
+                            }
+                            detail.Lines.Add(new MaterialRequestLineEntity
+                            {
+                                RequestID         = r["RequestID"].ToString(),
+                                RawMaterialItemID = r["RawMaterialItemID"].ToString(),
+                                RawMaterialName   = r["RawMaterialName"].ToString(),
+                                MaterialType      = r["MaterialType"].ToString(),
+                                WarehouseItemID   = r["WarehouseItemID"].ToString(),
+                                WarehouseID       = r["WarehouseID"].ToString(),
+                                WarehouseLocation = r["WarehouseLocation"].ToString(),
+                                RequestedQty      = Convert.ToInt32(r["RequestedQty"]),
+                                CurrentStock      = Convert.ToInt32(r["CurrentStock"]),
+                                ReorderLevel      = Convert.ToInt32(r["ReorderLevel"])
+                            });
+                        }
+                    }
+                }
+            }
+
+            detail.TotalLines = detail.Lines.Count;
+            return detail.TotalLines == 0 ? null : detail;
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  SEARCH RAW MATERIAL REQUEST — flat (kept for KPI counts)
         // ════════════════════════════════════════════════════════════════
 
         public List<MaterialRequestEntity> SearchMaterialRequests(
@@ -86,7 +250,7 @@ namespace PremiumLivingOPS.Models.DAL
         }
 
         // ════════════════════════════════════════════════════════════════
-        //  GET MATERIAL REQUEST DETAIL
+        //  GET MATERIAL REQUEST DETAIL (single-line, legacy)
         // ════════════════════════════════════════════════════════════════
 
         public MaterialRequestDetailEntity GetMaterialRequestDetail(string requestId)
@@ -284,30 +448,16 @@ namespace PremiumLivingOPS.Models.DAL
 
         // ════════════════════════════════════════════════════════════════
         //  ID GENERATION — Plan A Batch Prefix
-        //
-        //  Batch Prefix format : MRQ-YYMMDD-NNN     (max 17 chars, fits VARCHAR(20))
-        //  Line RequestID      : MRQ-YYMMDD-NNN-NN  (max 20 chars, fits VARCHAR(20))
-        //
-        //  The batch sequence NNN is derived from the highest NNN already used
-        //  today (scanning both old single-item IDs and new batch-prefix IDs).
         // ════════════════════════════════════════════════════════════════
 
-        /// <summary>
-        /// Generates the next Batch Prefix for today, e.g. "MRQ-260701-001".
-        /// This is what the UI shows to the user as the "Request ID".
-        /// Each line will be stored in the DB as prefix + "-NN".
-        /// </summary>
         public string GenerateNextBatchPrefix()
         {
             using (var conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
-                // 2-digit year + 2-digit month + 2-digit day  e.g. 260701
                 string today  = DateTime.Now.ToString("yyMMdd");
                 string prefix = $"MRQ-{today}-";
 
-                // Match IDs that start with today's prefix, regardless of whether
-                // they have a -NN line suffix or not.  ORDER DESC gives the highest.
                 const string sql =
                     @"SELECT RequestID FROM MaterialRequest
                       WHERE  RequestID LIKE @prefix
@@ -320,30 +470,19 @@ namespace PremiumLivingOPS.Models.DAL
                     if (string.IsNullOrEmpty(last))
                         return prefix + "001";
 
-                    // last may be  "MRQ-260701-003"      (old single-line)
-                    //           or "MRQ-260701-003-02"   (new batch line)
-                    // In both cases the batch sequence is the 3rd segment.
-                    var parts = last.Split('-');  // ["MRQ","260701","NNN"] or ["MRQ","260701","NNN","NN"]
+                    var parts = last.Split('-');
                     int seq   = int.Parse(parts[2]) + 1;
                     return prefix + seq.ToString("D3");
                 }
             }
         }
 
-        /// <summary>
-        /// Builds the full DB RequestID from a batch prefix and 1-based line number.
-        /// e.g. ("MRQ-260701-003", 2) → "MRQ-260701-003-02"  (18 chars)
-        /// </summary>
         public static string BuildLineRequestId(string batchPrefix, int lineNumber)
             => $"{batchPrefix}-{lineNumber:D2}";
 
-        /// <summary>
-        /// Legacy single-call helper kept for backward compatibility.
-        /// Now generates a batch prefix (no -NN suffix).
-        /// </summary>
         public string GenerateNextRequestId() => GenerateNextBatchPrefix();
 
-        // ────────────────────────────────────────────────────────────────────────
+        // ───────────────────────────────────────────────────────────────────────────────
         private static MaterialRequestEntity MapMaterialRequest(MySqlDataReader r)
             => new MaterialRequestEntity
             {

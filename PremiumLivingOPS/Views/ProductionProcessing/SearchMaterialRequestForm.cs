@@ -11,8 +11,8 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
 {
     public partial class SearchMaterialRequestForm : Form
     {
-        private readonly ProductionProcessingController      _ctrl    = new ProductionProcessingController();
-        private List<MaterialRequestEntity>                  _current = new List<MaterialRequestEntity>();
+        private readonly ProductionProcessingController       _ctrl     = new ProductionProcessingController();
+        private List<MaterialRequestBatchEntity>              _current  = new List<MaterialRequestBatchEntity>();
 
         private static readonly Dictionary<string, (Color bg, Color fg)> UrgencyColors =
             new Dictionary<string, (Color, Color)>
@@ -50,6 +50,10 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             RefreshGrid();
         }
 
+        // ════════════════════════════════════════════════════════════════
+        //  Grid refresh — one row per BatchPrefix
+        // ════════════════════════════════════════════════════════════════
+
         internal void RefreshGrid()
         {
             string keyword     = txtKeyword.Text.Trim();
@@ -65,25 +69,24 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             _shell.SetVisibleMenus(vm.AllowedMenus);
             _shell.SetBreadcrumb("Production Processing  \u203a  Search Raw Material Request");
 
-            _current = vm.Requests;
+            _current = vm.Batches;
 
             dgvRequests.Rows.Clear();
-            foreach (var r in _current)
+            foreach (var b in _current)
             {
                 dgvRequests.Rows.Add(
-                    r.RequestID,
-                    $"{r.RawMaterialItemID}  \u2014  {r.RawMaterialName}",
-                    r.MaterialType,
-                    r.RequestedQty,
-                    r.UrgencyLevel,
-                    r.TriggerType,
-                    r.OrderID ?? "\u2014",
-                    r.WarehouseLocation,
-                    r.CurrentStock,
-                    r.IsLinkedToPO ? "Yes" : "No");
+                    b.BatchPrefix,                          // colRequestID  — shows MRQ-YYMMDD-NNN
+                    b.TotalLines,                           // colLines
+                    b.TotalRequestedQty,                    // colTotalQty
+                    b.UrgencyLevel,                         // colUrgency
+                    b.TriggerType,                          // colTrigger
+                    b.OrderID ?? "\u2014",                  // colOrderID
+                    b.WarehouseLocation,                    // colWarehouse
+                    b.CurrentStock,                         // colStock
+                    b.IsLinkedToPO ? "Yes" : "No");         // colLinkedPO
             }
 
-            RefreshKpi();
+            RefreshKpi(vm);
             UpdateActionButtons();
         }
 
@@ -99,13 +102,13 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
         //  KPI Pills
         // ════════════════════════════════════════════════════════════════
 
-        private void RefreshKpi()
+        private void RefreshKpi(PremiumLivingOPS.Models.ViewModels.SearchMaterialRequestViewModel vm)
         {
             pnlKpi.Controls.Clear();
 
-            var all = _ctrl.GetSearchMaterialRequestVM().Requests;
+            var all = vm.Requests;  // flat list for counts
 
-            int total    = all.Count;
+            int total    = vm.Batches.Count;
             int critical = all.FindAll(r => r.UrgencyLevel == "Critical").Count;
             int high     = all.FindAll(r => r.UrgencyLevel == "High").Count;
             int linked   = all.FindAll(r => r.IsLinkedToPO).Count;
@@ -122,7 +125,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             const int PillH   =  60;
             const int Gap     =  10;
             const int LeftPad =  12;
-            const int NumColW =  70;   // fixed width for count column
+            const int NumColW =  70;
 
             var flow = new FlowLayoutPanel
             {
@@ -136,7 +139,6 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
 
             foreach (var (label, count, fg, bg) in pills)
             {
-                // Outer pill panel with rounded-rect paint
                 var pill = new Panel
                 {
                     BackColor = bg,
@@ -151,10 +153,6 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                     e.Graphics.FillPath(brush, path);
                 };
 
-                // Inner TLP: 2 columns (count | label), 1 row, fills entire pill.
-                // Both cells use Dock=Fill so they stretch to the TLP height.
-                // TextAlign = MiddleCenter / MiddleLeft ensures vertical centring
-                // within each cell without needing an extra wrapper.
                 var tlp = new TableLayoutPanel
                 {
                     Dock            = DockStyle.Fill,
@@ -164,32 +162,12 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                     CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
                     Padding         = new Padding(10, 0, 8, 0)
                 };
-                // Col 0: fixed width for the number; Col 1: remaining space for text
                 tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, NumColW));
                 tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
-                // Single row that fills the full pill height
                 tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
-                var lblCount = new Label
-                {
-                    Text      = count,
-                    Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
-                    ForeColor = fg,
-                    BackColor = Color.Transparent,
-                    Dock      = DockStyle.Fill,          // stretches to full cell height
-                    TextAlign = ContentAlignment.MiddleCenter,  // vertically centred
-                    AutoSize  = false
-                };
-                var lblText = new Label
-                {
-                    Text      = label,
-                    Font      = new Font("Segoe UI", 11f),
-                    ForeColor = fg,
-                    BackColor = Color.Transparent,
-                    Dock      = DockStyle.Fill,          // stretches to full cell height
-                    TextAlign = ContentAlignment.MiddleLeft,    // vertically centred
-                    AutoSize  = false
-                };
+                var lblCount = new Label { Text = count, Font = new Font("Segoe UI", 14f, FontStyle.Bold), ForeColor = fg, BackColor = Color.Transparent, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, AutoSize = false };
+                var lblText  = new Label { Text = label, Font = new Font("Segoe UI", 11f),                ForeColor = fg, BackColor = Color.Transparent, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft,   AutoSize = false };
 
                 tlp.Controls.Add(lblCount, 0, 0);
                 tlp.Controls.Add(lblText,  1, 0);
@@ -197,7 +175,6 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 flow.Controls.Add(pill);
             }
 
-            // Wrapper centres the flow row vertically inside pnlKpi
             var wrapper = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             wrapper.Controls.Add(flow);
             wrapper.Layout += (s, e) =>
@@ -213,6 +190,10 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
         {
             btnViewDetail.Enabled = dgvRequests.SelectedRows.Count > 0;
         }
+
+        // ════════════════════════════════════════════════════════════════
+        //  Cell formatting
+        // ════════════════════════════════════════════════════════════════
 
         private void DgvRequests_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
@@ -239,24 +220,15 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             else if (colName == "colLinkedPO")
             {
                 if (val == "Yes")
-                {
-                    e.CellStyle.ForeColor = Color.FromArgb(6, 95, 70);
-                    e.CellStyle.Font = new Font("Segoe UI", 11f, FontStyle.Bold);
-                }
+                { e.CellStyle.ForeColor = Color.FromArgb(6, 95, 70); e.CellStyle.Font = new Font("Segoe UI", 11f, FontStyle.Bold); }
                 else
-                {
-                    e.CellStyle.ForeColor = Color.FromArgb(107, 114, 128);
-                }
+                { e.CellStyle.ForeColor = Color.FromArgb(107, 114, 128); }
                 e.FormattingApplied = true;
             }
             else if (colName == "colStock")
             {
-                if (int.TryParse(val, out int stockVal) && stockVal == 0)
-                {
-                    e.CellStyle.ForeColor = Color.FromArgb(153, 27, 27);
-                    e.CellStyle.Font = new Font("Segoe UI", 11f, FontStyle.Bold);
-                    e.FormattingApplied = true;
-                }
+                if (int.TryParse(val, out int sv) && sv == 0)
+                { e.CellStyle.ForeColor = Color.FromArgb(153, 27, 27); e.CellStyle.Font = new Font("Segoe UI", 11f, FontStyle.Bold); e.FormattingApplied = true; }
             }
         }
 
@@ -264,30 +236,31 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             => FormNavigator.NavigateTo(this, "Production Processing", "Create Raw Material Request");
 
         // ════════════════════════════════════════════════════════════════
-        //  Detail Dialog
+        //  Detail Dialog — batch-aware, shows all line items
         // ════════════════════════════════════════════════════════════════
 
         private void OpenDetailDialog()
         {
             if (dgvRequests.SelectedRows.Count == 0) return;
-            string requestId = dgvRequests.SelectedRows[0].Cells["colRequestID"].Value?.ToString();
-            if (string.IsNullOrEmpty(requestId)) return;
-            var detail = _ctrl.GetMaterialRequestDetail(requestId);
+            string batchPrefix = dgvRequests.SelectedRows[0].Cells["colRequestID"].Value?.ToString();
+            if (string.IsNullOrEmpty(batchPrefix)) return;
+
+            var detail = _ctrl.GetMaterialRequestBatchDetail(batchPrefix);
             if (detail == null)
             {
                 MessageBox.Show("Material Request not found.", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
-            ShowDetailDialog(detail);
+            ShowBatchDetailDialog(detail);
         }
 
-        private void ShowDetailDialog(MaterialRequestDetailEntity d)
+        private void ShowBatchDetailDialog(MaterialRequestBatchDetailEntity d)
         {
             using var dlg = new Form
             {
-                Text            = $"Material Request Detail \u2014 {d.RequestID}",
-                Size            = new Size(2000, 1200),
+                Text            = $"Material Request Detail \u2014 {d.BatchPrefix}",
+                Size            = new Size(1400, 820),
                 StartPosition   = FormStartPosition.CenterParent,
                 BackColor       = Color.White,
                 Font            = new Font("Segoe UI", 13f),
@@ -296,6 +269,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 MinimizeBox     = false
             };
 
+            // ── Header ───────────────────────────────────────────────────
             var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 80, BackColor = Color.FromArgb(19, 35, 61) };
             var tblHeader = new TableLayoutPanel
             {
@@ -308,7 +282,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             tblHeader.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
             tblHeader.Controls.Add(new Label
             {
-                Text = $"Material Request Details  \u2014  {d.RequestID}",
+                Text = $"Material Request Details  \u2014  {d.BatchPrefix}",
                 Font = new Font("Segoe UI", 18f, FontStyle.Bold), ForeColor = Color.White,
                 Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
             }, 0, 0);
@@ -324,53 +298,102 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             }, 1, 0);
             pnlHeader.Controls.Add(tblHeader);
 
-            var pnlInfo = new Panel { Dock = DockStyle.Top, Height = 560, Padding = new Padding(28, 18, 28, 8), BackColor = Color.White };
-            pnlInfo.Paint += DlgPaintBottomBorder;
-            var tblInfo = new TableLayoutPanel
+            // ── Batch meta row (Trigger Type / Order / Linked PO) ─────────
+            var pnlMeta = new Panel { Dock = DockStyle.Top, Height = 64, Padding = new Padding(28, 0, 28, 0), BackColor = Color.White };
+            pnlMeta.Paint += DlgPaintBottomBorder;
+            var tblMeta = new TableLayoutPanel
             {
-                Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 7,
+                Dock = DockStyle.Fill, ColumnCount = 6, RowCount = 1,
                 BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
-            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
-            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
-            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
-            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
-            for (int i = 0; i < 5; i++) tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 63f / 5f));
-            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 8f));
-            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 29f));
+            tblMeta.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 12f));
+            tblMeta.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 14f));
+            tblMeta.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 12f));
+            tblMeta.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 14f));
+            tblMeta.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 12f));
+            tblMeta.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 36f));
+            tblMeta.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+            tblMeta.Controls.Add(DlgMakeLabelKey("Trigger Type"),  0, 0);
+            tblMeta.Controls.Add(DlgMakeLabelVal(d.TriggerType ?? "\u2014"), 1, 0);
+            tblMeta.Controls.Add(DlgMakeLabelKey("Linked Order"),  2, 0);
+            tblMeta.Controls.Add(DlgMakeLabelVal(string.IsNullOrEmpty(d.OrderID) ? "\u2014 (Reorder)" : d.OrderID), 3, 0);
+            tblMeta.Controls.Add(DlgMakeLabelKey("Total Lines"),   4, 0);
+            tblMeta.Controls.Add(DlgMakeLabelVal(d.TotalLines.ToString()), 5, 0);
+            pnlMeta.Controls.Add(tblMeta);
 
-            var leftFields  = new (string key, string val)[] { ("Request ID", d.RequestID), ("Material ID", d.RawMaterialItemID), ("Material Name", d.RawMaterialName), ("Material Type", d.MaterialType), ("Requested Qty", d.RequestedQty.ToString()) };
-            var rightFields = new (string key, string val)[] { ("Trigger Type", d.TriggerType), ("Urgency Level", d.UrgencyLevel), ("Linked Order", string.IsNullOrEmpty(d.OrderID) ? "\u2014 (Reorder)" : d.OrderID), ("Warehouse Item ID", d.WarehouseItemID), ("Warehouse ID", d.WarehouseID) };
-            for (int i = 0; i < leftFields.Length;  i++) { tblInfo.Controls.Add(DlgMakeLabelKey(leftFields[i].key),  0, i); tblInfo.Controls.Add(DlgMakeLabelVal(leftFields[i].val  ?? "\u2014"), 1, i); }
-            for (int i = 0; i < rightFields.Length; i++) { tblInfo.Controls.Add(DlgMakeLabelKey(rightFields[i].key), 2, i); tblInfo.Controls.Add(DlgMakeLabelVal(rightFields[i].val ?? "\u2014"), 3, i); }
+            // ── Line Items section label ──────────────────────────────────
+            var pnlLinesLabel = new Panel { Dock = DockStyle.Top, Height = 40, BackColor = Color.FromArgb(246, 249, 255), Padding = new Padding(28, 0, 0, 0) };
+            pnlLinesLabel.Controls.Add(new Label
+            {
+                Text = "REQUESTED RAW MATERIAL LINES",
+                Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(98, 112, 135),
+                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft
+            });
+            pnlLinesLabel.Paint += DlgPaintBottomBorder;
 
-            var lblWHKey = new Label { Text = "Warehouse Location", Font = new Font("Segoe UI", 10f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), Dock = DockStyle.Fill, TextAlign = ContentAlignment.BottomLeft, AutoSize = false };
-            tblInfo.Controls.Add(lblWHKey, 0, 5); tblInfo.SetColumnSpan(lblWHKey, 4);
-            var lblWHVal = new Label { Text = d.WarehouseLocation ?? "\u2014", Font = new Font("Segoe UI", 12f), ForeColor = Color.FromArgb(15, 31, 53), Dock = DockStyle.Fill, TextAlign = ContentAlignment.TopLeft, AutoEllipsis = false, AutoSize = false, UseMnemonic = false };
-            tblInfo.Controls.Add(lblWHVal, 0, 6); tblInfo.SetColumnSpan(lblWHVal, 4);
-            pnlInfo.Controls.Add(tblInfo);
+            // ── DataGridView for line items ───────────────────────────────
+            var dgvLines = new DataGridView
+            {
+                Dock                  = DockStyle.Fill,
+                ReadOnly              = true,
+                AllowUserToAddRows    = false,
+                AllowUserToDeleteRows = false,
+                AllowUserToResizeRows = false,
+                RowHeadersVisible     = false,
+                SelectionMode         = DataGridViewSelectionMode.FullRowSelect,
+                BackgroundColor       = Color.White,
+                BorderStyle           = BorderStyle.None,
+                AutoSizeColumnsMode   = DataGridViewAutoSizeColumnsMode.Fill,
+                Font                  = new Font("Segoe UI", 11f),
+                ColumnHeadersHeight   = 38,
+                RowTemplate           = { Height = 42 }
+            };
+            dgvLines.ColumnHeadersDefaultCellStyle.Font      = new Font("Segoe UI", 10f, FontStyle.Bold);
+            dgvLines.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(246, 249, 255);
+            dgvLines.ColumnHeadersDefaultCellStyle.ForeColor = Color.FromArgb(98, 112, 135);
+            dgvLines.EnableHeadersVisualStyles               = false;
+            dgvLines.DefaultCellStyle.SelectionBackColor     = Color.FromArgb(219, 234, 254);
+            dgvLines.DefaultCellStyle.SelectionForeColor     = Color.FromArgb(15, 31, 53);
 
-            bool isBelowReorder = d.CurrentStock <= d.ReorderLevel;
-            var pnlStock = new Panel { Dock = DockStyle.Top, Height = 64, Padding = new Padding(28, 0, 28, 0), BackColor = isBelowReorder ? Color.FromArgb(255, 243, 205) : Color.FromArgb(240, 253, 244) };
-            pnlStock.Paint += DlgPaintBottomBorder;
-            var tblStock = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 6, RowCount = 1, BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None };
-            tblStock.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 13f)); tblStock.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 10f));
-            tblStock.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 13f)); tblStock.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 10f));
-            tblStock.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 17f)); tblStock.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 37f));
-            tblStock.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-            tblStock.Controls.Add(DlgMakeLabelKey("Current Stock"), 0, 0); tblStock.Controls.Add(DlgMakeLabelVal(d.CurrentStock.ToString()), 1, 0);
-            tblStock.Controls.Add(DlgMakeLabelKey("Reorder Level"), 2, 0); tblStock.Controls.Add(DlgMakeLabelVal(d.ReorderLevel.ToString()), 3, 0);
-            tblStock.Controls.Add(DlgMakeLabelKey("Stock Status"),  4, 0); tblStock.Controls.Add(DlgMakeLabelVal(isBelowReorder ? "\u26A0  Below Reorder Level" : "\u2714  Sufficient Stock"), 5, 0);
-            pnlStock.Controls.Add(tblStock);
+            // Columns
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLineReqID",    HeaderText = "Line Request ID",   FillWeight = 18 });
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLineMaterialID", HeaderText = "Material ID",      FillWeight = 14 });
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLineName",      HeaderText = "Material Name",     FillWeight = 22 });
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLineType",      HeaderText = "Type",             FillWeight = 10 });
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLineQty",       HeaderText = "Requested Qty",    FillWeight = 10 });
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLineWHI",       HeaderText = "WH Item ID",       FillWeight = 12 });
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLineStock",     HeaderText = "Current Stock",    FillWeight = 10 });
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLineReorder",   HeaderText = "Reorder Level",    FillWeight = 10 });
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLineLocation",  HeaderText = "Warehouse Location", FillWeight = 24 });
 
-            var pnlPoLabel = new Panel { Dock = DockStyle.Top, Height = 40, BackColor = Color.FromArgb(246, 249, 255), Padding = new Padding(28, 0, 0, 0) };
+            foreach (var ln in d.Lines)
+            {
+                int rowIdx = dgvLines.Rows.Add(
+                    ln.RequestID,
+                    ln.RawMaterialItemID,
+                    ln.RawMaterialName,
+                    ln.MaterialType,
+                    ln.RequestedQty,
+                    ln.WarehouseItemID,
+                    ln.CurrentStock,
+                    ln.ReorderLevel,
+                    ln.WarehouseLocation);
+
+                // highlight rows below reorder level
+                if (ln.CurrentStock <= ln.ReorderLevel)
+                    dgvLines.Rows[rowIdx].DefaultCellStyle.BackColor = Color.FromArgb(255, 243, 205);
+            }
+
+            // ── Linked PO section ─────────────────────────────────────────
+            var pnlPoLabel = new Panel { Dock = DockStyle.Bottom, Height = 40, BackColor = Color.FromArgb(246, 249, 255), Padding = new Padding(28, 0, 0, 0) };
             pnlPoLabel.Controls.Add(new Label { Text = "LINKED PURCHASE ORDER", Font = new Font("Segoe UI", 10f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft });
-            pnlPoLabel.Paint += DlgPaintBottomBorder;
+            pnlPoLabel.Paint += DlgPaintTopBorder;
 
             Panel pnlPoDetail;
             if (!string.IsNullOrEmpty(d.PurchaseID))
             {
-                pnlPoDetail = new Panel { Dock = DockStyle.Fill, BackColor = Color.White, Padding = new Padding(28, 12, 28, 12) };
+                pnlPoDetail = new Panel { Dock = DockStyle.Bottom, Height = 56, BackColor = Color.White, Padding = new Padding(28, 4, 28, 4) };
                 var tblPo = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 6, RowCount = 1, BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None };
                 tblPo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 13f)); tblPo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20f));
                 tblPo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 13f)); tblPo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20f));
@@ -383,25 +406,32 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             }
             else
             {
-                pnlPoDetail = new Panel { Dock = DockStyle.Fill, BackColor = Color.White, Padding = new Padding(28, 0, 28, 0) };
+                pnlPoDetail = new Panel { Dock = DockStyle.Bottom, Height = 56, BackColor = Color.White, Padding = new Padding(28, 0, 28, 0) };
                 pnlPoDetail.Controls.Add(new Label { Text = "No Purchase Order has been raised for this request yet.", Font = new Font("Segoe UI", 12f), ForeColor = Color.FromArgb(156, 163, 175), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft });
             }
 
-            var pnlFooter = new Panel { Dock = DockStyle.Bottom, Height = 86, BackColor = Color.White, Padding = new Padding(28, 14, 28, 14) };
+            // ── Footer ────────────────────────────────────────────────────
+            var pnlFooter = new Panel { Dock = DockStyle.Bottom, Height = 72, BackColor = Color.White, Padding = new Padding(28, 8, 28, 8) };
             pnlFooter.Paint += DlgPaintTopBorder;
-            var btnClose = new Button { Text = "Close", Font = new Font("Segoe UI", 12f, FontStyle.Bold), BackColor = Color.White, ForeColor = Color.FromArgb(15, 31, 53), FlatStyle = FlatStyle.Flat, Width = 200, Height = 56, Dock = DockStyle.Right, Cursor = Cursors.Hand };
+            var btnClose = new Button { Text = "Close", Font = new Font("Segoe UI", 12f, FontStyle.Bold), BackColor = Color.White, ForeColor = Color.FromArgb(15, 31, 53), FlatStyle = FlatStyle.Flat, Width = 160, Height = 52, Dock = DockStyle.Right, Cursor = Cursors.Hand };
             btnClose.FlatAppearance.BorderColor = Color.FromArgb(221, 227, 236); btnClose.FlatAppearance.BorderSize = 1; btnClose.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
             btnClose.Click += (s, ev) => dlg.Close();
             pnlFooter.Controls.Add(btnClose);
 
-            dlg.Controls.Add(pnlPoDetail);
-            dlg.Controls.Add(pnlPoLabel);
-            dlg.Controls.Add(pnlStock);
-            dlg.Controls.Add(pnlInfo);
-            dlg.Controls.Add(pnlHeader);
-            dlg.Controls.Add(pnlFooter);
+            // Add controls in reverse dock order (Fill must be last)
+            dlg.Controls.Add(dgvLines);      // Fill
+            dlg.Controls.Add(pnlLinesLabel); // Top
+            dlg.Controls.Add(pnlMeta);       // Top
+            dlg.Controls.Add(pnlHeader);     // Top
+            dlg.Controls.Add(pnlFooter);     // Bottom
+            dlg.Controls.Add(pnlPoDetail);   // Bottom
+            dlg.Controls.Add(pnlPoLabel);    // Bottom
             dlg.ShowDialog(this);
         }
+
+        // ════════════════════════════════════════════════════════════════
+        //  Helpers
+        // ════════════════════════════════════════════════════════════════
 
         private static Label DlgMakeLabelKey(string text) => new Label { Text = text, Font = new Font("Segoe UI", 10f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(0, 0, 8, 0), AutoEllipsis = false };
         private static Label DlgMakeLabelVal(string text) => new Label { Text = text, Font = new Font("Segoe UI", 12f), ForeColor = Color.FromArgb(15, 31, 53), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoEllipsis = true };
