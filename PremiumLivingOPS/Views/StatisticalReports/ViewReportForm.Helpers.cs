@@ -166,10 +166,19 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
         // ────────────────────────────────────────────────────────────────────────
         //  AppShell event handlers
+        //
+        //  AppShell.MenuItemClicked is Action<string, string> — (menu, sub).
+        //  Both arguments must be forwarded to FormNavigator so the correct
+        //  target Form is resolved instead of falling back to "Coming Soon".
         // ────────────────────────────────────────────────────────────────────────
-        private void OnTopNavMenuItemClicked(object sender, string menuTag)
+
+        /// <summary>
+        /// Handles TopNavBar menu clicks forwarded by AppShell.
+        /// Signature matches Action&lt;string, string&gt; (menu, sub).
+        /// </summary>
+        private void OnTopNavMenuItemClicked(string menu, string sub)
         {
-            FormNavigator.NavigateTo(this, menuTag);
+            FormNavigator.NavigateTo(this, menu, sub);
         }
 
         private void btnLogout_Click(object sender, EventArgs e)
