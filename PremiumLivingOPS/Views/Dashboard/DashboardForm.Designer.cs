@@ -9,7 +9,7 @@ namespace PremiumLivingOPS.Views.Dashboard
     {
         private System.ComponentModel.IContainer components = null;
 
-        // ── Shell (TopNavBar + UserBar) ──────────────────────────────────
+        // ── Shell ──────────────────────────────────────────────────────
         private AppShell _shell;
 
         private Panel pnlContent;
@@ -28,9 +28,7 @@ namespace PremiumLivingOPS.Views.Dashboard
         private TableLayoutPanel tlpRow1, tlpRow2, tlpRow3;
         private DataGridView     dgvOrders, dgvQuotations, dgvShipments, dgvSuppliers;
         private DataGridView     _dgvLowStock;
-
-        // Activity is now a DataGridView (same structure as other sections)
-        private DataGridView dgvActivity;
+        private DataGridView     dgvActivity;
 
         protected override void Dispose(bool disposing)
         {
@@ -81,7 +79,7 @@ namespace PremiumLivingOPS.Views.Dashboard
                 AutoSize  = true
             };
 
-            // ── Alert banner ─────────────────────────────────────────────
+            // ── Alert banner ────────────────────────────────────────────
             pnlAlert = new Panel
             {
                 Height    = 51,
@@ -101,19 +99,19 @@ namespace PremiumLivingOPS.Views.Dashboard
             pnlAlert.Controls.Add(lblAlert);
             pnlAlert.Controls.Add(alertBorder);
 
-            // ── KPI rows ─────────────────────────────────────────────────
+            // ── KPI rows ────────────────────────────────────────────────
             //
-            // outerHeight = 488 × 0.75 = 366 px
-            // Inner usable ≈ 366 − outer padding(14+8) = 344 px
+            // outerHeight = 320 px
+            // Inner usable ≈ 298 px (320 - outer padding 14+8)
             //
-            // Layout per card:
-            //   Accent stripe : 0–5 px
-            //   Label (cat)   : Y=20  H=24  font 11.2f Bold   (AutoSize=false, Anchor fill width)
-            //   Value (metric): Y=52  H=110 font 38f Bold
-            //   Sub-text      : Y=170 H=24  font 11.2f
+            // Gray label space = 24 × 1.75 = 42 px each
+            //   Category label : Y=16,  H=42  Segoe UI 11.2f Bold  TextAlign=MiddleLeft
+            //   Value (metric) : Y=66,  H=110 Segoe UI 38f Bold    TextAlign=MiddleLeft
+            //   Sub-text       : Y=184, H=42  Segoe UI 11.2f       TextAlign=MiddleLeft
+            //   Bottom edge    : 226 < 298 ✓
 
-            var (kpiOuter1, kpiInner1) = CardPanel.Create(outerHeight: 366);
-            TableLayoutPanel tlpKpi1 = new TableLayoutPanel
+            var (kpiOuter1, kpiInner1) = CardPanel.Create(outerHeight: 320);
+            var tlpKpi1 = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 1,
                 BackColor = System.Drawing.Color.Transparent, Padding = new Padding(8)
@@ -131,8 +129,8 @@ namespace PremiumLivingOPS.Views.Dashboard
             kpiInner1.Controls.Add(tlpKpi1);
             pnlKpi1 = kpiOuter1;
 
-            var (kpiOuter2, kpiInner2) = CardPanel.Create(outerHeight: 366);
-            TableLayoutPanel tlpKpi2 = new TableLayoutPanel
+            var (kpiOuter2, kpiInner2) = CardPanel.Create(outerHeight: 320);
+            var tlpKpi2 = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 1,
                 BackColor = System.Drawing.Color.Transparent, Padding = new Padding(8)
@@ -151,10 +149,8 @@ namespace PremiumLivingOPS.Views.Dashboard
             pnlKpi2 = kpiOuter2;
 
             // ── Section rows ─────────────────────────────────────────────
-            //
-            // outerHeight = header(48) + colHeader(42) + 5×53(265) + buffer(8) + outerPad(12) = 375
+            // outerHeight = header(48)+colHeader(42)+5×53(265)+buffer(8)+outerPad(12) = 375
 
-            // Row 1: Recent Orders | Low Stock Alerts
             var (secOuter1, secInner1) = CardPanel.Create(outerHeight: 375);
             tlpRow1 = MakeSectionTlp();
             Panel secOrders   = MakeSectionCard("Recent Orders");
@@ -169,7 +165,6 @@ namespace PremiumLivingOPS.Views.Dashboard
             tlpRow1.Controls.Add(secLowStock, 1, 0);
             secInner1.Controls.Add(tlpRow1);
 
-            // Row 2: Pending Quotations | Active Shipments
             var (secOuter2, secInner2) = CardPanel.Create(outerHeight: 375);
             tlpRow2 = MakeSectionTlp();
             Panel secQuot = MakeSectionCard("Pending Quotations");
@@ -183,18 +178,16 @@ namespace PremiumLivingOPS.Views.Dashboard
             tlpRow2.Controls.Add(secShip, 1, 0);
             secInner2.Controls.Add(tlpRow2);
 
-            // Row 3: Supplier Payment Status | Recent Activity (now a DataGridView)
             var (secOuter3, secInner3) = CardPanel.Create(outerHeight: 375);
             tlpRow3 = MakeSectionTlp();
             Panel secSup = MakeSectionCard("Supplier Payment Status");
             Panel secAct = MakeSectionCard("Recent Activity");
             dgvSuppliers = MakeDgv(new[] { "Supplier", "Invoice", "Amount", "Status" });
             dgvSuppliers.CellPainting += dgvSuppliers_CellPainting;
-            // Activity DataGridView — col 0 = dot placeholder, col 1 = activity text, col 2 = time
             dgvActivity = MakeDgv(new[] { "", "Activity", "Time" });
-            dgvActivity.Columns[0].FillWeight  = 5f;   // narrow dot column
-            dgvActivity.Columns[1].FillWeight  = 75f;
-            dgvActivity.Columns[2].FillWeight  = 20f;
+            dgvActivity.Columns[0].FillWeight = 5f;
+            dgvActivity.Columns[1].FillWeight = 75f;
+            dgvActivity.Columns[2].FillWeight = 20f;
             dgvActivity.Columns[2].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
             dgvActivity.CellPainting += dgvActivity_CellPainting;
             secSup.Controls.Add(dgvSuppliers);
@@ -241,15 +234,13 @@ namespace PremiumLivingOPS.Views.Dashboard
         // ── UI factory helpers ───────────────────────────────────────────
 
         /// <summary>
-        /// KPI metric card (outerHeight=366, inner usable ≈344 px).
+        /// KPI metric card — outerHeight=320, inner usable ≈298 px.
         ///
-        /// Accent stripe : 0–5 px
-        /// Label  (cat)  : Y=20, H=24, Segoe UI 11.2f Bold, Dock=Top anchored via Padding
-        /// Value (metric): Y=52, H=110, Segoe UI 38f Bold
-        /// Sub-text      : Y=170, H=24, Segoe UI 11.2f
-        ///
-        /// All labels use AutoSize=false + explicit Width=card-padding so text
-        /// wraps rather than overflows.
+        /// Accent stripe  : 0–5
+        /// Category label : Y=16,  H=42  Segoe UI 11.2f Bold  (×1.75 gray label space)
+        /// Value (metric) : Y=66,  H=110 Segoe UI 38f Bold
+        /// Sub-text       : Y=184, H=42  Segoe UI 11.2f        (×1.75 gray label space)
+        /// Bottom edge    : 226 < 298 ✓
         /// </summary>
         private Panel MakeKpiCard(System.Drawing.Color accent)
         {
@@ -258,7 +249,7 @@ namespace PremiumLivingOPS.Views.Dashboard
                 Dock      = DockStyle.Fill,
                 Margin    = new Padding(6, 6, 6, 6),
                 BackColor = Palette.BgCard,
-                Padding   = new Padding(20, 22, 20, 12)
+                Padding   = new Padding(20, 20, 20, 12)
             };
             card.Paint += (s, e) =>
             {
@@ -268,7 +259,7 @@ namespace PremiumLivingOPS.Views.Dashboard
                     new System.Drawing.Pen(Palette.BorderColor, 1), 0, 0, p.Width - 1, p.Height - 1);
             };
 
-            // Category label — uses Anchor so it resizes with the card width
+            // Category label — ×1.75 height = 42 px
             Label ll = new Label
             {
                 Tag       = "kpi-label",
@@ -276,11 +267,12 @@ namespace PremiumLivingOPS.Views.Dashboard
                 ForeColor = Palette.TextMuted,
                 AutoSize  = false,
                 Anchor    = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
-                Location  = new Point(20, 20),
-                Height    = 24,
+                Location  = new Point(20, 16),
+                Height    = 42,
                 Width     = 240,
-                TextAlign = ContentAlignment.TopLeft
+                TextAlign = ContentAlignment.MiddleLeft
             };
+
             // Large metric value
             Label lv = new Label
             {
@@ -289,12 +281,13 @@ namespace PremiumLivingOPS.Views.Dashboard
                 ForeColor = accent,
                 AutoSize  = false,
                 Anchor    = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
-                Location  = new Point(18, 52),
+                Location  = new Point(18, 66),
                 Height    = 110,
                 Width     = 240,
                 TextAlign = ContentAlignment.MiddleLeft
             };
-            // Sub-text context line
+
+            // Sub-text — ×1.75 height = 42 px
             Label ls = new Label
             {
                 Tag       = "kpi-sub",
@@ -302,10 +295,10 @@ namespace PremiumLivingOPS.Views.Dashboard
                 ForeColor = Palette.TextMuted,
                 AutoSize  = false,
                 Anchor    = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
-                Location  = new Point(20, 170),
-                Height    = 24,
+                Location  = new Point(20, 184),
+                Height    = 42,
                 Width     = 240,
-                TextAlign = ContentAlignment.TopLeft
+                TextAlign = ContentAlignment.MiddleLeft
             };
 
             card.Controls.Add(ll);
@@ -314,9 +307,7 @@ namespace PremiumLivingOPS.Views.Dashboard
             return card;
         }
 
-        /// <summary>
-        /// 50/50 two-column TLP — fills the CardPanel inner panel.
-        /// </summary>
+        /// <summary>50/50 two-column TLP.</summary>
         private TableLayoutPanel MakeSectionTlp()
         {
             var t = new TableLayoutPanel
@@ -332,9 +323,7 @@ namespace PremiumLivingOPS.Views.Dashboard
             return t;
         }
 
-        /// <summary>
-        /// Section sub-card: white panel + 48 px header bar + 1-px divider.
-        /// </summary>
+        /// <summary>Section sub-card: white panel + 48 px header + 1-px divider.</summary>
         private Panel MakeSectionCard(string title)
         {
             Panel c = new Panel
@@ -367,9 +356,7 @@ namespace PremiumLivingOPS.Views.Dashboard
             return c;
         }
 
-        /// <summary>
-        /// Styled read-only DataGridView. Row height = 53 px. Font = Segoe UI 12.8f.
-        /// </summary>
+        /// <summary>Styled read-only DataGridView. Row height = 53 px.</summary>
         private DataGridView MakeDgv(string[] columns)
         {
             var d = new DataGridView
