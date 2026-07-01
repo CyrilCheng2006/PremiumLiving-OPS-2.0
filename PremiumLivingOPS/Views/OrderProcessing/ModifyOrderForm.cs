@@ -50,7 +50,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
-            _shell.SetBreadcrumb("Order Processing  ›  Modify Order");
+            _shell.SetBreadcrumb("Order Processing  \u203a  Modify Order");
 
             _products     = vm.Products   ?? new List<ProductLookup>();
             _allAddresses = vm.Addresses  ?? new List<AddressLookup>();
@@ -78,7 +78,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             items.AddRange(_quotations.Select(q => new SearchPickerDialog.PickerItem
             {
                 Id      = q.QuotationID,
-                Display = $"{q.QuotationID}  –  {q.CustomerName}  [{q.QuotationStatus}]"
+                Display = $"{q.QuotationID}  \u2013  {q.CustomerName}  [{q.QuotationStatus}]"
             }));
 
             using var dlg = new SearchPickerDialog("Link Quotation", items);
@@ -165,16 +165,16 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 ? Color.FromArgb(98, 112, 135) : Color.FromArgb(15, 31, 53);
 
             lblCustomerValue.Text = string.IsNullOrEmpty(o.CustomerName)
-                ? o.CustomerID ?? "—"
-                : $"{o.CustomerID}  –  {o.CustomerName}";
+                ? o.CustomerID ?? "\u2014"
+                : $"{o.CustomerID}  \u2013  {o.CustomerName}";
 
             lblSalesValue.Text = string.IsNullOrEmpty(o.SalesName)
-                ? o.SalesID ?? "—"
-                : $"{o.SalesID}  –  {o.SalesName}";
+                ? o.SalesID ?? "\u2014"
+                : $"{o.SalesID}  \u2013  {o.SalesName}";
 
             lblIssuedDateValue.Text = o.IssuedTime > DateTime.MinValue
                 ? o.IssuedTime.ToString("yyyy-MM-dd")
-                : "—";
+                : "\u2014";
 
             LoadAddressCombos(o.CustomerID);
             SelectComboByValue(cboAddressId, o.AddressID);
@@ -190,7 +190,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             txtContactName.Text = o.OrderContactName;
 
-            // DeliveryDate is DateTime? — use the value if set, otherwise fall back to today
             dtpDelivery.Value = (o.DeliveryDate.HasValue && o.DeliveryDate.Value > DateTime.MinValue)
                 ? o.DeliveryDate.Value
                 : DateTime.Today;
@@ -336,7 +335,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 SalesID          = _currentOrder.SalesID,
                 IssuedTime       = _currentOrder.IssuedTime,
                 OrderStatus      = cboStatus.SelectedItem?.ToString() ?? _currentOrder.OrderStatus,
-                // dtpDelivery.Value is DateTime (non-nullable) — assign directly to DateTime?
                 DeliveryDate     = dtpDelivery.Value,
                 ShippingAddress  = txtShippingAddr.Text.Trim(),
                 BillingAddress   = txtBillingAddr.Text.Trim(),
@@ -389,7 +387,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             foreach (var o in sorted)
                 cboSearchOrder.Items.Add(new ComboItem(
-                    $"{o.OrderID}  –  {o.CustomerName}  [{o.OrderStatus}]", o.OrderID));
+                    $"{o.OrderID}  \u2013  {o.CustomerName}  [{o.OrderStatus}]", o.OrderID));
 
             if (!string.IsNullOrEmpty(currentId))
                 for (int i = 1; i < cboSearchOrder.Items.Count; i++)
@@ -412,8 +410,12 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
         private void btnLogout_Click(object sender, EventArgs e)
         {
-            SessionManager.Clear();
-            Application.Restart();
+            if (MessageBox.Show("Are you sure you want to log out?",
+                                "Logout", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+            {
+                SessionManager.Clear();
+                Application.Restart();
+            }
         }
 
         private class ComboItem

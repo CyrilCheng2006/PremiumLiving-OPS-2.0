@@ -71,7 +71,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     o.CustomerName,
                     o.SalesName,
                     o.IssuedTime.ToString("yyyy-MM-dd"),
-                    o.DeliveryDate?.ToString("yyyy-MM-dd") ?? "—",
+                    o.DeliveryDate?.ToString("yyyy-MM-dd") ?? "\u2014",
                     $"HK$ {o.GrandTotal:N2}",
                     o.OrderStatus);
 
@@ -240,7 +240,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 MinimizeBox     = false
             };
 
-            // ── Header ────────────────────────────────────────────────────────
             var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 80, BackColor = Color.FromArgb(19, 35, 61) };
             var tblHeader = new TableLayoutPanel
             {
@@ -272,7 +271,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             }, 1, 0);
             pnlHeader.Controls.Add(tblHeader);
 
-            // ── Info panel ────────────────────────────────────────────────────
             var pnlInfo = new Panel
             {
                 Dock = DockStyle.Top, Height = 400,
@@ -306,7 +304,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 ("Order ID",        o.OrderID),
                 ("Sales Name",      o.SalesName),
                 ("Issued Date",     o.IssuedTime.ToString("yyyy-MM-dd")),
-                ("Delivery Date",   o.DeliveryDate?.ToString("yyyy-MM-dd") ?? "—"),
+                ("Delivery Date",   o.DeliveryDate?.ToString("yyyy-MM-dd") ?? "\u2014"),
                 ("Billing Address", o.BillingAddress),
                 ("Address ID",      string.IsNullOrWhiteSpace(o.AddressID) ? "\u2014" : o.AddressID),
             };
@@ -338,7 +336,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             }
             pnlInfo.Controls.Add(tblInfo);
 
-            // ── Discount bar (optional) ───────────────────────────────────────
             Panel pnlDiscount = null;
             if (hasDiscount)
             {
@@ -371,12 +368,10 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 pnlDiscount.Controls.Add(tblDisc);
             }
 
-            // ── "ORDER ITEMS" section label ───────────────────────────────────
             var pnlLineLabel = new Panel { Dock = DockStyle.Top, Height = 40, BackColor = Color.FromArgb(246, 249, 255), Padding = new Padding(28, 0, 0, 0) };
             pnlLineLabel.Controls.Add(new Label { Text = "ORDER ITEMS", Font = new Font("Segoe UI", 10f, FontStyle.Bold), ForeColor = Color.FromArgb(98, 112, 135), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft });
             pnlLineLabel.Paint += PaintBottomBorderStatic;
 
-            // ── Order items DGV (Fill) ────────────────────────────────────────
             var dgv = new DataGridView
             {
                 ReadOnly = true, AllowUserToAddRows = false, RowHeadersVisible = false,
@@ -398,7 +393,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             foreach (var l in detail.Lines)
                 dgv.Rows.Add(l.ItemID, l.ItemName, l.Quantity, $"HK$ {l.Price:N2}", $"HK$ {l.LineTotal:N2}");
 
-            // ── Subtotal / Grand Total bar ─────────────────────────────────────
             var pnlTotalRow = new Panel
             {
                 Dock      = DockStyle.Bottom,
@@ -445,7 +439,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             pnlTotalRow.Controls.Add(tblTotals);
 
-            // ── Footer ────────────────────────────────────────────────────────
             var pnlFooter = new Panel { Dock = DockStyle.Bottom, Height = 86, BackColor = Color.White, Padding = new Padding(28, 14, 28, 14) };
             pnlFooter.Paint += PaintTopBorderStatic;
             var btnClose = new Button
@@ -466,7 +459,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             btnClose.Click += (s, ev) => dlg.Close();
             pnlFooter.Controls.Add(btnClose);
 
-            // ── Assemble ──────────────────────────────────────────────────────
             dlg.Controls.Add(dgv);
             dlg.Controls.Add(pnlFooter);
             dlg.Controls.Add(pnlTotalRow);
@@ -528,8 +520,12 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
         private void btnLogout_Click(object sender, EventArgs e)
         {
-            SessionManager.Clear();
-            Application.Restart();
+            if (MessageBox.Show("Are you sure you want to log out?",
+                                "Logout", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+            {
+                SessionManager.Clear();
+                Application.Restart();
+            }
         }
     }
 }

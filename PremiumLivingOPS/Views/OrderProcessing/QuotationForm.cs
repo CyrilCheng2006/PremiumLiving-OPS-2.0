@@ -84,7 +84,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             CentreAll();
         }
 
-        // ── Core refresh
         private void RefreshGrid()
         {
             string keyword      = txtSearchKeyword.Text.Trim();
@@ -95,7 +94,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
-            _shell.SetBreadcrumb("Order Processing  ›  Quotation");
+            _shell.SetBreadcrumb("Order Processing  \u203a  Quotation");
 
             _currentQuotations = vm.Quotations;
 
@@ -105,7 +104,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     q.QuotationID, q.CustomerName,
                     q.ExpiryDate.ToString("yyyy-MM-dd"),
                     $"HK$ {q.TotalAmount:N2}",
-                    q.DepositRequired.HasValue ? $"HK$ {q.DepositRequired.Value:N2}" : "—",
+                    q.DepositRequired.HasValue ? $"HK$ {q.DepositRequired.Value:N2}" : "\u2014",
                     q.LeadTimeEstimated,
                     q.QuotationStatus);
 
@@ -120,7 +119,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             RefreshGrid();
         }
 
-        // ── KPI bar
         private void RefreshKpi()
         {
             pnlKpi.Controls.Clear();
@@ -190,7 +188,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             cboNewStatus.Enabled    = sel;
         }
 
-        // ── Event handlers
         private void dgvQuotations_SelectionChanged(object sender, EventArgs e)
         {
             UpdateActionButtons();
@@ -225,7 +222,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
         private void btnViewDetail_Click(object sender, EventArgs e) => OpenDetailDialog();
 
-        // ── CREATE NEW QUOTATION
         private void BtnCreateQuotation_Click(object sender, EventArgs e)
         {
             using var dlg = new CreateQuotationDialog(_ctrl);
@@ -233,7 +229,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 RefreshGrid();
         }
 
-        // ── MODIFY QUOTATION
         private void btnAddFrom_Click(object sender, EventArgs e)
         {
             string qid = SelectedQuotationId();
@@ -273,17 +268,13 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             ShowDetailDialog(q, q.Items);
         }
 
-        // ── VIEW DETAIL DIALOG
-        // Items passed directly from in-memory cache (q.Items), no DB re-query needed.
-        // Columns shown: Item ID, Product, Qty, Unit Price, Subtotal.
-        // Discount % and Unit omitted — no backing in schema (Database/schema.sql).
         private void ShowDetailDialog(QuotationEntity q, List<QuotationItemEntity> items)
         {
             bool hasTnC = !string.IsNullOrWhiteSpace(q.TermsandCondition);
 
             using var dlg = new Form
             {
-                Text            = $"Quotation Detail — {q.QuotationID}",
+                Text            = $"Quotation Detail \u2014 {q.QuotationID}",
                 Size            = new Size(2500, 1100),
                 StartPosition   = FormStartPosition.CenterParent,
                 BackColor       = Color.White,
@@ -293,7 +284,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 MinimizeBox     = false
             };
 
-            // ── Header
             var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 80, BackColor = Color.FromArgb(19, 35, 61) };
             var tblHeader = new TableLayoutPanel
             {
@@ -306,7 +296,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             tblHeader.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
             tblHeader.Controls.Add(new Label
             {
-                Text = $"Quotation Details  —  {q.QuotationID}",
+                Text = $"Quotation Details  \u2014  {q.QuotationID}",
                 Font = new Font("Segoe UI", 18f, FontStyle.Bold),
                 ForeColor = Color.White, Dock = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
@@ -323,7 +313,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             }, 1, 0);
             pnlHeader.Controls.Add(tblHeader);
 
-            // ── Info section
             var pnlInfo = new Panel { Dock = DockStyle.Top, Height = 280, Padding = new Padding(28, 18, 28, 8), BackColor = Color.White };
             pnlInfo.Paint += (s, e) =>
             {
@@ -344,8 +333,8 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             var leftFields = new[] {
                 ("Quotation ID", q.QuotationID),
                 ("Customer",     q.CustomerName),
-                ("Lead Time",    q.LeadTimeEstimated ?? "—"),
-                ("Sales Staff",  q.SalesStaffName    ?? "—"),
+                ("Lead Time",    q.LeadTimeEstimated ?? "\u2014"),
+                ("Sales Staff",  q.SalesStaffName    ?? "\u2014"),
             };
             for (int i = 0; i < leftFields.Length; i++)
             { tblInfo.Controls.Add(MakeLabelKey(leftFields[i].Item1), 0, i); tblInfo.Controls.Add(MakeLabelVal(leftFields[i].Item2), 1, i); }
@@ -353,14 +342,13 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             var rightFields = new (string, string)[] {
                 ("Expiry Date",      q.ExpiryDate.ToString("yyyy-MM-dd")),
                 ("Total Amount",     $"HK$ {q.TotalAmount:N2}"),
-                ("Deposit Required", q.DepositRequired.HasValue ? $"HK$ {q.DepositRequired.Value:N2}" : "—"),
-                ("Status",           q.QuotationStatus ?? "—"),
+                ("Deposit Required", q.DepositRequired.HasValue ? $"HK$ {q.DepositRequired.Value:N2}" : "\u2014"),
+                ("Status",           q.QuotationStatus ?? "\u2014"),
             };
             for (int i = 0; i < rightFields.Length; i++)
             { tblInfo.Controls.Add(MakeLabelKey(rightFields[i].Item1), 2, i); tblInfo.Controls.Add(MakeLabelVal(rightFields[i].Item2), 3, i); }
             pnlInfo.Controls.Add(tblInfo);
 
-            // ── Terms & Conditions (optional)
             Panel pnlTnC = null;
             if (hasTnC)
             {
@@ -375,7 +363,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 pnlTnC.Controls.Add(tblTnC);
             }
 
-            // ── Items section label
             var pnlLineLabel = new Panel { Dock = DockStyle.Top, Height = 40, BackColor = Color.FromArgb(246, 249, 255), Padding = new Padding(28, 0, 0, 0) };
             pnlLineLabel.Controls.Add(new Label
             {
@@ -386,9 +373,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             });
             pnlLineLabel.Paint += PaintBottomBorderStatic;
 
-            // ── Items grid
-            // Columns: ITEM ID | PRODUCT | QTY | UNIT PRICE | SUBTOTAL
-            // Discount % and Unit are excluded — no backing columns in schema.sql.
             var dgv = new DataGridView
             {
                 ReadOnly = true, AllowUserToAddRows = false,
@@ -420,7 +404,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cUnitPrice", HeaderText = "UNIT PRICE", FillWeight = 15 });
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cSubtotal",  HeaderText = "SUBTOTAL",   FillWeight = 15 });
 
-            // Populate from in-memory items (passed directly from _quotationItemCache via GetQuotationDetail).
             if (items != null && items.Count > 0)
                 foreach (var item in items)
                     dgv.Rows.Add(
@@ -430,7 +413,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                         $"HK$ {item.UnitPrice:N2}",
                         $"HK$ {item.Subtotal:N2}");
 
-            // ── Total row
             var pnlTotalRow = new Panel { Dock = DockStyle.Bottom, Height = 50, BackColor = Color.FromArgb(246, 249, 255), Padding = new Padding(28, 0, 28, 0) };
             var tblTotal = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None };
             tblTotal.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
@@ -450,7 +432,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             }, 1, 0);
             pnlTotalRow.Controls.Add(tblTotal);
 
-            // ── Footer
             var pnlFooter = new Panel { Dock = DockStyle.Bottom, Height = 80, BackColor = Color.White, Padding = new Padding(0, 10, 28, 10) };
             pnlFooter.Paint += PaintTopBorderStatic;
             var btnClose = new Button
@@ -474,7 +455,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             dlg.ShowDialog(this);
         }
 
-        // ── Label factory helpers
         private static Label MakeLabelKey(string text) => new Label
         {
             Text = text, Font = new Font("Segoe UI", 10f, FontStyle.Bold),
@@ -483,7 +463,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         };
         private static Label MakeLabelVal(string text) => new Label
         {
-            Text = text ?? "—", Font = new Font("Segoe UI", 12f),
+            Text = text ?? "\u2014", Font = new Font("Segoe UI", 12f),
             ForeColor = Color.FromArgb(15, 31, 53), Dock = DockStyle.Fill,
             TextAlign = ContentAlignment.MiddleLeft, AutoEllipsis = true
         };
@@ -500,7 +480,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             e.Graphics.DrawLine(pen, 0, 0, p.Width, 0);
         }
 
-        // ── Status update
         private void btnUpdateStatus_Click(object sender, EventArgs e)
         {
             if (dgvQuotations.SelectedRows.Count == 0)
@@ -525,7 +504,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 MessageBox.Show("Failed to update quotation status. Please try again.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
 
-        // ── Helpers
         private static GraphicsPath RoundedRect(Rectangle r, int radius)
         {
             var path = new GraphicsPath();
@@ -543,8 +521,12 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
         private void btnLogout_Click(object sender, EventArgs e)
         {
-            SessionManager.Clear();
-            Application.Restart();
+            if (MessageBox.Show("Are you sure you want to log out?",
+                                "Logout", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+            {
+                SessionManager.Clear();
+                Application.Restart();
+            }
         }
     }
 }

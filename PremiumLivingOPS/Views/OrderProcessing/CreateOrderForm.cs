@@ -31,7 +31,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         private List<CustomerEntity>           _customers    = new List<CustomerEntity>();
         private List<QuotationEntity>          _quotations   = new List<QuotationEntity>();
 
-        // Picker backing values
         private string _selectedCustomerId   = "";
         private string _selectedCustomerName = "";
         private string _selectedQuotationId  = "";
@@ -42,7 +41,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             this.Load += CreateOrderForm_Load;
         }
 
-        // ── Load ───────────────────────────────────────────────────────────────────
         private void CreateOrderForm_Load(object sender, EventArgs e)
         {
             _shell.MenuItemClicked += OnTopNavMenuItemClicked;
@@ -52,7 +50,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
-            _shell.SetBreadcrumb("Order Processing  ›  Create Order");
+            _shell.SetBreadcrumb("Order Processing  \u203a  Create Order");
 
             _orderId             = vm.NextOrderId;
             lblOrderIdValue.Text = _orderId;
@@ -72,14 +70,13 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             ResetPickerLabels();
         }
 
-        // ── Picker: Customer ──────────────────────────────────────────────────────
         private void btnPickCustomer_Click(object sender, EventArgs e)
         {
             var items = _customers
                 .Select(c => new SearchPickerDialog.PickerItem
                 {
                     Id      = c.CustomerID,
-                    Display = $"{c.CustomerID}  –  {c.CustomerName}"
+                    Display = $"{c.CustomerID}  \u2013  {c.CustomerName}"
                 }).ToList();
 
             using var dlg = new SearchPickerDialog("Select Customer", items);
@@ -92,7 +89,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             PopulateAddresses(_selectedCustomerId);
         }
 
-        // ── Picker: Linked Quotation ──────────────────────────────────────────────
         private void btnPickQuotation_Click(object sender, EventArgs e)
         {
             var items = new List<SearchPickerDialog.PickerItem>
@@ -102,7 +98,7 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             items.AddRange(_quotations.Select(q => new SearchPickerDialog.PickerItem
             {
                 Id      = q.QuotationID,
-                Display = $"{q.QuotationID}  –  {q.CustomerName}  (HK$ {q.TotalAmount:N0})  [{q.QuotationStatus}]"
+                Display = $"{q.QuotationID}  \u2013  {q.CustomerName}  (HK$ {q.TotalAmount:N0})  [{q.QuotationStatus}]"
             }));
 
             using var dlg = new SearchPickerDialog("Link Quotation", items);
@@ -117,7 +113,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                 : System.Drawing.Color.FromArgb(15, 31, 53);
         }
 
-        // ── "+ Add Item" → opens AddOrderItemDialog (search + qty + confirm) ───
         private void btnAddItem_Click(object sender, EventArgs e)
         {
             using var dlg = new AddOrderItemDialog(_products);
@@ -141,7 +136,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             RefreshLineGrid();
         }
 
-        // ── Remove line ─────────────────────────────────────────────────────────────────
         private void btnRemoveLine_Click(object sender, EventArgs e)
         {
             if (dgvLines.SelectedRows.Count == 0)
@@ -152,7 +146,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             RefreshLineGrid();
         }
 
-        // ── Customer → populate Address ComboBox ─────────────────────────────────────
         private void PopulateAddresses(string customerId)
         {
             cboAddressId.Items.Clear();
@@ -194,7 +187,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
         private void txtShippingAddr_TextChanged(object sender, EventArgs e)
         { if (chkSameAddress.Checked) txtBillingAddr.Text = txtShippingAddr.Text; }
 
-        // ── Line grid & summary ──────────────────────────────────────────────────────
         private void RefreshLineGrid()
         {
             dgvLines.Rows.Clear();
@@ -236,7 +228,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
 
         private void txtDiscountValue_TextChanged(object sender, EventArgs e) => UpdateSummary();
 
-        // ── Submit ────────────────────────────────────────────────────────────────────
         private void btnSubmit_Click(object sender, EventArgs e)
         {
             if (string.IsNullOrEmpty(_selectedCustomerId))
@@ -295,7 +286,6 @@ namespace PremiumLivingOPS.Views.OrderProcessing
                     "Save Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
 
-        // ── Clear ───────────────────────────────────────────────────────────────────
         private void btnClear_Click(object sender, EventArgs e)
         {
             if (MessageBox.Show("Clear all entered data?", "Confirm Clear",
@@ -339,7 +329,14 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             => FormNavigator.NavigateTo(this, menuLabel, subItem);
 
         private void btnLogout_Click(object sender, EventArgs e)
-        { SessionManager.Clear(); Application.Restart(); }
+        {
+            if (MessageBox.Show("Are you sure you want to log out?",
+                                "Logout", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+            {
+                SessionManager.Clear();
+                Application.Restart();
+            }
+        }
 
         private class ComboItem
         {
