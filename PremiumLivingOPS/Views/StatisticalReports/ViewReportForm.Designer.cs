@@ -33,7 +33,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
         {
             this.SuspendLayout();
 
-            // ── Form ────────────────────────────────────────────────────────────────
+            // ── Form ──────────────────────────────────────────────────────────────────────
             this.Text          = "Statistical Reports · View Report";
             this.Size          = new Size(1440, 900);
             this.MinimumSize   = new Size(1200, 720);
@@ -42,16 +42,20 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             this.WindowState   = FormWindowState.Maximized;
             this.Font          = new Font("Segoe UI", 13f);
 
-            // ── pnlMain (Fill) ──────────────────────────────────────────────────────
+            // ── pnlMain (Fill) ────────────────────────────────────────────────────────
             var pnlMain = new Panel { Dock = DockStyle.Fill, BackColor = Palette.BgPage };
 
             // ── AppShell ────────────────────────────────────────────────────────────
-            // NOTE: MenuItemClicked and LogoutClicked are wired in ViewReportForm_Load,
-            //       NOT here — consistent with ViewOrderForm pattern.
+            // RULE 4 — subscribe MenuItemClicked + LogoutClicked here, once only.
             _shell = new AppShell();
+            _shell.Dock        = DockStyle.Top;
+            _shell.Height      = AppShell.TotalHeight;
+            _shell.MinimumSize = new System.Drawing.Size(0, AppShell.TotalHeight);
+            _shell.MenuItemClicked += OnTopNavMenuItemClicked;  // Action<string,string>
+            _shell.LogoutClicked   += btnLogout_Click;
             _shell.SetPopupContainer(pnlMain);
 
-            // ── Tab bar outer (DockStyle.Top, 69 px) ─────────────────────────────
+            // ── Tab bar outer (DockStyle.Top, 69 px) ───────────────────────────────
             Button MakeTabBtn(string text, int idx)
             {
                 var b = new Button
@@ -113,7 +117,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             pnlTabOuter.Paint += PaintTabUnderline;
             pnlTabOuter.Controls.Add(pnlTabCard);
 
-            // ── Filter bar outer (DockStyle.Top, 300 px) ─────────────────────────
+            // ── Filter bar outer (DockStyle.Top, 300 px) ───────────────────────────
             pnlFilterOuter = new Panel
             {
                 Dock      = DockStyle.Top,
@@ -122,10 +126,10 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 Padding   = new Padding(20, 14, 20, 8)
             };
 
-            // ── Report content host (DockStyle.Fill) ────────────────────────────
+            // ── Report content host (DockStyle.Fill) ─────────────────────────────
             pnlContent = new Panel { Dock = DockStyle.Fill, BackColor = Palette.BgPage };
 
-            // ── Assemble ────────────────────────────────────────────────────────────
+            // ── Assemble ───────────────────────────────────────────────────────────────
             pnlMain.Controls.Add(pnlContent);      // Fill — first
             pnlMain.Controls.Add(pnlTabOuter);     // Top
             pnlMain.Controls.Add(pnlFilterOuter);  // Top
@@ -133,7 +137,12 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
             this.Controls.Add(pnlMain);
             this.ResumeLayout(false);
+            this.PerformLayout();
+
+            // RULE 3 — re-enforce AppShell height after layout pass.
+            _shell.Height      = AppShell.TotalHeight;
+            _shell.MinimumSize = new System.Drawing.Size(0, AppShell.TotalHeight);
         }
-        // PaintCardBorder is defined in ViewReportForm.cs (partial class) — do NOT redeclare here.
+        // PaintCardBorder is defined in ViewReportForm.Helpers.cs (partial class) — do NOT redeclare here.
     }
 }
