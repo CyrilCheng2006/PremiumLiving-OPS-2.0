@@ -23,7 +23,10 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
         private readonly ProductionProcessingController  _ctrl    = new ProductionProcessingController();
         private List<MaterialRequestBatchEntity>         _current = new List<MaterialRequestBatchEntity>();
 
-        // ── Badge colour maps ────────────────────────────────────────────
+        // ── Shared badge fonts (allocated once, never leaked) ─────────────
+        private static readonly Font _fontBadge = new Font("Segoe UI", 11f, FontStyle.Bold);
+
+        // ── Badge colour maps ─────────────────────────────────────────────
         private static readonly Dictionary<string, (Color bg, Color fg)> UrgencyColors =
             new Dictionary<string, (Color, Color)>
             {
@@ -64,7 +67,9 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
 
         // ================================================================
         //  REFRESH GRID
-        //  One row per BatchPrefix — no -NN duplication whatsoever
+        //  One row per BatchPrefix — no -NN duplication.
+        //  ALL values passed to Rows.Add() are strings to avoid
+        //  System.FormatException in CellFormatting.
         // ================================================================
         internal void RefreshGrid()
         {
@@ -81,29 +86,29 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             _shell.SetVisibleMenus(vm.AllowedMenus);
             _shell.SetBreadcrumb("Production Processing  \u203a  Search Raw Material Request");
 
-            // vm.Batches is already GROUP BY BatchPrefix — guaranteed one row per BatchPrefix
             _current = vm.Batches;
             dgvRequests.Rows.Clear();
 
             foreach (var b in _current)
             {
-                // Aggregate stock status across the batch
                 string stockNote = b.CurrentStock == 0
                     ? "\u26a0 Out of Stock"
                     : b.CurrentStock <= b.ReorderLevel
                         ? "\u26a0 Low Stock"
                         : "\u2714 In Stock";
 
-                // Only BatchPrefix (e.g. MRQ-260701-001) shown — NO -NN suffix, NO per-item columns
+                // !! ALL values are explicitly cast to string here.
+                //    Passing raw int to DataGridViewTextBoxColumn raises
+                //    System.FormatException in CellFormatting. !!
                 dgvRequests.Rows.Add(
-                    b.BatchPrefix,                      // colRequestID : e.g. MRQ-260701-001
-                    b.TotalLines,                       // colLines     : count of -NN items
-                    b.TotalRequestedQty,                // colTotalQty  : SUM qty
-                    b.UrgencyLevel,                     // colUrgency
-                    b.TriggerType,                      // colTrigger
-                    b.OrderID ?? "\u2014",              // colOrderID
-                    b.IsLinkedToPO ? "Yes" : "No",      // colLinkedPO
-                    stockNote);                         // colStockNote
+                    b.BatchPrefix,                         // colRequestID
+                    b.TotalLines.ToString(),               // colLines     ← string, not int
+                    b.TotalRequestedQty.ToString(),        // colTotalQty  ← string, not int
+                    b.UrgencyLevel,                        // colUrgency
+                    b.TriggerType,                         // colTrigger
+                    b.OrderID ?? "\u2014",                 // colOrderID
+                    b.IsLinkedToPO ? "Yes" : "No",         // colLinkedPO
+                    stockNote);                            // colStockNote
             }
 
             RefreshKpi(vm);
@@ -125,7 +130,6 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
         {
             pnlKpi.Controls.Clear();
 
-            // "Total Requests" = distinct batches; other KPIs from flat line list
             var all      = vm.Requests;
             int total    = vm.Batches.Count;
             int critical = all.FindAll(r => r.UrgencyLevel == "Critical").Count;
@@ -179,8 +183,18 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 64f));
                 tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
                 tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-                tlp.Controls.Add(new Label { Text = count, Font = new Font("Segoe UI", 14f, FontStyle.Bold), ForeColor = fg, BackColor = Color.Transparent, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, AutoSize = false }, 0, 0);
-                tlp.Controls.Add(new Label { Text = label, Font = new Font("Segoe UI", 11f),                ForeColor = fg, BackColor = Color.Transparent, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft,   AutoSize = false }, 1, 0);
+                tlp.Controls.Add(new Label
+                {
+                    Text = count, Font = new Font("Segoe UI", 14f, FontStyle.Bold),
+                    ForeColor = fg, BackColor = Color.Transparent,
+                    Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, AutoSize = false
+                }, 0, 0);
+                tlp.Controls.Add(new Label
+                {
+                    Text = label, Font = new Font("Segoe UI", 11f),
+                    ForeColor = fg, BackColor = Color.Transparent,
+                    Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
+                }, 1, 0);
                 pill.Controls.Add(tlp);
                 flow.Controls.Add(pill);
             }
@@ -200,38 +214,50 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             => btnViewDetail.Enabled = dgvRequests.SelectedRows.Count > 0;
 
         // ================================================================
-        //  CELL FORMATTING — colour badges for Urgency / Trigger
+        //  CELL FORMATTING
+        //
+        //  Guards:
+        //  1. e.RowIndex < 0  → header row, skip entirely
+        //  2. e.Value == null → empty cell, skip
+        //  3. Use static _fontBadge (allocated once) instead of
+        //     new Font() per cell to avoid GDI handle leak.
         // ================================================================
         private void DgvRequests_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
+            // Guard 1: skip header row (-1) and any negative index
+            if (e.RowIndex < 0) return;
+            // Guard 2: skip null/empty cells
             if (e.Value == null) return;
+
             string val     = e.Value.ToString();
             string colName = dgvRequests.Columns[e.ColumnIndex].Name;
 
             if (colName == "colUrgency" && UrgencyColors.TryGetValue(val, out var uc))
             {
-                e.CellStyle.ForeColor            = uc.fg;
-                e.CellStyle.BackColor            = uc.bg;
-                e.CellStyle.SelectionForeColor   = uc.fg;
-                e.CellStyle.SelectionBackColor   = uc.bg;
-                e.CellStyle.Font                 = new Font("Segoe UI", 11f, FontStyle.Bold);
-                e.CellStyle.Alignment            = DataGridViewContentAlignment.MiddleCenter;
-                e.FormattingApplied              = true;
+                e.CellStyle.ForeColor          = uc.fg;
+                e.CellStyle.BackColor          = uc.bg;
+                e.CellStyle.SelectionForeColor = uc.fg;
+                e.CellStyle.SelectionBackColor = uc.bg;
+                e.CellStyle.Font               = _fontBadge;
+                e.CellStyle.Alignment          = DataGridViewContentAlignment.MiddleCenter;
+                e.FormattingApplied            = true;
             }
             else if (colName == "colTrigger" && TriggerColors.TryGetValue(val, out var tc))
             {
-                e.CellStyle.ForeColor            = tc.fg;
-                e.CellStyle.BackColor            = tc.bg;
-                e.CellStyle.SelectionForeColor   = tc.fg;
-                e.CellStyle.SelectionBackColor   = tc.bg;
-                e.CellStyle.Font                 = new Font("Segoe UI", 11f, FontStyle.Bold);
-                e.CellStyle.Alignment            = DataGridViewContentAlignment.MiddleCenter;
-                e.FormattingApplied              = true;
+                e.CellStyle.ForeColor          = tc.fg;
+                e.CellStyle.BackColor          = tc.bg;
+                e.CellStyle.SelectionForeColor = tc.fg;
+                e.CellStyle.SelectionBackColor = tc.bg;
+                e.CellStyle.Font               = _fontBadge;
+                e.CellStyle.Alignment          = DataGridViewContentAlignment.MiddleCenter;
+                e.FormattingApplied            = true;
             }
             else if (colName == "colLinkedPO")
             {
-                e.CellStyle.ForeColor  = val == "Yes" ? Color.FromArgb(6, 95, 70) : Color.FromArgb(107, 114, 128);
-                if (val == "Yes") e.CellStyle.Font = new Font("Segoe UI", 11f, FontStyle.Bold);
+                e.CellStyle.ForeColor  = val == "Yes"
+                    ? Color.FromArgb(6, 95, 70)
+                    : Color.FromArgb(107, 114, 128);
+                if (val == "Yes") e.CellStyle.Font = _fontBadge;
                 e.CellStyle.Alignment  = DataGridViewContentAlignment.MiddleCenter;
                 e.FormattingApplied    = true;
             }
@@ -240,14 +266,20 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 e.CellStyle.ForeColor = val.Contains("Out of Stock") ? Color.FromArgb(153, 27, 27)
                                       : val.Contains("Low Stock")    ? Color.FromArgb(146, 64, 14)
                                       :                                Color.FromArgb(  6, 95, 70);
-                e.FormattingApplied = true;
+                e.FormattingApplied   = true;
             }
             else if (colName == "colLines")
             {
-                e.CellStyle.Alignment   = DataGridViewContentAlignment.MiddleCenter;
-                e.CellStyle.ForeColor   = Color.FromArgb(30, 64, 175);
-                e.CellStyle.Font        = new Font("Segoe UI", 11f, FontStyle.Bold);
-                e.FormattingApplied     = true;
+                e.CellStyle.Alignment  = DataGridViewContentAlignment.MiddleCenter;
+                e.CellStyle.ForeColor  = Color.FromArgb(30, 64, 175);
+                e.CellStyle.Font       = _fontBadge;
+                e.FormattingApplied    = true;
+            }
+            else if (colName == "colTotalQty")
+            {
+                e.CellStyle.Alignment  = DataGridViewContentAlignment.MiddleCenter;
+                e.CellStyle.ForeColor  = Color.FromArgb(15, 31, 53);
+                e.FormattingApplied    = true;
             }
         }
 
@@ -256,8 +288,6 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
 
         // ================================================================
         //  OPEN DETAIL DIALOG
-        //  Reads BatchPrefix from the selected grid row,
-        //  fetches ALL -NN lines from DB via GetMaterialRequestBatchDetail.
         // ================================================================
         private void OpenDetailDialog()
         {
@@ -269,8 +299,8 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             if (detail == null)
             {
                 MessageBox.Show(
-                    $"No line items found for Request ID: {batchPrefix}.\n" +
-                    "This may mean the lines were not stored with the correct -NN suffix in the database.",
+                    $"No line items found for Request ID: {batchPrefix}.\n"
+                    + "Please verify the DB records contain the correct -NN line suffix.",
                     "Not Found",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
@@ -280,12 +310,6 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
 
         // ================================================================
         //  VIEW DETAIL DIALOG
-        //  Shows ALL -NN line items for the selected BatchPrefix.
-        //
-        //  WinForms Dock stacking order (Controls.Add):
-        //    Top    : LAST added = topmost
-        //    Bottom : LAST added = lowest
-        //    Fill   : must be added AFTER all Top and Bottom controls
         // ================================================================
         private void ShowBatchDetailDialog(MaterialRequestBatchDetailEntity d)
         {
@@ -302,9 +326,8 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 MinimizeBox     = false
             };
 
-            // ── TOP: Header ─────────────────────────────────────────────────
-            var pnlHeader = new Panel
-            { Dock = DockStyle.Top, Height = 80, BackColor = Color.FromArgb(19, 35, 61) };
+            // ─ Header ───────────────────────────────────────────────────
+            var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 80, BackColor = Color.FromArgb(19, 35, 61) };
             var tblHeader = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
@@ -316,8 +339,8 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             tblHeader.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
             tblHeader.Controls.Add(new Label
             {
-                Text = $"Material Request Details  \u2014  {d.BatchPrefix}",
-                Font = new Font("Segoe UI", 18f, FontStyle.Bold),
+                Text      = $"Material Request Details  \u2014  {d.BatchPrefix}",
+                Font      = new Font("Segoe UI", 18f, FontStyle.Bold),
                 ForeColor = Color.White, Dock = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
             }, 0, 0);
@@ -333,9 +356,8 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             }, 1, 0);
             pnlHeader.Controls.Add(tblHeader);
 
-            // ── TOP: Meta row ──────────────────────────────────────────────
-            var pnlMeta = new Panel
-            { Dock = DockStyle.Top, Height = 60, BackColor = Color.White, Padding = new Padding(28, 0, 28, 0) };
+            // ─ Meta row ───────────────────────────────────────────────
+            var pnlMeta = new Panel { Dock = DockStyle.Top, Height = 60, BackColor = Color.White, Padding = new Padding(28, 0, 28, 0) };
             pnlMeta.Paint += DlgPaintBottomBorder;
             var tblMeta = new TableLayoutPanel
             {
@@ -349,65 +371,59 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             tblMeta.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 12f));
             tblMeta.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 28f));
             tblMeta.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-            tblMeta.Controls.Add(DlgKey("Trigger Type"),  0, 0);
-            tblMeta.Controls.Add(DlgVal(d.TriggerType ?? "\u2014"), 1, 0);
-            tblMeta.Controls.Add(DlgKey("Linked Order"),  2, 0);
+            tblMeta.Controls.Add(DlgKey("Trigger Type"), 0, 0);
+            tblMeta.Controls.Add(DlgVal(d.TriggerType  ?? "\u2014"), 1, 0);
+            tblMeta.Controls.Add(DlgKey("Linked Order"), 2, 0);
             tblMeta.Controls.Add(DlgVal(string.IsNullOrEmpty(d.OrderID) ? "\u2014 (Reorder)" : d.OrderID), 3, 0);
-            tblMeta.Controls.Add(DlgKey("Total Items"),   4, 0);
+            tblMeta.Controls.Add(DlgKey("Total Items"),  4, 0);
             tblMeta.Controls.Add(DlgVal(d.TotalLines.ToString()), 5, 0);
             pnlMeta.Controls.Add(tblMeta);
 
-            // ── TOP: Lines section label ──────────────────────────────────
+            // ─ Lines section label ─────────────────────────────────
             var pnlLinesLabel = new Panel
             { Dock = DockStyle.Top, Height = 38, BackColor = Color.FromArgb(246, 249, 255), Padding = new Padding(28, 0, 0, 0) };
             pnlLinesLabel.Controls.Add(new Label
             {
-                Text = $"REQUESTED RAW MATERIAL LINES  ({d.TotalLines} item{(d.TotalLines == 1 ? "" : "s")})",
-                Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+                Text      = $"REQUESTED RAW MATERIAL LINES  ({d.TotalLines} item{(d.TotalLines == 1 ? "" : "s")})",
+                Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(98, 112, 135),
-                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft
+                Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft
             });
             pnlLinesLabel.Paint += DlgPaintBottomBorder;
 
-            // ── BOTTOM: Footer ───────────────────────────────────────────
-            var pnlFooter = new Panel
-            { Dock = DockStyle.Bottom, Height = 68, BackColor = Color.White, Padding = new Padding(28, 10, 28, 10) };
+            // ─ Footer ──────────────────────────────────────────────
+            var pnlFooter = new Panel { Dock = DockStyle.Bottom, Height = 68, BackColor = Color.White, Padding = new Padding(28, 10, 28, 10) };
             pnlFooter.Paint += DlgPaintTopBorder;
             var btnClose = new Button
             {
-                Text      = "Close",
-                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
-                BackColor = Color.White,
-                ForeColor = Color.FromArgb(15, 31, 53),
-                FlatStyle = FlatStyle.Flat,
-                Width     = 148, Height = 48,
-                Dock      = DockStyle.Right,
-                Cursor    = Cursors.Hand
+                Text = "Close", Font = new Font("Segoe UI", 12f, FontStyle.Bold),
+                BackColor = Color.White, ForeColor = Color.FromArgb(15, 31, 53),
+                FlatStyle = FlatStyle.Flat, Width = 148, Height = 48,
+                Dock = DockStyle.Right, Cursor = Cursors.Hand
             };
-            btnClose.FlatAppearance.BorderColor           = Color.FromArgb(221, 227, 236);
-            btnClose.FlatAppearance.BorderSize            = 1;
-            btnClose.FlatAppearance.MouseOverBackColor    = Color.FromArgb(240, 244, 249);
+            btnClose.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
+            btnClose.FlatAppearance.BorderSize         = 1;
+            btnClose.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
             btnClose.Click += (s, ev) => dlg.Close();
             pnlFooter.Controls.Add(btnClose);
 
-            // ── BOTTOM: PO section label ───────────────────────────────
+            // ─ PO section label ────────────────────────────────
             var pnlPoLabel = new Panel
             { Dock = DockStyle.Bottom, Height = 38, BackColor = Color.FromArgb(246, 249, 255), Padding = new Padding(28, 0, 0, 0) };
             pnlPoLabel.Controls.Add(new Label
             {
-                Text = "LINKED PURCHASE ORDER",
-                Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+                Text      = "LINKED PURCHASE ORDER",
+                Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(98, 112, 135),
-                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft
+                Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft
             });
             pnlPoLabel.Paint += DlgPaintTopBorder;
 
-            // ── BOTTOM: PO detail row ──────────────────────────────────
+            // ─ PO detail row ──────────────────────────────────
             Panel pnlPoDetail;
             if (!string.IsNullOrEmpty(d.PurchaseID))
             {
-                pnlPoDetail = new Panel
-                { Dock = DockStyle.Bottom, Height = 52, BackColor = Color.White, Padding = new Padding(28, 4, 28, 4) };
+                pnlPoDetail = new Panel { Dock = DockStyle.Bottom, Height = 52, BackColor = Color.White, Padding = new Padding(28, 4, 28, 4) };
                 var tblPo = new TableLayoutPanel
                 {
                     Dock = DockStyle.Fill, ColumnCount = 6, RowCount = 1,
@@ -431,8 +447,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             }
             else
             {
-                pnlPoDetail = new Panel
-                { Dock = DockStyle.Bottom, Height = 52, BackColor = Color.White, Padding = new Padding(28, 0, 28, 0) };
+                pnlPoDetail = new Panel { Dock = DockStyle.Bottom, Height = 52, BackColor = Color.White, Padding = new Padding(28, 0, 28, 0) };
                 pnlPoDetail.Controls.Add(new Label
                 {
                     Text      = "No Purchase Order has been raised for this request yet.",
@@ -442,8 +457,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 });
             }
 
-            // ── FILL: line-items DataGridView ──────────────────────────────
-            // Shows every -NN line in the batch — full detail hidden from main grid
+            // ─ Line-items DataGridView ────────────────────────────
             var dgvLines = new DataGridView
             {
                 Dock = DockStyle.Fill, ReadOnly = true,
@@ -467,49 +481,49 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             dgvLines.DefaultCellStyle.SelectionForeColor     = Color.FromArgb(15, 31, 53);
             dgvLines.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(249, 250, 251);
 
-            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cLineID",    HeaderText = "LINE REQUEST ID",    FillWeight = 18 });
-            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cMatID",     HeaderText = "MATERIAL ID",        FillWeight = 13 });
-            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cMatName",   HeaderText = "MATERIAL NAME",      FillWeight = 22 });
-            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cType",      HeaderText = "TYPE",               FillWeight = 10 });
-            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cQty",       HeaderText = "REQUESTED QTY",      FillWeight = 10 });
-            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cWHItem",    HeaderText = "WH ITEM ID",         FillWeight = 12 });
-            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cStock",     HeaderText = "CURRENT STOCK",      FillWeight = 10 });
-            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cReorder",   HeaderText = "REORDER LEVEL",      FillWeight = 10 });
-            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cLocation",  HeaderText = "WAREHOUSE LOCATION", FillWeight = 25 });
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cLineID",   HeaderText = "LINE REQUEST ID",    FillWeight = 18 });
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cMatID",    HeaderText = "MATERIAL ID",        FillWeight = 13 });
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cMatName",  HeaderText = "MATERIAL NAME",      FillWeight = 22 });
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cType",     HeaderText = "TYPE",               FillWeight = 10 });
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cQty",      HeaderText = "REQUESTED QTY",      FillWeight = 10 });
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cWHItem",   HeaderText = "WH ITEM ID",         FillWeight = 12 });
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cStock",    HeaderText = "CURRENT STOCK",      FillWeight = 10 });
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cReorder",  HeaderText = "REORDER LEVEL",      FillWeight = 10 });
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cLocation", HeaderText = "WAREHOUSE LOCATION", FillWeight = 25 });
 
             foreach (var ln in d.Lines)
             {
+                // All int values converted to string to prevent FormatException
                 int ri = dgvLines.Rows.Add(
-                    ln.RequestID,           // full -NN line ID shown only here
+                    ln.RequestID,
                     ln.RawMaterialItemID,
                     ln.RawMaterialName,
                     ln.MaterialType,
-                    ln.RequestedQty,
+                    ln.RequestedQty.ToString(),
                     ln.WarehouseItemID,
-                    ln.CurrentStock,
-                    ln.ReorderLevel,
+                    ln.CurrentStock.ToString(),
+                    ln.ReorderLevel.ToString(),
                     ln.WarehouseLocation);
 
-                // Highlight low-stock / out-of-stock lines
                 if (ln.CurrentStock == 0)
                     dgvLines.Rows[ri].DefaultCellStyle.BackColor = Color.FromArgb(254, 226, 226);
                 else if (ln.CurrentStock <= ln.ReorderLevel)
                     dgvLines.Rows[ri].DefaultCellStyle.BackColor = Color.FromArgb(255, 243, 205);
             }
 
-            // ── Assemble dialog ─────────────────────────────────────────
-            dlg.Controls.Add(pnlLinesLabel); // Top — sits below pnlMeta
-            dlg.Controls.Add(pnlMeta);       // Top — sits below pnlHeader
-            dlg.Controls.Add(pnlHeader);     // Top — TOPMOST
-            dlg.Controls.Add(pnlPoLabel);    // Bottom — above pnlPoDetail
-            dlg.Controls.Add(pnlPoDetail);   // Bottom — above pnlFooter
-            dlg.Controls.Add(pnlFooter);     // Bottom — LOWEST
-            dlg.Controls.Add(dgvLines);      // Fill  — must be last
+            // Assemble: Top controls first, then Bottom, then Fill last
+            dlg.Controls.Add(pnlLinesLabel);
+            dlg.Controls.Add(pnlMeta);
+            dlg.Controls.Add(pnlHeader);
+            dlg.Controls.Add(pnlPoLabel);
+            dlg.Controls.Add(pnlPoDetail);
+            dlg.Controls.Add(pnlFooter);
+            dlg.Controls.Add(dgvLines);
 
             dlg.ShowDialog(this);
         }
 
-        // ── Label helpers ─────────────────────────────────────────────────
+        // ── Helpers ──────────────────────────────────────────────
         private static Label DlgKey(string text) => new Label
         {
             Text = text, Font = new Font("Segoe UI", 10f, FontStyle.Bold),
@@ -522,20 +536,17 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             ForeColor = Color.FromArgb(15, 31, 53), Dock = DockStyle.Fill,
             TextAlign = ContentAlignment.MiddleLeft, AutoEllipsis = true
         };
-
         private static void DlgPaintBottomBorder(object s, PaintEventArgs e)
         { var p = (Panel)s; using var pen = new Pen(Color.FromArgb(221, 227, 236), 1); e.Graphics.DrawLine(pen, 0, p.Height - 1, p.Width, p.Height - 1); }
-
         private static void DlgPaintTopBorder(object s, PaintEventArgs e)
         { using var pen = new Pen(Color.FromArgb(221, 227, 236), 1); e.Graphics.DrawLine(pen, 0, 0, ((Panel)s).Width, 0); }
-
         private static GraphicsPath RoundedRect(Rectangle r, int radius)
         {
             var path = new GraphicsPath(); int d = radius * 2;
-            path.AddArc(r.X,        r.Y,        d, d, 180, 90);
-            path.AddArc(r.Right - d, r.Y,        d, d, 270, 90);
+            path.AddArc(r.X,         r.Y,         d, d, 180, 90);
+            path.AddArc(r.Right - d, r.Y,         d, d, 270, 90);
             path.AddArc(r.Right - d, r.Bottom - d, d, d,   0, 90);
-            path.AddArc(r.X,        r.Bottom - d, d, d,  90, 90);
+            path.AddArc(r.X,         r.Bottom - d, d, d,  90, 90);
             path.CloseFigure(); return path;
         }
     }
