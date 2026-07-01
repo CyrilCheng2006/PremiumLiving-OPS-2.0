@@ -23,27 +23,9 @@ namespace PremiumLivingOPS.Models.Entities
 
     public class MaterialRequestBatchEntity
     {
-        private string _batchPrefix;
-
-        // Always expose only MRQ-YYMMDD-NNN in main grid.
-        public string BatchPrefix
-        {
-            get
-            {
-                if (string.IsNullOrEmpty(_batchPrefix)) return _batchPrefix;
-                return _batchPrefix.Length > 14 ? _batchPrefix.Substring(0, 14) : _batchPrefix;
-            }
-            set
-            {
-                if (string.IsNullOrEmpty(value))
-                {
-                    _batchPrefix = value;
-                    return;
-                }
-                _batchPrefix = value.Length > 14 ? value.Substring(0, 14) : value;
-            }
-        }
-
+        // Keep original query value untouched.
+        // UI truncation must happen only at the grid rendering layer.
+        public string BatchPrefix       { get; set; }
         public string OrderID           { get; set; }
         public string UrgencyLevel      { get; set; }
         public string TriggerType       { get; set; }
