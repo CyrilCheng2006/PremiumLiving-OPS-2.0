@@ -24,8 +24,8 @@ namespace PremiumLivingOPS.Models.Entities
         {
             get
             {
-                if (StockQty == 0)              return "Out of Stock";
-                if (StockQty <= ReorderLevel)   return "Low Stock";
+                if (StockQty == 0)             return "Out of Stock";
+                if (StockQty < ReorderLevel)   return "Low Stock";
                 return "In Stock";
             }
         }
@@ -49,8 +49,8 @@ namespace PremiumLivingOPS.Models.Entities
         {
             get
             {
-                if (StockQty == 0)              return "Out of Stock";
-                if (StockQty <= ReorderLevel)   return "Low Stock";
+                if (StockQty == 0)             return "Out of Stock";
+                if (StockQty < ReorderLevel)   return "Low Stock";
                 return "In Stock";
             }
         }
