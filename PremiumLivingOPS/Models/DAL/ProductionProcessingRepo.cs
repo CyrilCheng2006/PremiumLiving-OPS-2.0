@@ -13,33 +13,16 @@ namespace PremiumLivingOPS.Models.DAL
     ///   Batch Prefix (shown to user) : MRQ-YYMMDD-NNN        (15 chars)
     ///   DB RequestID  (PK, per line) : MRQ-YYMMDD-NNN-NN     (18 chars)
     ///
-    ///   Breakdown: MRQ(3) + -(1) + YYMMDD(6) + -(1) + NNN(3) + -(1) + NN(2) = 17... wait:
-    ///     M  R  Q  -  Y  Y  M  M  D  D  -  N  N  N  -  N  N
-    ///     1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16 17  18? no:
-    ///   'MRQ-260215-001-01'  → count manually = 18 chars  ✓
+    ///   'MRQ-260215-001-01'  → 18 chars  ✓
     ///
-    ///   LIKE pattern: 'MRQ-______-___-__'  (fixed literal prefix + wildcards)
-    ///     MRQ- = 4 literal chars
-    ///     ______ = 6 single-char wildcards  (YYMMDD)
-    ///     - = 1 literal
-    ///     ___ = 3 single-char wildcards  (NNN)
-    ///     - = 1 literal
-    ///     __ = 2 single-char wildcards  (NN)
-    ///     Total pattern length matches 18-char IDs exactly.
-    ///
-    ///   To get BatchPrefix strip trailing '-NN' (3 chars):
-    ///     SUBSTRING(RequestID, 1, CHAR_LENGTH(RequestID) - 3)  => MRQ-YYMMDD-NNN (15 chars)
+    ///   BatchPrefix = SUBSTRING(RequestID, 1, 15)  strips last '-NN' (3 chars)
     /// </summary>
     public class ProductionProcessingRepo
     {
         // ════════════════════════════════════════════════════════════════
-        //  BatchPrefix detection
-        //
-        //  A fully-qualified line RequestID: MRQ-260215-001-01
-        //    length  = 18  (NOT 20 — confirmed from sample_data.sql)
-        //    pattern = 'MRQ-______-___-__'
-        //
-        //  BatchPrefix = SUBSTRING(RequestID, 1, 15)  removes the last '-NN' 3 chars
+        //  BatchPrefix expression
+        //  A fully-qualified line RequestID: MRQ-260215-001-01  (len=18)
+        //  BatchPrefix = first 15 chars                          (len=15)
         // ════════════════════════════════════════════════════════════════
         private const string BatchPrefixExpr =
             @"CASE
@@ -51,11 +34,13 @@ namespace PremiumLivingOPS.Models.DAL
 
         // ════════════════════════════════════════════════════════════════
         //  SEARCH RAW MATERIAL REQUEST — Batch-grouped
+        //  ONE row per BatchPrefix in the grid.
         // ════════════════════════════════════════════════════════════════
 
         /// <summary>
         /// Returns one MaterialRequestBatchEntity per BatchPrefix.
-        /// Aggregates all -NN lines with the same prefix.
+        /// Keyword filter matches on BatchPrefix (first 15 chars) so that
+        /// searching "MRQ-260701-001" finds all -NN lines in that batch.
         /// </summary>
         public List<MaterialRequestBatchEntity> SearchMaterialRequestBatches(
             string keyword     = null,
@@ -67,9 +52,10 @@ namespace PremiumLivingOPS.Models.DAL
             {
                 conn.Open();
 
+                // Use a derived-table approach so we can filter on BatchPrefix directly
                 var sql =
                     @"SELECT
-                        " + BatchPrefixExpr + @"                   AS BatchPrefix,
+                        bp.BatchPrefix,
                         MIN(mr.OrderID)                            AS OrderID,
                         MIN(mr.UrgencyLevel)                       AS UrgencyLevel,
                         MIN(mr.TriggerType)                        AS TriggerType,
@@ -85,19 +71,28 @@ namespace PremiumLivingOPS.Models.DAL
                       JOIN   WarehouseItem wi  ON mr.WarehouseItemID  = wi.WarehouseItemID
                       JOIN   Warehouse    w   ON wi.WarehouseID       = w.WarehouseID
                       LEFT JOIN PurchaseOrder po ON po.RequestID      = mr.RequestID
+                      JOIN (
+                          SELECT RequestID,
+                                 CASE
+                                   WHEN CHAR_LENGTH(RequestID) = 18
+                                    AND RequestID LIKE 'MRQ-______-___-__'
+                                   THEN SUBSTRING(RequestID, 1, 15)
+                                   ELSE RequestID
+                                 END AS BatchPrefix
+                          FROM MaterialRequest
+                      ) bp ON bp.RequestID = mr.RequestID
                       WHERE  1=1";
 
+                // Keyword: match BatchPrefix OR item name OR material ID
                 if (!string.IsNullOrEmpty(keyword))
-                    sql += " AND (mr.RequestID LIKE @kw OR i.ItemName LIKE @kw OR mr.RawMaterialItemID LIKE @kw)";
+                    sql += " AND (bp.BatchPrefix LIKE @kw OR mr.RequestID LIKE @kw OR i.ItemName LIKE @kw OR mr.RawMaterialItemID LIKE @kw)";
                 if (!string.IsNullOrEmpty(urgency) && urgency != "All")
                     sql += " AND mr.UrgencyLevel = @urgency";
                 if (!string.IsNullOrEmpty(triggerType) && triggerType != "All")
                     sql += " AND mr.TriggerType = @trigger";
 
-                sql +=
-                    @" GROUP BY
-                        " + BatchPrefixExpr + @"
-                       ORDER BY BatchPrefix DESC";
+                sql += @" GROUP BY bp.BatchPrefix
+                          ORDER BY bp.BatchPrefix DESC";
 
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
@@ -130,6 +125,7 @@ namespace PremiumLivingOPS.Models.DAL
 
         // ════════════════════════════════════════════════════════════════
         //  GET MATERIAL REQUEST BATCH DETAIL
+        //  Returns header + ALL -NN lines for a given BatchPrefix.
         // ════════════════════════════════════════════════════════════════
 
         public MaterialRequestBatchDetailEntity GetMaterialRequestBatchDetail(string batchPrefix)
@@ -140,6 +136,8 @@ namespace PremiumLivingOPS.Models.DAL
             {
                 conn.Open();
 
+                // Match all lines whose RequestID starts with batchPrefix + '-'
+                // e.g. batchPrefix = 'MRQ-260701-001'  →  LIKE 'MRQ-260701-001-%'
                 const string sqlLines =
                     @"SELECT mr.RequestID, mr.OrderID,
                              mr.RawMaterialItemID,
@@ -166,7 +164,8 @@ namespace PremiumLivingOPS.Models.DAL
 
                 using (var cmd = new MySqlCommand(sqlLines, conn))
                 {
-                    cmd.Parameters.AddWithValue("@prefix", batchPrefix + "-%");
+                    // 'MRQ-260701-001-%'  matches -01, -02, -03 … but NOT 'MRQ-260701-0010-xx'
+                    cmd.Parameters.AddWithValue("@prefix", batchPrefix + "-__");
 
                     using (var r = cmd.ExecuteReader())
                     {
@@ -463,6 +462,12 @@ namespace PremiumLivingOPS.Models.DAL
 
         // ════════════════════════════════════════════════════════════════
         //  ID GENERATION — Plan A Batch Prefix
+        //
+        //  FIX: Previously took the last full RequestID (e.g. MRQ-260701-001-03)
+        //       and incremented parts[2] (001→002), which is actually correct —
+        //       BUT only if parts[2] is the NNN of the last *batch*, not a line
+        //       within that batch.  We now explicitly GROUP BY BatchPrefix and
+        //       take the MAX NNN to avoid any ambiguity.
         // ════════════════════════════════════════════════════════════════
 
         public string GenerateNextBatchPrefix()
@@ -473,26 +478,30 @@ namespace PremiumLivingOPS.Models.DAL
                 string today  = DateTime.Now.ToString("yyMMdd");
                 string prefix = $"MRQ-{today}-";
 
+                // Distinct BatchPrefixes for today: SUBSTRING(RequestID,1,15)
+                // e.g. 'MRQ-260701-001', 'MRQ-260701-002' …
+                // We pick the MAX NNN (positions 12-14 within the 15-char prefix).
                 const string sql =
-                    @"SELECT RequestID FROM MaterialRequest
+                    @"SELECT MAX(SUBSTRING(RequestID, 12, 3)) AS MaxNNN
+                      FROM   MaterialRequest
                       WHERE  RequestID LIKE @prefix
-                      ORDER  BY RequestID DESC LIMIT 1";
+                        AND  CHAR_LENGTH(RequestID) = 18
+                        AND  RequestID LIKE 'MRQ-______-___-__'";
 
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
                     cmd.Parameters.AddWithValue("@prefix", prefix + "%");
-                    var last = cmd.ExecuteScalar()?.ToString();
-                    if (string.IsNullOrEmpty(last))
+                    var raw = cmd.ExecuteScalar();
+                    if (raw == null || raw == DBNull.Value || string.IsNullOrEmpty(raw.ToString()))
                         return prefix + "001";
 
-                    // last = 'MRQ-260215-001-01', parts[2] = '001'
-                    var parts = last.Split('-');
-                    int seq   = int.Parse(parts[2]) + 1;
+                    int seq = int.Parse(raw.ToString()) + 1;
                     return prefix + seq.ToString("D3");
                 }
             }
         }
 
+        /// <summary>Builds a fully-qualified line RequestID from a BatchPrefix and 1-based line number.</summary>
         public static string BuildLineRequestId(string batchPrefix, int lineNumber)
             => $"{batchPrefix}-{lineNumber:D2}";
 
