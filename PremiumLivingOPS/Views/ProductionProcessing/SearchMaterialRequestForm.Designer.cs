@@ -9,15 +9,15 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
     {
         private System.ComponentModel.IContainer components = null;
 
-        private AppShell                         _shell;
-        private System.Windows.Forms.Panel       pnlKpi;
-        private System.Windows.Forms.TextBox     txtKeyword;
-        private System.Windows.Forms.ComboBox    cboUrgency;
-        private System.Windows.Forms.ComboBox    cboTrigger;
-        private System.Windows.Forms.Button      btnSearch;
-        private System.Windows.Forms.Button      btnReset;
-        private System.Windows.Forms.Button      btnViewDetail;
-        private System.Windows.Forms.Button      btnCreateNew;
+        private AppShell                          _shell;
+        private System.Windows.Forms.Panel        pnlKpi;
+        private System.Windows.Forms.TextBox      txtKeyword;
+        private System.Windows.Forms.ComboBox     cboUrgency;
+        private System.Windows.Forms.ComboBox     cboTrigger;
+        private System.Windows.Forms.Button       btnSearch;
+        private System.Windows.Forms.Button       btnReset;
+        private System.Windows.Forms.Button       btnViewDetail;
+        private System.Windows.Forms.Button       btnCreateNew;
         private System.Windows.Forms.DataGridView dgvRequests;
 
         protected override void Dispose(bool disposing)
@@ -38,22 +38,23 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             this.WindowState   = FormWindowState.Maximized;
             this.Font          = new Font("Segoe UI", 13f);
 
-            // ── Root pnlMain
+            // ── Root panel
             var pnlMain = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(240, 244, 249) };
 
-            // ── AppShell (RULE 2: construct inside SuspendLayout, wire once)
+            // ── AppShell
             _shell = new AppShell();
             _shell.SetPopupContainer(pnlMain);
-            _shell.MenuItemClicked += OnTopNavMenuItemClicked;  // RULE 4
-            _shell.LogoutClicked   += BtnLogout_Click;          // RULE 4
+            _shell.MenuItemClicked += OnTopNavMenuItemClicked;
+            _shell.LogoutClicked   += BtnLogout_Click;
 
             // ────────────────────────────────────────────────────────
-            // Search / Filter card (Top)
+            // FILTER CARD
             // ────────────────────────────────────────────────────────
             txtKeyword = new TextBox
             {
                 Font = new Font("Segoe UI", 12f), BorderStyle = BorderStyle.FixedSingle,
-                Dock = DockStyle.Fill, PlaceholderText = "Request ID / Material Name / Item ID"
+                Dock = DockStyle.Fill,
+                PlaceholderText = "Request ID / Material Name / Item ID"
             };
             txtKeyword.KeyDown += (s, ke) => { if (ke.KeyCode == Keys.Enter) RefreshGrid(); };
 
@@ -73,7 +74,6 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             cboTrigger.Items.AddRange(new object[] { "All", "Reorder", "OrderDemand" });
             cboTrigger.SelectedIndex = 0;
 
-            // MakeCell helper
             TableLayoutPanel MakeCell(string caption, Control ctrl)
             {
                 var tlp = new TableLayoutPanel
@@ -131,8 +131,14 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             tblFilterCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  64f));
 
             var pnlTitle = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            var lblTitle = new Label { Text = "Search Raw Material Requests", Font = new Font("Segoe UI", 13f, FontStyle.Bold), ForeColor = Color.FromArgb(15, 31, 53), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft };
-            var divider  = new Panel { Dock = DockStyle.Bottom, Height = 1, BackColor = Color.FromArgb(221, 227, 236) };
+            var lblTitle = new Label
+            {
+                Text = "Search Raw Material Requests",
+                Font = new Font("Segoe UI", 13f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(15, 31, 53),
+                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft
+            };
+            var divider = new Panel { Dock = DockStyle.Bottom, Height = 1, BackColor = Color.FromArgb(221, 227, 236) };
             pnlTitle.Controls.Add(lblTitle);
             pnlTitle.Controls.Add(divider);
             tblFilterCard.Controls.Add(pnlTitle,  0, 0);
@@ -152,7 +158,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             pnlFilterOuter.Controls.Add(pnlFilterCard);
 
             // ────────────────────────────────────────────────────────
-            // KPI bar (Top)
+            // KPI BAR
             // ────────────────────────────────────────────────────────
             pnlKpi = new Panel
             {
@@ -160,10 +166,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 Padding = new Padding(12, 10, 12, 10)
             };
 
-            const int BtnW   = 280;
-            const int BtnH   =  58;
-            const int BtnGap =   8;
-            const int BtnPad =  12;
+            const int BtnW = 280, BtnH = 58, BtnGap = 8, BtnPad = 12;
 
             btnViewDetail = MakePrimaryBtn("🔍  View Detail", Point.Empty, BtnW, BtnH);
             btnCreateNew  = MakeOutlineBtn("+ Create New",   Point.Empty, BtnW, BtnH);
@@ -189,8 +192,8 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             pnlActionBtns.Resize += (s, e) => CentreActionBtns();
 
             var pnlKpiRow = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            pnlKpiRow.Controls.Add(pnlKpi);        // Fill
-            pnlKpiRow.Controls.Add(pnlActionBtns); // Right (add after Fill)
+            pnlKpiRow.Controls.Add(pnlKpi);
+            pnlKpiRow.Controls.Add(pnlActionBtns);
 
             var pnlKpiInner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
             pnlKpiInner.Paint += PaintCardBorder;
@@ -205,9 +208,9 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             pnlKpiOuter.Controls.Add(pnlKpiInner);
 
             // ────────────────────────────────────────────────────────
-            // Grid card (Fill)
-            // Grid columns: one row per BatchPrefix (Request ID)
-            // per-line detail (−NN items) only shown in View Detail dialog
+            // MAIN GRID
+            // Columns are BATCH-LEVEL only — no -NN per-item columns.
+            // Per-item detail is shown exclusively in the View Detail dialog.
             // ────────────────────────────────────────────────────────
             dgvRequests = new DataGridView
             {
@@ -223,32 +226,35 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 EnableHeadersVisualStyles = false,
                 ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
                 {
-                    BackColor = Color.FromArgb(246, 249, 255), ForeColor = Color.FromArgb(98, 112, 135),
-                    Font = new Font("Segoe UI", 11f, FontStyle.Bold),
-                    Padding = new Padding(12, 0, 0, 0), Alignment = DataGridViewContentAlignment.MiddleLeft
+                    BackColor = Color.FromArgb(246, 249, 255),
+                    ForeColor = Color.FromArgb(98, 112, 135),
+                    Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
+                    Padding   = new Padding(12, 0, 0, 0),
+                    Alignment = DataGridViewContentAlignment.MiddleLeft
                 },
                 DefaultCellStyle = new DataGridViewCellStyle
                 {
-                    BackColor = Color.White, ForeColor = Color.FromArgb(15, 31, 53),
+                    BackColor          = Color.White,
+                    ForeColor          = Color.FromArgb(15, 31, 53),
                     SelectionBackColor = Color.FromArgb(219, 234, 254),
                     SelectionForeColor = Color.FromArgb(15, 31, 53),
-                    Padding = new Padding(12, 6, 12, 6)
+                    Padding            = new Padding(12, 6, 12, 6)
                 }
             };
             dgvRequests.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(249, 250, 251);
 
-            // ✔ One row per BatchPrefix — no per-item (−NN) duplication
-            // Per-item lines are shown exclusively in the View Detail dialog
+            // !! Columns represent ONE batch (BatchPrefix), NOT individual -NN lines !!
             dgvRequests.Columns.AddRange(new DataGridViewColumn[]
             {
-                new DataGridViewTextBoxColumn { Name = "colRequestID", HeaderText = "REQUEST ID",     FillWeight = 20 },
-                new DataGridViewTextBoxColumn { Name = "colLines",     HeaderText = "ITEMS",          FillWeight =  7 },
-                new DataGridViewTextBoxColumn { Name = "colTotalQty",  HeaderText = "TOTAL REQ. QTY", FillWeight = 12 },
-                new DataGridViewTextBoxColumn { Name = "colUrgency",   HeaderText = "URGENCY",        FillWeight = 11 },
-                new DataGridViewTextBoxColumn { Name = "colTrigger",   HeaderText = "TRIGGER",        FillWeight = 13 },
-                new DataGridViewTextBoxColumn { Name = "colOrderID",   HeaderText = "LINKED ORDER",   FillWeight = 17 },
-                new DataGridViewTextBoxColumn { Name = "colLinkedPO",  HeaderText = "LINKED TO PO",   FillWeight = 12 },
-                new DataGridViewTextBoxColumn { Name = "colStockNote", HeaderText = "STOCK STATUS",   FillWeight = 18 },
+                // col name          header text           weight  meaning
+                new DataGridViewTextBoxColumn { Name = "colRequestID", HeaderText = "REQUEST ID",      FillWeight = 22 },  // MRQ-YYMMDD-NNN
+                new DataGridViewTextBoxColumn { Name = "colLines",     HeaderText = "ITEMS",           FillWeight =  8 },  // count of -NN lines
+                new DataGridViewTextBoxColumn { Name = "colTotalQty",  HeaderText = "TOTAL REQ. QTY",  FillWeight = 12 },  // SUM qty
+                new DataGridViewTextBoxColumn { Name = "colUrgency",   HeaderText = "URGENCY",         FillWeight = 12 },
+                new DataGridViewTextBoxColumn { Name = "colTrigger",   HeaderText = "TRIGGER",         FillWeight = 13 },
+                new DataGridViewTextBoxColumn { Name = "colOrderID",   HeaderText = "LINKED ORDER",    FillWeight = 17 },
+                new DataGridViewTextBoxColumn { Name = "colLinkedPO",  HeaderText = "LINKED TO PO",    FillWeight = 11 },
+                new DataGridViewTextBoxColumn { Name = "colStockNote", HeaderText = "STOCK STATUS",    FillWeight = 15 },  // aggregated note
             });
 
             var pnlGridInner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
@@ -263,28 +269,38 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             };
             pnlGridOuter.Controls.Add(pnlGridInner);
 
-            // ── Assemble pnlMain (RULE 5: Fill first, Top second, _shell last Top)
-            pnlMain.Controls.Add(pnlGridOuter);    // Fill  — grid
-            pnlMain.Controls.Add(pnlKpiOuter);     // Top   — KPI + action buttons
-            pnlMain.Controls.Add(pnlFilterOuter);  // Top   — filter card
-            pnlMain.Controls.Add(_shell);           // Top   — nav chrome (RULE 5)
+            // ── Assemble pnlMain (RULE 5: Fill first, then Top in reverse, _shell last)
+            pnlMain.Controls.Add(pnlGridOuter);   // Fill
+            pnlMain.Controls.Add(pnlKpiOuter);    // Top
+            pnlMain.Controls.Add(pnlFilterOuter); // Top
+            pnlMain.Controls.Add(_shell);          // Top (topmost — RULE 5)
 
             this.Controls.Add(pnlMain);
             this.ResumeLayout(false);
         }
 
-        // Button factories
         private Button MakePrimaryBtn(string text, Point loc, int w, int h)
         {
-            var b = new Button { Text = text, Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.White, BackColor = Color.FromArgb(47, 111, 237), FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand };
+            var b = new Button
+            {
+                Text = text, Font = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.White, BackColor = Color.FromArgb(47, 111, 237),
+                FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand
+            };
             b.FlatAppearance.BorderSize = 0;
             b.FlatAppearance.MouseOverBackColor = Color.FromArgb(26, 77, 192);
             b.FlatAppearance.MouseDownBackColor = Color.FromArgb(21, 60, 155);
             return b;
         }
+
         private Button MakeOutlineBtn(string text, Point loc, int w, int h)
         {
-            var b = new Button { Text = text, Font = new Font("Segoe UI", 12f), ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White, FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand };
+            var b = new Button
+            {
+                Text = text, Font = new Font("Segoe UI", 12f),
+                ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White,
+                FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand
+            };
             b.FlatAppearance.BorderColor = Color.FromArgb(221, 227, 236);
             b.FlatAppearance.BorderSize  = 1;
             b.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
@@ -292,6 +308,10 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
         }
 
         private static void PaintCardBorder(object s, PaintEventArgs e)
-        { var p = (Panel)s; using var pen = new Pen(Color.FromArgb(221, 227, 236), 1); e.Graphics.DrawRectangle(pen, 0, 0, p.Width - 1, p.Height - 1); }
+        {
+            var p = (Panel)s;
+            using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
+            e.Graphics.DrawRectangle(pen, 0, 0, p.Width - 1, p.Height - 1);
+        }
     }
 }
