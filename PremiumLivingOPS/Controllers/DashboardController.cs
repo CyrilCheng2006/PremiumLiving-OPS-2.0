@@ -15,6 +15,15 @@ namespace PremiumLivingOPS.Controllers
     ///   3. Call DashboardRepo to fetch raw data.
     ///   4. Apply business logic (formatting, derived fields).
     ///   5. Return a fully-populated DashboardViewModel to the View.
+    ///
+    /// Data notes (schema.sql):
+    ///   - Order        : GrandTotal, IssuedTime
+    ///   - Quotation    : ExpiryDate, QuotationStatus IN ('Converted','Rejected','Pending')
+    ///   - Shipment     : ShipmentStatus IN ('Pending','In Transit','Completed')
+    ///   - WarehouseItem: WarehouseItemQuantity, ReorderLevel  (no InventoryItem table)
+    ///   - Invoice      : RemainingBalance, PaymentStatus IN ('Partial','Full')
+    ///   - PurchaseInvoice / PurchaseOrder / Supplier  (no SupplierPayment table)
+    ///   - Supplier     : no SupplierStatus column — all rows counted
     /// </summary>
     public class DashboardController
     {
@@ -29,7 +38,7 @@ namespace PremiumLivingOPS.Controllers
         {
             var vm = new DashboardViewModel();
 
-            // ── 1. User Bar & Nav Access ────────────────────────────────
+            // ── 1. User Bar & Nav Access ────────────────────────────────────────
             string department = string.Empty;
             if (SessionManager.IsLoggedIn)
             {
@@ -45,26 +54,28 @@ namespace PremiumLivingOPS.Controllers
                 vm.UserBar = new UserBarInfo { DisplayName = "Guest", Department = string.Empty };
             }
 
-            // NavAccessPolicy is pure business logic — lives in Controller layer
             vm.AllowedMenus = NavAccessPolicy.GetAllowedMenus(department);
 
-            // ── 2. Raw data from DAL ─────────────────────────────────────
-            var statusCounts = SafeCall(() => _repo.GetOrderStatusCounts(),
-                                        new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase));
+            // ── 2. Raw data from DAL ───────────────────────────────────────────
+            var statusCounts = SafeCall(
+                () => _repo.GetOrderStatusCounts(),
+                new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase));
 
-            int totalOrders = statusCounts.Values.Sum();
-            int delivered   = statusCounts.GetValueOrDefault("Delivered",  0);
-            int pending     = statusCounts.GetValueOrDefault("Pending",    0);
-            int processing  = statusCounts.GetValueOrDefault("Processing", 0);
-            int shipped     = statusCounts.GetValueOrDefault("Shipped",    0);
+            int totalOrders       = statusCounts.Values.Sum();
+            int delivered         = statusCounts.GetValueOrDefault("Delivered",          0);
+            int completed         = statusCounts.GetValueOrDefault("Completed",          0);
+            int pending           = statusCounts.GetValueOrDefault("Pending",            0);
+            int processing        = statusCounts.GetValueOrDefault("Processing",         0);
+            int partialDelivered  = statusCounts.GetValueOrDefault("Partially Delivered",0);
+            int deliveredTotal    = delivered + completed;
 
-            var lowStockItems = SafeCall(() => _repo.GetLowStockItems(),       new List<LowStockRow>());
-            decimal revenue   = SafeCall(() => _repo.GetMonthlyRevenue(),      0m);
-            decimal ar        = SafeCall(() => _repo.GetOutstandingAR(),       0m);
-            int suppliers     = SafeCall(() => _repo.GetActiveSupplierCount(), 0);
-            int customers     = SafeCall(() => _repo.GetCustomerCount(),       0);
+            var lowStockItems = SafeCall(() => _repo.GetLowStockItems(),        new List<LowStockRow>());
+            decimal revenue   = SafeCall(() => _repo.GetMonthlyRevenue(),       0m);
+            decimal ar        = SafeCall(() => _repo.GetOutstandingAR(),        0m);
+            int suppliers     = SafeCall(() => _repo.GetActiveSupplierCount(),  0);
+            int customers     = SafeCall(() => _repo.GetCustomerCount(),        0);
 
-            // ── 3. KPI list ───────────────────────────────────────────
+            // ── 3. KPI list ─────────────────────────────────────────────────
             string month = DateTime.Now.ToString("MMM").ToUpper();
 
             vm.Kpis = new List<DashboardKpi>
@@ -73,18 +84,21 @@ namespace PremiumLivingOPS.Controllers
                 {
                     Label     = $"TOTAL ORDERS ({month})",
                     Value     = totalOrders.ToString(),
-                    SubText   = $"{pending} Pending · {processing} Processing · {shipped} Shipped",
+                    SubText   = $"{pending} Pending · {processing} Processing · {partialDelivered} Part. Delivered",
                     AccentKey = "Primary"
                 },
                 new DashboardKpi
                 {
                     Label     = "DELIVERED THIS MONTH",
-                    Value     = delivered.ToString(),
-                    SubText   = delivered == 0 ? "None this month" : $"{delivered} order(s) completed",
+                    Value     = deliveredTotal.ToString(),
+                    SubText   = deliveredTotal == 0
+                                    ? "None this month"
+                                    : $"{deliveredTotal} order(s) completed",
                     AccentKey = "Success"
                 },
                 new DashboardKpi
                 {
+                    // Value/SubText filled after GetPendingQuotations() below
                     Label     = "PENDING QUOTATIONS",
                     Value     = "–",
                     SubText   = "",
@@ -103,35 +117,35 @@ namespace PremiumLivingOPS.Controllers
                 {
                     Label     = "REVENUE THIS MONTH",
                     Value     = FormatHKD(revenue),
-                    SubText   = "Based on delivered orders",
+                    SubText   = "Based on delivered / completed orders",
                     AccentKey = "Info"
                 },
                 new DashboardKpi
                 {
                     Label     = "OUTSTANDING AR",
                     Value     = FormatHKD(ar),
-                    SubText   = "Unpaid / overdue invoices",
+                    SubText   = "Partially paid customer invoices",
                     AccentKey = "Warning"
                 },
                 new DashboardKpi
                 {
-                    Label     = "ACTIVE SUPPLIERS",
+                    Label     = "TOTAL SUPPLIERS",
                     Value     = suppliers.ToString(),
-                    SubText   = "",
+                    SubText   = "Registered in system",
                     AccentKey = "Primary"
                 },
                 new DashboardKpi
                 {
                     Label     = "TOTAL CUSTOMERS",
                     Value     = customers.ToString(),
-                    SubText   = "",
+                    SubText   = "Registered in system",
                     AccentKey = "Primary"
                 }
             };
 
-            // ── 4. Tabular data ───────────────────────────────────────
-            vm.Orders    = SafeCall(() => _repo.GetRecentOrders(5),       new List<OrderSummaryRow>());
-            vm.LowStock  = lowStockItems;
+            // ── 4. Tabular data ──────────────────────────────────────────────
+            vm.Orders   = SafeCall(() => _repo.GetRecentOrders(5),          new List<OrderSummaryRow>());
+            vm.LowStock = lowStockItems;
 
             var quotations   = SafeCall(() => _repo.GetPendingQuotations(5), new List<QuotationSummaryRow>());
             vm.Quotations    = quotations;
@@ -140,16 +154,16 @@ namespace PremiumLivingOPS.Controllers
                 ? string.Join(" · ", quotations.Take(2).Select(q => q.QuotationId))
                 : "No pending quotations";
 
-            vm.Shipments = SafeCall(() => _repo.GetActiveShipments(5),    new List<ShipmentSummaryRow>());
-            vm.Suppliers = SafeCall(() => _repo.GetSupplierPayments(5),   new List<SupplierPaymentRow>());
+            vm.Shipments = SafeCall(() => _repo.GetActiveShipments(5),      new List<ShipmentSummaryRow>());
+            vm.Suppliers = SafeCall(() => _repo.GetSupplierPayments(5),     new List<SupplierPaymentRow>());
 
-            // ── 5. Activity feed ──────────────────────────────────────
+            // ── 5. Activity feed ──────────────────────────────────────────────
             vm.Activities = BuildActivityFeed(vm.Orders, vm.Shipments, vm.Suppliers);
 
             return vm;
         }
 
-        // ── Fault-isolation helper ───────────────────────────────────
+        // ── Fault-isolation helper ───────────────────────────────────────
         private static T SafeCall<T>(Func<T> fn, T fallback)
         {
             try   { return fn(); }
@@ -181,16 +195,16 @@ namespace PremiumLivingOPS.Controllers
                 {
                     CategoryKey = MapOrderStatusToCategory(o.Status),
                     BoldText    = o.OrderId,
-                    NormalText  = $" — {o.Customer} · {o.Total} · {o.Status}",
+                    NormalText  = $" — {o.Customer} · HK${o.Total} · {o.Status}",
                     TimeLabel   = "Recent"
                 });
 
             foreach (var s in shipments.Take(2))
                 feed.Add(new ActivityRow
                 {
-                    CategoryKey = MapShipStatusToCategory(s.Status),
+                    CategoryKey = MapShipmentStatusToCategory(s.Status),
                     BoldText    = s.ShipmentId,
-                    NormalText  = $" status: {s.Status} · {s.Customer}",
+                    NormalText  = $" — status: {s.Status} · {s.Customer}",
                     TimeLabel   = s.SchedDate
                 });
 
@@ -210,21 +224,23 @@ namespace PremiumLivingOPS.Controllers
         {
             switch (status)
             {
-                case "Delivered":  return "Success";
-                case "Shipped":    return "Primary";
-                case "Processing": return "Primary";
-                case "Pending":    return "Warning";
-                default:           return "Primary";
+                case "Delivered":          return "Success";
+                case "Completed":          return "Success";
+                case "Partially Delivered":return "Info";
+                case "Processing":         return "Primary";
+                case "Pending":            return "Warning";
+                case "Cancelled":          return "Danger";
+                default:                   return "Primary";
             }
         }
 
-        private static string MapShipStatusToCategory(string status)
+        private static string MapShipmentStatusToCategory(string status)
         {
             switch (status)
             {
-                case "Delivered":  return "Success";
+                case "Completed":  return "Success";
                 case "In Transit": return "Primary";
-                case "Scheduled":  return "Warning";
+                case "Pending":    return "Warning";
                 default:           return "Primary";
             }
         }
