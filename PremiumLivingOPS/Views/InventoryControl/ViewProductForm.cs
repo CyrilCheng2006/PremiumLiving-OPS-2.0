@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.Linq;
 using System.Windows.Forms;
 
 namespace PremiumLivingOPS.Views.InventoryControl
@@ -15,6 +16,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
             new InventoryControlController();
 
         private List<ProductEntity> _currentProducts = new List<ProductEntity>();
+        private bool _hasShownOpeningStockAlert;
 
         private static readonly Dictionary<string, (Color bg, Color fg)> StatusColors =
             new Dictionary<string, (Color, Color)>
@@ -56,6 +58,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
 
             LoadCategories();
             RefreshGrid();
+            ShowOpeningStockAlert();
         }
 
         // ════════════════════════════════════════════════════════════════════
@@ -150,6 +153,42 @@ namespace PremiumLivingOPS.Views.InventoryControl
             if (cboCategory.Items.Count > 0) cboCategory.SelectedIndex = 0;
             cboStatus.SelectedIndex = 0;
             RefreshGrid();
+        }
+
+        private void ShowOpeningStockAlert()
+        {
+            if (_hasShownOpeningStockAlert) return;
+            _hasShownOpeningStockAlert = true;
+
+            var allProducts = _ctrl.GetViewProductVM().Products ?? new List<ProductEntity>();
+            var attentionItems = allProducts.FindAll(p =>
+                p.StockStatus == "Low Stock" || p.StockStatus == "Out of Stock");
+
+            if (attentionItems.Count == 0) return;
+
+            int lowStockCount = attentionItems.Count(p => p.StockStatus == "Low Stock");
+            int outOfStockCount = attentionItems.Count(p => p.StockStatus == "Out of Stock");
+
+            var lines = new List<string>
+            {
+                "The following products require attention:",
+                string.Empty
+            };
+
+            foreach (var item in attentionItems.Take(10))
+                lines.Add($"• {item.ItemID} - {item.ItemName} ({item.StockStatus}, Stock Qty: {item.StockQty})");
+
+            if (attentionItems.Count > 10)
+                lines.Add($"• ...and {attentionItems.Count - 10} more item(s)");
+
+            lines.Add(string.Empty);
+            lines.Add($"Summary: {outOfStockCount} Out of Stock, {lowStockCount} Low Stock.");
+
+            MessageBox.Show(
+                string.Join(Environment.NewLine, lines),
+                "Inventory Alert",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
         }
 
         private void RefreshKpi()
@@ -307,10 +346,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
             var p  = vm.Product;
             var wh = vm.WarehouseBreakdown ?? new List<WarehouseItemEntity>();
 
-            // ================================================================
-            //  LOCAL HELPERS  (identical to ViewRawMaterialForm)
-            // ================================================================
-
             Label ReadLabel(string text) => new Label
             {
                 Text      = text ?? "\u2014",
@@ -398,9 +433,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 return content;
             }
 
-            // ================================================================
-            //  CARD 1 — Item Information
-            // ================================================================
             var card1Rows = new List<Panel>
             {
                 FieldRow("Item ID",     ReadLabel(p.ItemID)),
@@ -413,9 +445,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
             c1Inner.Padding = new Padding(0);
             c1Inner.Controls.Add(StackRows(card1Rows));
 
-            // ================================================================
-            //  CARD 2 — Product Details  (Category / Sales Price / Stock Qty / Reorder)
-            // ================================================================
             var card2Rows = new List<Panel>
             {
                 FieldRow("Category",           ReadLabel(p.Category)),
@@ -429,9 +458,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
             c2Inner.Padding = new Padding(0);
             c2Inner.Controls.Add(StackRows(card2Rows));
 
-            // ================================================================
-            //  CARD 3 — Warehouse Breakdown (conditional)
-            // ================================================================
             Panel c3Outer = null;
             if (wh.Count > 0)
             {
@@ -502,9 +528,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 c3Outer = co;
             }
 
-            // ================================================================
-            //  DIALOG SHELL
-            // ================================================================
             using var dlg = new Form
             {
                 Text            = $"View Product  \u2014  {p.ItemID}",
@@ -518,7 +541,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 Font            = new Font("Segoe UI", 12f)
             };
 
-            // ── Header: title (left) + Stock Status badge (right) ──────────
             Color pillBg = Color.FromArgb(229, 231, 235);
             Color pillFg = Color.FromArgb(55, 65, 81);
             if (StatusColors.TryGetValue(p.StockStatus ?? "", out var headerSc))
@@ -579,7 +601,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
             };
             pnlHeader.Controls.Add(headerTlp);
 
-            // ── Footer ────────────────────────────────────────────────────
             var pnlFoot = new Panel
             {
                 Dock      = DockStyle.Bottom,
@@ -617,7 +638,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
             footFlow.Controls.Add(btnClose);
             pnlFoot.Controls.Add(footFlow);
 
-            // ── Scroll + card stacking ─────────────────────────────────────
             const int CardGap   = 24;
             const int ScrollPad = 56;
 
@@ -667,10 +687,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
             dlg.ShowDialog(this);
         }
 
-        // ════════════════════════════════════════════════════════════════════
-        //  Navigation / session
-        // ════════════════════════════════════════════════════════════════════
-
         private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
             => FormNavigator.NavigateTo(this, menuLabel, subItem);
 
@@ -679,10 +695,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
             SessionManager.Clear();
             Application.Restart();
         }
-
-        // ════════════════════════════════════════════════════════════════════
-        //  Utility
-        // ════════════════════════════════════════════════════════════════════
 
         private static GraphicsPath RoundedRect(Rectangle r, int radius)
         {
