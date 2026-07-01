@@ -13,24 +13,33 @@ namespace PremiumLivingOPS.Models.DAL
     ///   Batch Prefix (shown to user) : MRQ-YYMMDD-NNN        (max 17 chars)
     ///   DB RequestID  (PK, per line) : MRQ-YYMMDD-NNN-NN     (max 20 chars)
     ///
-    /// Fix (2026-07-01-A): REGEXP broadened to MR[A-Z] for legacy prefix compatibility.
-    /// Fix (2026-07-01-B): {{ }} escaping added in $@ interpolated strings so that
-    ///   MySQL REGEXP quantifiers {6},{3},{2} are passed as literal braces, not
-    ///   treated as C# interpolation holes (which produced "MRO" display bug).
+    /// Fix (2026-07-02): Replaced REGEXP {n} quantifier (unsupported / unreliable
+    ///   in some MySQL builds) with a pure CHAR_LENGTH + LIKE approach:
+    ///     A full line ID has exactly 20 chars AND matches 'MR_-______-___-__'
+    ///     => strip last 3 chars to get the 17-char BatchPrefix.
+    ///   Everything else is displayed as-is (old single-row IDs, etc.).
     /// </summary>
     public class ProductionProcessingRepo
     {
         // ════════════════════════════════════════════════════════════════
-        //  BATCH-PREFIX REGEXP
-        //  In a C# $"..." string, { and } are interpolation markers.
-        //  To emit a literal { or } you must double them: {{ and }}.
-        //  The value below is the EXACT string sent to MySQL:
-        //      ^MR[A-Z]-[0-9]{6}-[0-9]{3}-[0-9]{2}$
+        //  BatchPrefix detection (no REGEXP, no {n} quantifier)
+        //
+        //  A fully-qualified line RequestID looks like: MRQ-260701-001-01
+        //    │         length = 20
+        //    └─ LIKE pattern  : 'MR_-______-___-__'   (underscores = any single char)
+        //
+        //  To get BatchPrefix we remove the trailing '-NN' (3 chars):
+        //    SUBSTRING(RequestID, 1, CHAR_LENGTH(RequestID) - 3)  => MRQ-260701-001
+        //
+        //  SQL fragment reused in both SELECT and GROUP BY (plain @"-string, safe):
         // ════════════════════════════════════════════════════════════════
-        // NOTE: This constant is used inside a $@"..." string, so { } must be {{ }}
-        //       The const itself stores the already-doubled form so callers just
-        //       embed it directly with {BatchRegexp}.
-        private const string BatchRegexp = "^MR[A-Z]-[0-9]{{6}}-[0-9]{{3}}-[0-9]{{2}}$";
+        private const string BatchPrefixExpr =
+            @"CASE
+                WHEN CHAR_LENGTH(mr.RequestID) = 20
+                 AND mr.RequestID LIKE 'MR_-______-___-__'
+                THEN SUBSTRING(mr.RequestID, 1, 17)
+                ELSE mr.RequestID
+              END";
 
         // ════════════════════════════════════════════════════════════════
         //  SEARCH RAW MATERIAL REQUEST — Batch-grouped
@@ -50,17 +59,11 @@ namespace PremiumLivingOPS.Models.DAL
             {
                 conn.Open();
 
-                // BatchPrefix = everything before the last "-NN" suffix.
-                // For IDs without a -NN suffix (old format) the whole ID is the prefix.
-                // IMPORTANT: BatchRegexp already contains {{ }} so when embedded in the
-                //            $@"..." string the braces arrive at MySQL as single { }.
+                // Use a plain (non-interpolated) @-string so no C# brace escaping is needed.
+                // BatchPrefixExpr uses only CHAR_LENGTH and LIKE — no REGEXP, no {n}.
                 var sql =
-                    $@"SELECT
-                        CASE
-                          WHEN mr.RequestID REGEXP '{BatchRegexp}'
-                            THEN SUBSTRING(mr.RequestID, 1, CHAR_LENGTH(mr.RequestID) - 3)
-                          ELSE mr.RequestID
-                        END                                        AS BatchPrefix,
+                    @"SELECT
+                        " + BatchPrefixExpr + @"                   AS BatchPrefix,
                         MIN(mr.OrderID)                            AS OrderID,
                         MIN(mr.UrgencyLevel)                       AS UrgencyLevel,
                         MIN(mr.TriggerType)                        AS TriggerType,
@@ -86,12 +89,8 @@ namespace PremiumLivingOPS.Models.DAL
                     sql += " AND mr.TriggerType = @trigger";
 
                 sql +=
-                    $@" GROUP BY
-                        CASE
-                          WHEN mr.RequestID REGEXP '{BatchRegexp}'
-                            THEN SUBSTRING(mr.RequestID, 1, CHAR_LENGTH(mr.RequestID) - 3)
-                          ELSE mr.RequestID
-                        END
+                    @" GROUP BY
+                        " + BatchPrefixExpr + @"
                        ORDER BY BatchPrefix DESC";
 
                 using (var cmd = new MySqlCommand(sql, conn))
@@ -127,9 +126,6 @@ namespace PremiumLivingOPS.Models.DAL
         //  GET MATERIAL REQUEST BATCH DETAIL
         // ════════════════════════════════════════════════════════════════
 
-        /// <summary>
-        /// Returns the batch header + all line items for a given BatchPrefix.
-        /// </summary>
         public MaterialRequestBatchDetailEntity GetMaterialRequestBatchDetail(string batchPrefix)
         {
             var detail = new MaterialRequestBatchDetailEntity { BatchPrefix = batchPrefix };
