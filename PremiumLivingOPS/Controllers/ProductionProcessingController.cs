@@ -9,6 +9,11 @@ namespace PremiumLivingOPS.Controllers
     /// <summary>
     /// Controller (middle layer) for Production Processing module.
     /// The View never accesses ProductionProcessingRepo or the DB directly.
+    ///
+    /// RequestID Plan A — Batch Prefix Grouping
+    /// ───────────────────────────────────────────
+    ///   UI shows         : MRQ-YYMMDD-NNN          (batch prefix)
+    ///   DB PK per line   : MRQ-YYMMDD-NNN-NN       (-NN suffix hidden from user)
     /// </summary>
     public class ProductionProcessingController
     {
@@ -41,9 +46,6 @@ namespace PremiumLivingOPS.Controllers
         //  MATERIAL REQUEST DETAIL
         // ════════════════════════════════════════════════════════════════
 
-        /// <summary>
-        /// Returns full detail for a single Material Request (used by the detail dialog).
-        /// </summary>
         public MaterialRequestDetailEntity GetMaterialRequestDetail(string requestId)
             => _repo.GetMaterialRequestDetail(requestId);
 
@@ -63,19 +65,20 @@ namespace PremiumLivingOPS.Controllers
                 },
                 AllowedMenus   = NavAccessPolicy.GetAllowedMenus(user?.Department),
                 RawMaterials   = _repo.GetAllRawMaterials(),
-                WarehouseItems = new List<WarehouseItemLookup>(), // populated after material is selected
+                WarehouseItems = new List<WarehouseItemLookup>(),
                 Orders         = _repo.GetActiveOrders(),
-                NextRequestID  = _repo.GenerateNextRequestId()
+                // NextRequestID now returns the Batch Prefix (no -NN suffix)
+                NextRequestID  = _repo.GenerateNextBatchPrefix()
             };
         }
 
-        /// <summary>
-        /// Returns WarehouseItems for the given raw material.
-        /// Called when the user selects a material in the form.
-        /// </summary>
         public List<WarehouseItemLookup> GetWarehouseItemsForMaterial(string rawMaterialItemId)
             => _repo.GetWarehouseItemsByMaterial(rawMaterialItemId);
 
+        /// <summary>
+        /// Submits one material-request line.
+        /// requestId must already be the full DB PK, i.e. batchPrefix + "-NN".
+        /// </summary>
         public void SubmitCreateMaterialRequest(
             string requestId, string orderId, string rawMaterialItemId,
             string warehouseItemId, int requestedQty,
@@ -102,6 +105,13 @@ namespace PremiumLivingOPS.Controllers
         //  HELPERS
         // ════════════════════════════════════════════════════════════════
 
-        public string GenerateNextRequestId() => _repo.GenerateNextRequestId();
+        /// <summary>
+        /// Returns the next Batch Prefix for today (UI display value).
+        /// e.g. "MRQ-260701-001"
+        /// </summary>
+        public string GenerateNextBatchPrefix() => _repo.GenerateNextBatchPrefix();
+
+        /// <summary>Legacy alias kept for backward compatibility.</summary>
+        public string GenerateNextRequestId() => _repo.GenerateNextBatchPrefix();
     }
 }

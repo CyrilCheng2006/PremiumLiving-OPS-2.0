@@ -9,6 +9,20 @@ namespace PremiumLivingOPS.Models.DAL
     /// DAL for Production Processing module.
     /// Covers: MaterialRequest (read + write), RawMaterial (lookup),
     ///         WarehouseItem (lookup), Order (lookup).
+    ///
+    /// RequestID naming scheme (Plan A — Batch Prefix Grouping)
+    /// ─────────────────────────────────────────────────
+    ///   Batch Prefix (shown to user) : MRQ-YYMMDD-NNN        (max 17 chars)
+    ///   DB RequestID  (PK, per line) : MRQ-YYMMDD-NNN-NN     (max 20 chars)
+    ///
+    ///   e.g. Batch prefix  = MRQ-260701-001
+    ///        Line 1 DB PK  = MRQ-260701-001-01
+    ///        Line 2 DB PK  = MRQ-260701-001-02
+    ///
+    ///   Query all lines of a batch:
+    ///     WHERE RequestID LIKE 'MRQ-260701-001-%'
+    ///   or
+    ///     WHERE RequestID LIKE CONCAT(@batchPrefix, '-%')
     /// </summary>
     public class ProductionProcessingRepo
     {
@@ -16,10 +30,6 @@ namespace PremiumLivingOPS.Models.DAL
         //  SEARCH RAW MATERIAL REQUEST — read
         // ════════════════════════════════════════════════════════════════
 
-        /// <summary>
-        /// Returns a flat list of MaterialRequests joined with RawMaterial,
-        /// Item, WarehouseItem and Warehouse for the Search grid.
-        /// </summary>
         public List<MaterialRequestEntity> SearchMaterialRequests(
             string keyword      = null,
             string urgency      = null,
@@ -76,13 +86,9 @@ namespace PremiumLivingOPS.Models.DAL
         }
 
         // ════════════════════════════════════════════════════════════════
-        //  GET MATERIAL REQUEST DETAIL — single record for detail dialog
+        //  GET MATERIAL REQUEST DETAIL
         // ════════════════════════════════════════════════════════════════
 
-        /// <summary>
-        /// Returns full detail for a single MaterialRequest,
-        /// including linked PurchaseOrder (LEFT JOIN — nullable).
-        /// </summary>
         public MaterialRequestDetailEntity GetMaterialRequestDetail(string requestId)
         {
             using (var conn = DatabaseHelper.GetConnection())
@@ -146,7 +152,6 @@ namespace PremiumLivingOPS.Models.DAL
         //  CREATE RAW MATERIAL REQUEST — lookups
         // ════════════════════════════════════════════════════════════════
 
-        /// <summary>All raw materials for the dropdown.</summary>
         public List<RawMaterialLookup> GetAllRawMaterials()
         {
             var list = new List<RawMaterialLookup>();
@@ -172,10 +177,6 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
-        /// <summary>
-        /// Returns WarehouseItems that hold a specific RawMaterial.
-        /// Used to populate the warehouse dropdown after a raw material is chosen.
-        /// </summary>
         public List<WarehouseItemLookup> GetWarehouseItemsByMaterial(string rawMaterialItemId)
         {
             var list = new List<WarehouseItemLookup>();
@@ -211,7 +212,6 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
-        /// <summary>All active orders for the OrderDemand dropdown.</summary>
         public List<OrderLookup> GetActiveOrders()
         {
             var list = new List<OrderLookup>();
@@ -283,32 +283,67 @@ namespace PremiumLivingOPS.Models.DAL
         }
 
         // ════════════════════════════════════════════════════════════════
-        //  HELPERS
+        //  ID GENERATION — Plan A Batch Prefix
+        //
+        //  Batch Prefix format : MRQ-YYMMDD-NNN     (max 17 chars, fits VARCHAR(20))
+        //  Line RequestID      : MRQ-YYMMDD-NNN-NN  (max 20 chars, fits VARCHAR(20))
+        //
+        //  The batch sequence NNN is derived from the highest NNN already used
+        //  today (scanning both old single-item IDs and new batch-prefix IDs).
         // ════════════════════════════════════════════════════════════════
 
-        public string GenerateNextRequestId()
+        /// <summary>
+        /// Generates the next Batch Prefix for today, e.g. "MRQ-260701-001".
+        /// This is what the UI shows to the user as the "Request ID".
+        /// Each line will be stored in the DB as prefix + "-NN".
+        /// </summary>
+        public string GenerateNextBatchPrefix()
         {
             using (var conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
-                string today = DateTime.Now.ToString("yyyyMMdd");
+                // 2-digit year + 2-digit month + 2-digit day  e.g. 260701
+                string today  = DateTime.Now.ToString("yyMMdd");
                 string prefix = $"MRQ-{today}-";
+
+                // Match IDs that start with today's prefix, regardless of whether
+                // they have a -NN line suffix or not.  ORDER DESC gives the highest.
                 const string sql =
                     @"SELECT RequestID FROM MaterialRequest
                       WHERE  RequestID LIKE @prefix
                       ORDER  BY RequestID DESC LIMIT 1";
+
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
                     cmd.Parameters.AddWithValue("@prefix", prefix + "%");
                     var last = cmd.ExecuteScalar()?.ToString();
                     if (string.IsNullOrEmpty(last))
-                        return prefix + "0001";
-                    int seq = int.Parse(last.Substring(last.LastIndexOf('-') + 1)) + 1;
-                    return prefix + seq.ToString("D4");
+                        return prefix + "001";
+
+                    // last may be  "MRQ-260701-003"      (old single-line)
+                    //           or "MRQ-260701-003-02"   (new batch line)
+                    // In both cases the batch sequence is the 3rd segment.
+                    var parts = last.Split('-');  // ["MRQ","260701","NNN"] or ["MRQ","260701","NNN","NN"]
+                    int seq   = int.Parse(parts[2]) + 1;
+                    return prefix + seq.ToString("D3");
                 }
             }
         }
 
+        /// <summary>
+        /// Builds the full DB RequestID from a batch prefix and 1-based line number.
+        /// e.g. ("MRQ-260701-003", 2) → "MRQ-260701-003-02"  (18 chars)
+        /// </summary>
+        public static string BuildLineRequestId(string batchPrefix, int lineNumber)
+            => $"{batchPrefix}-{lineNumber:D2}";
+
+        /// <summary>
+        /// Legacy single-call helper kept for backward compatibility.
+        /// Now generates a batch prefix (no -NN suffix).
+        /// </summary>
+        public string GenerateNextRequestId() => GenerateNextBatchPrefix();
+
+        // ────────────────────────────────────────────────────────────────────────
         private static MaterialRequestEntity MapMaterialRequest(MySqlDataReader r)
             => new MaterialRequestEntity
             {

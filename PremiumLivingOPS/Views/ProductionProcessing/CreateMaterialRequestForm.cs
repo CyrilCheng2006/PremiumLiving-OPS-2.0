@@ -1,4 +1,5 @@
 using PremiumLivingOPS.Controllers;
+using PremiumLivingOPS.Models.DAL;
 using PremiumLivingOPS.Models.Entities;
 using PremiumLivingOPS.Views.Shared;
 using System;
@@ -10,34 +11,35 @@ using System.Windows.Forms;
 namespace PremiumLivingOPS.Views.ProductionProcessing
 {
     /// <summary>
-    /// View — Create Raw Material Request (multi-line).
+    /// View — Create Raw Material Request (multi-line, Plan-A Batch Prefix).
     ///
-    /// MVC role : View only.  All data access goes through ProductionProcessingController.
-    /// AppShell  : mandatory chrome (TopNavBar + UserBar).
-    /// CardPanel : all content wrapped in 3-layer nested cards.
+    /// What the user sees
+    ///   Request ID label  →  Batch Prefix  e.g. MRQ-260701-003
+    ///                         (no -NN suffix shown)
     ///
-    /// Schema coverage:
-    ///   MaterialRequest — one DB record per staged line (each gets its own RequestID).
-    ///   All lines in the same submit batch share a BatchRef label shown in the header
-    ///   (UI grouping only — no extra DB column required).
-    ///   RawMaterial     — lookup (material dropdown in Add-line picker)
-    ///   WarehouseItem   — lookup (stock location dropdown, filtered per material)
-    ///   Order           — lookup (only for OrderDemand trigger type)
+    /// What goes into the DB
+    ///   Line 1  RequestID = MRQ-260701-003-01
+    ///   Line 2  RequestID = MRQ-260701-003-02
+    ///   …
+    ///   All lines share the same OrderID / UrgencyLevel / TriggerType.
     /// </summary>
     public partial class CreateMaterialRequestForm : Form
     {
-        private readonly ProductionProcessingController _ctrl = new ProductionProcessingController();
+        private readonly ProductionProcessingController _ctrl =
+            new ProductionProcessingController();
 
         // Lookup data
         private List<RawMaterialLookup>   _rawMaterials   = new List<RawMaterialLookup>();
         private List<WarehouseItemLookup> _warehouseItems = new List<WarehouseItemLookup>();
         private List<OrderLookup>         _orders         = new List<OrderLookup>();
 
-        // Staged request lines
-        private readonly List<MaterialRequestLineStaging> _requestLines = new List<MaterialRequestLineStaging>();
+        // Staged lines
+        private readonly List<MaterialRequestLineStaging> _requestLines =
+            new List<MaterialRequestLineStaging>();
 
-        // Batch reference (shared UI label; each line still gets its own DB RequestID)
-        private string _batchRef = string.Empty;
+        // Batch prefix shown to the user  (e.g. "MRQ-260701-003")
+        // DB RequestID per line           (e.g. "MRQ-260701-003-01", "MRQ-260701-003-02", …)
+        private string _batchPrefix = string.Empty;
 
         public CreateMaterialRequestForm()
         {
@@ -66,11 +68,11 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
 
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
-            _shell.SetBreadcrumb("Production Processing  \u203a  Create Raw Material Request");
+            _shell.SetBreadcrumb("Production Processing  ›  Create Raw Material Request");
 
-            // Generate a batch reference for this session (first auto-ID from repo)
-            _batchRef = vm.NextRequestID;
-            lblBatchRef.Text = _batchRef;
+            // _batchPrefix is what the user sees.  The DB PKs will be prefix-01, prefix-02 …
+            _batchPrefix = vm.NextRequestID;   // e.g. "MRQ-260701-003"
+            lblBatchRef.Text = _batchPrefix;   // shown in Card 1 — NO -NN suffix
 
             cboUrgency.SelectedIndex = 0;
             cboTrigger.SelectedIndex = 0;
@@ -82,7 +84,6 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 cboRawMaterial.Items.Add(m);
             cboRawMaterial.SelectedIndex = 0;
 
-            _warehouseItems = new List<WarehouseItemLookup>();
             cboWarehouse.Items.Clear();
             cboWarehouse.Items.Add("-- Select Material First --");
             cboWarehouse.SelectedIndex = 0;
@@ -156,8 +157,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
         {
             bool isOrderDemand = cboTrigger.SelectedItem?.ToString() == "OrderDemand";
             pnlOrderRow.Visible = isOrderDemand;
-            if (!isOrderDemand)
-                cboOrder.SelectedIndex = 0;
+            if (!isOrderDemand) cboOrder.SelectedIndex = 0;
         }
 
         // ── Add line ─────────────────────────────────────────────────────────────
@@ -173,9 +173,10 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             var wh  = _warehouseItems[cboWarehouse.SelectedIndex - 1];
             int qty = (int)nudRequestedQty.Value;
 
-            // Merge duplicate material+warehouse combination
+            // Merge same material + warehouse combination
             var existing = _requestLines.FirstOrDefault(
-                l => l.RawMaterialItemID == mat.ItemID && l.WarehouseItemID == wh.WarehouseItemID);
+                l => l.RawMaterialItemID == mat.ItemID &&
+                     l.WarehouseItemID   == wh.WarehouseItemID);
 
             if (existing != null)
                 existing.RequestedQty += qty;
@@ -191,8 +192,6 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 });
 
             RefreshLinesGrid();
-
-            // Reset picker for next entry
             cboRawMaterial.SelectedIndex = 0;
             nudRequestedQty.Value = 1;
         }
@@ -218,14 +217,16 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             for (int i = 0; i < _requestLines.Count; i++)
             {
                 var l = _requestLines[i];
+                // Column “Request ID” shows batch prefix only — no -NN suffix
                 dgvLines.Rows.Add(
                     i + 1,
+                    _batchPrefix,          // displayed Request ID = batch prefix
                     l.MaterialName,
                     l.MaterialType,
                     l.WarehouseDisplay,
                     l.RequestedQty);
             }
-            lblLineCount.Text = $"{_requestLines.Count} line(s) staged";
+            lblLineCount.Text = $"{_requestLines.Count} line(s) staged  —  Request ID: {_batchPrefix}";
         }
 
         // ── Submit ───────────────────────────────────────────────────────────────
@@ -248,35 +249,42 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             int created = 0;
             var errors  = new List<string>();
 
-            // Each line generates its own DB record with a unique RequestID
-            foreach (var line in _requestLines)
+            for (int i = 0; i < _requestLines.Count; i++)
             {
-                string requestId = _ctrl.GenerateNextRequestId();
+                var line = _requestLines[i];
+                int lineNo = i + 1;   // 1-based
+
+                // DB PK = batch prefix + "-NN"  e.g. MRQ-260701-003-01
+                // User never sees the -NN part.
+                string dbRequestId = ProductionProcessingRepo.BuildLineRequestId(_batchPrefix, lineNo);
+
                 try
                 {
                     _ctrl.SubmitCreateMaterialRequest(
-                        requestId, orderId,
+                        dbRequestId, orderId,
                         line.RawMaterialItemID, line.WarehouseItemID,
                         line.RequestedQty, urgency, trigger);
                     created++;
                 }
                 catch (Exception ex)
                 {
-                    errors.Add($"{line.MaterialName}: {ex.Message}");
+                    errors.Add($"Line {lineNo} ({line.MaterialName}): {ex.Message}");
                 }
             }
 
             if (errors.Count == 0)
             {
                 MessageBox.Show(
-                    $"{created} Material Request(s) created successfully under batch {_batchRef}.",
-                    "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    $"{created} item(s) saved under Request ID  {_batchPrefix}.",
+                    "Request Created",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
                 LoadForm();
             }
             else
             {
-                string msg = $"{created} created.\n\nErrors:\n" + string.Join("\n", errors);
-                MessageBox.Show(msg, "Partial Success", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                string msg = $"{created} item(s) saved.\n\nErrors:\n" + string.Join("\n", errors);
+                MessageBox.Show(msg, "Partial Success",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 LoadForm();
             }
         }
@@ -284,9 +292,9 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
         private void BtnReset_Click(object sender, EventArgs e) => LoadForm();
 
         private static void ShowWarning(string msg)
-            => MessageBox.Show(msg, "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            => MessageBox.Show(msg, "Validation",
+                MessageBoxButtons.OK, MessageBoxIcon.Warning);
 
-        // ── Navigation / session ─────────────────────────────────────────────────
         private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
             => FormNavigator.NavigateTo(this, menuLabel, subItem);
 
@@ -297,7 +305,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
         }
     }
 
-    // ── View-layer staging entity (no DB mapping) ────────────────────────────────
+    // ── Staging entity (View layer only, no DB mapping) ──────────────────────────────
     internal sealed class MaterialRequestLineStaging
     {
         public string RawMaterialItemID { get; set; }
