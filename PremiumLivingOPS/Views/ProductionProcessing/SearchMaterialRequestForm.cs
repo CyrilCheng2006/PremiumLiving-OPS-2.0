@@ -64,7 +64,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
 
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
-            _shell.SetBreadcrumb("Production Processing  ›  Search Raw Material Request");
+            _shell.SetBreadcrumb("Production Processing  \u203a  Search Raw Material Request");
 
             _current = vm.Batches;
 
@@ -77,7 +77,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                     b.TotalRequestedQty,
                     b.UrgencyLevel,
                     b.TriggerType,
-                    b.OrderID ?? "—",
+                    b.OrderID ?? "\u2014",
                     b.WarehouseLocation,
                     b.CurrentStock,
                     b.IsLinkedToPO ? "Yes" : "No");
@@ -226,13 +226,14 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
         {
             using var dlg = new Form
             {
-                Text            = $"Material Request Detail — {d.BatchPrefix}",
-                Size            = new Size(1400, 820),
+                Text            = $"Material Request Detail \u2014 {d.BatchPrefix}",
+                Size            = new Size(2100, 1100),
+                MinimumSize     = new Size(1400,  820),
                 StartPosition   = FormStartPosition.CenterParent,
                 BackColor       = Color.White,
                 Font            = new Font("Segoe UI", 13f),
-                FormBorderStyle = FormBorderStyle.FixedDialog,
-                MaximizeBox     = false,
+                FormBorderStyle = FormBorderStyle.Sizable,
+                MaximizeBox     = true,
                 MinimizeBox     = false
             };
 
@@ -242,9 +243,9 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
             tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 220f));
             tblHeader.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-            tblHeader.Controls.Add(new Label { Text = $"Material Request Details  —  {d.BatchPrefix}", Font = new Font("Segoe UI", 18f, FontStyle.Bold), ForeColor = Color.White, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false }, 0, 0);
+            tblHeader.Controls.Add(new Label { Text = $"Material Request Details  \u2014  {d.BatchPrefix}", Font = new Font("Segoe UI", 18f, FontStyle.Bold), ForeColor = Color.White, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false }, 0, 0);
             UrgencyColors.TryGetValue(d.UrgencyLevel ?? "", out var uc);
-            tblHeader.Controls.Add(new Label { Text = d.UrgencyLevel ?? "—", Font = new Font("Segoe UI", 13f, FontStyle.Bold), ForeColor = uc.fg != default ? uc.fg : Color.White, BackColor = uc.bg != default ? uc.bg : Color.FromArgb(80, 80, 80), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, AutoSize = false, Padding = new Padding(8, 4, 8, 4) }, 1, 0);
+            tblHeader.Controls.Add(new Label { Text = d.UrgencyLevel ?? "\u2014", Font = new Font("Segoe UI", 13f, FontStyle.Bold), ForeColor = uc.fg != default ? uc.fg : Color.White, BackColor = uc.bg != default ? uc.bg : Color.FromArgb(80, 80, 80), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, AutoSize = false, Padding = new Padding(8, 4, 8, 4) }, 1, 0);
             pnlHeader.Controls.Add(tblHeader);
 
             // Batch meta row
@@ -255,8 +256,8 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             tblMeta.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 12f)); tblMeta.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 16f));
             tblMeta.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 12f)); tblMeta.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 32f));
             tblMeta.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-            tblMeta.Controls.Add(DlgMakeLabelKey("Trigger Type"),   0, 0); tblMeta.Controls.Add(DlgMakeLabelVal(d.TriggerType ?? "—"), 1, 0);
-            tblMeta.Controls.Add(DlgMakeLabelKey("Linked Order"),    2, 0); tblMeta.Controls.Add(DlgMakeLabelVal(string.IsNullOrEmpty(d.OrderID) ? "— (Reorder)" : d.OrderID), 3, 0);
+            tblMeta.Controls.Add(DlgMakeLabelKey("Trigger Type"),   0, 0); tblMeta.Controls.Add(DlgMakeLabelVal(d.TriggerType ?? "\u2014"), 1, 0);
+            tblMeta.Controls.Add(DlgMakeLabelKey("Linked Order"),    2, 0); tblMeta.Controls.Add(DlgMakeLabelVal(string.IsNullOrEmpty(d.OrderID) ? "\u2014 (Reorder)" : d.OrderID), 3, 0);
             tblMeta.Controls.Add(DlgMakeLabelKey("Total Lines"),     4, 0); tblMeta.Controls.Add(DlgMakeLabelVal(d.TotalLines.ToString()), 5, 0);
             pnlMeta.Controls.Add(tblMeta);
 
@@ -282,15 +283,15 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             dgvLines.DefaultCellStyle.SelectionBackColor     = Color.FromArgb(219, 234, 254);
             dgvLines.DefaultCellStyle.SelectionForeColor     = Color.FromArgb(15, 31, 53);
 
-            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLineReqID",    HeaderText = "Line Request ID",    FillWeight = 18 });
-            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLineMaterialID", HeaderText = "Material ID",       FillWeight = 13 });
-            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLineName",      HeaderText = "Material Name",      FillWeight = 22 });
-            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLineType",      HeaderText = "Type",              FillWeight = 10 });
-            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLineQty",       HeaderText = "Requested Qty",     FillWeight = 10 });
-            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLineWHI",       HeaderText = "WH Item ID",        FillWeight = 12 });
-            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLineStock",     HeaderText = "Current Stock",     FillWeight = 10 });
-            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLineReorder",   HeaderText = "Reorder Level",     FillWeight = 10 });
-            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLineLocation",  HeaderText = "Warehouse Location", FillWeight = 25 });
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLineReqID",      HeaderText = "Line Request ID",    FillWeight = 18 });
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLineMaterialID", HeaderText = "Material ID",        FillWeight = 13 });
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLineName",        HeaderText = "Material Name",      FillWeight = 22 });
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLineType",        HeaderText = "Type",               FillWeight = 10 });
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLineQty",         HeaderText = "Requested Qty",      FillWeight = 10 });
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLineWHI",         HeaderText = "WH Item ID",         FillWeight = 12 });
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLineStock",       HeaderText = "Current Stock",      FillWeight = 10 });
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLineReorder",     HeaderText = "Reorder Level",      FillWeight = 10 });
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLineLocation",    HeaderText = "Warehouse Location", FillWeight = 25 });
 
             foreach (var ln in d.Lines)
             {
@@ -312,8 +313,8 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 for (int ci = 0; ci < 6; ci++) tblPo.ColumnStyles.Add(new ColumnStyle(ci % 2 == 0 ? SizeType.Percent : SizeType.Percent, ci % 2 == 0 ? 13f : 20f));
                 tblPo.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
                 tblPo.Controls.Add(DlgMakeLabelKey("Purchase Order ID"), 0, 0); tblPo.Controls.Add(DlgMakeLabelVal(d.PurchaseID), 1, 0);
-                tblPo.Controls.Add(DlgMakeLabelKey("PO Status"),          2, 0); tblPo.Controls.Add(DlgMakeLabelVal(d.PurchaseStatus ?? "—"), 3, 0);
-                tblPo.Controls.Add(DlgMakeLabelKey("PO Total Amount"),    4, 0); tblPo.Controls.Add(DlgMakeLabelVal(d.POTotalAmount.HasValue ? $"HK$ {d.POTotalAmount.Value:N2}" : "—"), 5, 0);
+                tblPo.Controls.Add(DlgMakeLabelKey("PO Status"),          2, 0); tblPo.Controls.Add(DlgMakeLabelVal(d.PurchaseStatus ?? "\u2014"), 3, 0);
+                tblPo.Controls.Add(DlgMakeLabelKey("PO Total Amount"),    4, 0); tblPo.Controls.Add(DlgMakeLabelVal(d.POTotalAmount.HasValue ? $"HK$ {d.POTotalAmount.Value:N2}" : "\u2014"), 5, 0);
                 pnlPoDetail.Controls.Add(tblPo);
             }
             else
