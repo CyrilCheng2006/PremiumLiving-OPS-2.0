@@ -16,7 +16,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
     /// Grid rule:
     ///   • ONE row per BatchPrefix  (MRQ-YYMMDD-NNN)
     ///   • The per-line -NN suffix is NEVER shown in the main grid
-    ///   • View Detail dialog shows every -NN line item in the batch
+    ///   • View Detail dialog LINE # column shows only the -NN suffix (e.g. -01, -02)
     ///
     /// FIX (2026-07-02):
     ///   Each DataGridViewRow.Tag stores the original BatchPrefix string
@@ -67,10 +67,6 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
 
         // ================================================================
         //  REFRESH GRID
-        //  One row per BatchPrefix.
-        //  FIX: row.Tag = original BatchPrefix from _current so that
-        //       OpenDetailDialog() can always read the correct key even
-        //       after the user sorts the grid.
         // ================================================================
         internal void RefreshGrid()
         {
@@ -98,8 +94,6 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                         ? "\u26a0 Low Stock"
                         : "\u2714 In Stock";
 
-                // Display only the 14-char BatchPrefix in the grid.
-                // The full original value is preserved in row.Tag.
                 string displayPrefix = string.IsNullOrEmpty(b.BatchPrefix)
                     ? string.Empty
                     : (b.BatchPrefix.Length > 14 ? b.BatchPrefix.Substring(0, 14) : b.BatchPrefix);
@@ -114,7 +108,6 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                     b.IsLinkedToPO ? "Yes" : "No",
                     stockNote);
 
-                // KEY FIX: store original BatchPrefix in Tag, not the display value.
                 dgvRequests.Rows[ri].Tag = b.BatchPrefix;
             }
 
@@ -295,19 +288,12 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
 
         // ================================================================
         //  OPEN DETAIL DIALOG
-        //
-        //  FIX: Read BatchPrefix from row.Tag (set in RefreshGrid) instead
-        //       of using SelectedRows[0].Index to index into _current.
-        //       This is safe even when the grid is sorted, filtered, or
-        //       the user has scrolled, because Tag travels with the row.
         // ================================================================
         private void OpenDetailDialog()
         {
             if (dgvRequests.SelectedRows.Count == 0) return;
 
-            // Read the original BatchPrefix stored in Tag during RefreshGrid.
             string batchPrefix = dgvRequests.SelectedRows[0].Tag?.ToString();
-
             if (string.IsNullOrEmpty(batchPrefix)) return;
 
             var detail = _ctrl.GetMaterialRequestBatchDetail(batchPrefix);
@@ -345,9 +331,9 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 80, BackColor = Color.FromArgb(19, 35, 61) };
             var tblHeader = new TableLayoutPanel
             {
-                Dock            = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
-                BackColor       = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                Padding         = new Padding(24, 0, 24, 0)
+                Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
+                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                Padding = new Padding(24, 0, 24, 0)
             };
             tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
             tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 220f));
@@ -376,8 +362,8 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             pnlMeta.Paint += DlgPaintBottomBorder;
             var tblMeta = new TableLayoutPanel
             {
-                Dock            = DockStyle.Fill, ColumnCount = 6, RowCount = 1,
-                BackColor       = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+                Dock = DockStyle.Fill, ColumnCount = 6, RowCount = 1,
+                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
             tblMeta.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 12f));
             tblMeta.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 18f));
@@ -441,8 +427,8 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 pnlPoDetail = new Panel { Dock = DockStyle.Bottom, Height = 52, BackColor = Color.White, Padding = new Padding(28, 4, 28, 4) };
                 var tblPo = new TableLayoutPanel
                 {
-                    Dock            = DockStyle.Fill, ColumnCount = 6, RowCount = 1,
-                    BackColor       = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+                    Dock = DockStyle.Fill, ColumnCount = 6, RowCount = 1,
+                    BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
                 };
                 tblPo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 14f));
                 tblPo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 19f));
@@ -501,20 +487,34 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             dgvLines.DefaultCellStyle.SelectionForeColor     = Color.FromArgb(15, 31, 53);
             dgvLines.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(249, 250, 251);
 
-            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cLineID",   HeaderText = "LINE REQUEST ID",    FillWeight = 18 });
+            // LINE # column: narrow, centred, shows only the -NN suffix
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "cLineNo", HeaderText = "LINE #", FillWeight = 7,
+                DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleCenter,
+                                     Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
+                                     ForeColor = Color.FromArgb(30, 64, 175) }
+            });
             dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cMatID",    HeaderText = "MATERIAL ID",        FillWeight = 13 });
             dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cMatName",  HeaderText = "MATERIAL NAME",      FillWeight = 22 });
             dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cType",     HeaderText = "TYPE",              FillWeight = 10 });
             dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cQty",      HeaderText = "REQUESTED QTY",     FillWeight = 10 });
-            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cWHItem",   HeaderText = "WH ITEM ID",        FillWeight = 12 });
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cWHItem",   HeaderText = "WH ITEM ID",        FillWeight = 13 });
             dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cStock",    HeaderText = "CURRENT STOCK",     FillWeight = 10 });
             dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cReorder",  HeaderText = "REORDER LEVEL",     FillWeight = 10 });
             dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cLocation", HeaderText = "WAREHOUSE LOCATION",FillWeight = 25 });
 
             foreach (var ln in d.Lines)
             {
+                // Extract the -NN suffix from the full RequestID.
+                // e.g. "MRQ-260701-001-02" → "-02"
+                // Falls back to the full ID if the format is unexpected.
+                string lineNo = ln.RequestID?.Length >= 3
+                    ? ln.RequestID.Substring(ln.RequestID.Length - 3)   // last 3 chars: "-NN"
+                    : ln.RequestID ?? "";
+
                 int ri = dgvLines.Rows.Add(
-                    ln.RequestID,
+                    lineNo,
                     ln.RawMaterialItemID,
                     ln.RawMaterialName,
                     ln.MaterialType,
