@@ -9,16 +9,16 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
     {
         private System.ComponentModel.IContainer components = null;
 
-        private AppShell            _shell;
-        private System.Windows.Forms.Panel           pnlKpi;
-        private System.Windows.Forms.TextBox         txtKeyword;
-        private System.Windows.Forms.ComboBox        cboUrgency;
-        private System.Windows.Forms.ComboBox        cboTrigger;
-        private System.Windows.Forms.Button          btnSearch;
-        private System.Windows.Forms.Button          btnReset;
-        private System.Windows.Forms.Button          btnViewDetail;
-        private System.Windows.Forms.Button          btnCreateNew;
-        private System.Windows.Forms.DataGridView    dgvRequests;
+        private AppShell                         _shell;
+        private System.Windows.Forms.Panel       pnlKpi;
+        private System.Windows.Forms.TextBox     txtKeyword;
+        private System.Windows.Forms.ComboBox    cboUrgency;
+        private System.Windows.Forms.ComboBox    cboTrigger;
+        private System.Windows.Forms.Button      btnSearch;
+        private System.Windows.Forms.Button      btnReset;
+        private System.Windows.Forms.Button      btnViewDetail;
+        private System.Windows.Forms.Button      btnCreateNew;
+        private System.Windows.Forms.DataGridView dgvRequests;
 
         protected override void Dispose(bool disposing)
         {
@@ -107,13 +107,13 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             tblFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30f));
             tblFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30f));
             tblFields.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-            tblFields.Controls.Add(MakeCell("Keyword",     txtKeyword), 0, 0);
-            tblFields.Controls.Add(MakeCell("Urgency",     cboUrgency), 1, 0);
+            tblFields.Controls.Add(MakeCell("Keyword",      txtKeyword), 0, 0);
+            tblFields.Controls.Add(MakeCell("Urgency",      cboUrgency), 1, 0);
             tblFields.Controls.Add(MakeCell("Trigger Type", cboTrigger), 2, 0);
 
             var pnlBtns = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            btnSearch  = MakePrimaryBtn("🔍  Search", new Point(0,   0), 200, 56);
-            btnReset   = MakeOutlineBtn("↺  Reset",  new Point(208, 0), 160, 56);
+            btnSearch = MakePrimaryBtn("🔍  Search", new Point(0,   0), 200, 56);
+            btnReset  = MakeOutlineBtn("↺  Reset",  new Point(208, 0), 160, 56);
             btnSearch.Click += (s, e) => RefreshGrid();
             btnReset.Click  += (s, e) => ResetFilters();
             pnlBtns.Controls.Add(btnSearch);
@@ -130,14 +130,14 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             tblFilterCard.RowStyles.Add(new RowStyle(SizeType.Absolute, 110f));
             tblFilterCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  64f));
 
-            var pnlTitle  = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            var lblTitle  = new Label { Text = "Search Raw Material Requests", Font = new Font("Segoe UI", 13f, FontStyle.Bold), ForeColor = Color.FromArgb(15, 31, 53), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft };
-            var divider   = new Panel { Dock = DockStyle.Bottom, Height = 1, BackColor = Color.FromArgb(221, 227, 236) };
+            var pnlTitle = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
+            var lblTitle = new Label { Text = "Search Raw Material Requests", Font = new Font("Segoe UI", 13f, FontStyle.Bold), ForeColor = Color.FromArgb(15, 31, 53), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft };
+            var divider  = new Panel { Dock = DockStyle.Bottom, Height = 1, BackColor = Color.FromArgb(221, 227, 236) };
             pnlTitle.Controls.Add(lblTitle);
             pnlTitle.Controls.Add(divider);
-            tblFilterCard.Controls.Add(pnlTitle,   0, 0);
-            tblFilterCard.Controls.Add(tblFields,  0, 1);
-            tblFilterCard.Controls.Add(pnlBtns,    0, 2);
+            tblFilterCard.Controls.Add(pnlTitle,  0, 0);
+            tblFilterCard.Controls.Add(tblFields, 0, 1);
+            tblFilterCard.Controls.Add(pnlBtns,   0, 2);
 
             var pnlFilterCard = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
             pnlFilterCard.Paint += PaintCardBorder;
@@ -206,6 +206,8 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
 
             // ────────────────────────────────────────────────────────
             // Grid card (Fill)
+            // Grid columns: one row per BatchPrefix (Request ID)
+            // per-line detail (−NN items) only shown in View Detail dialog
             // ────────────────────────────────────────────────────────
             dgvRequests = new DataGridView
             {
@@ -235,18 +237,18 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             };
             dgvRequests.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(249, 250, 251);
 
-            // One row per BatchPrefix (no per-item duplication)
+            // ✔ One row per BatchPrefix — no per-item (−NN) duplication
+            // Per-item lines are shown exclusively in the View Detail dialog
             dgvRequests.Columns.AddRange(new DataGridViewColumn[]
             {
-                new DataGridViewTextBoxColumn { Name = "colRequestID", HeaderText = "REQUEST ID",      FillWeight = 18 },
-                new DataGridViewTextBoxColumn { Name = "colLines",     HeaderText = "LINES",           FillWeight =  7 },
-                new DataGridViewTextBoxColumn { Name = "colTotalQty",  HeaderText = "TOTAL REQ. QTY",  FillWeight = 11 },
-                new DataGridViewTextBoxColumn { Name = "colUrgency",   HeaderText = "URGENCY",         FillWeight = 10 },
-                new DataGridViewTextBoxColumn { Name = "colTrigger",   HeaderText = "TRIGGER",         FillWeight = 12 },
-                new DataGridViewTextBoxColumn { Name = "colOrderID",   HeaderText = "LINKED ORDER",    FillWeight = 16 },
-                new DataGridViewTextBoxColumn { Name = "colWarehouse", HeaderText = "WAREHOUSE",       FillWeight = 18 },
-                new DataGridViewTextBoxColumn { Name = "colStock",     HeaderText = "CURRENT STOCK",   FillWeight = 10 },
-                new DataGridViewTextBoxColumn { Name = "colLinkedPO",  HeaderText = "LINKED TO PO",    FillWeight = 10 },
+                new DataGridViewTextBoxColumn { Name = "colRequestID", HeaderText = "REQUEST ID",     FillWeight = 20 },
+                new DataGridViewTextBoxColumn { Name = "colLines",     HeaderText = "ITEMS",          FillWeight =  7 },
+                new DataGridViewTextBoxColumn { Name = "colTotalQty",  HeaderText = "TOTAL REQ. QTY", FillWeight = 12 },
+                new DataGridViewTextBoxColumn { Name = "colUrgency",   HeaderText = "URGENCY",        FillWeight = 11 },
+                new DataGridViewTextBoxColumn { Name = "colTrigger",   HeaderText = "TRIGGER",        FillWeight = 13 },
+                new DataGridViewTextBoxColumn { Name = "colOrderID",   HeaderText = "LINKED ORDER",   FillWeight = 17 },
+                new DataGridViewTextBoxColumn { Name = "colLinkedPO",  HeaderText = "LINKED TO PO",   FillWeight = 12 },
+                new DataGridViewTextBoxColumn { Name = "colStockNote", HeaderText = "STOCK STATUS",   FillWeight = 18 },
             });
 
             var pnlGridInner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
