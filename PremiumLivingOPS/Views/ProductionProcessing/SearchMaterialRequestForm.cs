@@ -22,6 +22,11 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
     ///   Each DataGridViewRow.Tag stores the original BatchPrefix string
     ///   from _current so that OpenDetailDialog() never relies on
     ///   SelectedRows[0].Index (which breaks when the grid is sorted).
+    ///
+    /// UI (2026-07-02):
+    ///   KPI pill size → 340 × 60.
+    ///   Grid status columns (Urgency, Trigger, Linked PO, Stock Note)
+    ///   use matching bg/fg colours consistent with KPI pills.
     /// </summary>
     public partial class SearchMaterialRequestForm : Form
     {
@@ -30,6 +35,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
 
         private static readonly Font _fontBadge = new Font("Segoe UI", 11f, FontStyle.Bold);
 
+        // ── shared colour palettes (KPI pills & grid cells use the same values) ──
         private static readonly Dictionary<string, (Color bg, Color fg)> UrgencyColors =
             new Dictionary<string, (Color, Color)>
             {
@@ -44,6 +50,20 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 { "Reorder",     (Color.FromArgb(219, 234, 254), Color.FromArgb( 30,  64, 175)) },
                 { "OrderDemand", (Color.FromArgb(243, 232, 255), Color.FromArgb( 88,  28, 135)) }
             };
+
+        // Linked-to-PO: Yes → green (same as KPI "Linked to PO" pill)
+        private static readonly (Color bg, Color fg) LinkedPoYes =
+            (Color.FromArgb(209, 250, 229), Color.FromArgb(6, 95, 70));
+        private static readonly (Color bg, Color fg) LinkedPoNo =
+            (Color.FromArgb(243, 244, 246), Color.FromArgb(107, 114, 128));
+
+        // Stock note colours aligned with KPI Critical / High / Total-blue
+        private static readonly (Color bg, Color fg) StockOut  =
+            (Color.FromArgb(254, 226, 226), Color.FromArgb(153,  27,  27));   // red  (Critical)
+        private static readonly (Color bg, Color fg) StockLow  =
+            (Color.FromArgb(254, 243, 199), Color.FromArgb(146,  64,  14));   // amber (High)
+        private static readonly (Color bg, Color fg) StockOk   =
+            (Color.FromArgb(209, 250, 229), Color.FromArgb(  6,  95,  70));   // green (Medium / Linked)
 
         public SearchMaterialRequestForm()
         {
@@ -124,7 +144,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
         }
 
         // ================================================================
-        //  KPI PILLS
+        //  KPI PILLS  — size 340 × 60
         // ================================================================
         private void RefreshKpi(SearchMaterialRequestViewModel vm)
         {
@@ -144,7 +164,9 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 ("Linked to PO",   linked.ToString(),   Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229)),
             };
 
-            const int PillW = 258, PillH = 58, Gap = 10;
+            // ── pill size updated to 340 × 60 ──
+            const int PillW = 340, PillH = 60, Gap = 10;
+
             var flow = new FlowLayoutPanel
             {
                 FlowDirection = FlowDirection.LeftToRight,
@@ -223,63 +245,67 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
 
         // ================================================================
         //  CELL FORMATTING
+        //  All status columns now carry bg + fg matching the KPI pills.
         // ================================================================
         private void DgvRequests_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
-            if (e.RowIndex < 0) return;
-            if (e.Value == null) return;
+            if (e.RowIndex < 0 || e.Value == null) return;
 
             string val     = e.Value.ToString();
             string colName = dgvRequests.Columns[e.ColumnIndex].Name;
 
-            if (colName == "colUrgency" && UrgencyColors.TryGetValue(val, out var uc))
+            void Apply(Color bg, Color fg, bool bold = false)
             {
-                e.CellStyle.ForeColor          = uc.fg;
-                e.CellStyle.BackColor          = uc.bg;
-                e.CellStyle.SelectionForeColor = uc.fg;
-                e.CellStyle.SelectionBackColor = uc.bg;
-                e.CellStyle.Font               = _fontBadge;
+                e.CellStyle.BackColor          = bg;
+                e.CellStyle.ForeColor          = fg;
+                e.CellStyle.SelectionBackColor = bg;
+                e.CellStyle.SelectionForeColor = fg;
+                if (bold) e.CellStyle.Font     = _fontBadge;
                 e.CellStyle.Alignment          = DataGridViewContentAlignment.MiddleCenter;
                 e.FormattingApplied            = true;
             }
-            else if (colName == "colTrigger" && TriggerColors.TryGetValue(val, out var tc))
+
+            switch (colName)
             {
-                e.CellStyle.ForeColor          = tc.fg;
-                e.CellStyle.BackColor          = tc.bg;
-                e.CellStyle.SelectionForeColor = tc.fg;
-                e.CellStyle.SelectionBackColor = tc.bg;
-                e.CellStyle.Font               = _fontBadge;
-                e.CellStyle.Alignment          = DataGridViewContentAlignment.MiddleCenter;
-                e.FormattingApplied            = true;
-            }
-            else if (colName == "colLinkedPO")
-            {
-                e.CellStyle.ForeColor = val == "Yes"
-                    ? Color.FromArgb(6, 95, 70)
-                    : Color.FromArgb(107, 114, 128);
-                if (val == "Yes") e.CellStyle.Font = _fontBadge;
-                e.CellStyle.Alignment  = DataGridViewContentAlignment.MiddleCenter;
-                e.FormattingApplied    = true;
-            }
-            else if (colName == "colStockNote")
-            {
-                e.CellStyle.ForeColor = val.Contains("Out of Stock") ? Color.FromArgb(153, 27, 27)
-                                      : val.Contains("Low Stock")    ? Color.FromArgb(146, 64, 14)
-                                      :                                Color.FromArgb(  6, 95, 70);
-                e.FormattingApplied   = true;
-            }
-            else if (colName == "colLines")
-            {
-                e.CellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-                e.CellStyle.ForeColor = Color.FromArgb(30, 64, 175);
-                e.CellStyle.Font      = _fontBadge;
-                e.FormattingApplied   = true;
-            }
-            else if (colName == "colTotalQty")
-            {
-                e.CellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-                e.CellStyle.ForeColor = Color.FromArgb(15, 31, 53);
-                e.FormattingApplied   = true;
+                case "colUrgency":
+                    if (UrgencyColors.TryGetValue(val, out var uc))
+                        Apply(uc.bg, uc.fg, bold: true);
+                    break;
+
+                case "colTrigger":
+                    if (TriggerColors.TryGetValue(val, out var tc))
+                        Apply(tc.bg, tc.fg, bold: true);
+                    break;
+
+                case "colLinkedPO":
+                    // Yes → green pill (same as KPI "Linked to PO")
+                    // No  → neutral grey
+                    var lc = val == "Yes" ? LinkedPoYes : LinkedPoNo;
+                    Apply(lc.bg, lc.fg, bold: val == "Yes");
+                    break;
+
+                case "colStockNote":
+                    // Out of Stock → red (Critical), Low Stock → amber (High), In Stock → green
+                    (Color bg, Color fg) sc =
+                        val.Contains("Out of Stock") ? StockOut :
+                        val.Contains("Low Stock")    ? StockLow :
+                                                       StockOk;
+                    Apply(sc.bg, sc.fg);
+                    e.CellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
+                    break;
+
+                case "colLines":
+                    e.CellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                    e.CellStyle.ForeColor = Color.FromArgb(30, 64, 175);
+                    e.CellStyle.Font      = _fontBadge;
+                    e.FormattingApplied   = true;
+                    break;
+
+                case "colTotalQty":
+                    e.CellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                    e.CellStyle.ForeColor = Color.FromArgb(15, 31, 53);
+                    e.FormattingApplied   = true;
+                    break;
             }
         }
 
@@ -487,7 +513,6 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             dgvLines.DefaultCellStyle.SelectionForeColor     = Color.FromArgb(15, 31, 53);
             dgvLines.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(249, 250, 251);
 
-            // LINE # column: narrow, centred, shows only the -NN suffix
             dgvLines.Columns.Add(new DataGridViewTextBoxColumn
             {
                 Name = "cLineNo", HeaderText = "LINE #", FillWeight = 7,
@@ -506,11 +531,8 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
 
             foreach (var ln in d.Lines)
             {
-                // Extract the -NN suffix from the full RequestID.
-                // e.g. "MRQ-260701-001-02" → "-02"
-                // Falls back to the full ID if the format is unexpected.
                 string lineNo = ln.RequestID?.Length >= 3
-                    ? ln.RequestID.Substring(ln.RequestID.Length - 3)   // last 3 chars: "-NN"
+                    ? ln.RequestID.Substring(ln.RequestID.Length - 3)
                     : ln.RequestID ?? "";
 
                 int ri = dgvLines.Rows.Add(
@@ -525,9 +547,9 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                     ln.WarehouseLocation);
 
                 if (ln.CurrentStock == 0)
-                    dgvLines.Rows[ri].DefaultCellStyle.BackColor = Color.FromArgb(254, 226, 226);
+                    dgvLines.Rows[ri].DefaultCellStyle.BackColor = StockOut.bg;
                 else if (ln.CurrentStock <= ln.ReorderLevel)
-                    dgvLines.Rows[ri].DefaultCellStyle.BackColor = Color.FromArgb(255, 243, 205);
+                    dgvLines.Rows[ri].DefaultCellStyle.BackColor = StockLow.bg;
             }
 
             dlg.Controls.Add(dgvLines);
