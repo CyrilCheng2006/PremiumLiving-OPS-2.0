@@ -11,7 +11,17 @@ namespace PremiumLivingOPS.Views.Dashboard
 {
     /// <summary>
     /// Dashboard View — UI binding only.
-    /// Chrome provided by AppShell; wired in BindViewModel().
+    /// Chrome provided by AppShell; data/visibility driven by DashboardViewModel.
+    ///
+    /// Section visibility contract
+    /// ───────────────────────────
+    /// BindViewModel() reads vm.Sections (set by DashboardController / NavAccessPolicy)
+    /// and calls ApplySectionVisibility() which:
+    ///   • Shows/hides individual KPI panels inside their TLP cells.
+    ///   • Collapses an entire KPI row (outer CardPanel) when ALL 4 cards are hidden.
+    ///   • Shows/hides each Section card column; collapses a row-TLP when both halves
+    ///     are hidden (the outer CardPanel itself is also hidden).
+    /// The Designer still creates all controls — visibility is purely runtime.
     /// </summary>
     public partial class DashboardForm : Form
     {
@@ -76,15 +86,15 @@ namespace PremiumLivingOPS.Views.Dashboard
             }
         }
 
-        // ── Fonts (all match DataGridView standard) ───────────────────────
+        // ── Fonts ─────────────────────────────────────────────────────────
         private static readonly Font FontBodyBold  = new Font("Segoe UI", 12.8f, FontStyle.Bold);
         private static readonly Font FontSmallBold = new Font("Segoe UI", 11.2f, FontStyle.Bold);
 
-        // ── Fields ───────────────────────────────────────────────────────
+        // ── Fields ────────────────────────────────────────────────────────
         private readonly DashboardController _controller;
         private Panel _activeNavItem;
 
-        // ── Constructor ──────────────────────────────────────────────────
+        // ── Constructor ───────────────────────────────────────────────────
         public DashboardForm()
         {
             _controller = new DashboardController();
@@ -92,7 +102,7 @@ namespace PremiumLivingOPS.Views.Dashboard
             BindViewModel();
         }
 
-        // ── ViewModel binding ─────────────────────────────────────────────
+        // ── ViewModel binding ──────────────────────────────────────────────
         private void BindViewModel()
         {
             DashboardViewModel vm = _controller.LoadDashboard();
@@ -107,19 +117,33 @@ namespace PremiumLivingOPS.Views.Dashboard
             lblPageSub.Text = "Premium Living Furniture Co.  \u00b7  Overview as of " +
                               DateTime.Now.ToString("d MMMM yyyy");
 
-            // 2. Alert banner
+            // 2. Alert banner (only meaningful when low-stock section is visible)
             int lowCount = vm.LowStock.Count;
-            pnlAlert.Visible = lowCount > 0;
-            if (lowCount > 0)
+            pnlAlert.Visible = vm.Sections.ShowLowStock && lowCount > 0;
+            if (pnlAlert.Visible)
                 lblAlert.Text = $"\u26a0\ufe0f  {lowCount} item(s) are currently below minimum stock threshold.";
 
-            // 3. KPI cards
-            Panel[] kpiPanels = { kpiOrders, kpiDelivered, kpiQuotations, kpiLowStock,
-                                  kpiRevenue, kpiAR,        kpiSuppliers,  kpiCustomers };
-            for (int i = 0; i < kpiPanels.Length && i < vm.Kpis.Count; i++)
-                SetKpiCard(kpiPanels[i], vm.Kpis[i]);
+            // 3. Section visibility
+            ApplySectionVisibility(vm.Sections);
 
-            // 4. Recent Orders
+            // 4. KPI cards — bind in order of Kpis list
+            //    Each card slot maps to a KPI by AccentKey+Label (order matches BuildSections)
+            Panel[] kpiPanels =
+            {
+                kpiOrders, kpiDelivered, kpiQuotations, kpiLowStock,
+                kpiRevenue, kpiAR,       kpiSuppliers,  kpiCustomers
+            };
+            // Only visible panels get data; the KPis list in the VM is already filtered
+            // We match by position among VISIBLE panels
+            int kpiIdx = 0;
+            foreach (Panel p in kpiPanels)
+            {
+                if (!p.Visible) continue;
+                if (kpiIdx < vm.Kpis.Count)
+                    SetKpiCard(p, vm.Kpis[kpiIdx++]);
+            }
+
+            // 5. Recent Orders
             foreach (var row in vm.Orders)
             {
                 var (bg, fg) = Palette.TagColours(row.Status);
@@ -127,14 +151,14 @@ namespace PremiumLivingOPS.Views.Dashboard
                 dgvOrders.Rows[idx].Tag = new[] { bg, fg };
             }
 
-            // 5. Low-Stock grid
+            // 6. Low-Stock grid
             BindLowStockGrid(vm.LowStock);
 
-            // 6. Pending Quotations
+            // 7. Pending Quotations
             foreach (var row in vm.Quotations)
                 dgvQuotations.Rows.Add(row.QuotationId, row.Customer, row.Amount, row.ValidUntil);
 
-            // 7. Active Shipments
+            // 8. Active Shipments
             foreach (var row in vm.Shipments)
             {
                 var (bg, fg) = Palette.TagColours(row.Status);
@@ -142,7 +166,7 @@ namespace PremiumLivingOPS.Views.Dashboard
                 dgvShipments.Rows[idx].Tag = new[] { bg, fg };
             }
 
-            // 8. Supplier Payments
+            // 9. Supplier Payments
             foreach (var row in vm.Suppliers)
             {
                 var (bg, fg) = Palette.TagColours(row.Status);
@@ -150,18 +174,111 @@ namespace PremiumLivingOPS.Views.Dashboard
                 dgvSuppliers.Rows[idx].Tag = new[] { bg, fg };
             }
 
-            // 9. Activity feed → DataGridView
-            //    Col 0: empty string (dot drawn by CellPainting)
-            //    Col 1: bold label + normal text merged as one string
-            //    Col 2: time label
+            // 10. Activity feed
             foreach (var row in vm.Activities)
             {
                 string actText = string.IsNullOrEmpty(row.NormalText)
                     ? row.BoldText
                     : row.BoldText + "  " + row.NormalText;
                 int idx = dgvActivity.Rows.Add("", actText, row.TimeLabel);
-                // Store dot colour in Tag for CellPainting
                 dgvActivity.Rows[idx].Tag = Palette.FromKey(row.CategoryKey);
+            }
+        }
+
+        // ── Section / KPI visibility ──────────────────────────────────────
+        /// <summary>
+        /// Applies vm.Sections flags to every UI panel.
+        ///
+        /// KPI rows: each card is individually shown/hidden inside its TLP cell.
+        ///   If ALL 4 cards in a row are hidden the outer CardPanel row is collapsed.
+        ///
+        /// Section rows (Row1-3 TLPs): each half-column is shown/hidden.
+        ///   A row's outer CardPanel is collapsed when both halves are hidden.
+        ///   When only one half is visible it expands to full width via ColumnSpan=2.
+        /// </summary>
+        private void ApplySectionVisibility(DashboardSections s)
+        {
+            // ── KPI Row 1 ────────────────────────────────────────────────
+            kpiOrders.Visible     = s.ShowKpiOrders;
+            kpiDelivered.Visible  = s.ShowKpiDelivered;
+            kpiQuotations.Visible = s.ShowKpiQuotations;
+            kpiLowStock.Visible   = s.ShowKpiLowStock;
+            bool kpiRow1Visible = s.ShowKpiOrders || s.ShowKpiDelivered ||
+                                  s.ShowKpiQuotations || s.ShowKpiLowStock;
+            pnlKpi1.Visible = kpiRow1Visible;
+
+            // ── KPI Row 2 ────────────────────────────────────────────────
+            kpiRevenue.Visible   = s.ShowKpiRevenue;
+            kpiAR.Visible        = s.ShowKpiAR;
+            kpiSuppliers.Visible = s.ShowKpiSuppliers;
+            kpiCustomers.Visible = s.ShowKpiCustomers;
+            bool kpiRow2Visible = s.ShowKpiRevenue || s.ShowKpiAR ||
+                                  s.ShowKpiSuppliers || s.ShowKpiCustomers;
+            pnlKpi2.Visible = kpiRow2Visible;
+
+            // ── Section Row 1: Recent Orders (left) + Low Stock (right) ──
+            ApplyRowVisibility(
+                tlpRow1,
+                leftVisible:  s.ShowRecentOrders,
+                rightVisible: s.ShowLowStock);
+
+            // ── Section Row 2: Pending Quotations (left) + Shipments (right) ──
+            ApplyRowVisibility(
+                tlpRow2,
+                leftVisible:  s.ShowPendingQuotations,
+                rightVisible: s.ShowActiveShipments);
+
+            // ── Section Row 3: Supplier Payments (left) + Activity (right) ──
+            ApplyRowVisibility(
+                tlpRow3,
+                leftVisible:  s.ShowSupplierPayments,
+                rightVisible: s.ShowRecentActivity);
+        }
+
+        /// <summary>
+        /// Shows/hides the left and right columns of a two-column TLP section row.
+        /// - Both visible     → normal 50/50 split.
+        /// - Only one visible → that column spans both columns (100 %).
+        /// - Both hidden      → the TLP's parent outer CardPanel is collapsed.
+        /// </summary>
+        private static void ApplyRowVisibility(
+            TableLayoutPanel tlp, bool leftVisible, bool rightVisible)
+        {
+            if (tlp == null) return;
+
+            // The outer CardPanel is tlp.Parent.Parent (inner→outer nesting)
+            Control outerCard = tlp.Parent?.Parent;
+
+            if (!leftVisible && !rightVisible)
+            {
+                if (outerCard != null) outerCard.Visible = false;
+                return;
+            }
+
+            if (outerCard != null) outerCard.Visible = true;
+
+            // Show/hide individual columns
+            if (tlp.Controls.Count >= 1) tlp.Controls[0].Visible = leftVisible;
+            if (tlp.Controls.Count >= 2) tlp.Controls[1].Visible = rightVisible;
+
+            // Adjust column widths so the visible half fills the row
+            tlp.ColumnStyles[0].SizeType = SizeType.Percent;
+            tlp.ColumnStyles[1].SizeType = SizeType.Percent;
+
+            if (leftVisible && rightVisible)
+            {
+                tlp.ColumnStyles[0].Width = 50f;
+                tlp.ColumnStyles[1].Width = 50f;
+            }
+            else if (leftVisible)
+            {
+                tlp.ColumnStyles[0].Width = 100f;
+                tlp.ColumnStyles[1].Width = 0f;
+            }
+            else
+            {
+                tlp.ColumnStyles[0].Width = 0f;
+                tlp.ColumnStyles[1].Width = 100f;
             }
         }
 
@@ -231,11 +348,6 @@ namespace PremiumLivingOPS.Views.Dashboard
         }
 
         // ── Cell painting ─────────────────────────────────────────────────
-
-        /// <summary>
-        /// Generic status-badge painter for col <paramref name="statusColIndex"/>.
-        /// Reads bg/fg colours from row.Tag (Color[2]).
-        /// </summary>
         private void PaintStatusCell(object sender, DataGridViewCellPaintingEventArgs e, int statusColIndex)
         {
             if (e.RowIndex < 0 || e.ColumnIndex != statusColIndex) return;
@@ -265,10 +377,6 @@ namespace PremiumLivingOPS.Views.Dashboard
             }
         }
 
-        /// <summary>
-        /// Paints col 0 of dgvActivity as a filled colour dot (12×12 circle).
-        /// The dot colour is stored as a Color in row.Tag.
-        /// </summary>
         private void dgvActivity_CellPainting(object sender, DataGridViewCellPaintingEventArgs e)
         {
             if (e.RowIndex < 0 || e.ColumnIndex != 0) return;

@@ -11,19 +11,23 @@ namespace PremiumLivingOPS.Controllers
     ///
     /// Responsibilities:
     ///   1. Read session state from SessionManager; build UserBarInfo.
-    ///   2. Apply NavAccessPolicy to produce the AllowedMenus list.
-    ///   3. Call DashboardRepo to fetch raw data.
+    ///   2. Apply NavAccessPolicy → AllowedMenus + DashboardSections.
+    ///   3. Call DashboardRepo only for the data the current department can see.
     ///   4. Apply business logic (formatting, derived fields).
     ///   5. Return a fully-populated DashboardViewModel to the View.
     ///
-    /// Data notes (schema.sql):
-    ///   - Order        : GrandTotal, IssuedTime
-    ///   - Quotation    : ExpiryDate, QuotationStatus IN ('Converted','Rejected','Pending')
-    ///   - Shipment     : ShipmentStatus IN ('Pending','In Transit','Completed')
-    ///   - WarehouseItem: WarehouseItemQuantity, ReorderLevel  (no InventoryItem table)
-    ///   - Invoice      : RemainingBalance, PaymentStatus IN ('Partial','Full')
-    ///   - PurchaseInvoice / PurchaseOrder / Supplier  (no SupplierPayment table)
-    ///   - Supplier     : no SupplierStatus column — all rows counted
+    /// Department → Visible Sections matrix (mirrors NavAccessPolicy):
+    /// ┌─────────────┬────────────────────────────────────────────────────────────────────┐
+    /// │ Department  │ KPI Cards                         │ Section Cards                  │
+    /// ├─────────────┼───────────────────────────────────┼────────────────────────────────┤
+    /// │ IT          │ All 8                             │ All 6                          │
+    /// │ Sales       │ Orders/Delivered/Quotations/      │ RecentOrders, Quotations,      │
+    /// │             │ Revenue/AR/Customers              │ SupplierPayments, Activity     │
+    /// │ Production  │ LowStock/Suppliers                │ LowStock, Activity             │
+    /// │ Inventory   │ LowStock/Suppliers                │ LowStock, Activity             │
+    /// │ Finance     │ Revenue/AR/Customers              │ SupplierPayments, Activity     │
+    /// │ Logistics   │ Delivered/Suppliers               │ ActiveShipments, Activity      │
+    /// └─────────────┴───────────────────────────────────┴────────────────────────────────┘
     /// </summary>
     public class DashboardController
     {
@@ -44,7 +48,7 @@ namespace PremiumLivingOPS.Controllers
             {
                 vm.UserBar = new UserBarInfo
                 {
-                    DisplayName = SessionManager.CurrentUser.StaffName ?? string.Empty,
+                    DisplayName = SessionManager.CurrentUser.StaffName  ?? string.Empty,
                     Department  = SessionManager.CurrentUser.Department ?? string.Empty
                 };
                 department = SessionManager.CurrentUser.Department ?? string.Empty;
@@ -56,55 +60,70 @@ namespace PremiumLivingOPS.Controllers
 
             vm.AllowedMenus = NavAccessPolicy.GetAllowedMenus(department);
 
-            // ── 2. Raw data from DAL ───────────────────────────────────────────
-            var statusCounts = SafeCall(
-                () => _repo.GetOrderStatusCounts(),
-                new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase));
+            // ── 2. Section visibility (role-gated) ────────────────────────────
+            vm.Sections = BuildSections(department);
 
-            int totalOrders       = statusCounts.Values.Sum();
-            int delivered         = statusCounts.GetValueOrDefault("Delivered",          0);
-            int completed         = statusCounts.GetValueOrDefault("Completed",          0);
-            int pending           = statusCounts.GetValueOrDefault("Pending",            0);
-            int processing        = statusCounts.GetValueOrDefault("Processing",         0);
-            int partialDelivered  = statusCounts.GetValueOrDefault("Partially Delivered",0);
-            int deliveredTotal    = delivered + completed;
+            // ── 3. Raw data — only fetch what this role can see ───────────────
+            var sec = vm.Sections;
 
-            var lowStockItems = SafeCall(() => _repo.GetLowStockItems(),        new List<LowStockRow>());
-            decimal revenue   = SafeCall(() => _repo.GetMonthlyRevenue(),       0m);
-            decimal ar        = SafeCall(() => _repo.GetOutstandingAR(),        0m);
-            int suppliers     = SafeCall(() => _repo.GetActiveSupplierCount(),  0);
-            int customers     = SafeCall(() => _repo.GetCustomerCount(),        0);
+            // Orders (needed by Sales / IT)
+            var statusCounts = (sec.ShowKpiOrders || sec.ShowKpiDelivered)
+                ? SafeCall(() => _repo.GetOrderStatusCounts(),
+                           new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase))
+                : new Dictionary<string, int>();
 
-            // ── 3. KPI list ─────────────────────────────────────────────────
+            int totalOrders      = statusCounts.Values.Sum();
+            int delivered        = statusCounts.GetValueOrDefault("Delivered",           0);
+            int completed        = statusCounts.GetValueOrDefault("Completed",           0);
+            int pending          = statusCounts.GetValueOrDefault("Pending",             0);
+            int processing       = statusCounts.GetValueOrDefault("Processing",          0);
+            int partialDelivered = statusCounts.GetValueOrDefault("Partially Delivered", 0);
+            int deliveredTotal   = delivered + completed;
+
+            // Low stock (needed by Production / Inventory / IT)
+            var lowStockItems = sec.ShowKpiLowStock
+                ? SafeCall(() => _repo.GetLowStockItems(),  new List<LowStockRow>())
+                : new List<LowStockRow>();
+
+            // Finance figures
+            decimal revenue   = sec.ShowKpiRevenue    ? SafeCall(() => _repo.GetMonthlyRevenue(),      0m) : 0m;
+            decimal ar        = sec.ShowKpiAR         ? SafeCall(() => _repo.GetOutstandingAR(),       0m) : 0m;
+            int     suppliers = sec.ShowKpiSuppliers  ? SafeCall(() => _repo.GetActiveSupplierCount(), 0)  : 0;
+            int     customers = sec.ShowKpiCustomers  ? SafeCall(() => _repo.GetCustomerCount(),       0)  : 0;
+
+            // ── 4. KPI list (only include cards this role may see) ────────────
             string month = DateTime.Now.ToString("MMM").ToUpper();
+            vm.Kpis      = new List<DashboardKpi>();
 
-            vm.Kpis = new List<DashboardKpi>
-            {
-                new DashboardKpi
+            if (sec.ShowKpiOrders)
+                vm.Kpis.Add(new DashboardKpi
                 {
                     Label     = $"TOTAL ORDERS ({month})",
                     Value     = totalOrders.ToString(),
                     SubText   = $"{pending} Pending · {processing} Processing · {partialDelivered} Part. Delivered",
                     AccentKey = "Primary"
-                },
-                new DashboardKpi
+                });
+
+            if (sec.ShowKpiDelivered)
+                vm.Kpis.Add(new DashboardKpi
                 {
                     Label     = "DELIVERED THIS MONTH",
                     Value     = deliveredTotal.ToString(),
-                    SubText   = deliveredTotal == 0
-                                    ? "None this month"
-                                    : $"{deliveredTotal} order(s) completed",
+                    SubText   = deliveredTotal == 0 ? "None this month" : $"{deliveredTotal} order(s) completed",
                     AccentKey = "Success"
-                },
-                new DashboardKpi
+                });
+
+            if (sec.ShowKpiQuotations)
+                vm.Kpis.Add(new DashboardKpi
                 {
-                    // Value/SubText filled after GetPendingQuotations() below
                     Label     = "PENDING QUOTATIONS",
-                    Value     = "–",
+                    Value     = "–",   // filled after quotation query below
                     SubText   = "",
                     AccentKey = "Warning"
-                },
-                new DashboardKpi
+                });
+
+            if (sec.ShowKpiLowStock)
+                vm.Kpis.Add(new DashboardKpi
                 {
                     Label     = "LOW STOCK ALERTS",
                     Value     = lowStockItems.Count.ToString(),
@@ -112,58 +131,163 @@ namespace PremiumLivingOPS.Controllers
                                     ? "Immediate procurement action needed"
                                     : "All items within threshold",
                     AccentKey = "Danger"
-                },
-                new DashboardKpi
+                });
+
+            if (sec.ShowKpiRevenue)
+                vm.Kpis.Add(new DashboardKpi
                 {
                     Label     = "REVENUE THIS MONTH",
                     Value     = FormatHKD(revenue),
                     SubText   = "Based on delivered / completed orders",
                     AccentKey = "Info"
-                },
-                new DashboardKpi
+                });
+
+            if (sec.ShowKpiAR)
+                vm.Kpis.Add(new DashboardKpi
                 {
                     Label     = "OUTSTANDING AR",
                     Value     = FormatHKD(ar),
                     SubText   = "Partially paid customer invoices",
                     AccentKey = "Warning"
-                },
-                new DashboardKpi
+                });
+
+            if (sec.ShowKpiSuppliers)
+                vm.Kpis.Add(new DashboardKpi
                 {
                     Label     = "TOTAL SUPPLIERS",
                     Value     = suppliers.ToString(),
                     SubText   = "Registered in system",
                     AccentKey = "Primary"
-                },
-                new DashboardKpi
+                });
+
+            if (sec.ShowKpiCustomers)
+                vm.Kpis.Add(new DashboardKpi
                 {
                     Label     = "TOTAL CUSTOMERS",
                     Value     = customers.ToString(),
                     SubText   = "Registered in system",
                     AccentKey = "Primary"
-                }
-            };
+                });
 
-            // ── 4. Tabular data ──────────────────────────────────────────────
-            vm.Orders   = SafeCall(() => _repo.GetRecentOrders(5),          new List<OrderSummaryRow>());
+            // ── 5. Tabular data ───────────────────────────────────────────────
             vm.LowStock = lowStockItems;
 
-            var quotations   = SafeCall(() => _repo.GetPendingQuotations(5), new List<QuotationSummaryRow>());
-            vm.Quotations    = quotations;
-            vm.Kpis[2].Value   = quotations.Count.ToString();
-            vm.Kpis[2].SubText = quotations.Count > 0
-                ? string.Join(" · ", quotations.Take(2).Select(q => q.QuotationId))
-                : "No pending quotations";
+            vm.Orders = sec.ShowRecentOrders
+                ? SafeCall(() => _repo.GetRecentOrders(5), new List<OrderSummaryRow>())
+                : new List<OrderSummaryRow>();
 
-            vm.Shipments = SafeCall(() => _repo.GetActiveShipments(5),      new List<ShipmentSummaryRow>());
-            vm.Suppliers = SafeCall(() => _repo.GetSupplierPayments(5),     new List<SupplierPaymentRow>());
+            // Quotations (also updates KPI)
+            if (sec.ShowPendingQuotations)
+            {
+                var quotations = SafeCall(() => _repo.GetPendingQuotations(5), new List<QuotationSummaryRow>());
+                vm.Quotations  = quotations;
 
-            // ── 5. Activity feed ──────────────────────────────────────────────
-            vm.Activities = BuildActivityFeed(vm.Orders, vm.Shipments, vm.Suppliers);
+                // Back-fill the KPI card value
+                var kpiQ = vm.Kpis.Find(k => k.Label == "PENDING QUOTATIONS");
+                if (kpiQ != null)
+                {
+                    kpiQ.Value   = quotations.Count.ToString();
+                    kpiQ.SubText = quotations.Count > 0
+                        ? string.Join(" · ", quotations.Take(2).Select(q => q.QuotationId))
+                        : "No pending quotations";
+                }
+            }
+
+            vm.Shipments = sec.ShowActiveShipments
+                ? SafeCall(() => _repo.GetActiveShipments(5), new List<ShipmentSummaryRow>())
+                : new List<ShipmentSummaryRow>();
+
+            vm.Suppliers = sec.ShowSupplierPayments
+                ? SafeCall(() => _repo.GetSupplierPayments(5), new List<SupplierPaymentRow>())
+                : new List<SupplierPaymentRow>();
+
+            // ── 6. Activity feed ──────────────────────────────────────────────
+            if (sec.ShowRecentActivity)
+                vm.Activities = BuildActivityFeed(vm.Orders, vm.Shipments, vm.Suppliers);
 
             return vm;
         }
 
-        // ── Fault-isolation helper ───────────────────────────────────────
+        // ── Section-visibility builder ────────────────────────────────────────
+        /// <summary>
+        /// Returns a <see cref="DashboardSections"/> flag-set that mirrors the
+        /// NavAccessPolicy department matrix.
+        /// Unknown/null departments see only the Activity feed as a safe fallback.
+        /// </summary>
+        private static DashboardSections BuildSections(string department)
+        {
+            switch ((department ?? string.Empty).Trim().ToLowerInvariant())
+            {
+                case "it":
+                    return new DashboardSections
+                    {
+                        ShowKpiOrders = true, ShowKpiDelivered = true,
+                        ShowKpiQuotations = true, ShowKpiLowStock = true,
+                        ShowKpiRevenue = true, ShowKpiAR = true,
+                        ShowKpiSuppliers = true, ShowKpiCustomers = true,
+                        ShowRecentOrders = true, ShowLowStock = true,
+                        ShowPendingQuotations = true, ShowActiveShipments = true,
+                        ShowSupplierPayments = true, ShowRecentActivity = true
+                    };
+
+                case "sales":
+                    // Nav: Order Processing, After-Service, Master Data, Statistical Reports
+                    return new DashboardSections
+                    {
+                        ShowKpiOrders = true, ShowKpiDelivered = true,
+                        ShowKpiQuotations = true,
+                        ShowKpiRevenue = true, ShowKpiAR = true,
+                        ShowKpiCustomers = true,
+                        ShowRecentOrders = true,
+                        ShowPendingQuotations = true,
+                        ShowSupplierPayments = true,
+                        ShowRecentActivity = true
+                    };
+
+                case "production":
+                    // Nav: Production Processing, Inventory Control, Raw Material
+                    return new DashboardSections
+                    {
+                        ShowKpiLowStock = true, ShowKpiSuppliers = true,
+                        ShowLowStock = true,
+                        ShowRecentActivity = true
+                    };
+
+                case "inventory":
+                    // Nav: Inventory Control, Raw Material, Master Data
+                    return new DashboardSections
+                    {
+                        ShowKpiLowStock = true, ShowKpiSuppliers = true,
+                        ShowLowStock = true,
+                        ShowRecentActivity = true
+                    };
+
+                case "finance":
+                    // Nav: After-Service, Master Data, Statistical Reports
+                    return new DashboardSections
+                    {
+                        ShowKpiRevenue = true, ShowKpiAR = true,
+                        ShowKpiCustomers = true,
+                        ShowSupplierPayments = true,
+                        ShowRecentActivity = true
+                    };
+
+                case "logistics":
+                    // Nav: Logistics Processing, Master Data
+                    return new DashboardSections
+                    {
+                        ShowKpiDelivered = true, ShowKpiSuppliers = true,
+                        ShowActiveShipments = true,
+                        ShowRecentActivity = true
+                    };
+
+                default:
+                    // Unknown department — minimal safe view
+                    return new DashboardSections { ShowRecentActivity = true };
+            }
+        }
+
+        // ── Fault-isolation helper ────────────────────────────────────────────
         private static T SafeCall<T>(Func<T> fn, T fallback)
         {
             try   { return fn(); }
@@ -175,7 +299,7 @@ namespace PremiumLivingOPS.Controllers
             }
         }
 
-        // ── Private helpers ──────────────────────────────────────────
+        // ── Private helpers ───────────────────────────────────────────────────
         private static string FormatHKD(decimal amount)
         {
             if (amount >= 1_000_000m) return $"HK${(amount / 1_000_000m):0.#}M";
@@ -224,13 +348,13 @@ namespace PremiumLivingOPS.Controllers
         {
             switch (status)
             {
-                case "Delivered":          return "Success";
-                case "Completed":          return "Success";
-                case "Partially Delivered":return "Info";
-                case "Processing":         return "Primary";
-                case "Pending":            return "Warning";
-                case "Cancelled":          return "Danger";
-                default:                   return "Primary";
+                case "Delivered":           return "Success";
+                case "Completed":           return "Success";
+                case "Partially Delivered": return "Info";
+                case "Processing":          return "Primary";
+                case "Pending":             return "Warning";
+                case "Cancelled":           return "Danger";
+                default:                    return "Primary";
             }
         }
 
