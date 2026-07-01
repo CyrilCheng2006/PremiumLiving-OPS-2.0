@@ -217,7 +217,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             for (int i = 0; i < _requestLines.Count; i++)
             {
                 var l = _requestLines[i];
-                // Column “Request ID” shows batch prefix only — no -NN suffix
+                // Column "Request ID" shows batch prefix only — no -NN suffix
                 dgvLines.Rows.Add(
                     i + 1,
                     _batchPrefix,          // displayed Request ID = batch prefix
@@ -300,6 +300,13 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
 
         private void BtnLogout_Click(object sender, EventArgs e)
         {
+            var result = MessageBox.Show(
+                "Are you sure you want to log out?",
+                "Confirm Logout",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question);
+            if (result != DialogResult.Yes) return;
+
             SessionManager.Clear();
             Application.Restart();
         }

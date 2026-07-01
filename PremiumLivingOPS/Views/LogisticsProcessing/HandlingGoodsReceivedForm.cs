@@ -90,9 +90,15 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
         private void btnLogout_Click(object sender, EventArgs e)
         {
-            if (MessageBox.Show("Are you sure you want to logout?",
-                "Logout", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
-                FormNavigator.NavigateTo(this, "Logout");
+            var result = MessageBox.Show(
+                "Are you sure you want to log out?",
+                "Confirm Logout",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question);
+            if (result != DialogResult.Yes) return;
+
+            SessionManager.Clear();
+            Application.Restart();
         }
 
         // ──────────────────────────────────────────────────────────────────

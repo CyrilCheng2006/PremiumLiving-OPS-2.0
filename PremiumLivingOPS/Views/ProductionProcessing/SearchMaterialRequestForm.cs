@@ -83,7 +83,17 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             => FormNavigator.NavigateTo(this, menuLabel, subItem);
 
         private void BtnLogout_Click(object sender, EventArgs e)
-        { SessionManager.Clear(); Application.Restart(); }
+        {
+            var result = MessageBox.Show(
+                "Are you sure you want to log out?",
+                "Confirm Logout",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question);
+            if (result != DialogResult.Yes) return;
+
+            SessionManager.Clear();
+            Application.Restart();
+        }
 
         // ================================================================
         //  REFRESH GRID
