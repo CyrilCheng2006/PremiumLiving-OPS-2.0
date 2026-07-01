@@ -47,9 +47,9 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             _shell.MenuItemClicked += OnTopNavMenuItemClicked;
             _shell.LogoutClicked   += BtnLogout_Click;
 
-            // ────────────────────────────────────────────────────────
+            // ──────────────────────────────────────────────────────
             // FILTER CARD
-            // ────────────────────────────────────────────────────────
+            // ──────────────────────────────────────────────────────
             txtKeyword = new TextBox
             {
                 Font = new Font("Segoe UI", 12f), BorderStyle = BorderStyle.FixedSingle,
@@ -157,9 +157,9 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             };
             pnlFilterOuter.Controls.Add(pnlFilterCard);
 
-            // ────────────────────────────────────────────────────────
+            // ──────────────────────────────────────────────────────
             // KPI BAR
-            // ────────────────────────────────────────────────────────
+            // ──────────────────────────────────────────────────────
             pnlKpi = new Panel
             {
                 Dock = DockStyle.Fill, BackColor = Color.Transparent,
@@ -207,11 +207,10 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             };
             pnlKpiOuter.Controls.Add(pnlKpiInner);
 
-            // ────────────────────────────────────────────────────────
+            // ──────────────────────────────────────────────────────
             // MAIN GRID
-            // Columns are BATCH-LEVEL only — no -NN per-item columns.
-            // Per-item detail is shown exclusively in the View Detail dialog.
-            // ────────────────────────────────────────────────────────
+            // RowTemplate.Height: 44 × 1.2 = 52.8 → 53 px
+            // ──────────────────────────────────────────────────────
             dgvRequests = new DataGridView
             {
                 ReadOnly = true, AllowUserToAddRows = false, AllowUserToDeleteRows = false,
@@ -221,7 +220,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 GridColor = Color.FromArgb(221, 227, 236),
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
                 CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal,
-                Font = new Font("Segoe UI", 13f), RowTemplate = { Height = 44 },
+                Font = new Font("Segoe UI", 13f), RowTemplate = { Height = 53 },
                 Dock = DockStyle.Fill, ColumnHeadersHeight = 44,
                 EnableHeadersVisualStyles = false,
                 ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
@@ -243,18 +242,16 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             };
             dgvRequests.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(249, 250, 251);
 
-            // !! Columns represent ONE batch (BatchPrefix), NOT individual -NN lines !!
             dgvRequests.Columns.AddRange(new DataGridViewColumn[]
             {
-                // col name          header text           weight  meaning
-                new DataGridViewTextBoxColumn { Name = "colRequestID", HeaderText = "REQUEST ID",      FillWeight = 22 },  // MRQ-YYMMDD-NNN
-                new DataGridViewTextBoxColumn { Name = "colLines",     HeaderText = "ITEMS",           FillWeight =  8 },  // count of -NN lines
-                new DataGridViewTextBoxColumn { Name = "colTotalQty",  HeaderText = "TOTAL REQ. QTY",  FillWeight = 12 },  // SUM qty
+                new DataGridViewTextBoxColumn { Name = "colRequestID", HeaderText = "REQUEST ID",      FillWeight = 22 },
+                new DataGridViewTextBoxColumn { Name = "colLines",     HeaderText = "ITEMS",           FillWeight =  8 },
+                new DataGridViewTextBoxColumn { Name = "colTotalQty",  HeaderText = "TOTAL REQ. QTY",  FillWeight = 12 },
                 new DataGridViewTextBoxColumn { Name = "colUrgency",   HeaderText = "URGENCY",         FillWeight = 12 },
                 new DataGridViewTextBoxColumn { Name = "colTrigger",   HeaderText = "TRIGGER",         FillWeight = 13 },
                 new DataGridViewTextBoxColumn { Name = "colOrderID",   HeaderText = "LINKED ORDER",    FillWeight = 17 },
                 new DataGridViewTextBoxColumn { Name = "colLinkedPO",  HeaderText = "LINKED TO PO",    FillWeight = 11 },
-                new DataGridViewTextBoxColumn { Name = "colStockNote", HeaderText = "STOCK STATUS",    FillWeight = 15 },  // aggregated note
+                new DataGridViewTextBoxColumn { Name = "colStockNote", HeaderText = "STOCK STATUS",    FillWeight = 15 },
             });
 
             var pnlGridInner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
@@ -269,11 +266,11 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             };
             pnlGridOuter.Controls.Add(pnlGridInner);
 
-            // ── Assemble pnlMain (RULE 5: Fill first, then Top in reverse, _shell last)
-            pnlMain.Controls.Add(pnlGridOuter);   // Fill
-            pnlMain.Controls.Add(pnlKpiOuter);    // Top
-            pnlMain.Controls.Add(pnlFilterOuter); // Top
-            pnlMain.Controls.Add(_shell);          // Top (topmost — RULE 5)
+            // ── Assemble pnlMain
+            pnlMain.Controls.Add(pnlGridOuter);
+            pnlMain.Controls.Add(pnlKpiOuter);
+            pnlMain.Controls.Add(pnlFilterOuter);
+            pnlMain.Controls.Add(_shell);
 
             this.Controls.Add(pnlMain);
             this.ResumeLayout(false);
