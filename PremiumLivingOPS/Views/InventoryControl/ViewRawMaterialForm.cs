@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.Linq;
 using System.Windows.Forms;
 
 namespace PremiumLivingOPS.Views.InventoryControl
@@ -15,6 +16,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
             new InventoryControlController();
 
         private List<RawMaterialEntity> _currentMaterials = new List<RawMaterialEntity>();
+        private bool _hasShownOpeningStockAlert;
 
         private static readonly Dictionary<string, (Color bg, Color fg)> StatusColors =
             new Dictionary<string, (Color, Color)>
@@ -25,15 +27,13 @@ namespace PremiumLivingOPS.Views.InventoryControl
             };
 
         // ── Detail dialog layout constants ─────────────────────────────────
-        private const int D_RowH    = 64;   // height of each FieldRow
-        private const int D_LabelW  = 260;  // fixed width of label column
+        private const int D_RowH    = 64;
+        private const int D_LabelW  = 260;
         private const int D_BtnW    = 210;
         private const int D_BtnH    = 60;
-
-        // Warehouse Breakdown DGV row metrics (must match dgvWh settings below)
-        private const int D_WhHdrH  = 44;   // ColumnHeadersHeight
-        private const int D_WhRowH  = 44;   // RowTemplate.Height
-        private const int D_WhSecH  = 50;   // Section header panel height
+        private const int D_WhHdrH  = 44;
+        private const int D_WhRowH  = 44;
+        private const int D_WhSecH  = 50;
 
         public ViewRawMaterialForm()
         {
@@ -58,6 +58,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
 
             LoadMaterialTypeFilter();
             RefreshGrid();
+            ShowOpeningStockAlert();
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -154,6 +155,42 @@ namespace PremiumLivingOPS.Views.InventoryControl
             if (cboMaterialType.Items.Count > 0) cboMaterialType.SelectedIndex = 0;
             cboStatus.SelectedIndex = 0;
             RefreshGrid();
+        }
+
+        private void ShowOpeningStockAlert()
+        {
+            if (_hasShownOpeningStockAlert) return;
+            _hasShownOpeningStockAlert = true;
+
+            var allMaterials = _ctrl.GetViewRawMaterialVM().Materials ?? new List<RawMaterialEntity>();
+            var attentionItems = allMaterials.FindAll(m =>
+                m.StockStatus == "Low Stock" || m.StockStatus == "Out of Stock");
+
+            if (attentionItems.Count == 0) return;
+
+            int lowStockCount  = attentionItems.Count(m => m.StockStatus == "Low Stock");
+            int outOfStockCount = attentionItems.Count(m => m.StockStatus == "Out of Stock");
+
+            var lines = new List<string>
+            {
+                "The following raw materials require attention:",
+                string.Empty
+            };
+
+            foreach (var item in attentionItems.Take(10))
+                lines.Add($"\u2022 {item.MaterialID} - {item.MaterialName} ({item.StockStatus}, Stock Qty: {item.StockQty})");
+
+            if (attentionItems.Count > 10)
+                lines.Add($"\u2022 ...and {attentionItems.Count - 10} more item(s)");
+
+            lines.Add(string.Empty);
+            lines.Add($"Summary: {outOfStockCount} Out of Stock, {lowStockCount} Low Stock.");
+
+            MessageBox.Show(
+                string.Join(Environment.NewLine, lines),
+                "Inventory Alert",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
         }
 
         // ────────────────────────────────────────────────────────────────
@@ -313,10 +350,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
             var m  = vm.Material;
             var wh = vm.WarehouseBreakdown ?? new List<WarehouseItemEntity>();
 
-            // ================================================================
-            //  LOCAL HELPERS
-            // ================================================================
-
             Label ReadLabel(string text) => new Label
             {
                 Text      = text ?? "\u2014",
@@ -416,9 +449,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 return content;
             }
 
-            // ================================================================
-            //  CARD 1 — Item Information  (3 rows)
-            // ================================================================
+            // CARD 1 — Item Information
             var card1Rows = new List<Panel>
             {
                 FieldRow("Item ID",     ReadLabel(m.MaterialID)),
@@ -431,13 +462,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
             card1Inner.Padding = new Padding(0);
             card1Inner.Controls.Add(StackRows(card1Rows, new Padding(0)));
 
-            // ================================================================
-            //  CARD 2 — Material Details + Stock Summary  (4 rows)
-            //
-            //  Stock Status has been moved to the dialog header right side.
-            //  outerHeight = 4 × 64 + 38 = 294
-            //  (38 = CardPanel pad 22 + outerPadding.Vertical 16)
-            // ================================================================
+            // CARD 2 — Material Details + Stock Summary
             var card2Rows = new List<Panel>
             {
                 FieldRow("Material Type",        ReadLabel(m.Category)),
@@ -451,9 +476,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
             card2Inner.Padding = new Padding(0);
             card2Inner.Controls.Add(StackRows(card2Rows, new Padding(0)));
 
-            // ================================================================
-            //  CARD 3 — Warehouse Breakdown (conditional)
-            // ================================================================
+            // CARD 3 — Warehouse Breakdown (conditional)
             Panel card3Outer = null;
             if (wh.Count > 0)
             {
@@ -515,11 +538,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
                     dgvWh.Rows.Add(row.WarehouseID, row.WarehouseName,
                                    row.Quantity, row.ReorderLevel);
 
-                int card3H = D_WhSecH
-                           + D_WhHdrH
-                           + wh.Count * D_WhRowH
-                           + 16
-                           + 22;
+                int card3H = D_WhSecH + D_WhHdrH + wh.Count * D_WhRowH + 16 + 22;
 
                 var (c3Outer, c3Inner) = CardPanel.Create(
                     outerHeight : card3H,
@@ -530,9 +549,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 card3Outer = c3Outer;
             }
 
-            // ================================================================
-            //  DIALOG SHELL
-            // ================================================================
+            // DIALOG SHELL
             using var dlg = new Form
             {
                 Text            = $"View Raw Material  \u2014  {m.MaterialID}",
@@ -546,46 +563,26 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 Font            = new Font("Segoe UI", 12f)
             };
 
-            // ================================================================
-            //  HEADER BAR  —  title (left) + Stock Status block (right)
-            //
-            //  Layout goal:
-            //    ┌────────────────────────────────────────┬───────────────┐
-            //  |  View Raw Material — RM001  |   In Stock      |
-            //  └────────────────────────────────────────┴───────────────┘
-            //
-            //  The status block fills the full header height (90 px) and is
-            //  just wide enough for its text + horizontal padding.
-            //  Width = TextRenderer.MeasureText(statusText, font).Width
-            //          + hPad * 2   (hPad = 36 px each side)
-            // ================================================================
             Color pillBg = Color.FromArgb(229, 231, 235);
             Color pillFg = Color.FromArgb(55, 65, 81);
             if (StatusColors.TryGetValue(m.StockStatus ?? "", out var headerSc))
             { pillBg = headerSc.bg; pillFg = headerSc.fg; }
 
-            // ---- status font & measured width --------------------------------
             var   statusFont = new Font("Segoe UI", 13f, FontStyle.Bold);
-            const int hPad   = 40;   // horizontal padding each side (px)
-            int   textW      = TextRenderer.MeasureText(
-                                   m.StockStatus ?? "\u2014", statusFont).Width;
-            int   statusColW = textW + hPad * 2;   // exact column width
+            const int hPad   = 40;
+            int   textW      = TextRenderer.MeasureText(m.StockStatus ?? "\u2014", statusFont).Width;
+            int   statusColW = textW + hPad * 2;
 
-            // ---- the status Label itself -------------------------------------
-            //  Dock = Fill  → stretches to all 90 px of header height.
-            //  AutoSize = false so Dock takes full effect.
-            //  TextAlign = MiddleCenter centres the text both axes.
             var statusLbl = new Label
             {
                 Text      = m.StockStatus ?? "\u2014",
                 Font      = statusFont,
                 ForeColor = pillFg,
                 BackColor = pillBg,
-                Dock      = DockStyle.Fill,   // ← fills the right TLP cell completely
-                AutoSize  = false,            // ← must be false for Dock to work
+                Dock      = DockStyle.Fill,
+                AutoSize  = false,
                 TextAlign = ContentAlignment.MiddleCenter
             };
-            // Thin border drawn via Paint so it never clips the text
             statusLbl.Paint += (s, pe) =>
             {
                 var lb = (Label)s;
@@ -594,9 +591,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
                 pe.Graphics.DrawRectangle(pen, 0, 0, lb.Width - 1, lb.Height - 1);
             };
 
-            // ---- header TableLayoutPanel -------------------------------------
-            //  Column 0: 100 % → title
-            //  Column 1: Absolute statusColW → status block
             var headerTlp = new TableLayoutPanel
             {
                 Dock            = DockStyle.Fill,
@@ -631,9 +625,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
             };
             pnlHeader.Controls.Add(headerTlp);
 
-            // ----------------------------------------------------------------
-            //  Footer
-            // ----------------------------------------------------------------
             var pnlFoot = new Panel
             {
                 Dock      = DockStyle.Bottom,
@@ -674,9 +665,6 @@ namespace PremiumLivingOPS.Views.InventoryControl
             footFlow.Controls.Add(btnClose);
             pnlFoot.Controls.Add(footFlow);
 
-            // ----------------------------------------------------------------
-            //  Scroll area
-            // ----------------------------------------------------------------
             var scroll = new Panel
             {
                 Dock       = DockStyle.Fill,
