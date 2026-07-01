@@ -10,24 +10,15 @@ namespace PremiumLivingOPS.Models.DAL
     ///
     /// RequestID naming scheme (Plan A — Batch Prefix Grouping)
     /// ─────────────────────────────────────────────────
-    ///   Batch Prefix (shown to user) : MRQ-YYMMDD-NNN        (15 chars)
-    ///   DB RequestID  (PK, per line) : MRQ-YYMMDD-NNN-NN     (18 chars)
+    ///   Batch Prefix (shown to user) : MRQ-YYMMDD-NNN        (14 chars)
+    ///   DB RequestID  (PK, per line) : MRQ-YYMMDD-NNN-NN     (17 chars)
     ///
-    ///   'MRQ-260215-001-01'  → 18 chars  ✓
+    ///   'MRQ-260215-001-01'  → 17 chars  ✓
     ///
-    ///   BatchPrefix = SUBSTRING(RequestID, 1, 15)  strips last '-NN' (3 chars)
+    ///   BatchPrefix = SUBSTRING(RequestID, 1, 14)  strips last '-NN' (3 chars)
     /// </summary>
     public class ProductionProcessingRepo
     {
-        // ════════════════════════════════════════════════════════════════
-        //  SEARCH RAW MATERIAL REQUEST — Batch-grouped
-        //  ONE row per BatchPrefix in the grid.
-        //
-        //  KEY FIX: WarehouseItem and Warehouse use LEFT JOIN so that
-        //  batches whose WarehouseItemID does not yet exist in the DB
-        //  still appear in the grid (CurrentStock / ReorderLevel = 0).
-        // ════════════════════════════════════════════════════════════════
-
         public List<MaterialRequestBatchEntity> SearchMaterialRequestBatches(
             string keyword     = null,
             string urgency     = null,
@@ -59,9 +50,9 @@ namespace PremiumLivingOPS.Models.DAL
                       JOIN (
                           SELECT RequestID,
                                  CASE
-                                   WHEN CHAR_LENGTH(RequestID) = 18
+                                   WHEN CHAR_LENGTH(RequestID) = 17
                                     AND RequestID LIKE 'MRQ-______-___-__'
-                                   THEN SUBSTRING(RequestID, 1, 15)
+                                   THEN SUBSTRING(RequestID, 1, 14)
                                    ELSE RequestID
                                  END AS BatchPrefix
                           FROM MaterialRequest
@@ -107,14 +98,6 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
-        // ════════════════════════════════════════════════════════════════
-        //  GET MATERIAL REQUEST BATCH DETAIL
-        //  Returns header + ALL -NN lines for a given BatchPrefix.
-        //
-        //  KEY FIX: WarehouseItem and Warehouse use LEFT JOIN so that
-        //  lines with an invalid/missing WarehouseItemID still appear.
-        // ════════════════════════════════════════════════════════════════
-
         public MaterialRequestBatchDetailEntity GetMaterialRequestBatchDetail(string batchPrefix)
         {
             var detail = new MaterialRequestBatchDetailEntity { BatchPrefix = batchPrefix };
@@ -149,7 +132,6 @@ namespace PremiumLivingOPS.Models.DAL
 
                 using (var cmd = new MySqlCommand(sqlLines, conn))
                 {
-                    // 'MRQ-260701-001-__'  matches -01, -02 … but not -001 (old style)
                     cmd.Parameters.AddWithValue("@prefix", batchPrefix + "-__");
 
                     using (var r = cmd.ExecuteReader())
@@ -188,10 +170,6 @@ namespace PremiumLivingOPS.Models.DAL
             detail.TotalLines = detail.Lines.Count;
             return detail.TotalLines == 0 ? null : detail;
         }
-
-        // ════════════════════════════════════════════════════════════════
-        //  SEARCH RAW MATERIAL REQUEST — flat (kept for KPI counts)
-        // ════════════════════════════════════════════════════════════════
 
         public List<MaterialRequestEntity> SearchMaterialRequests(
             string keyword      = null,
@@ -249,10 +227,6 @@ namespace PremiumLivingOPS.Models.DAL
             }
             return list;
         }
-
-        // ════════════════════════════════════════════════════════════════
-        //  GET MATERIAL REQUEST DETAIL (single-line, legacy)
-        // ════════════════════════════════════════════════════════════════
 
         public MaterialRequestDetailEntity GetMaterialRequestDetail(string requestId)
         {
@@ -312,10 +286,6 @@ namespace PremiumLivingOPS.Models.DAL
                 }
             }
         }
-
-        // ════════════════════════════════════════════════════════════════
-        //  CREATE RAW MATERIAL REQUEST — lookups
-        // ════════════════════════════════════════════════════════════════
 
         public List<RawMaterialLookup> GetAllRawMaterials()
         {
@@ -401,10 +371,6 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
-        // ════════════════════════════════════════════════════════════════
-        //  CREATE RAW MATERIAL REQUEST — write
-        // ════════════════════════════════════════════════════════════════
-
         public void CreateMaterialRequest(
             string requestId, string orderId, string rawMaterialItemId,
             string warehouseItemId, int requestedQty,
@@ -447,10 +413,6 @@ namespace PremiumLivingOPS.Models.DAL
             }
         }
 
-        // ════════════════════════════════════════════════════════════════
-        //  ID GENERATION — Plan A Batch Prefix
-        // ════════════════════════════════════════════════════════════════
-
         public string GenerateNextBatchPrefix()
         {
             using (var conn = DatabaseHelper.GetConnection())
@@ -463,7 +425,7 @@ namespace PremiumLivingOPS.Models.DAL
                     @"SELECT MAX(SUBSTRING(RequestID, 12, 3)) AS MaxNNN
                       FROM   MaterialRequest
                       WHERE  RequestID LIKE @prefix
-                        AND  CHAR_LENGTH(RequestID) = 18
+                        AND  CHAR_LENGTH(RequestID) = 17
                         AND  RequestID LIKE 'MRQ-______-___-__'";
 
                 using (var cmd = new MySqlCommand(sql, conn))
@@ -479,13 +441,11 @@ namespace PremiumLivingOPS.Models.DAL
             }
         }
 
-        /// <summary>Builds a fully-qualified line RequestID from a BatchPrefix and 1-based line number.</summary>
         public static string BuildLineRequestId(string batchPrefix, int lineNumber)
             => $"{batchPrefix}-{lineNumber:D2}";
 
         public string GenerateNextRequestId() => GenerateNextBatchPrefix();
 
-        // ────────────────────────────────────────────────────────────────
         private static MaterialRequestEntity MapMaterialRequest(MySqlDataReader r)
             => new MaterialRequestEntity
             {
