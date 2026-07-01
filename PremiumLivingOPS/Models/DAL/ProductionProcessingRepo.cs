@@ -10,34 +10,42 @@ namespace PremiumLivingOPS.Models.DAL
     ///
     /// RequestID naming scheme (Plan A — Batch Prefix Grouping)
     /// ─────────────────────────────────────────────────
-    ///   Batch Prefix (shown to user) : MRQ-YYMMDD-NNN        (max 17 chars)
-    ///   DB RequestID  (PK, per line) : MRQ-YYMMDD-NNN-NN     (max 20 chars)
+    ///   Batch Prefix (shown to user) : MRQ-YYMMDD-NNN        (15 chars)
+    ///   DB RequestID  (PK, per line) : MRQ-YYMMDD-NNN-NN     (18 chars)
     ///
-    /// Fix (2026-07-02): Replaced REGEXP {n} quantifier (unsupported / unreliable
-    ///   in some MySQL builds) with a pure CHAR_LENGTH + LIKE approach:
-    ///     A full line ID has exactly 20 chars AND matches 'MR_-______-___-__'
-    ///     => strip last 3 chars to get the 17-char BatchPrefix.
-    ///   Everything else is displayed as-is (old single-row IDs, etc.).
+    ///   Breakdown: MRQ(3) + -(1) + YYMMDD(6) + -(1) + NNN(3) + -(1) + NN(2) = 17... wait:
+    ///     M  R  Q  -  Y  Y  M  M  D  D  -  N  N  N  -  N  N
+    ///     1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16 17  18? no:
+    ///   'MRQ-260215-001-01'  → count manually = 18 chars  ✓
+    ///
+    ///   LIKE pattern: 'MRQ-______-___-__'  (fixed literal prefix + wildcards)
+    ///     MRQ- = 4 literal chars
+    ///     ______ = 6 single-char wildcards  (YYMMDD)
+    ///     - = 1 literal
+    ///     ___ = 3 single-char wildcards  (NNN)
+    ///     - = 1 literal
+    ///     __ = 2 single-char wildcards  (NN)
+    ///     Total pattern length matches 18-char IDs exactly.
+    ///
+    ///   To get BatchPrefix strip trailing '-NN' (3 chars):
+    ///     SUBSTRING(RequestID, 1, CHAR_LENGTH(RequestID) - 3)  => MRQ-YYMMDD-NNN (15 chars)
     /// </summary>
     public class ProductionProcessingRepo
     {
         // ════════════════════════════════════════════════════════════════
-        //  BatchPrefix detection (no REGEXP, no {n} quantifier)
+        //  BatchPrefix detection
         //
-        //  A fully-qualified line RequestID looks like: MRQ-260701-001-01
-        //    │         length = 20
-        //    └─ LIKE pattern  : 'MR_-______-___-__'   (underscores = any single char)
+        //  A fully-qualified line RequestID: MRQ-260215-001-01
+        //    length  = 18  (NOT 20 — confirmed from sample_data.sql)
+        //    pattern = 'MRQ-______-___-__'
         //
-        //  To get BatchPrefix we remove the trailing '-NN' (3 chars):
-        //    SUBSTRING(RequestID, 1, CHAR_LENGTH(RequestID) - 3)  => MRQ-260701-001
-        //
-        //  SQL fragment reused in both SELECT and GROUP BY (plain @"-string, safe):
+        //  BatchPrefix = SUBSTRING(RequestID, 1, 15)  removes the last '-NN' 3 chars
         // ════════════════════════════════════════════════════════════════
         private const string BatchPrefixExpr =
             @"CASE
-                WHEN CHAR_LENGTH(mr.RequestID) = 20
-                 AND mr.RequestID LIKE 'MR_-______-___-__'
-                THEN SUBSTRING(mr.RequestID, 1, 17)
+                WHEN CHAR_LENGTH(mr.RequestID) = 18
+                 AND mr.RequestID LIKE 'MRQ-______-___-__'
+                THEN SUBSTRING(mr.RequestID, 1, 15)
                 ELSE mr.RequestID
               END";
 
@@ -59,8 +67,6 @@ namespace PremiumLivingOPS.Models.DAL
             {
                 conn.Open();
 
-                // Use a plain (non-interpolated) @-string so no C# brace escaping is needed.
-                // BatchPrefixExpr uses only CHAR_LENGTH and LIKE — no REGEXP, no {n}.
                 var sql =
                     @"SELECT
                         " + BatchPrefixExpr + @"                   AS BatchPrefix,
@@ -160,7 +166,7 @@ namespace PremiumLivingOPS.Models.DAL
 
                 using (var cmd = new MySqlCommand(sqlLines, conn))
                 {
-                    cmd.Parameters.AddWithValue("@prefix", batchPrefix + "%");
+                    cmd.Parameters.AddWithValue("@prefix", batchPrefix + "-%");
 
                     using (var r = cmd.ExecuteReader())
                     {
@@ -479,6 +485,7 @@ namespace PremiumLivingOPS.Models.DAL
                     if (string.IsNullOrEmpty(last))
                         return prefix + "001";
 
+                    // last = 'MRQ-260215-001-01', parts[2] = '001'
                     var parts = last.Split('-');
                     int seq   = int.Parse(parts[2]) + 1;
                     return prefix + seq.ToString("D3");
