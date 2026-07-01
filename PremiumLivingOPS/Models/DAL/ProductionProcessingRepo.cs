@@ -20,28 +20,14 @@ namespace PremiumLivingOPS.Models.DAL
     public class ProductionProcessingRepo
     {
         // ════════════════════════════════════════════════════════════════
-        //  BatchPrefix expression
-        //  A fully-qualified line RequestID: MRQ-260215-001-01  (len=18)
-        //  BatchPrefix = first 15 chars                          (len=15)
-        // ════════════════════════════════════════════════════════════════
-        private const string BatchPrefixExpr =
-            @"CASE
-                WHEN CHAR_LENGTH(mr.RequestID) = 18
-                 AND mr.RequestID LIKE 'MRQ-______-___-__'
-                THEN SUBSTRING(mr.RequestID, 1, 15)
-                ELSE mr.RequestID
-              END";
-
-        // ════════════════════════════════════════════════════════════════
         //  SEARCH RAW MATERIAL REQUEST — Batch-grouped
         //  ONE row per BatchPrefix in the grid.
+        //
+        //  KEY FIX: WarehouseItem and Warehouse use LEFT JOIN so that
+        //  batches whose WarehouseItemID does not yet exist in the DB
+        //  still appear in the grid (CurrentStock / ReorderLevel = 0).
         // ════════════════════════════════════════════════════════════════
 
-        /// <summary>
-        /// Returns one MaterialRequestBatchEntity per BatchPrefix.
-        /// Keyword filter matches on BatchPrefix (first 15 chars) so that
-        /// searching "MRQ-260701-001" finds all -NN lines in that batch.
-        /// </summary>
         public List<MaterialRequestBatchEntity> SearchMaterialRequestBatches(
             string keyword     = null,
             string urgency     = null,
@@ -52,25 +38,24 @@ namespace PremiumLivingOPS.Models.DAL
             {
                 conn.Open();
 
-                // Use a derived-table approach so we can filter on BatchPrefix directly
                 var sql =
                     @"SELECT
                         bp.BatchPrefix,
-                        MIN(mr.OrderID)                            AS OrderID,
-                        MIN(mr.UrgencyLevel)                       AS UrgencyLevel,
-                        MIN(mr.TriggerType)                        AS TriggerType,
-                        COUNT(*)                                   AS TotalLines,
-                        SUM(mr.RequestedQty)                       AS TotalRequestedQty,
-                        MIN(w.WarehouseLocation)                   AS WarehouseLocation,
-                        MIN(wi.WarehouseItemQuantity)              AS CurrentStock,
-                        MIN(wi.ReorderLevel)                       AS ReorderLevel,
+                        MIN(mr.OrderID)                                        AS OrderID,
+                        MIN(mr.UrgencyLevel)                                   AS UrgencyLevel,
+                        MIN(mr.TriggerType)                                    AS TriggerType,
+                        COUNT(*)                                               AS TotalLines,
+                        SUM(mr.RequestedQty)                                   AS TotalRequestedQty,
+                        MIN(COALESCE(w.WarehouseLocation, '—'))                AS WarehouseLocation,
+                        MIN(COALESCE(wi.WarehouseItemQuantity, 0))             AS CurrentStock,
+                        MIN(COALESCE(wi.ReorderLevel, 0))                      AS ReorderLevel,
                         MAX(CASE WHEN po.PurchaseID IS NOT NULL THEN 1 ELSE 0 END) AS IsLinkedToPO
                       FROM   MaterialRequest mr
                       JOIN   RawMaterial  rm  ON mr.RawMaterialItemID = rm.ItemID
                       JOIN   Item         i   ON rm.ItemID            = i.ItemID
-                      JOIN   WarehouseItem wi  ON mr.WarehouseItemID  = wi.WarehouseItemID
-                      JOIN   Warehouse    w   ON wi.WarehouseID       = w.WarehouseID
-                      LEFT JOIN PurchaseOrder po ON po.RequestID      = mr.RequestID
+                      LEFT JOIN WarehouseItem wi  ON mr.WarehouseItemID  = wi.WarehouseItemID
+                      LEFT JOIN Warehouse    w   ON wi.WarehouseID       = w.WarehouseID
+                      LEFT JOIN PurchaseOrder po ON po.RequestID         = mr.RequestID
                       JOIN (
                           SELECT RequestID,
                                  CASE
@@ -83,7 +68,6 @@ namespace PremiumLivingOPS.Models.DAL
                       ) bp ON bp.RequestID = mr.RequestID
                       WHERE  1=1";
 
-                // Keyword: match BatchPrefix OR item name OR material ID
                 if (!string.IsNullOrEmpty(keyword))
                     sql += " AND (bp.BatchPrefix LIKE @kw OR mr.RequestID LIKE @kw OR i.ItemName LIKE @kw OR mr.RawMaterialItemID LIKE @kw)";
                 if (!string.IsNullOrEmpty(urgency) && urgency != "All")
@@ -126,6 +110,9 @@ namespace PremiumLivingOPS.Models.DAL
         // ════════════════════════════════════════════════════════════════
         //  GET MATERIAL REQUEST BATCH DETAIL
         //  Returns header + ALL -NN lines for a given BatchPrefix.
+        //
+        //  KEY FIX: WarehouseItem and Warehouse use LEFT JOIN so that
+        //  lines with an invalid/missing WarehouseItemID still appear.
         // ════════════════════════════════════════════════════════════════
 
         public MaterialRequestBatchDetailEntity GetMaterialRequestBatchDetail(string batchPrefix)
@@ -136,35 +123,33 @@ namespace PremiumLivingOPS.Models.DAL
             {
                 conn.Open();
 
-                // Match all lines whose RequestID starts with batchPrefix + '-'
-                // e.g. batchPrefix = 'MRQ-260701-001'  →  LIKE 'MRQ-260701-001-%'
                 const string sqlLines =
                     @"SELECT mr.RequestID, mr.OrderID,
                              mr.RawMaterialItemID,
-                             i.ItemName           AS RawMaterialName,
+                             i.ItemName                                   AS RawMaterialName,
                              rm.MaterialType,
                              mr.WarehouseItemID,
-                             wi.WarehouseID,
-                             w.WarehouseLocation,
+                             COALESCE(wi.WarehouseID,       '—')          AS WarehouseID,
+                             COALESCE(w.WarehouseLocation,  '—')          AS WarehouseLocation,
                              mr.RequestedQty,
                              mr.UrgencyLevel, mr.TriggerType,
-                             wi.WarehouseItemQuantity AS CurrentStock,
-                             wi.ReorderLevel,
+                             COALESCE(wi.WarehouseItemQuantity, 0)        AS CurrentStock,
+                             COALESCE(wi.ReorderLevel,         0)         AS ReorderLevel,
                              po.PurchaseID,
                              po.PurchaseStatus,
                              po.POTotalAmount
                       FROM   MaterialRequest mr
                       JOIN   RawMaterial  rm  ON mr.RawMaterialItemID = rm.ItemID
                       JOIN   Item         i   ON rm.ItemID            = i.ItemID
-                      JOIN   WarehouseItem wi  ON mr.WarehouseItemID  = wi.WarehouseItemID
-                      JOIN   Warehouse    w   ON wi.WarehouseID       = w.WarehouseID
-                      LEFT JOIN PurchaseOrder po ON po.RequestID      = mr.RequestID
+                      LEFT JOIN WarehouseItem wi  ON mr.WarehouseItemID  = wi.WarehouseItemID
+                      LEFT JOIN Warehouse    w   ON wi.WarehouseID       = w.WarehouseID
+                      LEFT JOIN PurchaseOrder po ON po.RequestID         = mr.RequestID
                       WHERE  mr.RequestID LIKE @prefix
                       ORDER  BY mr.RequestID";
 
                 using (var cmd = new MySqlCommand(sqlLines, conn))
                 {
-                    // 'MRQ-260701-001-%'  matches -01, -02, -03 … but NOT 'MRQ-260701-0010-xx'
+                    // 'MRQ-260701-001-__'  matches -01, -02 … but not -001 (old style)
                     cmd.Parameters.AddWithValue("@prefix", batchPrefix + "-__");
 
                     using (var r = cmd.ExecuteReader())
@@ -225,14 +210,16 @@ namespace PremiumLivingOPS.Models.DAL
                              rm.MaterialType,
                              mr.WarehouseItemID,
                              mr.RequestedQty, mr.UrgencyLevel, mr.TriggerType,
-                             wi.WarehouseID, wi.WarehouseItemQuantity AS CurrentStock, wi.ReorderLevel,
-                             w.WarehouseLocation,
+                             COALESCE(wi.WarehouseID, '—')                  AS WarehouseID,
+                             COALESCE(wi.WarehouseItemQuantity, 0)          AS CurrentStock,
+                             COALESCE(wi.ReorderLevel, 0)                   AS ReorderLevel,
+                             COALESCE(w.WarehouseLocation, '—')             AS WarehouseLocation,
                              (SELECT COUNT(1) FROM PurchaseOrder po WHERE po.RequestID = mr.RequestID) AS IsLinkedToPO
                       FROM   MaterialRequest mr
                       JOIN   RawMaterial  rm  ON mr.RawMaterialItemID = rm.ItemID
                       JOIN   Item         i   ON rm.ItemID            = i.ItemID
-                      JOIN   WarehouseItem wi  ON mr.WarehouseItemID  = wi.WarehouseItemID
-                      JOIN   Warehouse    w   ON wi.WarehouseID       = w.WarehouseID
+                      LEFT JOIN WarehouseItem wi  ON mr.WarehouseItemID  = wi.WarehouseItemID
+                      LEFT JOIN Warehouse    w   ON wi.WarehouseID       = w.WarehouseID
                       WHERE  1=1";
 
                 if (!string.IsNullOrEmpty(keyword))
@@ -278,20 +265,20 @@ namespace PremiumLivingOPS.Models.DAL
                              i.ItemName           AS RawMaterialName,
                              rm.MaterialType,
                              mr.WarehouseItemID,
-                             wi.WarehouseID,
-                             w.WarehouseLocation,
+                             COALESCE(wi.WarehouseID,      '—') AS WarehouseID,
+                             COALESCE(w.WarehouseLocation, '—') AS WarehouseLocation,
                              mr.RequestedQty, mr.UrgencyLevel, mr.TriggerType,
-                             wi.WarehouseItemQuantity AS CurrentStock,
-                             wi.ReorderLevel,
+                             COALESCE(wi.WarehouseItemQuantity, 0) AS CurrentStock,
+                             COALESCE(wi.ReorderLevel,         0) AS ReorderLevel,
                              po.PurchaseID,
                              po.PurchaseStatus,
                              po.POTotalAmount
                       FROM   MaterialRequest mr
                       JOIN   RawMaterial  rm  ON mr.RawMaterialItemID = rm.ItemID
                       JOIN   Item         i   ON rm.ItemID            = i.ItemID
-                      JOIN   WarehouseItem wi  ON mr.WarehouseItemID  = wi.WarehouseItemID
-                      JOIN   Warehouse    w   ON wi.WarehouseID       = w.WarehouseID
-                      LEFT JOIN PurchaseOrder po ON po.RequestID      = mr.RequestID
+                      LEFT JOIN WarehouseItem wi  ON mr.WarehouseItemID  = wi.WarehouseItemID
+                      LEFT JOIN Warehouse    w   ON wi.WarehouseID       = w.WarehouseID
+                      LEFT JOIN PurchaseOrder po ON po.RequestID         = mr.RequestID
                       WHERE  mr.RequestID = @id
                       LIMIT  1";
 
@@ -462,12 +449,6 @@ namespace PremiumLivingOPS.Models.DAL
 
         // ════════════════════════════════════════════════════════════════
         //  ID GENERATION — Plan A Batch Prefix
-        //
-        //  FIX: Previously took the last full RequestID (e.g. MRQ-260701-001-03)
-        //       and incremented parts[2] (001→002), which is actually correct —
-        //       BUT only if parts[2] is the NNN of the last *batch*, not a line
-        //       within that batch.  We now explicitly GROUP BY BatchPrefix and
-        //       take the MAX NNN to avoid any ambiguity.
         // ════════════════════════════════════════════════════════════════
 
         public string GenerateNextBatchPrefix()
@@ -478,9 +459,6 @@ namespace PremiumLivingOPS.Models.DAL
                 string today  = DateTime.Now.ToString("yyMMdd");
                 string prefix = $"MRQ-{today}-";
 
-                // Distinct BatchPrefixes for today: SUBSTRING(RequestID,1,15)
-                // e.g. 'MRQ-260701-001', 'MRQ-260701-002' …
-                // We pick the MAX NNN (positions 12-14 within the 15-char prefix).
                 const string sql =
                     @"SELECT MAX(SUBSTRING(RequestID, 12, 3)) AS MaxNNN
                       FROM   MaterialRequest
@@ -507,7 +485,7 @@ namespace PremiumLivingOPS.Models.DAL
 
         public string GenerateNextRequestId() => GenerateNextBatchPrefix();
 
-        // ───────────────────────────────────────────────────────────────────────────────
+        // ────────────────────────────────────────────────────────────────
         private static MaterialRequestEntity MapMaterialRequest(MySqlDataReader r)
             => new MaterialRequestEntity
             {
