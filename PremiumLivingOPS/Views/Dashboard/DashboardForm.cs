@@ -10,14 +10,12 @@ using System.Windows.Forms;
 namespace PremiumLivingOPS.Views.Dashboard
 {
     /// <summary>
-    /// Dashboard View — responsibility is UI binding only.
-    ///
-    /// Chrome (TopNavBar + UserBar) is provided by AppShell (_shell),
-    /// declared in DashboardForm.Designer.cs and bound here via BindViewModel().
+    /// Dashboard View — UI binding only.
+    /// Chrome provided by AppShell; wired in BindViewModel().
     /// </summary>
     public partial class DashboardForm : Form
     {
-        // ── Palette ─────────────────────────────────────────────────────
+        // ── Palette ──────────────────────────────────────────────────────
         internal static class Palette
         {
             public static readonly Color BgPage       = Color.FromArgb(240, 244, 249);
@@ -78,18 +76,15 @@ namespace PremiumLivingOPS.Views.Dashboard
             }
         }
 
-        // ── Fonts ─────────────────────────────────────────────────────
-        // All Activity panel fonts now match the DataGridView standard (12.8f)
-        private static readonly Font FontBody      = new Font("Segoe UI", 12.8f, FontStyle.Regular);
+        // ── Fonts (all match DataGridView standard) ───────────────────────
         private static readonly Font FontBodyBold  = new Font("Segoe UI", 12.8f, FontStyle.Bold);
-        private static readonly Font FontSmall     = new Font("Segoe UI", 11.2f, FontStyle.Regular);
         private static readonly Font FontSmallBold = new Font("Segoe UI", 11.2f, FontStyle.Bold);
 
-        // ── Fields ─────────────────────────────────────────────────────
+        // ── Fields ───────────────────────────────────────────────────────
         private readonly DashboardController _controller;
         private Panel _activeNavItem;
 
-        // ── Constructor ───────────────────────────────────────────────
+        // ── Constructor ──────────────────────────────────────────────────
         public DashboardForm()
         {
             _controller = new DashboardController();
@@ -97,7 +92,7 @@ namespace PremiumLivingOPS.Views.Dashboard
             BindViewModel();
         }
 
-        // ── ViewModel binding ────────────────────────────────────────────
+        // ── ViewModel binding ─────────────────────────────────────────────
         private void BindViewModel()
         {
             DashboardViewModel vm = _controller.LoadDashboard();
@@ -112,7 +107,7 @@ namespace PremiumLivingOPS.Views.Dashboard
             lblPageSub.Text = "Premium Living Furniture Co.  \u00b7  Overview as of " +
                               DateTime.Now.ToString("d MMMM yyyy");
 
-            // 2. Low-stock alert banner
+            // 2. Alert banner
             int lowCount = vm.LowStock.Count;
             pnlAlert.Visible = lowCount > 0;
             if (lowCount > 0)
@@ -155,13 +150,22 @@ namespace PremiumLivingOPS.Views.Dashboard
                 dgvSuppliers.Rows[idx].Tag = new[] { bg, fg };
             }
 
-            // 9. Activity feed
+            // 9. Activity feed → DataGridView
+            //    Col 0: empty string (dot drawn by CellPainting)
+            //    Col 1: bold label + normal text merged as one string
+            //    Col 2: time label
             foreach (var row in vm.Activities)
-                AddActivity(Palette.FromKey(row.CategoryKey),
-                            row.BoldText, row.NormalText, row.TimeLabel);
+            {
+                string actText = string.IsNullOrEmpty(row.NormalText)
+                    ? row.BoldText
+                    : row.BoldText + "  " + row.NormalText;
+                int idx = dgvActivity.Rows.Add("", actText, row.TimeLabel);
+                // Store dot colour in Tag for CellPainting
+                dgvActivity.Rows[idx].Tag = Palette.FromKey(row.CategoryKey);
+            }
         }
 
-        // ── Helpers ─────────────────────────────────────────────────────
+        // ── Helpers ───────────────────────────────────────────────────────
         private void SetKpiCard(Panel card, DashboardKpi kpi)
         {
             Color accent = Palette.FromKey(kpi.AccentKey);
@@ -189,73 +193,10 @@ namespace PremiumLivingOPS.Views.Dashboard
             }
         }
 
-        /// <summary>
-        /// Adds one activity row to pnlActivity.
-        /// Fonts are now Segoe UI 12.8f (Regular/Bold) to match DataGridView.
-        /// Time label uses Segoe UI 11.2f to keep visual hierarchy.
-        /// </summary>
-        private void AddActivity(Color dotColor, string boldText, string normalText, string time)
-        {
-            Panel row = new Panel
-            {
-                Dock = DockStyle.Top, Height = 50,
-                Padding = new Padding(0, 8, 0, 8),
-                BackColor = Color.Transparent
-            };
-            Panel dot = new Panel { Width = 13, Height = 13, BackColor = dotColor, Location = new Point(0, 18) };
-            dot.Region = MakeCircleRegion(13, 13);
-
-            Label lblBold = new Label
-            {
-                Text      = boldText,
-                Font      = FontBodyBold,          // 12.8f Bold
-                ForeColor = Palette.TextMain,
-                AutoSize  = true,
-                Location  = new Point(21, 14)
-            };
-            Label lblNorm = new Label
-            {
-                Text      = normalText,
-                Font      = FontBody,               // 12.8f Regular
-                ForeColor = Palette.TextMain,
-                AutoSize  = true,
-                Location  = new Point(21 + TextRenderer.MeasureText(boldText, FontBodyBold).Width, 14)
-            };
-            Label lblTime = new Label
-            {
-                Text      = time,
-                Font      = FontSmall,              // 11.2f Regular
-                ForeColor = Palette.TextMuted,
-                AutoSize  = true,
-                Anchor    = AnchorStyles.Top | AnchorStyles.Right,
-                TextAlign = ContentAlignment.TopRight
-            };
-            lblTime.Location = new Point(pnlActivity.Width - lblTime.PreferredWidth - 6, 16);
-
-            row.Controls.Add(dot);
-            row.Controls.Add(lblBold);
-            row.Controls.Add(lblNorm);
-            row.Controls.Add(lblTime);
-
-            Panel sep = new Panel { Dock = DockStyle.Top, Height = 1, BackColor = Palette.BorderColor };
-            pnlActivity.Controls.Add(sep);
-            pnlActivity.Controls.Add(row);
-            pnlActivity.Controls.SetChildIndex(row, 0);
-            pnlActivity.Controls.SetChildIndex(sep, 1);
-        }
-
-        private static Region MakeCircleRegion(int w, int h)
-        {
-            GraphicsPath p = new GraphicsPath();
-            p.AddEllipse(0, 0, w, h);
-            return new Region(p);
-        }
-
-        // ── Nav / logout ───────────────────────────────────────────────
+        // ── Nav / logout ──────────────────────────────────────────────────
         private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
         {
-            if (menuLabel == "Dashboard" && string.IsNullOrEmpty(subItem))
-                return;
+            if (menuLabel == "Dashboard" && string.IsNullOrEmpty(subItem)) return;
             FormNavigator.NavigateTo(this, menuLabel, subItem);
         }
 
@@ -289,7 +230,12 @@ namespace PremiumLivingOPS.Views.Dashboard
             }
         }
 
-        // ── Cell painting ───────────────────────────────────────────────
+        // ── Cell painting ─────────────────────────────────────────────────
+
+        /// <summary>
+        /// Generic status-badge painter for col <paramref name="statusColIndex"/>.
+        /// Reads bg/fg colours from row.Tag (Color[2]).
+        /// </summary>
         private void PaintStatusCell(object sender, DataGridViewCellPaintingEventArgs e, int statusColIndex)
         {
             if (e.RowIndex < 0 || e.ColumnIndex != statusColIndex) return;
@@ -317,6 +263,29 @@ namespace PremiumLivingOPS.Views.Dashboard
                 }
                 e.Handled = true;
             }
+        }
+
+        /// <summary>
+        /// Paints col 0 of dgvActivity as a filled colour dot (12×12 circle).
+        /// The dot colour is stored as a Color in row.Tag.
+        /// </summary>
+        private void dgvActivity_CellPainting(object sender, DataGridViewCellPaintingEventArgs e)
+        {
+            if (e.RowIndex < 0 || e.ColumnIndex != 0) return;
+            e.Paint(e.CellBounds, DataGridViewPaintParts.Background | DataGridViewPaintParts.Border);
+            if (dgvActivity.Rows[e.RowIndex].Tag is Color dotColor)
+            {
+                int d = 12;
+                int x = e.CellBounds.X + (e.CellBounds.Width  - d) / 2;
+                int y = e.CellBounds.Y + (e.CellBounds.Height - d) / 2;
+                using (var path = new GraphicsPath())
+                {
+                    path.AddEllipse(x, y, d, d);
+                    e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                    e.Graphics.FillPath(new SolidBrush(dotColor), path);
+                }
+            }
+            e.Handled = true;
         }
 
         private void dgvOrders_CellPainting(object sender, DataGridViewCellPaintingEventArgs e)
