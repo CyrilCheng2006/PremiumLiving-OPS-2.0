@@ -13,7 +13,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
     /// <summary>
     /// Search Raw Material Request — Production Processing
     ///
-    /// Grid rule (mirrors ViewOrderForm):
+    /// Grid rule:
     ///   • ONE row per BatchPrefix  (MRQ-YYMMDD-NNN)
     ///   • The per-line -NN suffix is NEVER shown in the main grid
     ///   • View Detail dialog shows every -NN line item in the batch
@@ -23,7 +23,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
         private readonly ProductionProcessingController  _ctrl    = new ProductionProcessingController();
         private List<MaterialRequestBatchEntity>         _current = new List<MaterialRequestBatchEntity>();
 
-        // ── Badge colour maps ────────────────────────────────────────
+        // ── Badge colour maps ────────────────────────────────────────────
         private static readonly Dictionary<string, (Color bg, Color fg)> UrgencyColors =
             new Dictionary<string, (Color, Color)>
             {
@@ -81,7 +81,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             _shell.SetVisibleMenus(vm.AllowedMenus);
             _shell.SetBreadcrumb("Production Processing  \u203a  Search Raw Material Request");
 
-            // vm.Batches is already GROUP BY BatchPrefix — guaranteed one row per ID
+            // vm.Batches is already GROUP BY BatchPrefix — guaranteed one row per BatchPrefix
             _current = vm.Batches;
             dgvRequests.Rows.Clear();
 
@@ -94,16 +94,16 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                         ? "\u26a0 Low Stock"
                         : "\u2714 In Stock";
 
-                // !! Only BatchPrefix is shown — NO -NN suffix, NO per-item columns !!
+                // Only BatchPrefix (e.g. MRQ-260701-001) shown — NO -NN suffix, NO per-item columns
                 dgvRequests.Rows.Add(
-                    b.BatchPrefix,          // colRequestID : e.g. MRQ-260701-001
-                    b.TotalLines,           // colLines     : number of -NN items
-                    b.TotalRequestedQty,    // colTotalQty  : SUM qty
-                    b.UrgencyLevel,         // colUrgency
-                    b.TriggerType,          // colTrigger
-                    b.OrderID ?? "\u2014",  // colOrderID
-                    b.IsLinkedToPO ? "Yes" : "No",  // colLinkedPO
-                    stockNote);             // colStockNote
+                    b.BatchPrefix,                      // colRequestID : e.g. MRQ-260701-001
+                    b.TotalLines,                       // colLines     : count of -NN items
+                    b.TotalRequestedQty,                // colTotalQty  : SUM qty
+                    b.UrgencyLevel,                     // colUrgency
+                    b.TriggerType,                      // colTrigger
+                    b.OrderID ?? "\u2014",              // colOrderID
+                    b.IsLinkedToPO ? "Yes" : "No",      // colLinkedPO
+                    stockNote);                         // colStockNote
             }
 
             RefreshKpi(vm);
@@ -125,10 +125,9 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
         {
             pnlKpi.Controls.Clear();
 
-            // KPI counts come from flat Requests list (all lines) but
-            // "Total Requests" counts distinct batches, not lines
+            // "Total Requests" = distinct batches; other KPIs from flat line list
             var all      = vm.Requests;
-            int total    = vm.Batches.Count;                                  // distinct BatchPrefixes
+            int total    = vm.Batches.Count;
             int critical = all.FindAll(r => r.UrgencyLevel == "Critical").Count;
             int high     = all.FindAll(r => r.UrgencyLevel == "High").Count;
             int linked   = all.FindAll(r => r.IsLinkedToPO).Count;
@@ -243,6 +242,13 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                                       :                                Color.FromArgb(  6, 95, 70);
                 e.FormattingApplied = true;
             }
+            else if (colName == "colLines")
+            {
+                e.CellStyle.Alignment   = DataGridViewContentAlignment.MiddleCenter;
+                e.CellStyle.ForeColor   = Color.FromArgb(30, 64, 175);
+                e.CellStyle.Font        = new Font("Segoe UI", 11f, FontStyle.Bold);
+                e.FormattingApplied     = true;
+            }
         }
 
         private void BtnCreateNew_Click(object sender, EventArgs e)
@@ -251,7 +257,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
         // ================================================================
         //  OPEN DETAIL DIALOG
         //  Reads BatchPrefix from the selected grid row,
-        //  fetches ALL -NN lines from DB, shows them in the dialog.
+        //  fetches ALL -NN lines from DB via GetMaterialRequestBatchDetail.
         // ================================================================
         private void OpenDetailDialog()
         {
@@ -262,7 +268,10 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             var detail = _ctrl.GetMaterialRequestBatchDetail(batchPrefix);
             if (detail == null)
             {
-                MessageBox.Show("Material Request not found.", "Error",
+                MessageBox.Show(
+                    $"No line items found for Request ID: {batchPrefix}.\n" +
+                    "This may mean the lines were not stored with the correct -NN suffix in the database.",
+                    "Not Found",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
@@ -271,20 +280,12 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
 
         // ================================================================
         //  VIEW DETAIL DIALOG
-        //  Structure mirrors ViewOrderForm.ShowDetailDialog:
+        //  Shows ALL -NN line items for the selected BatchPrefix.
         //
-        //  [Top – last added = topmost]
-        //    pnlHeader     : dark navy bar  →  BatchPrefix + Urgency badge
-        //    pnlMeta       : Trigger | Linked Order | Total Items
-        //    pnlLinesLabel : section label "REQUESTED RAW MATERIAL LINES"
-        //
-        //  [Fill]
-        //    dgvLines      : ALL -NN line items for this batch
-        //
-        //  [Bottom – last added = lowest]
-        //    pnlPoLabel    : section label "LINKED PURCHASE ORDER"
-        //    pnlPoDetail   : PO row or placeholder
-        //    pnlFooter     : Close button
+        //  WinForms Dock stacking order (Controls.Add):
+        //    Top    : LAST added = topmost
+        //    Bottom : LAST added = lowest
+        //    Fill   : must be added AFTER all Top and Bottom controls
         // ================================================================
         private void ShowBatchDetailDialog(MaterialRequestBatchDetailEntity d)
         {
@@ -301,7 +302,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 MinimizeBox     = false
             };
 
-            // ── TOP: Header ──────────────────────────────────────────────
+            // ── TOP: Header ─────────────────────────────────────────────────
             var pnlHeader = new Panel
             { Dock = DockStyle.Top, Height = 80, BackColor = Color.FromArgb(19, 35, 61) };
             var tblHeader = new TableLayoutPanel
@@ -332,7 +333,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             }, 1, 0);
             pnlHeader.Controls.Add(tblHeader);
 
-            // ── TOP: Meta row ────────────────────────────────────────────
+            // ── TOP: Meta row ──────────────────────────────────────────────
             var pnlMeta = new Panel
             { Dock = DockStyle.Top, Height = 60, BackColor = Color.White, Padding = new Padding(28, 0, 28, 0) };
             pnlMeta.Paint += DlgPaintBottomBorder;
@@ -356,12 +357,12 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             tblMeta.Controls.Add(DlgVal(d.TotalLines.ToString()), 5, 0);
             pnlMeta.Controls.Add(tblMeta);
 
-            // ── TOP: Lines section label ─────────────────────────────────
+            // ── TOP: Lines section label ──────────────────────────────────
             var pnlLinesLabel = new Panel
             { Dock = DockStyle.Top, Height = 38, BackColor = Color.FromArgb(246, 249, 255), Padding = new Padding(28, 0, 0, 0) };
             pnlLinesLabel.Controls.Add(new Label
             {
-                Text = "REQUESTED RAW MATERIAL LINES",
+                Text = $"REQUESTED RAW MATERIAL LINES  ({d.TotalLines} item{(d.TotalLines == 1 ? "" : "s")})",
                 Font = new Font("Segoe UI", 10f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(98, 112, 135),
                 Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft
@@ -389,7 +390,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             btnClose.Click += (s, ev) => dlg.Close();
             pnlFooter.Controls.Add(btnClose);
 
-            // ── BOTTOM: PO section label ─────────────────────────────────
+            // ── BOTTOM: PO section label ───────────────────────────────
             var pnlPoLabel = new Panel
             { Dock = DockStyle.Bottom, Height = 38, BackColor = Color.FromArgb(246, 249, 255), Padding = new Padding(28, 0, 0, 0) };
             pnlPoLabel.Controls.Add(new Label
@@ -401,7 +402,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             });
             pnlPoLabel.Paint += DlgPaintTopBorder;
 
-            // ── BOTTOM: PO detail row ────────────────────────────────────
+            // ── BOTTOM: PO detail row ──────────────────────────────────
             Panel pnlPoDetail;
             if (!string.IsNullOrEmpty(d.PurchaseID))
             {
@@ -441,7 +442,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 });
             }
 
-            // ── FILL: line-items DataGridView ─────────────────────────────
+            // ── FILL: line-items DataGridView ──────────────────────────────
             // Shows every -NN line in the batch — full detail hidden from main grid
             var dgvLines = new DataGridView
             {
@@ -496,23 +497,19 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                     dgvLines.Rows[ri].DefaultCellStyle.BackColor = Color.FromArgb(255, 243, 205);
             }
 
-            // ── Assemble dialog ───────────────────────────────────────────
-            // WinForms Dock stacking:
-            //   Top    : Controls.Add order reversed (LAST added = topmost)
-            //   Bottom : Controls.Add order reversed (LAST added = lowest)
-            //   Fill   : must be added AFTER all Top and Bottom controls
-            dlg.Controls.Add(pnlLinesLabel); // Top — will sit below pnlMeta
-            dlg.Controls.Add(pnlMeta);       // Top — will sit below pnlHeader
-            dlg.Controls.Add(pnlHeader);     // Top — TOPMOST (last Top added)
+            // ── Assemble dialog ─────────────────────────────────────────
+            dlg.Controls.Add(pnlLinesLabel); // Top — sits below pnlMeta
+            dlg.Controls.Add(pnlMeta);       // Top — sits below pnlHeader
+            dlg.Controls.Add(pnlHeader);     // Top — TOPMOST
             dlg.Controls.Add(pnlPoLabel);    // Bottom — above pnlPoDetail
             dlg.Controls.Add(pnlPoDetail);   // Bottom — above pnlFooter
-            dlg.Controls.Add(pnlFooter);     // Bottom — LOWEST (last Bottom added)
+            dlg.Controls.Add(pnlFooter);     // Bottom — LOWEST
             dlg.Controls.Add(dgvLines);      // Fill  — must be last
 
             dlg.ShowDialog(this);
         }
 
-        // ── Label helpers (mirror ViewOrderForm style) ───────────────
+        // ── Label helpers ─────────────────────────────────────────────────
         private static Label DlgKey(string text) => new Label
         {
             Text = text, Font = new Font("Segoe UI", 10f, FontStyle.Bold),
