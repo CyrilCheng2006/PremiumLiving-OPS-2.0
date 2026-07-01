@@ -12,9 +12,20 @@ namespace PremiumLivingOPS.Models.DAL
     /// ─────────────────────────────────────────────────
     ///   Batch Prefix (shown to user) : MRQ-YYMMDD-NNN        (max 17 chars)
     ///   DB RequestID  (PK, per line) : MRQ-YYMMDD-NNN-NN     (max 20 chars)
+    ///
+    /// Fix (2026-07-01): REGEXP broadened from '^MRQ-...' to '^MR[A-Z]-...'
+    ///   so that any legacy rows whose prefix starts with MRO (or any other
+    ///   two-letter variant) are also stripped of their trailing -NN suffix
+    ///   instead of being shown raw in the UI.
     /// </summary>
     public class ProductionProcessingRepo
     {
+        // ════════════════════════════════════════════════════════════════
+        //  BATCH-PREFIX REGEXP  (used in both SELECT and GROUP BY)
+        //  Matches: MR<any-uppercase-letter>-YYMMDD-NNN-NN
+        // ════════════════════════════════════════════════════════════════
+        private const string BatchRegexp = "^MR[A-Z]-[0-9]{6}-[0-9]{3}-[0-9]{2}$";
+
         // ════════════════════════════════════════════════════════════════
         //  SEARCH RAW MATERIAL REQUEST — Batch-grouped (new)
         // ════════════════════════════════════════════════════════════════
@@ -37,10 +48,10 @@ namespace PremiumLivingOPS.Models.DAL
                 // BatchPrefix = everything before the last "-NN" suffix.
                 // For IDs without a -NN suffix (old format) the whole ID is the prefix.
                 var sql =
-                    @"SELECT
+                    $@"SELECT
                         /* Derive batch prefix: strip trailing -NN if present */
                         CASE
-                          WHEN mr.RequestID REGEXP '^MRQ-[0-9]{6}-[0-9]{3}-[0-9]{2}$'
+                          WHEN mr.RequestID REGEXP '{BatchRegexp}'
                             THEN SUBSTRING(mr.RequestID, 1, CHAR_LENGTH(mr.RequestID) - 3)
                           ELSE mr.RequestID
                         END                                        AS BatchPrefix,
@@ -69,9 +80,9 @@ namespace PremiumLivingOPS.Models.DAL
                     sql += " AND mr.TriggerType = @trigger";
 
                 sql +=
-                    @" GROUP BY
+                    $@" GROUP BY
                         CASE
-                          WHEN mr.RequestID REGEXP '^MRQ-[0-9]{6}-[0-9]{3}-[0-9]{2}$'
+                          WHEN mr.RequestID REGEXP '{BatchRegexp}'
                             THEN SUBSTRING(mr.RequestID, 1, CHAR_LENGTH(mr.RequestID) - 3)
                           ELSE mr.RequestID
                         END
