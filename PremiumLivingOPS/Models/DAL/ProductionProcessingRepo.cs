@@ -13,21 +13,27 @@ namespace PremiumLivingOPS.Models.DAL
     ///   Batch Prefix (shown to user) : MRQ-YYMMDD-NNN        (max 17 chars)
     ///   DB RequestID  (PK, per line) : MRQ-YYMMDD-NNN-NN     (max 20 chars)
     ///
-    /// Fix (2026-07-01): REGEXP broadened from '^MRQ-...' to '^MR[A-Z]-...'
-    ///   so that any legacy rows whose prefix starts with MRO (or any other
-    ///   two-letter variant) are also stripped of their trailing -NN suffix
-    ///   instead of being shown raw in the UI.
+    /// Fix (2026-07-01-A): REGEXP broadened to MR[A-Z] for legacy prefix compatibility.
+    /// Fix (2026-07-01-B): {{ }} escaping added in $@ interpolated strings so that
+    ///   MySQL REGEXP quantifiers {6},{3},{2} are passed as literal braces, not
+    ///   treated as C# interpolation holes (which produced "MRO" display bug).
     /// </summary>
     public class ProductionProcessingRepo
     {
         // ════════════════════════════════════════════════════════════════
-        //  BATCH-PREFIX REGEXP  (used in both SELECT and GROUP BY)
-        //  Matches: MR<any-uppercase-letter>-YYMMDD-NNN-NN
+        //  BATCH-PREFIX REGEXP
+        //  In a C# $"..." string, { and } are interpolation markers.
+        //  To emit a literal { or } you must double them: {{ and }}.
+        //  The value below is the EXACT string sent to MySQL:
+        //      ^MR[A-Z]-[0-9]{6}-[0-9]{3}-[0-9]{2}$
         // ════════════════════════════════════════════════════════════════
-        private const string BatchRegexp = "^MR[A-Z]-[0-9]{6}-[0-9]{3}-[0-9]{2}$";
+        // NOTE: This constant is used inside a $@"..." string, so { } must be {{ }}
+        //       The const itself stores the already-doubled form so callers just
+        //       embed it directly with {BatchRegexp}.
+        private const string BatchRegexp = "^MR[A-Z]-[0-9]{{6}}-[0-9]{{3}}-[0-9]{{2}}$";
 
         // ════════════════════════════════════════════════════════════════
-        //  SEARCH RAW MATERIAL REQUEST — Batch-grouped (new)
+        //  SEARCH RAW MATERIAL REQUEST — Batch-grouped
         // ════════════════════════════════════════════════════════════════
 
         /// <summary>
@@ -44,12 +50,12 @@ namespace PremiumLivingOPS.Models.DAL
             {
                 conn.Open();
 
-                // Build the base SQL that aggregates lines into batches.
                 // BatchPrefix = everything before the last "-NN" suffix.
                 // For IDs without a -NN suffix (old format) the whole ID is the prefix.
+                // IMPORTANT: BatchRegexp already contains {{ }} so when embedded in the
+                //            $@"..." string the braces arrive at MySQL as single { }.
                 var sql =
                     $@"SELECT
-                        /* Derive batch prefix: strip trailing -NN if present */
                         CASE
                           WHEN mr.RequestID REGEXP '{BatchRegexp}'
                             THEN SUBSTRING(mr.RequestID, 1, CHAR_LENGTH(mr.RequestID) - 3)
@@ -118,12 +124,11 @@ namespace PremiumLivingOPS.Models.DAL
         }
 
         // ════════════════════════════════════════════════════════════════
-        //  GET MATERIAL REQUEST BATCH DETAIL (new)
+        //  GET MATERIAL REQUEST BATCH DETAIL
         // ════════════════════════════════════════════════════════════════
 
         /// <summary>
         /// Returns the batch header + all line items for a given BatchPrefix.
-        /// batchPrefix is either the full old-style ID or the new MRQ-YYMMDD-NNN prefix.
         /// </summary>
         public MaterialRequestBatchDetailEntity GetMaterialRequestBatchDetail(string batchPrefix)
         {
@@ -133,8 +138,6 @@ namespace PremiumLivingOPS.Models.DAL
             {
                 conn.Open();
 
-                // Fetch all lines whose RequestID starts with batchPrefix
-                // (covers both new MRQ-YYMMDD-NNN-NN and old single-row IDs)
                 const string sqlLines =
                     @"SELECT mr.RequestID, mr.OrderID,
                              mr.RawMaterialItemID,
@@ -161,7 +164,6 @@ namespace PremiumLivingOPS.Models.DAL
 
                 using (var cmd = new MySqlCommand(sqlLines, conn))
                 {
-                    // Match exact prefix OR prefix + '-NN'
                     cmd.Parameters.AddWithValue("@prefix", batchPrefix + "%");
 
                     using (var r = cmd.ExecuteReader())
@@ -171,12 +173,12 @@ namespace PremiumLivingOPS.Models.DAL
                         {
                             if (first)
                             {
-                                detail.OrderID       = r["OrderID"]      == DBNull.Value ? null : r["OrderID"].ToString();
-                                detail.UrgencyLevel  = r["UrgencyLevel"].ToString();
-                                detail.TriggerType   = r["TriggerType"].ToString();
-                                detail.PurchaseID    = r["PurchaseID"]   == DBNull.Value ? null : r["PurchaseID"].ToString();
+                                detail.OrderID        = r["OrderID"]       == DBNull.Value ? null : r["OrderID"].ToString();
+                                detail.UrgencyLevel   = r["UrgencyLevel"].ToString();
+                                detail.TriggerType    = r["TriggerType"].ToString();
+                                detail.PurchaseID     = r["PurchaseID"]    == DBNull.Value ? null : r["PurchaseID"].ToString();
                                 detail.PurchaseStatus = r["PurchaseStatus"] == DBNull.Value ? null : r["PurchaseStatus"].ToString();
-                                detail.POTotalAmount = r["POTotalAmount"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(r["POTotalAmount"]);
+                                detail.POTotalAmount  = r["POTotalAmount"]  == DBNull.Value ? (decimal?)null : Convert.ToDecimal(r["POTotalAmount"]);
                                 first = false;
                             }
                             detail.Lines.Add(new MaterialRequestLineEntity
