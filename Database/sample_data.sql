@@ -115,20 +115,20 @@ INSERT INTO Address (AddressID, CustomerID, AddressName, AddressType, isDefault)
 INSERT INTO MaterialRequest
   (RequestID, OrderID, RawMaterialItemID, WarehouseItemID, RequestedQty, UrgencyLevel, TriggerType)
 VALUES
-  ('MRQ-20260215-0019', NULL, 'IID-R-0005', 'WHI-R-0005', 20, 'High',     'Reorder'),
-  ('MRQ-20260301-0020', NULL, 'IID-R-0001', 'WHI-R-0001', 50, 'Critical', 'Reorder'),
-  ('MRQ-20260228-0021', NULL, 'IID-R-0002', 'WHI-R-0002', 30, 'Critical', 'Reorder'),
-  ('MRQ-20260311-0022', NULL, 'IID-R-0001', 'WHI-R-0001', 50, 'High',     'Reorder'),
-  ('MRQ-20260220-0023', NULL, 'IID-R-0004', 'WHI-R-0004', 100, 'High',    'Reorder');
+  ('MRQ-260215-001-01', NULL, 'IID-R-0005', 'WHI-R-0005', 20, 'High',     'Reorder'),
+  ('MRQ-260301-002-01', NULL, 'IID-R-0001', 'WHI-R-0001', 50, 'Critical', 'Reorder'),
+  ('MRQ-260228-003-01', NULL, 'IID-R-0002', 'WHI-R-0002', 30, 'Critical', 'Reorder'),
+  ('MRQ-260311-004-01', NULL, 'IID-R-0001', 'WHI-R-0001', 50, 'High',     'Reorder'),
+  ('MRQ-260220-005-01', NULL, 'IID-R-0004', 'WHI-R-0004', 100, 'High',    'Reorder');
 
   INSERT INTO PurchaseOrder
   (PurchaseID, RequestID, SupplierID, POTotalAmount, OrderDate, PurchaseStatus)
 VALUES
-  ('PO-20260215-0020', 'MRQ-20260215-0019', 'SUP-20260101-0004', 7200.00,  '2026-02-15', 'Completed'),
-  ('PO-20260301-0021', 'MRQ-20260301-0020', 'SUP-20260101-0001', 14000.00, '2026-03-01', 'Partially Received'),
-  ('PO-20260220-0022', 'MRQ-20260220-0023', 'SUP-20260101-0003', 8500.00, '2026-02-20', 'Received'),
-  ('PO-20260228-0023', 'MRQ-20260228-0021', 'SUP-20260101-0005', 4500.00,  '2026-02-28', 'Completed'),
-  ('PO-20260311-0024', 'MRQ-20260311-0022', 'SUP-20260101-0001', 16400.00, '2026-03-11', 'Sent');
+  ('PO-20260215-0020', 'MRQ-260215-001-01', 'SUP-20260101-0004', 7200.00,  '2026-02-15', 'Completed'),
+  ('PO-20260301-0021', 'MRQ-260301-002-01', 'SUP-20260101-0001', 14000.00, '2026-03-01', 'Partially Received'),
+  ('PO-20260220-0022', 'MRQ-260220-005-01', 'SUP-20260101-0003', 8500.00, '2026-02-20', 'Received'),
+  ('PO-20260228-0023', 'MRQ-260228-003-01', 'SUP-20260101-0005', 4500.00,  '2026-02-28', 'Completed'),
+  ('PO-20260311-0024', 'MRQ-260311-004-01', 'SUP-20260101-0001', 16400.00, '2026-03-11', 'Sent');
 
   INSERT INTO PurchaseOrderLine
   (POLineID, RawMaterialItemID, PurchaseID, WarehouseID, OrderQty, UnitPrice)
@@ -598,10 +598,10 @@ VALUES
 INSERT INTO MaterialRequest
   (RequestID, OrderID, RawMaterialItemID, WarehouseItemID, RequestedQty, UrgencyLevel, TriggerType)
 VALUES
-  ('MRQ-20260319-0024', 'ORD-20260318-0060','IID-R-0001', 'WHI-R-0001', 80, 'Critical', 'OrderDemand');
+  ('MRQ-260319-006-01', 'ORD-20260318-0060','IID-R-0001', 'WHI-R-0001', 80, 'Critical', 'OrderDemand');
 
 INSERT INTO PurchaseOrder(PurchaseID, RequestID, SupplierID, POTotalAmount, OrderDate, PurchaseStatus)
-VALUES ('PO-20260319-0025', 'MRQ-20260319-0024', 'SUP-20260101-0001', 22400.00, '2026-03-19', 'Partially Received');
+VALUES ('PO-20260319-0025', 'MRQ-260319-006-01', 'SUP-20260101-0001', 22400.00, '2026-03-19', 'Partially Received');
 
 INSERT INTO PurchaseOrderLine(POLineID, RawMaterialItemID, PurchaseID, WarehouseID, OrderQty, UnitPrice)
 VALUES ('POL-20260319-0009', 'IID-R-0001', 'PO-20260319-0025', 'WH-20260101-0002', 80,  280.00);
