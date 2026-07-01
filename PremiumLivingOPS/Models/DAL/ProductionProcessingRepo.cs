@@ -9,16 +9,20 @@ namespace PremiumLivingOPS.Models.DAL
     /// DAL for Production Processing module.
     ///
     /// RequestID naming scheme (Plan A — Batch Prefix Grouping)
-    /// ─────────────────────────────────────────────────
+    /// ─────────────────────────────────────────────────────────
     ///   Batch Prefix (shown to user) : MRQ-YYMMDD-NNN        (14 chars)
     ///   DB RequestID  (PK, per line) : MRQ-YYMMDD-NNN-NN     (17 chars)
-    ///
-    ///   'MRQ-260215-001-01'  → 17 chars  ✓
     ///
     ///   BatchPrefix = SUBSTRING(RequestID, 1, 14)  strips last '-NN' (3 chars)
     /// </summary>
     public class ProductionProcessingRepo
     {
+        // ════════════════════════════════════════════════════════════════
+        //  SEARCH RAW MATERIAL REQUEST — Batch-grouped
+        //  ONE row per BatchPrefix in the grid.
+        //  LEFT JOIN WarehouseItem so batches with bad/missing WHI still appear.
+        // ════════════════════════════════════════════════════════════════
+
         public List<MaterialRequestBatchEntity> SearchMaterialRequestBatches(
             string keyword     = null,
             string urgency     = null,
@@ -32,14 +36,14 @@ namespace PremiumLivingOPS.Models.DAL
                 var sql =
                     @"SELECT
                         bp.BatchPrefix,
-                        MIN(mr.OrderID)                                        AS OrderID,
-                        MIN(mr.UrgencyLevel)                                   AS UrgencyLevel,
-                        MIN(mr.TriggerType)                                    AS TriggerType,
-                        COUNT(*)                                               AS TotalLines,
-                        SUM(mr.RequestedQty)                                   AS TotalRequestedQty,
-                        MIN(COALESCE(w.WarehouseLocation, '—'))                AS WarehouseLocation,
-                        MIN(COALESCE(wi.WarehouseItemQuantity, 0))             AS CurrentStock,
-                        MIN(COALESCE(wi.ReorderLevel, 0))                      AS ReorderLevel,
+                        MIN(mr.OrderID)                                            AS OrderID,
+                        MIN(mr.UrgencyLevel)                                       AS UrgencyLevel,
+                        MIN(mr.TriggerType)                                        AS TriggerType,
+                        COUNT(*)                                                   AS TotalLines,
+                        SUM(mr.RequestedQty)                                       AS TotalRequestedQty,
+                        MIN(COALESCE(w.WarehouseLocation, '—'))                    AS WarehouseLocation,
+                        MIN(COALESCE(wi.WarehouseItemQuantity, 0))                 AS CurrentStock,
+                        MIN(COALESCE(wi.ReorderLevel, 0))                          AS ReorderLevel,
                         MAX(CASE WHEN po.PurchaseID IS NOT NULL THEN 1 ELSE 0 END) AS IsLinkedToPO
                       FROM   MaterialRequest mr
                       JOIN   RawMaterial  rm  ON mr.RawMaterialItemID = rm.ItemID
@@ -98,6 +102,16 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
+        // ════════════════════════════════════════════════════════════════
+        //  GET MATERIAL REQUEST BATCH DETAIL
+        //  Returns header + ALL -NN lines for a given BatchPrefix.
+        //
+        //  FIX: Use LIKE batchPrefix + '-%'  (percent wildcard) instead of
+        //       batchPrefix + '-__'  (two underscore chars = exactly 2 chars).
+        //  '-01' is 3 chars ('-','0','1') so '__' (2 wildcards) never matched.
+        //  '-%' matches '-01', '-02', '-03' … correctly.
+        // ════════════════════════════════════════════════════════════════
+
         public MaterialRequestBatchDetailEntity GetMaterialRequestBatchDetail(string batchPrefix)
         {
             var detail = new MaterialRequestBatchDetailEntity { BatchPrefix = batchPrefix };
@@ -132,7 +146,9 @@ namespace PremiumLivingOPS.Models.DAL
 
                 using (var cmd = new MySqlCommand(sqlLines, conn))
                 {
-                    cmd.Parameters.AddWithValue("@prefix", batchPrefix + "-__");
+                    // FIX: '-% ' matches MRQ-260701-001-01, -02, -03 …
+                    // Previously '-__' (2 underscores) could not match '-01' (3 chars: dash+digit+digit)
+                    cmd.Parameters.AddWithValue("@prefix", batchPrefix + "-%");
 
                     using (var r = cmd.ExecuteReader())
                     {
@@ -141,12 +157,12 @@ namespace PremiumLivingOPS.Models.DAL
                         {
                             if (first)
                             {
-                                detail.OrderID        = r["OrderID"]       == DBNull.Value ? null : r["OrderID"].ToString();
+                                detail.OrderID        = r["OrderID"]        == DBNull.Value ? null : r["OrderID"].ToString();
                                 detail.UrgencyLevel   = r["UrgencyLevel"].ToString();
                                 detail.TriggerType    = r["TriggerType"].ToString();
-                                detail.PurchaseID     = r["PurchaseID"]    == DBNull.Value ? null : r["PurchaseID"].ToString();
-                                detail.PurchaseStatus = r["PurchaseStatus"] == DBNull.Value ? null : r["PurchaseStatus"].ToString();
-                                detail.POTotalAmount  = r["POTotalAmount"]  == DBNull.Value ? (decimal?)null : Convert.ToDecimal(r["POTotalAmount"]);
+                                detail.PurchaseID     = r["PurchaseID"]     == DBNull.Value ? null : r["PurchaseID"].ToString();
+                                detail.PurchaseStatus = r["PurchaseStatus"]  == DBNull.Value ? null : r["PurchaseStatus"].ToString();
+                                detail.POTotalAmount  = r["POTotalAmount"]   == DBNull.Value ? (decimal?)null : Convert.ToDecimal(r["POTotalAmount"]);
                                 first = false;
                             }
                             detail.Lines.Add(new MaterialRequestLineEntity
@@ -170,6 +186,10 @@ namespace PremiumLivingOPS.Models.DAL
             detail.TotalLines = detail.Lines.Count;
             return detail.TotalLines == 0 ? null : detail;
         }
+
+        // ════════════════════════════════════════════════════════════════
+        //  SEARCH RAW MATERIAL REQUEST — flat (for KPI pill counts)
+        // ════════════════════════════════════════════════════════════════
 
         public List<MaterialRequestEntity> SearchMaterialRequests(
             string keyword      = null,
@@ -227,6 +247,10 @@ namespace PremiumLivingOPS.Models.DAL
             }
             return list;
         }
+
+        // ════════════════════════════════════════════════════════════════
+        //  GET MATERIAL REQUEST DETAIL (single-line, legacy)
+        // ════════════════════════════════════════════════════════════════
 
         public MaterialRequestDetailEntity GetMaterialRequestDetail(string requestId)
         {
@@ -286,6 +310,10 @@ namespace PremiumLivingOPS.Models.DAL
                 }
             }
         }
+
+        // ════════════════════════════════════════════════════════════════
+        //  CREATE RAW MATERIAL REQUEST — lookups
+        // ════════════════════════════════════════════════════════════════
 
         public List<RawMaterialLookup> GetAllRawMaterials()
         {
@@ -371,6 +399,10 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
+        // ════════════════════════════════════════════════════════════════
+        //  CREATE RAW MATERIAL REQUEST — write
+        // ════════════════════════════════════════════════════════════════
+
         public void CreateMaterialRequest(
             string requestId, string orderId, string rawMaterialItemId,
             string warehouseItemId, int requestedQty,
@@ -413,6 +445,10 @@ namespace PremiumLivingOPS.Models.DAL
             }
         }
 
+        // ════════════════════════════════════════════════════════════════
+        //  ID GENERATION — Plan A Batch Prefix
+        // ════════════════════════════════════════════════════════════════
+
         public string GenerateNextBatchPrefix()
         {
             using (var conn = DatabaseHelper.GetConnection())
@@ -441,11 +477,13 @@ namespace PremiumLivingOPS.Models.DAL
             }
         }
 
+        /// <summary>Builds a fully-qualified line RequestID from a BatchPrefix and 1-based line number.</summary>
         public static string BuildLineRequestId(string batchPrefix, int lineNumber)
             => $"{batchPrefix}-{lineNumber:D2}";
 
         public string GenerateNextRequestId() => GenerateNextBatchPrefix();
 
+        // ────────────────────────────────────────────────────────────────
         private static MaterialRequestEntity MapMaterialRequest(MySqlDataReader r)
             => new MaterialRequestEntity
             {
