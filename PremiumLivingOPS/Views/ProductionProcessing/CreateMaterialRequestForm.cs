@@ -17,15 +17,12 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
     /// CardPanel : all content wrapped in 3-layer nested cards.
     ///
     /// Schema coverage:
-    ///   MaterialRequest — one record per line (RequestID auto-generated per line)
+    ///   MaterialRequest — one DB record per staged line (each gets its own RequestID).
+    ///   All lines in the same submit batch share a BatchRef label shown in the header
+    ///   (UI grouping only — no extra DB column required).
     ///   RawMaterial     — lookup (material dropdown in Add-line picker)
     ///   WarehouseItem   — lookup (stock location dropdown, filtered per material)
     ///   Order           — lookup (only for OrderDemand trigger type)
-    ///
-    /// Multi-line design:
-    ///   Each request line is staged in _requestLines.
-    ///   On Submit, one MaterialRequest DB record is inserted per line,
-    ///   sharing the same UrgencyLevel, TriggerType and OrderID (header fields).
     /// </summary>
     public partial class CreateMaterialRequestForm : Form
     {
@@ -39,16 +36,16 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
         // Staged request lines
         private readonly List<MaterialRequestLineStaging> _requestLines = new List<MaterialRequestLineStaging>();
 
+        // Batch reference (shared UI label; each line still gets its own DB RequestID)
+        private string _batchRef = string.Empty;
+
         public CreateMaterialRequestForm()
         {
             InitializeComponent();
             this.Load += CreateMaterialRequestForm_Load;
         }
 
-        // ════════════════════════════════════════════════════════════════
-        //  Load
-        // ════════════════════════════════════════════════════════════════
-
+        // ── Load ────────────────────────────────────────────────────────────────────
         private void CreateMaterialRequestForm_Load(object sender, EventArgs e)
         {
             cboRawMaterial.SelectedIndexChanged += CboRawMaterial_Changed;
@@ -62,24 +59,22 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             LoadForm();
         }
 
-        // ════════════════════════════════════════════════════════════════
-        //  Data load
-        // ════════════════════════════════════════════════════════════════
-
+        // ── Data load ───────────────────────────────────────────────────────────────
         private void LoadForm()
         {
             var vm = _ctrl.GetCreateMaterialRequestVM();
 
-            // AppShell
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
             _shell.SetBreadcrumb("Production Processing  \u203a  Create Raw Material Request");
 
-            // Header fields
+            // Generate a batch reference for this session (first auto-ID from repo)
+            _batchRef = vm.NextRequestID;
+            lblBatchRef.Text = _batchRef;
+
             cboUrgency.SelectedIndex = 0;
             cboTrigger.SelectedIndex = 0;
 
-            // Raw Material picker dropdown
             _rawMaterials = vm.RawMaterials;
             cboRawMaterial.Items.Clear();
             cboRawMaterial.Items.Add("-- Select Raw Material --");
@@ -87,21 +82,17 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 cboRawMaterial.Items.Add(m);
             cboRawMaterial.SelectedIndex = 0;
 
-            // Warehouse dropdown (empty until material selected)
             _warehouseItems = new List<WarehouseItemLookup>();
             cboWarehouse.Items.Clear();
             cboWarehouse.Items.Add("-- Select Material First --");
             cboWarehouse.SelectedIndex = 0;
             cboWarehouse.Enabled = false;
 
-            // Info read-only labels
-            txtMaterialType.Text  = string.Empty;
-            txtCurrentStock.Text  = string.Empty;
-            txtReorderLevel.Text  = string.Empty;
-
+            txtMaterialType.Text = string.Empty;
+            txtCurrentStock.Text = string.Empty;
+            txtReorderLevel.Text = string.Empty;
             nudRequestedQty.Value = 1;
 
-            // Order dropdown
             _orders = vm.Orders;
             cboOrder.Items.Clear();
             cboOrder.Items.Add("-- None (Reorder) --");
@@ -109,17 +100,12 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 cboOrder.Items.Add(o);
             cboOrder.SelectedIndex = 0;
 
-            // Lines grid
             _requestLines.Clear();
             RefreshLinesGrid();
-
             RefreshOrderVisibility();
         }
 
-        // ════════════════════════════════════════════════════════════════
-        //  Event handlers
-        // ════════════════════════════════════════════════════════════════
-
+        // ── Raw Material changed ─────────────────────────────────────────────────
         private void CboRawMaterial_Changed(object sender, EventArgs e)
         {
             if (cboRawMaterial.SelectedItem is RawMaterialLookup mat)
@@ -146,6 +132,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             txtReorderLevel.Text = string.Empty;
         }
 
+        // ── Warehouse changed ────────────────────────────────────────────────────
         internal void CboWarehouse_Changed(object sender, EventArgs e)
         {
             if (cboWarehouse.SelectedIndex > 0 && cboWarehouse.SelectedIndex <= _warehouseItems.Count)
@@ -161,6 +148,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             }
         }
 
+        // ── Trigger type changed ─────────────────────────────────────────────────
         private void CboTrigger_Changed(object sender, EventArgs e)
             => RefreshOrderVisibility();
 
@@ -172,7 +160,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 cboOrder.SelectedIndex = 0;
         }
 
-        // ── Add line to staging grid ──────────────────────────────────
+        // ── Add line ─────────────────────────────────────────────────────────────
         private void BtnAddLine_Click(object sender, EventArgs e)
         {
             var mat = cboRawMaterial.SelectedItem as RawMaterialLookup;
@@ -185,16 +173,13 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             var wh  = _warehouseItems[cboWarehouse.SelectedIndex - 1];
             int qty = (int)nudRequestedQty.Value;
 
-            // Prevent duplicate material+warehouse combination
+            // Merge duplicate material+warehouse combination
             var existing = _requestLines.FirstOrDefault(
                 l => l.RawMaterialItemID == mat.ItemID && l.WarehouseItemID == wh.WarehouseItemID);
 
             if (existing != null)
-            {
                 existing.RequestedQty += qty;
-            }
             else
-            {
                 _requestLines.Add(new MaterialRequestLineStaging
                 {
                     RawMaterialItemID = mat.ItemID,
@@ -204,20 +189,19 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                     WarehouseDisplay  = wh.ToString(),
                     RequestedQty      = qty
                 });
-            }
 
             RefreshLinesGrid();
 
-            // Reset picker section for next line
+            // Reset picker for next entry
             cboRawMaterial.SelectedIndex = 0;
             nudRequestedQty.Value = 1;
         }
 
-        // ── Remove selected line ──────────────────────────────────────
+        // ── Remove line ──────────────────────────────────────────────────────────
         private void BtnRemoveLine_Click(object sender, EventArgs e)
         {
             if (dgvLines.SelectedRows.Count == 0)
-            { ShowWarning("Please select a line to remove."); return; }
+            { ShowWarning("Please select a line to delete."); return; }
 
             int idx = dgvLines.SelectedRows[0].Index;
             if (idx >= 0 && idx < _requestLines.Count)
@@ -227,7 +211,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             }
         }
 
-        // ── Refresh DataGridView ──────────────────────────────────────
+        // ── Refresh DataGridView ─────────────────────────────────────────────────
         private void RefreshLinesGrid()
         {
             dgvLines.Rows.Clear();
@@ -244,14 +228,14 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             lblLineCount.Text = $"{_requestLines.Count} line(s) staged";
         }
 
-        // ── Submit ────────────────────────────────────────────────────
+        // ── Submit ───────────────────────────────────────────────────────────────
         private void BtnSubmit_Click(object sender, EventArgs e)
         {
             if (_requestLines.Count == 0)
             { ShowWarning("Please add at least one Raw Material line before submitting."); return; }
 
-            string urgency  = cboUrgency.SelectedItem?.ToString() ?? "Medium";
-            string trigger  = cboTrigger.SelectedItem?.ToString() ?? "Reorder";
+            string urgency = cboUrgency.SelectedItem?.ToString() ?? "Medium";
+            string trigger = cboTrigger.SelectedItem?.ToString() ?? "Reorder";
 
             string orderId = null;
             if (trigger == "OrderDemand")
@@ -264,6 +248,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             int created = 0;
             var errors  = new List<string>();
 
+            // Each line generates its own DB record with a unique RequestID
             foreach (var line in _requestLines)
             {
                 string requestId = _ctrl.GenerateNextRequestId();
@@ -284,7 +269,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             if (errors.Count == 0)
             {
                 MessageBox.Show(
-                    $"{created} Material Request(s) have been created successfully.",
+                    $"{created} Material Request(s) created successfully under batch {_batchRef}.",
                     "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 LoadForm();
             }
@@ -296,17 +281,12 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             }
         }
 
-        private void BtnReset_Click(object sender, EventArgs e)
-            => LoadForm();
+        private void BtnReset_Click(object sender, EventArgs e) => LoadForm();
 
-        // ── Helpers ───────────────────────────────────────────────────
         private static void ShowWarning(string msg)
             => MessageBox.Show(msg, "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
 
-        // ════════════════════════════════════════════════════════════════
-        //  Navigation / session
-        // ════════════════════════════════════════════════════════════════
-
+        // ── Navigation / session ─────────────────────────────────────────────────
         private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
             => FormNavigator.NavigateTo(this, menuLabel, subItem);
 
@@ -317,9 +297,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
         }
     }
 
-    // ────────────────────────────────────────────────────────────────────
-    //  Staging entity (View-layer only, no DB mapping)
-    // ────────────────────────────────────────────────────────────────────
+    // ── View-layer staging entity (no DB mapping) ────────────────────────────────
     internal sealed class MaterialRequestLineStaging
     {
         public string RawMaterialItemID { get; set; }

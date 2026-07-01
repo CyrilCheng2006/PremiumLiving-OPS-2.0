@@ -12,7 +12,8 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
         // ── AppShell
         private AppShell _shell;
 
-        // ── CARD 1: Request Overview (header)
+        // ── CARD 1: Request Overview
+        private  Label    lblBatchRef;   // shows the batch reference (first auto-ID)
         internal ComboBox cboUrgency;
         internal ComboBox cboTrigger;
 
@@ -65,15 +66,26 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
 
             var pnlScroll = new Panel
             {
-                Dock       = DockStyle.Fill,
-                AutoScroll = true,
-                BackColor  = Palette.BgPage
+                Dock = DockStyle.Fill, AutoScroll = true, BackColor = Palette.BgPage
             };
 
             // ==================================================================
             // CARD 1 — Request Overview
-            // Schema: MaterialRequest.UrgencyLevel, TriggerType (shared by all lines)
+            // Batch Reference: first auto-generated RequestID of this session;
+            //   each line in the batch gets its own DB RequestID on Submit.
+            // Schema fields: UrgencyLevel, TriggerType (shared by all lines)
             // ==================================================================
+            lblBatchRef = new Label
+            {
+                Font      = new Font("Segoe UI", 12f),
+                ForeColor = Color.FromArgb(98, 112, 135),
+                BackColor = Color.FromArgb(235, 240, 250),
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Padding   = new Padding(8, 0, 0, 0),
+                BorderStyle = BorderStyle.FixedSingle
+            };
+
             cboUrgency = MakeCombo();
             cboUrgency.Items.AddRange(new object[] { "Critical", "High", "Medium" });
             cboUrgency.SelectedIndex = 0;
@@ -84,19 +96,22 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
 
             var tblHdr = new TableLayoutPanel
             {
-                Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 2,
+                Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 2,
                 BackColor = Color.Transparent,
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
                 Padding = new Padding(18, 4, 18, 8)
             };
-            tblHdr.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
-            tblHdr.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
+            tblHdr.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.3f));
+            tblHdr.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.3f));
+            tblHdr.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.4f));
             tblHdr.RowStyles.Add(new RowStyle(SizeType.Absolute, 40f));
             tblHdr.RowStyles.Add(new RowStyle(SizeType.Absolute, 72f));
-            tblHdr.Controls.Add(FieldLabel("Urgency Level", true),  0, 0);
-            tblHdr.Controls.Add(FieldLabel("Trigger Type",  true),  1, 0);
-            tblHdr.Controls.Add(Pad(cboUrgency),   0, 1);
-            tblHdr.Controls.Add(Pad(cboTrigger),   1, 1);
+            tblHdr.Controls.Add(FieldLabel("Batch Reference (Auto)", false), 0, 0);
+            tblHdr.Controls.Add(FieldLabel("Urgency Level",           true),  1, 0);
+            tblHdr.Controls.Add(FieldLabel("Trigger Type",            true),  2, 0);
+            tblHdr.Controls.Add(Pad(lblBatchRef), 0, 1);
+            tblHdr.Controls.Add(Pad(cboUrgency),  1, 1);
+            tblHdr.Controls.Add(Pad(cboTrigger),  2, 1);
 
             var (pnlCard1Outer, pnlCard1Inner) = CardPanel.Create(outerHeight: 200);
             var pnlHdrContent = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
@@ -133,7 +148,15 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
 
             // ==================================================================
             // CARD 3 — Add Material Line
-            // Schema: RawMaterial, WarehouseItem per line
+            // Layout: 6 rows — each "label row" (40px) immediately above its
+            //         "control row" (72px) so fields are perfectly aligned.
+            //
+            // Row 0 (lbl): Raw Material *  |  Material Type
+            // Row 1 (ctrl): cboRawMaterial  |  txtMaterialType
+            // Row 2 (lbl): Warehouse *  |  Current Stock (Ref)  |  Reorder Level (Ref)
+            // Row 3 (ctrl): cboWarehouse |  txtCurrentStock      |  txtReorderLevel
+            // Row 4 (lbl): Requested Qty *
+            // Row 5 (ctrl): nudRequestedQty  |  [Add Line button]
             // ==================================================================
             cboRawMaterial  = MakeCombo();
             txtMaterialType = MakeReadOnlyBox();
@@ -144,49 +167,53 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
 
             nudRequestedQty = new NumericUpDown
             {
-                Font          = new Font("Segoe UI", 12f),
-                Minimum       = 1,
-                Maximum       = 99999,
-                Value         = 1,
-                DecimalPlaces = 0,
-                Dock          = DockStyle.Fill
+                Font = new Font("Segoe UI", 12f),
+                Minimum = 1, Maximum = 99999, Value = 1,
+                DecimalPlaces = 0, Dock = DockStyle.Fill
             };
 
-            btnAddLine = MakePrimaryBtn("＋  Add Line", Point.Empty, 180, 50);
+            // Green Add button 210 × 60
+            btnAddLine = MakeGreenBtn("＋  Add Line", 210, 60);
 
-            // Row 1: Raw Material + Type labels
-            var tblMatLbl1 = MakeColTlp(2, new float[] { 60f, 40f });
-            tblMatLbl1.Controls.Add(FieldLabel("Raw Material *", false), 0, 0);
-            tblMatLbl1.Controls.Add(FieldLabel("Material Type",  false), 1, 0);
+            // Row 0: Raw Material label + Material Type label
+            var tblLbl0 = MakeColTlp(2, new float[] { 60f, 40f });
+            tblLbl0.Controls.Add(FieldLabel("Raw Material *", false), 0, 0);
+            tblLbl0.Controls.Add(FieldLabel("Material Type",  false), 1, 0);
 
-            // Row 2: Raw Material + Type controls
-            var tblMatCtrl1 = MakeColTlp(2, new float[] { 60f, 40f });
-            tblMatCtrl1.Controls.Add(Pad(cboRawMaterial),  0, 0);
-            tblMatCtrl1.Controls.Add(Pad(txtMaterialType), 1, 0);
+            // Row 1: Raw Material control + Material Type control
+            var tblCtrl1 = MakeColTlp(2, new float[] { 60f, 40f });
+            tblCtrl1.Controls.Add(Pad(cboRawMaterial),  0, 0);
+            tblCtrl1.Controls.Add(Pad(txtMaterialType), 1, 0);
 
-            // Row 3: Warehouse + Stock + Reorder labels
-            var tblMatLbl2 = MakeColTlp(3, new float[] { 40f, 20f, 20f });
-            tblMatLbl2.Controls.Add(FieldLabel("Warehouse / Stock Location *", false), 0, 0);
-            tblMatLbl2.Controls.Add(FieldLabel("Current Stock (Ref)",          false), 1, 0);
-            tblMatLbl2.Controls.Add(FieldLabel("Reorder Level (Ref)",          false), 2, 0);
+            // Row 2: Warehouse + Current Stock + Reorder Level labels
+            //   column widths mirror Row 3 controls exactly
+            var tblLbl2 = MakeColTlp(3, new float[] { 40f, 30f, 30f });
+            tblLbl2.Controls.Add(FieldLabel("Warehouse / Stock Location *", false), 0, 0);
+            tblLbl2.Controls.Add(FieldLabel("Current Stock (Ref)",          false), 1, 0);
+            tblLbl2.Controls.Add(FieldLabel("Reorder Level (Ref)",          false), 2, 0);
 
-            // Row 4: Warehouse + Stock + Reorder controls (+ Add button spanning right)
-            var tblMatCtrl2 = MakeColTlp(4, new float[] { 40f, 20f, 20f, 20f });
-            tblMatCtrl2.Controls.Add(Pad(cboWarehouse),    0, 0);
-            tblMatCtrl2.Controls.Add(Pad(txtCurrentStock), 1, 0);
-            tblMatCtrl2.Controls.Add(Pad(txtReorderLevel), 2, 0);
+            // Row 3: Warehouse + Current Stock + Reorder Level controls
+            var tblCtrl3 = MakeColTlp(3, new float[] { 40f, 30f, 30f });
+            tblCtrl3.Controls.Add(Pad(cboWarehouse),    0, 0);
+            tblCtrl3.Controls.Add(Pad(txtCurrentStock), 1, 0);
+            tblCtrl3.Controls.Add(Pad(txtReorderLevel), 2, 0);
 
-            // Row 5: Qty label
-            var tblQtyLbl = MakeColTlp(2, new float[] { 30f, 70f });
-            tblQtyLbl.Controls.Add(FieldLabel("Requested Qty *", false), 0, 0);
+            // Row 4: Qty label
+            var tblLbl4 = MakeColTlp(1, new float[] { 100f });
+            tblLbl4.Controls.Add(FieldLabel("Requested Qty *", false), 0, 0);
 
-            // Row 6: Qty + Add button
-            var tblQtyCtrl = MakeColTlp(2, new float[] { 30f, 70f });
-            tblQtyCtrl.Controls.Add(Pad(nudRequestedQty), 0, 0);
-            var pnlAddBtn = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(0, 8, 12, 8) };
+            // Row 5: Qty control + Add button (button anchored left inside its cell)
+            var tblCtrl5 = MakeColTlp(2, new float[] { 30f, 70f });
+            tblCtrl5.Controls.Add(Pad(nudRequestedQty), 0, 0);
+            var pnlAddBtn = new Panel
+            {
+                Dock = DockStyle.Fill,
+                BackColor = Color.Transparent,
+                Padding = new Padding(0, 8, 12, 8)
+            };
             btnAddLine.Dock = DockStyle.Left;
             pnlAddBtn.Controls.Add(btnAddLine);
-            tblQtyCtrl.Controls.Add(pnlAddBtn, 1, 0);
+            tblCtrl5.Controls.Add(pnlAddBtn, 1, 0);
 
             var tblMat = new TableLayoutPanel
             {
@@ -196,18 +223,18 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 Padding = new Padding(18, 4, 18, 8)
             };
             tblMat.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-            tblMat.RowStyles.Add(new RowStyle(SizeType.Absolute, 40f));  // lbl row1
-            tblMat.RowStyles.Add(new RowStyle(SizeType.Absolute, 72f));  // ctrl row1
-            tblMat.RowStyles.Add(new RowStyle(SizeType.Absolute, 40f));  // lbl row2
-            tblMat.RowStyles.Add(new RowStyle(SizeType.Absolute, 72f));  // ctrl row2
-            tblMat.RowStyles.Add(new RowStyle(SizeType.Absolute, 40f));  // qty lbl
-            tblMat.RowStyles.Add(new RowStyle(SizeType.Absolute, 72f));  // qty ctrl
-            tblMat.Controls.Add(tblMatLbl1,  0, 0);
-            tblMat.Controls.Add(tblMatCtrl1, 0, 1);
-            tblMat.Controls.Add(tblMatLbl2,  0, 2);
-            tblMat.Controls.Add(tblMatCtrl2, 0, 3);
-            tblMat.Controls.Add(tblQtyLbl,   0, 4);
-            tblMat.Controls.Add(tblQtyCtrl,  0, 5);
+            tblMat.RowStyles.Add(new RowStyle(SizeType.Absolute, 40f));  // row 0 lbl
+            tblMat.RowStyles.Add(new RowStyle(SizeType.Absolute, 72f));  // row 1 ctrl
+            tblMat.RowStyles.Add(new RowStyle(SizeType.Absolute, 40f));  // row 2 lbl
+            tblMat.RowStyles.Add(new RowStyle(SizeType.Absolute, 72f));  // row 3 ctrl
+            tblMat.RowStyles.Add(new RowStyle(SizeType.Absolute, 40f));  // row 4 lbl
+            tblMat.RowStyles.Add(new RowStyle(SizeType.Absolute, 72f));  // row 5 ctrl
+            tblMat.Controls.Add(tblLbl0,   0, 0);
+            tblMat.Controls.Add(tblCtrl1,  0, 1);
+            tblMat.Controls.Add(tblLbl2,   0, 2);
+            tblMat.Controls.Add(tblCtrl3,  0, 3);
+            tblMat.Controls.Add(tblLbl4,   0, 4);
+            tblMat.Controls.Add(tblCtrl5,  0, 5);
 
             var (pnlCard3Outer, pnlCard3Inner) = CardPanel.Create(outerHeight: 450);
             var pnlMatContent = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
@@ -240,14 +267,16 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             dgvLines.DefaultCellStyle.SelectionForeColor     = Palette.TextMain;
             dgvLines.RowTemplate.Height = 44;
 
-            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLineNo",      HeaderText = "#",                    FillWeight = 5  });
-            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colMaterial",    HeaderText = "Raw Material",          FillWeight = 30 });
-            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colType",        HeaderText = "Type",                  FillWeight = 12 });
-            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colWarehouse",   HeaderText = "Warehouse / Location",  FillWeight = 33 });
-            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colQty",         HeaderText = "Requested Qty",         FillWeight = 12 });
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colNo",       HeaderText = "#",                   FillWeight = 5  });
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colMaterial", HeaderText = "Raw Material",         FillWeight = 30 });
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colType",     HeaderText = "Type",                 FillWeight = 12 });
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colWarehouse",HeaderText = "Warehouse / Location", FillWeight = 33 });
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colQty",      HeaderText = "Requested Qty",        FillWeight = 12 });
 
-            btnRemoveLine = MakeOutlineBtn("✕  Remove Line", Point.Empty, 180, 44);
-            lblLineCount  = new Label
+            // Red Delete button 210 × 60
+            btnRemoveLine = MakeRedBtn("✕  Delete Item", 210, 60);
+
+            lblLineCount = new Label
             {
                 Text      = "0 line(s) staged",
                 Font      = new Font("Segoe UI", 11f),
@@ -257,23 +286,34 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 Padding   = new Padding(4, 0, 0, 0)
             };
 
-            var pnlGridToolbar = new Panel { Dock = DockStyle.Top, Height = 54, BackColor = Color.Transparent };
+            // Toolbar row above grid: count label (left) + Delete button (right)
+            var pnlGridToolbar = new Panel
+            {
+                Dock      = DockStyle.Top,
+                Height    = 68,          // tall enough for 60px button + 4px top + 4px bottom
+                BackColor = Color.Transparent,
+                Padding   = new Padding(0, 4, 0, 4)
+            };
             btnRemoveLine.Dock = DockStyle.Right;
             pnlGridToolbar.Controls.Add(lblLineCount);
             pnlGridToolbar.Controls.Add(btnRemoveLine);
 
-            var pnlGridInner = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(18, 0, 18, 12) };
+            var pnlGridInner = new Panel
+            {
+                Dock = DockStyle.Fill, BackColor = Color.Transparent,
+                Padding = new Padding(18, 0, 18, 12)
+            };
             pnlGridInner.Controls.Add(dgvLines);
             pnlGridInner.Controls.Add(pnlGridToolbar);
 
-            var (pnlCard4Outer, pnlCard4Inner) = CardPanel.Create(outerHeight: 340);
+            var (pnlCard4Outer, pnlCard4Inner) = CardPanel.Create(outerHeight: 360);
             var pnlGridContent = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             pnlGridContent.Controls.Add(pnlGridInner);
             pnlGridContent.Controls.Add(CardTitlePanel("Request Lines"));
             pnlCard4Inner.Controls.Add(pnlGridContent);
 
             // ==================================================================
-            // FOOTER — Submit + Reset
+            // FOOTER
             // ==================================================================
             const int BtnW   = 210;
             const int BtnH   = 60;
@@ -300,7 +340,8 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             pnlActionBtns.Controls.Add(btnReset);
             pnlActionBtns.Resize += (s, ev) => CentreFooterBtns();
 
-            var pnlFooterContent = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(4, 0, 0, 0) };
+            var pnlFooterContent = new Panel
+            { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(4, 0, 0, 0) };
             pnlFooterContent.Controls.Add(pnlActionBtns);
 
             var footerInner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
@@ -321,7 +362,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             };
             footerOuter.Controls.Add(footerInner);
 
-            // Stack cards (bottom-up in WinForms DockStyle.Top stacking)
+            // Stack cards (WinForms DockStyle.Top is LIFO so last added appears on top)
             pnlScroll.Controls.Add(pnlCard4Outer);
             pnlScroll.Controls.Add(pnlCard3Outer);
             pnlScroll.Controls.Add(pnlOrderRow);
@@ -339,14 +380,18 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             _shell.MinimumSize = new System.Drawing.Size(0, AppShell.TotalHeight);
         }
 
-        // ────────────────────────────────────────────────────────────────
-        //  Shared builder helpers
-        // ────────────────────────────────────────────────────────────────
+        // ────────────────────────────────────────────────────────────────────────
+        //  Builder helpers
+        // ────────────────────────────────────────────────────────────────────────
 
         private static Panel Pad(Control ctrl)
         {
             ctrl.Dock = DockStyle.Fill;
-            var p = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(0, 8, 12, 8) };
+            var p = new Panel
+            {
+                Dock = DockStyle.Fill, BackColor = Color.Transparent,
+                Padding = new Padding(0, 8, 12, 8)
+            };
             p.Controls.Add(ctrl);
             return p;
         }
@@ -399,7 +444,8 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             var tlp = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill, ColumnCount = cols, RowCount = 1,
-                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+                BackColor = Color.Transparent,
+                CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
             foreach (var pct in percents)
                 tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, pct));
@@ -407,6 +453,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             return tlp;
         }
 
+        // Blue primary (Submit / standard actions)
         private static Button MakePrimaryBtn(string text, Point loc, int w, int h)
         {
             var b = new Button
@@ -421,6 +468,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             return b;
         }
 
+        // White outline (Reset)
         private static Button MakeOutlineBtn(string text, Point loc, int w, int h)
         {
             var b = new Button
@@ -432,6 +480,46 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             b.FlatAppearance.BorderColor        = Palette.BorderColor;
             b.FlatAppearance.BorderSize         = 1;
             b.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
+            return b;
+        }
+
+        // Green (Add Line) — 210 × 60
+        private static Button MakeGreenBtn(string text, int w, int h)
+        {
+            var b = new Button
+            {
+                Text      = text,
+                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.White,
+                BackColor = Color.FromArgb(30, 138, 60),   // #1E8A3C
+                FlatStyle = FlatStyle.Flat,
+                Width     = w,
+                Height    = h,
+                Cursor    = Cursors.Hand
+            };
+            b.FlatAppearance.BorderSize         = 0;
+            b.FlatAppearance.MouseOverBackColor = Color.FromArgb(24, 112, 48);
+            b.FlatAppearance.MouseDownBackColor = Color.FromArgb(18, 88, 38);
+            return b;
+        }
+
+        // Red (Delete Item) — 210 × 60
+        private static Button MakeRedBtn(string text, int w, int h)
+        {
+            var b = new Button
+            {
+                Text      = text,
+                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.White,
+                BackColor = Color.FromArgb(192, 57, 43),   // #C0392B
+                FlatStyle = FlatStyle.Flat,
+                Width     = w,
+                Height    = h,
+                Cursor    = Cursors.Hand
+            };
+            b.FlatAppearance.BorderSize         = 0;
+            b.FlatAppearance.MouseOverBackColor = Color.FromArgb(155, 45, 34);
+            b.FlatAppearance.MouseDownBackColor = Color.FromArgb(120, 36, 26);
             return b;
         }
     }
