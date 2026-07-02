@@ -445,21 +445,13 @@ namespace PremiumLivingOPS.Views.AfterService
                 double amount = (double)nudAmount.Value;
                 string type   = cboType.SelectedItem?.ToString() ?? "Installment";
 
-                string txnId = _ctrl.GenerateTransactionId();
-                var txn = new TransactionEntity
-                {
-                    TransactionID   = txnId,
-                    InvoiceID       = inv.InvoiceID,
-                    Amount          = amount,
-                    TransactionDate = DateTime.Today,
-                    TransactionType = type
-                };
-
-                bool ok = _ctrl.RecordPayment(txn);
+                // Fix CS7036: call RecordPayment(string invoiceId, double amount, string txnType)
+                // Controller builds the TransactionEntity internally and returns the generated TxnID via repo.
+                bool ok = _ctrl.RecordPayment(inv.InvoiceID, amount, type);
                 if (ok)
                 {
                     MessageBox.Show(
-                        $"Payment of HK$ {amount:N2} recorded successfully.\nTransaction ID: {txnId}",
+                        $"Payment of HK$ {amount:N2} recorded successfully.",
                         "Payment Recorded", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     dlg.Close();
                 }
