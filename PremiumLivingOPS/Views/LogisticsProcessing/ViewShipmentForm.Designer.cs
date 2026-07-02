@@ -27,6 +27,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         private Button btnModify;
         private Button btnGenDeliveryNote;
         private Button btnGenReplySlip;
+        private Button btnScheduleShipment;   // ← NEW: Schedule Shipment (210×60)
 
         // ── Main grid ─────────────────────────────────────────────────────
         private DataGridView dgvShipments;
@@ -209,6 +210,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             //  KPI bar + action buttons
+            //  Now contains FIVE action buttons (including btnScheduleShipment).
+            //  Each button: 210×60. Gap: 8. Left/right pad: 12.
+            //  Total pnlActionBtns width = 12 + (210+8)*4 + 210 + 12 = 1106 px.
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             pnlKpi = new Panel
             {
@@ -216,45 +220,52 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 Padding = new Padding(12, 10, 12, 10)
             };
 
-            const int BtnW   = 290;
+            const int BtnW   = 210;
             const int BtnH   = 60;
             const int BtnGap = 8;
             const int BtnPad = 12;
 
-            btnViewDetail      = MakePrimaryBtn("\U0001F50D  View Details",   Point.Empty, BtnW, BtnH);
-            btnModify          = MakeWarningBtn("\u270F  Modify",             Point.Empty, BtnW, BtnH);
-            btnGenDeliveryNote = MakeSuccessBtn("\U0001F4C4  Delivery Note",  Point.Empty, BtnW, BtnH);
-            btnGenReplySlip    = MakeSuccessBtn("\U0001F9FE  Reply Slip",     Point.Empty, BtnW, BtnH);
+            btnViewDetail         = MakePrimaryBtn("\U0001F50D  View Details",  Point.Empty, BtnW, BtnH);
+            btnModify             = MakeWarningBtn("\u270F  Modify",            Point.Empty, BtnW, BtnH);
+            btnGenDeliveryNote    = MakeSuccessBtn("\U0001F4C4  Delivery Note", Point.Empty, BtnW, BtnH);
+            btnGenReplySlip       = MakeSuccessBtn("\U0001F9FE  Reply Slip",    Point.Empty, BtnW, BtnH);
+            btnScheduleShipment   = MakePurpleBtn( "\U0001F4C5  Schedule",      Point.Empty, BtnW, BtnH);
 
-            btnViewDetail.Enabled      = false;
-            btnModify.Enabled          = false;
-            btnGenDeliveryNote.Enabled = false;
-            btnGenReplySlip.Enabled    = false;
+            btnViewDetail.Enabled       = false;
+            btnModify.Enabled           = false;
+            btnGenDeliveryNote.Enabled  = false;
+            btnGenReplySlip.Enabled     = false;
+            btnScheduleShipment.Enabled = false;
 
             btnViewDetail.Click      += btnViewDetail_Click;
             btnModify.Click          += btnModify_Click;
             btnGenDeliveryNote.Click += btnGenDeliveryNote_Click;
             btnGenReplySlip.Click    += btnGenReplySlip_Click;
+            btnScheduleShipment.Click += btnScheduleShipment_Click;
 
+            // pnlActionBtns: 5 buttons × (210+8) - 8 trailing gap + 2 × 12 pad
+            //              = 5×210 + 4×8 + 24 = 1050 + 32 + 24 = 1106
             var pnlActionBtns = new Panel
             {
                 Dock      = DockStyle.Right,
-                Width     = BtnPad + BtnW + BtnGap + BtnW + BtnGap + BtnW + BtnGap + BtnW + BtnPad,
+                Width     = BtnPad + BtnW + BtnGap + BtnW + BtnGap + BtnW + BtnGap + BtnW + BtnGap + BtnW + BtnPad,
                 BackColor = Color.Transparent
             };
             void CentreActionBtns()
             {
                 int top = (pnlActionBtns.Height - BtnH) / 2;
                 if (top < 0) top = 0;
-                btnViewDetail.Location      = new Point(BtnPad, top);
-                btnModify.Location          = new Point(BtnPad + BtnW + BtnGap, top);
-                btnGenDeliveryNote.Location = new Point(BtnPad + BtnW + BtnGap + BtnW + BtnGap, top);
-                btnGenReplySlip.Location    = new Point(BtnPad + BtnW + BtnGap + BtnW + BtnGap + BtnW + BtnGap, top);
+                btnViewDetail.Location       = new Point(BtnPad, top);
+                btnModify.Location           = new Point(BtnPad + (BtnW + BtnGap),                       top);
+                btnGenDeliveryNote.Location  = new Point(BtnPad + (BtnW + BtnGap) * 2,                   top);
+                btnGenReplySlip.Location     = new Point(BtnPad + (BtnW + BtnGap) * 3,                   top);
+                btnScheduleShipment.Location = new Point(BtnPad + (BtnW + BtnGap) * 4,                   top);
             }
             pnlActionBtns.Controls.Add(btnViewDetail);
             pnlActionBtns.Controls.Add(btnModify);
             pnlActionBtns.Controls.Add(btnGenDeliveryNote);
             pnlActionBtns.Controls.Add(btnGenReplySlip);
+            pnlActionBtns.Controls.Add(btnScheduleShipment);
             pnlActionBtns.Resize += (s, e) => CentreActionBtns();
 
             var pnlKpiRow = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
@@ -387,6 +398,21 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             b.FlatAppearance.BorderSize = 0;
             b.FlatAppearance.MouseOverBackColor = Color.FromArgb(16, 131, 58);
             b.FlatAppearance.MouseDownBackColor = Color.FromArgb(10, 100, 40);
+            return b;
+        }
+
+        /// <summary>Purple button — used exclusively for Schedule Shipment.</summary>
+        private Button MakePurpleBtn(string text, Point loc, int w, int h)
+        {
+            var b = new Button
+            {
+                Text = text, Font = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.White, BackColor = Color.FromArgb(109, 40, 217),
+                FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand
+            };
+            b.FlatAppearance.BorderSize = 0;
+            b.FlatAppearance.MouseOverBackColor = Color.FromArgb(91, 25, 180);
+            b.FlatAppearance.MouseDownBackColor = Color.FromArgb(69, 17, 140);
             return b;
         }
 
