@@ -44,7 +44,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             var vm = _ctrl.GetViewShipmentVM();
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
-            _shell.SetBreadcrumb("Logistics Processing  ›  Modify Shipment");
+            _shell.SetBreadcrumb("Logistics Processing  \u203A  Modify Shipment");
 
             ReloadShipmentCombo();
 
@@ -67,7 +67,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             foreach (var s in list)
                 cboSearchShipment.Items.Add(
                     new ComboItem(
-                        $"{s.ShipmentID}  –  {s.CustomerName}  [{s.ShipmentStatus}]",
+                        $"{s.ShipmentID}  \u2013  {s.CustomerName}  [{s.ShipmentStatus}]",
                         s.ShipmentID));
 
             cboSearchShipment.SelectedIndex = 0;
@@ -227,13 +227,13 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         {
             _currentShipment = null;
 
-            lblShipmentIdValue.Text     = "—";
-            lblOrderIdValue.Text        = "—";
-            lblCustomerValue.Text       = "—";
-            lblTrackingValue.Text       = "—";
-            lblShipDateValue.Text       = "—";
-            lblShipTypeValue.Text       = "—";
-            lblDeliveryMethodValue.Text = "—";
+            lblShipmentIdValue.Text     = "\u2014";
+            lblOrderIdValue.Text        = "\u2014";
+            lblCustomerValue.Text       = "\u2014";
+            lblTrackingValue.Text       = "\u2014";
+            lblShipDateValue.Text       = "\u2014";
+            lblShipTypeValue.Text       = "\u2014";
+            lblDeliveryMethodValue.Text = "\u2014";
 
             cboStatus.SelectedIndex     = 0;
             txtActualRecipient.Text     = string.Empty;
@@ -252,8 +252,12 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
         private void btnLogout_Click(object sender, EventArgs e)
         {
-            SessionManager.Clear();
-            Application.Restart();
+            if (MessageBox.Show("Are you sure you want to log out?",
+                                "Logout", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+            {
+                SessionManager.Clear();
+                Application.Restart();
+            }
         }
 
         // ====================================================================

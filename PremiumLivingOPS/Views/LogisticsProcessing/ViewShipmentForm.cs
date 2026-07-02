@@ -1223,9 +1223,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             string key1, string val1, string key2, string val2)
         {
             tbl.Controls.Add(MakeLabelKey(key1), 0, row);
-            tbl.Controls.Add(MakeLabelVal(val1 ?? "—"), 1, row);
+            tbl.Controls.Add(MakeLabelVal(val1 ?? "\u2014"), 1, row);
             tbl.Controls.Add(MakeLabelKey(key2), 2, row);
-            tbl.Controls.Add(MakeLabelVal(val2 ?? "—"), 3, row);
+            tbl.Controls.Add(MakeLabelVal(val2 ?? "\u2014"), 3, row);
         }
 
         // ── ShowDeliveryDocDialog (stub — called after DN/RS generation) ───────
@@ -1250,8 +1250,12 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
         private void btnLogout_Click(object sender, EventArgs e)
         {
-            SessionManager.Clear();
-            Application.Restart();
+            if (MessageBox.Show("Are you sure you want to log out?",
+                                "Logout", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+            {
+                SessionManager.Clear();
+                Application.Restart();
+            }
         }
     }
 }
