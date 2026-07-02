@@ -57,7 +57,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
         }
 
         // ════════════════════════════════════════════════════════════════
-        //  Grid  — one row per PurchaseOrder header (PO-YYYYMMDD-NNNN)
+        //  Grid
         // ════════════════════════════════════════════════════════════════
         internal void RefreshGrid()
         {
@@ -425,10 +425,11 @@ namespace PremiumLivingOPS.Views.RawMaterial
             };
             pnlLinesLabel.Controls.Add(new Label
             {
-                Text = $"ORDER LINES  ({lines.Count} item{(lines.Count == 1 ? "" : "s")})   —   PO LINE ID includes sequence suffix  (-01, -02 …)",
-                Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+                Text      = $"ORDER LINES  ({lines.Count} item{(lines.Count == 1 ? "" : "s")})",
+                Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(98, 112, 135),
-                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft
             });
             pnlLinesLabel.Paint += DlgPaintBottomBorder;
 
@@ -453,8 +454,6 @@ namespace PremiumLivingOPS.Views.RawMaterial
             pnlFooter.Controls.Add(btnClose);
 
             // ── ORDER LINES DGV ──────────────────────────────────────────────
-            // Columns: # | PO LINE ID | RAW MATERIAL | TYPE | WAREHOUSE | ORDER QTY | UNIT PRICE | LINE TOTAL
-            // REQUEST ID column intentionally omitted.
             Control fillContent;
             if (lines.Count > 0)
             {
@@ -486,7 +485,6 @@ namespace PremiumLivingOPS.Views.RawMaterial
                 dgvLines.DefaultCellStyle.SelectionForeColor     = Color.FromArgb(15, 31, 53);
                 dgvLines.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(249, 250, 251);
 
-                // Columns — REQUEST ID intentionally excluded
                 dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cNo",    HeaderText = "#",            FillWeight =  5 });
                 dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cLine",  HeaderText = "PO LINE ID",   FillWeight = 20 });
                 dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cMat",   HeaderText = "RAW MATERIAL", FillWeight = 24 });
@@ -530,7 +528,6 @@ namespace PremiumLivingOPS.Views.RawMaterial
                 fillContent = pnlEmpty;
             }
 
-            // Assemble
             dlg.Controls.Add(fillContent);
             dlg.Controls.Add(pnlLinesLabel);
             dlg.Controls.Add(pnlMeta);
