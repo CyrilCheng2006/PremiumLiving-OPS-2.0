@@ -20,7 +20,7 @@ namespace PremiumLivingOPS.Models.DAL
     /// </summary>
     public class ProcurementRepo
     {
-        // ══ SEARCH ════════════════════════════════════════════════════════════════
+        // ══ SEARCH ═══════════════════════════════════════════════════════════════
 
         /// <summary>
         /// Returns one <see cref="ProcurementOrderGroup"/> per PurchaseOrder header.
@@ -95,7 +95,7 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
-        // ══ DETAIL ═══════════════════════════════════════════════════════════════─
+        // ══ DETAIL ─────────────────────────────────────────────────────────────────═
 
         /// <summary>
         /// Returns the PurchaseOrder header for a given PurchaseID.
@@ -135,6 +135,52 @@ namespace PremiumLivingOPS.Models.DAL
         }
 
         /// <summary>
+        /// Legacy fallback: when no exact header row exists for <paramref name="headerKey"/>
+        /// (PO-YYYYMMDD-NNNN), find the first PurchaseOrder whose PurchaseID starts with
+        /// that key (e.g. PO-20260702-0001-01) and return it as a synthetic header,
+        /// replacing its PurchaseID with the clean header key.
+        /// </summary>
+        public ProcurementOrderEntity GetPurchaseOrderByPrefix(string headerKey)
+        {
+            if (string.IsNullOrWhiteSpace(headerKey)) return null;
+            using (var conn = DatabaseHelper.GetConnection())
+            {
+                conn.Open();
+                const string sql =
+                    @"SELECT po.PurchaseID,
+                             po.RequestID,
+                             po.SupplierID,
+                             COALESCE(s.SupplierName, po.SupplierID)  AS SupplierName,
+                             po.POTotalAmount,
+                             po.OrderDate,
+                             po.PurchaseStatus,
+                             COALESCE(mr.UrgencyLevel, '')            AS UrgencyLevel,
+                             COALESCE(mr.TriggerType,  '')            AS TriggerType,
+                             '' AS RawMaterialItemID,
+                             '' AS RawMaterialName,
+                             0  AS RequestedQty
+                      FROM   PurchaseOrder po
+                      LEFT JOIN Supplier        s  ON po.SupplierID = s.SupplierID
+                      LEFT JOIN MaterialRequest mr ON po.RequestID  = mr.RequestID
+                      WHERE  po.PurchaseID LIKE @prefix
+                      ORDER  BY po.PurchaseID
+                      LIMIT  1";
+                using (var cmd = new MySqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@prefix", headerKey + "%");
+                    using (var r = cmd.ExecuteReader())
+                    {
+                        if (!r.Read()) return null;
+                        var entity = MapProcurementOrder(r);
+                        // Override the stored -NN ID with the clean header key
+                        entity.PurchaseID = headerKey;
+                        return entity;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
         /// Returns all PurchaseOrderLine rows for a given PurchaseID, ordered by POLineID.
         /// Note: PurchaseOrderLine has NO RequestID column; the MRQ link lives on PurchaseOrder.
         /// </summary>
@@ -171,7 +217,48 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
-        // ══ CREATE ─ BATCH PREFIX LOOKUPS ══════════════════════════════════════════════
+        /// <summary>
+        /// Legacy fallback: fetches PurchaseOrderLine rows where PurchaseID starts with
+        /// <paramref name="headerKey"/> (catches -01/-02/-03 stored as PurchaseID).
+        /// Also synthesises a POLineID sequence if the stored POLineID itself is the
+        /// same as the PurchaseID (edge case from very early data).
+        /// </summary>
+        public List<PurchaseOrderLineEntity> GetLinesByPurchaseIdPrefix(string headerKey)
+        {
+            var list = new List<PurchaseOrderLineEntity>();
+            if (string.IsNullOrWhiteSpace(headerKey)) return list;
+            using (var conn = DatabaseHelper.GetConnection())
+            {
+                conn.Open();
+                // Match rows whose PurchaseID starts with the header key (e.g. PO-20260702-0001-)
+                // OR equals the header key exactly (covers both old and new data in one query).
+                const string sql =
+                    @"SELECT pol.POLineID,
+                             pol.PurchaseID,
+                             pol.RawMaterialItemID,
+                             COALESCE(i.ItemName, pol.RawMaterialItemID)    AS MaterialName,
+                             COALESCE(rm.MaterialType, '')                  AS MaterialType,
+                             pol.WarehouseID,
+                             COALESCE(w.WarehouseLocation, pol.WarehouseID) AS WarehouseLocation,
+                             pol.OrderQty,
+                             pol.UnitPrice
+                      FROM   PurchaseOrderLine pol
+                      LEFT JOIN RawMaterial rm ON pol.RawMaterialItemID = rm.ItemID
+                      LEFT JOIN Item        i  ON rm.ItemID             = i.ItemID
+                      LEFT JOIN Warehouse   w  ON pol.WarehouseID       = w.WarehouseID
+                      WHERE  pol.PurchaseID LIKE @prefix
+                      ORDER  BY pol.POLineID";
+                using (var cmd = new MySqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@prefix", headerKey + "%");
+                    using (var r = cmd.ExecuteReader())
+                        while (r.Read()) list.Add(MapPOLine(r));
+                }
+            }
+            return list;
+        }
+
+        // ══ CREATE ─ BATCH PREFIX LOOKUPS ══════════════════════════════════════════════════════
 
         /// <summary>
         /// Returns MRQ batch prefixes that have NOT yet been linked to a PurchaseOrder.
@@ -298,7 +385,7 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
-        // ══ CREATE ─ WRITE ════════════════════════════════════════════════════════
+        // ══ CREATE ─ WRITE ════════════════════════════════════════════════════════════════
         //
         // Actual PurchaseOrder columns    : PurchaseID, RequestID, SupplierID, POTotalAmount, OrderDate, PurchaseStatus
         // Actual PurchaseOrderLine columns: POLineID, RawMaterialItemID, PurchaseID, WarehouseID, OrderQty, UnitPrice
@@ -394,7 +481,7 @@ namespace PremiumLivingOPS.Models.DAL
             }
         }
 
-        // ── Legacy single-line overload — kept so old callers compile ──────────
+        // ── Legacy single-line overload — kept so old callers compile ──────────────────
         public void CreatePurchaseOrder(
             string purchaseId, string requestId, string supplierId,
             double poTotalAmount, DateTime orderDate, string purchaseStatus,
@@ -418,7 +505,7 @@ namespace PremiumLivingOPS.Models.DAL
                 singleLine, staffId);
         }
 
-        // ══ ID GENERATORS ════════════════════════════════════════════════════════════════
+        // ══ ID GENERATORS ══════════════════════════════════════════════════════════════════════════════
 
         /// <summary>
         /// Generates the next available PurchaseID: PO-YYYYMMDD-NNNN.
@@ -444,7 +531,7 @@ namespace PremiumLivingOPS.Models.DAL
             }
         }
 
-        // ══ MAPPERS ════════════════════════════════════════════════════════════════
+        // ══ MAPPERS ════════════════════════════════════════════════════════════════════════
 
         private static ProcurementOrderEntity MapProcurementOrder(MySqlDataReader r)
             => new ProcurementOrderEntity
