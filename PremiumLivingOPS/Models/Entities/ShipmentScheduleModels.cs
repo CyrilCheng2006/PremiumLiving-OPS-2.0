@@ -27,12 +27,14 @@ namespace PremiumLivingOPS.Models.Entities
     /// <summary>
     /// One OrderLine row enriched with already-shipped qty.
     /// Shown in Step-2 scheduling grid.
+    /// UnitPrice maps to OrderLine.Price in the database schema.
     /// </summary>
     public class OrderLineDetail
     {
         public string ItemID             { get; set; }
         public string ItemName           { get; set; }
         public int    Quantity           { get; set; }
+        public double UnitPrice          { get; set; }  // OrderLine.Price
         public int    QtyAlreadyShipped  { get; set; }
     }
 
