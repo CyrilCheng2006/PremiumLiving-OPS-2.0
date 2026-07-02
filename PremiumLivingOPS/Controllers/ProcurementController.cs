@@ -21,7 +21,7 @@ namespace PremiumLivingOPS.Controllers
         private readonly ProcurementRepo      _repo    = new ProcurementRepo();
         private readonly InventoryControlRepo _invRepo = new InventoryControlRepo();
 
-        // ══ SEARCH PROCUREMENT ═══════════════════════════════════════════════════════════════
+        // ══ SEARCH PROCUREMENT ════════════════════════════════════════════════════════════════════════════════════
 
         public SearchProcurementViewModel GetSearchProcurementVM(
             string keyword     = null,
@@ -32,23 +32,26 @@ namespace PremiumLivingOPS.Controllers
             var user   = SessionManager.CurrentUser;
             var raw    = _repo.SearchGroupedPurchaseOrders(keyword, status, dateFrom, dateTo);
 
-            // ── C# grouping layer ────────────────────────────────────────────────────────
-            // Handles legacy data where PurchaseOrder.PurchaseID was stored with a -NN
-            // suffix (e.g. PO-20260702-0001-01) instead of the correct header format
-            // (PO-YYYYMMDD-NNNN, length = 17).
+            // ── C# grouping layer ────────────────────────────────────────────────────────────────────
+            // PO header format: PO-YYYYMMDD-NNNN  (16 characters)
+            //   e.g.  PO-20260702-0001   length = 16
+            // PO line format:   PO-YYYYMMDD-NNNN-NN  (19 characters)
+            //   e.g.  PO-20260702-0001-01  length = 19
+            //
             // Rules:
-            //   • If PurchaseID length == 17  → already a proper header; use as-is.
-            //   • If PurchaseID length  > 17  → strip the last 3 chars (-NN) to get the
-            //     header key, then merge all rows that share the same key into one group.
-            //     The merged group sums ItemCount, sums TotalAmount, and picks the most
-            //     recent OrderDate and the first non-empty UrgencyLevel/Status found.
-            // ─────────────────────────────────────────────────────────────────────────────
+            //   • length == 16  → already a proper header; use as-is.
+            //   • length  > 16  → strip everything after char 16 to get the
+            //     header key, then merge all rows sharing the same key.
+            //     Merged group sums ItemCount & TotalAmount, picks the most
+            //     recent OrderDate and the first non-empty Status/UrgencyLevel.
+            // ──────────────────────────────────────────────────────────────────────────
+            const int HEADER_LEN = 16; // PO-YYYYMMDD-NNNN
 
-            // Step 1: normalise every row to its header key
+            // Step 1: normalise every row to its 16-char header key
             var keyed = raw.Select(g => new
             {
-                HeaderKey = g.PurchaseID.Length > 17
-                    ? g.PurchaseID.Substring(0, 17)   // strip -NN suffix
+                HeaderKey = g.PurchaseID.Length > HEADER_LEN
+                    ? g.PurchaseID.Substring(0, HEADER_LEN)
                     : g.PurchaseID,
                 Group = g
             }).ToList();
@@ -83,13 +86,13 @@ namespace PremiumLivingOPS.Controllers
             };
         }
 
-        // ══ DETAIL ═════════════════════════════════════════════════════════════════════
+        // ══ DETAIL ═══════════════════════════════════════════════════════════════════════════════
 
         /// <summary>
         /// Returns the PO header + all its PurchaseOrderLine items for the Detail dialog.
-        /// purchaseId = the header key shown in the grid (PO-YYYYMMDD-NNNN, length 17).
-        /// For legacy rows whose PurchaseOrder.PurchaseID has a -NN suffix, we fall back to
-        /// querying PurchaseOrderLine directly so all items still appear in the detail view.
+        /// purchaseId = the 16-char header key shown in the grid (PO-YYYYMMDD-NNNN).
+        /// For legacy rows whose PurchaseOrder.PurchaseID has a -NN suffix, we fall back
+        /// to querying PurchaseOrderLine directly so all items appear in the detail view.
         /// </summary>
         public ProcurementDetailViewModel GetProcurementDetailVM(string purchaseId)
         {
@@ -123,7 +126,7 @@ namespace PremiumLivingOPS.Controllers
             };
         }
 
-        // ══ CREATE PROCUREMENT ═══════════════════════════════════════════════════════════════
+        // ══ CREATE PROCUREMENT ══════════════════════════════════════════════════════════════════════════════════
 
         public CreateProcurementViewModel GetCreateProcurementVM()
         {
@@ -147,7 +150,7 @@ namespace PremiumLivingOPS.Controllers
 
         /// <summary>
         /// Creates ONE PurchaseOrder header (PO-YYYYMMDD-NNNN) with N PurchaseOrderLine rows
-        /// (POLineID = PO-YYYYMMDD-NNNN-01, -02 …), one per MRQ line in <paramref name="lines"/>.
+        /// (POLineID = PO-YYYYMMDD-NNNN-01, -02 …), one per MRQ line.
         /// </summary>
         public void SubmitCreateProcurement(
             string supplierId,
@@ -172,7 +175,7 @@ namespace PremiumLivingOPS.Controllers
             }
 
             string staffId    = SessionManager.CurrentUser?.StaffId ?? "SYSTEM";
-            string purchaseId = _repo.GenerateNextPurchaseId();   // one ID for the whole batch
+            string purchaseId = _repo.GenerateNextPurchaseId();
             double poTotal    = lines.Sum(ln => ln.OrderQty * ln.UnitPrice);
 
             string urgencyLevel = string.Empty;
@@ -185,7 +188,7 @@ namespace PremiumLivingOPS.Controllers
                 lines, staffId);
         }
 
-        // ══ HELPERS ═══════════════════════════════════════════════════════════════════════════
+        // ══ HELPERS ═════════════════════════════════════════════════════════════════════════════════════════
         public List<SupplierLookup> GetAllSuppliers()  => _repo.GetAllSuppliers();
         public string GenerateNextPurchaseId()         => _repo.GenerateNextPurchaseId();
     }
