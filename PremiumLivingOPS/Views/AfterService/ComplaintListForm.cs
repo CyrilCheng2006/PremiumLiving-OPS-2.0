@@ -206,20 +206,8 @@ namespace PremiumLivingOPS.Views.AfterService
             e.FormattingApplied   = true;
         }
 
-        // ════════════════════════════════════════════════════════════════
-        //  Popup picker helpers
-        //  ─ ShowOrderPicker  : returns selected OrderID string or null
-        //  ─ ShowStaffPicker  : returns selected StaffItem or null
-        // ════════════════════════════════════════════════════════════════
-
-        /// <summary>
-        /// Popup search-and-select for Order ID.
-        /// Lists all orders; user types keyword to filter, then double-clicks or presses Select.
-        /// Returns the selected OrderID, or null if cancelled.
-        /// </summary>
         private string ShowOrderPicker(Form owner)
         {
-            // Load order list
             List<string> orders = new List<string>();
             try
             {
@@ -230,7 +218,7 @@ namespace PremiumLivingOPS.Views.AfterService
                 using var rdr = cmd.ExecuteReader();
                 while (rdr.Read()) orders.Add(rdr.GetString(0));
             }
-            catch { /* show empty list if DB unreachable */ }
+            catch { }
 
             string selected = null;
 
@@ -247,7 +235,6 @@ namespace PremiumLivingOPS.Views.AfterService
                 Font            = new Font("Segoe UI", 12f)
             };
 
-            // Header
             var hdr = new Panel { Dock = DockStyle.Top, Height = 60, BackColor = Color.FromArgb(19, 35, 61) };
             hdr.Controls.Add(new Label
             {
@@ -257,7 +244,6 @@ namespace PremiumLivingOPS.Views.AfterService
                 TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(20, 0, 0, 0)
             });
 
-            // Search bar
             var pnlSearch = new Panel
             {
                 Dock = DockStyle.Top, Height = 56,
@@ -273,7 +259,6 @@ namespace PremiumLivingOPS.Views.AfterService
             };
             pnlSearch.Controls.Add(txtSearch);
 
-            // List box
             var lst = new ListBox
             {
                 Dock          = DockStyle.Fill,
@@ -293,10 +278,8 @@ namespace PremiumLivingOPS.Views.AfterService
                 lst.EndUpdate();
             }
             Populate(string.Empty);
-
             txtSearch.TextChanged += (_, __) => Populate(txtSearch.Text.Trim());
 
-            // Footer
             var foot = new Panel
             {
                 Dock = DockStyle.Bottom, Height = 72,
@@ -373,13 +356,9 @@ namespace PremiumLivingOPS.Views.AfterService
             dlg.Controls.Add(hdr);
 
             dlg.ShowDialog(owner);
-            return selected; // null = cancelled, "" = cleared (optional field), non-empty = chosen
+            return selected;
         }
 
-        /// <summary>
-        /// Popup search-and-select for Staff (Handled By).
-        /// Returns the selected StaffItem, or null if cancelled.
-        /// </summary>
         private StaffItem ShowStaffPicker(Form owner)
         {
             List<StaffItem> staffList = new List<StaffItem>();
@@ -390,7 +369,6 @@ namespace PremiumLivingOPS.Views.AfterService
             }
             catch { }
 
-            // Sort by StaffID ascending
             staffList.Sort((a, b) => string.Compare(a.StaffID, b.StaffID, StringComparison.Ordinal));
 
             StaffItem selected = null;
@@ -408,7 +386,6 @@ namespace PremiumLivingOPS.Views.AfterService
                 Font            = new Font("Segoe UI", 12f)
             };
 
-            // Header
             var hdr = new Panel { Dock = DockStyle.Top, Height = 60, BackColor = Color.FromArgb(19, 35, 61) };
             hdr.Controls.Add(new Label
             {
@@ -418,7 +395,6 @@ namespace PremiumLivingOPS.Views.AfterService
                 TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(20, 0, 0, 0)
             });
 
-            // Search bar
             var pnlSearch = new Panel
             {
                 Dock = DockStyle.Top, Height = 56,
@@ -434,7 +410,6 @@ namespace PremiumLivingOPS.Views.AfterService
             };
             pnlSearch.Controls.Add(txtSearch);
 
-            // Grid for staff
             var grid = new DataGridView
             {
                 Dock                  = DockStyle.Fill,
@@ -467,10 +442,8 @@ namespace PremiumLivingOPS.Views.AfterService
                         grid.Rows.Add(s.StaffID, s.StaffName);
             }
             Populate(string.Empty);
-
             txtSearch.TextChanged += (_, __) => Populate(txtSearch.Text.Trim());
 
-            // Footer
             var foot = new Panel
             {
                 Dock = DockStyle.Bottom, Height = 72,
@@ -544,10 +517,6 @@ namespace PremiumLivingOPS.Views.AfterService
             return selected;
         }
 
-        // ════════════════════════════════════════════════════════════════
-        //  Picker Row builder
-        //  Creates a read-only display label + 🔍 Browse button side-by-side
-        // ════════════════════════════════════════════════════════════════
         private Panel MakePickerRow(
             string labelText,
             out Label valueDisplay,
@@ -581,7 +550,6 @@ namespace PremiumLivingOPS.Views.AfterService
                 AutoSize = false, Padding = new Padding(24, 0, 8, 0)
             };
 
-            // Right side: value display + browse button
             var inner = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
@@ -628,9 +596,6 @@ namespace PremiumLivingOPS.Views.AfterService
             return row;
         }
 
-        // ════════════════════════════════════════════════════════════════
-        //  ADD NEW — Create Complaint Dialog
-        // ════════════════════════════════════════════════════════════════
         private void btnAddNew_Click(object sender, EventArgs e)
         {
             string autoId = GeneratePreviewComplaintId();
@@ -647,7 +612,6 @@ namespace PremiumLivingOPS.Views.AfterService
                 Font            = new Font("Segoe UI", 13f)
             };
 
-            // Header
             var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 80, BackColor = Color.FromArgb(19, 35, 61) };
             pnlHeader.Controls.Add(new Label
             {
@@ -657,7 +621,6 @@ namespace PremiumLivingOPS.Views.AfterService
                 AutoSize = false, Padding = new Padding(32, 0, 0, 0)
             });
 
-            // Section title
             var pnlSectionTitle = new Panel
             {
                 Dock = DockStyle.Top, Height = 44,
@@ -672,7 +635,6 @@ namespace PremiumLivingOPS.Views.AfterService
                 Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
             });
 
-            // Simple field row builder for non-picker fields
             Panel MakeRow(string lText, Control input, bool last = false)
             {
                 var row = new Panel { Height = DLG_RowH, BackColor = Color.White };
@@ -706,11 +668,9 @@ namespace PremiumLivingOPS.Views.AfterService
                 return row;
             }
 
-            // ── Field values (mutable state) ──────────────────────────
-            string selectedOrderId = null;   // null = not chosen; "" = explicitly cleared
+            string selectedOrderId = null;
             StaffItem selectedStaff = null;
 
-            // ── 1. Complaint ID (read-only) ───────────────────────────
             var txtComplaintId = new TextBox
             {
                 Text = autoId, Font = new Font("Segoe UI", 12f, FontStyle.Bold),
@@ -719,12 +679,11 @@ namespace PremiumLivingOPS.Views.AfterService
             };
             var rowId = MakeRow("Complaint ID  (auto)", txtComplaintId);
 
-            // ── 2. Order No. (picker, optional) ──────────────────────
-            Label lblOrderVal = null;   // initialised by MakePickerRow via out parameter
+            Label lblOrderVal = null;
             var rowOrder = MakePickerRow("Order No. (optional)", out lblOrderVal, () =>
             {
                 string result = ShowOrderPicker(dlg);
-                if (result == null) return;                      // cancelled
+                if (result == null) return;
                 selectedOrderId = string.IsNullOrEmpty(result) ? null : result;
                 if (selectedOrderId != null)
                 {
@@ -742,12 +701,11 @@ namespace PremiumLivingOPS.Views.AfterService
                 }
             });
 
-            // ── 3. Handled By (picker, required) ─────────────────────
-            Label lblStaffVal = null;   // initialised by MakePickerRow via out parameter
+            Label lblStaffVal = null;
             var rowStaff = MakePickerRow("Handled By *", out lblStaffVal, () =>
             {
                 StaffItem result = ShowStaffPicker(dlg);
-                if (result == null) return;                      // cancelled
+                if (result == null) return;
                 selectedStaff         = result;
                 lblStaffVal.Text      = $"{result.StaffName}  [{result.StaffID}]";
                 lblStaffVal.Font      = new Font("Segoe UI", 12f, FontStyle.Bold);
@@ -755,7 +713,6 @@ namespace PremiumLivingOPS.Views.AfterService
                 lblStaffVal.BackColor = Color.White;
             });
 
-            // ── 4. Status (ComboBox) ──────────────────────────────────
             var cboStatusNew = new ComboBox
             {
                 DropDownStyle = ComboBoxStyle.DropDownList,
@@ -765,7 +722,6 @@ namespace PremiumLivingOPS.Views.AfterService
             cboStatusNew.SelectedIndex = 0;
             var rowStatus = MakeRow("Status *", cboStatusNew);
 
-            // ── 5. Description ────────────────────────────────────────
             var txtDesc = new TextBox
             {
                 Font = new Font("Segoe UI", 12f),
@@ -774,7 +730,6 @@ namespace PremiumLivingOPS.Views.AfterService
             };
             var rowDesc = MakeRow("Description *", txtDesc, last: true);
 
-            // ── Card ──────────────────────────────────────────────────
             var allRows = new Panel[] { rowId, rowOrder, rowStaff, rowStatus, rowDesc };
             int cardHeight = allRows.Length * DLG_RowH;
             var cardOuter = new Panel
@@ -801,7 +756,6 @@ namespace PremiumLivingOPS.Views.AfterService
             { var p = (Panel)s2; foreach (Control r in p.Controls) r.Width = p.Width; };
             cardOuter.Controls.Add(cardInner);
 
-            // ── Footer ────────────────────────────────────────────────
             var pnlFoot = new Panel
             {
                 Dock = DockStyle.Bottom, Height = 96,
@@ -901,9 +855,6 @@ namespace PremiumLivingOPS.Views.AfterService
             }
         }
 
-        // ════════════════════════════════════════════════════════════════
-        //  GeneratePreviewComplaintId
-        // ════════════════════════════════════════════════════════════════
         private string GeneratePreviewComplaintId()
         {
             string prefix = "CMP-" + DateTime.Today.ToString("yyyyMMdd") + "-";
@@ -930,9 +881,6 @@ namespace PremiumLivingOPS.Views.AfterService
             return $"{prefix}{next:D4}";
         }
 
-        // ════════════════════════════════════════════════════════════════
-        //  Update Status Dialog
-        // ════════════════════════════════════════════════════════════════
         private void btnUpdateStatus_Click(object sender, EventArgs e)
         {
             if (dgvComplaints.SelectedRows.Count == 0) return;
@@ -1112,9 +1060,6 @@ namespace PremiumLivingOPS.Views.AfterService
             if (dlg.ShowDialog(this) == DialogResult.OK) RefreshGrid();
         }
 
-        // ════════════════════════════════════════════════════════════════
-        //  View Detail Dialog
-        // ════════════════════════════════════════════════════════════════
         private void btnViewDetail_Click(object sender, EventArgs e) => ShowDetailDialog();
 
         private void ShowDetailDialog()
@@ -1277,9 +1222,6 @@ namespace PremiumLivingOPS.Views.AfterService
             dlg.ShowDialog(this);
         }
 
-        // ════════════════════════════════════════════════════════════════
-        //  Shared helpers
-        // ════════════════════════════════════════════════════════════════
         private Panel BuildStack(Panel[] rows)
         {
             var content = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
@@ -1315,7 +1257,14 @@ namespace PremiumLivingOPS.Views.AfterService
             => FormNavigator.NavigateTo(this, menuLabel, subItem);
 
         private void btnLogout_Click(object sender, EventArgs e)
-        { SessionManager.Clear(); Application.Restart(); }
+        {
+            if (MessageBox.Show("Are you sure you want to log out?",
+                                "Logout", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+            {
+                SessionManager.Clear();
+                Application.Restart();
+            }
+        }
 
         private static GraphicsPath RoundedRect(Rectangle r, int radius)
         {

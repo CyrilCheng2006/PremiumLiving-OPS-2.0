@@ -24,7 +24,6 @@ namespace PremiumLivingOPS.Views.AfterService
                 { "Completed",  (Color.FromArgb(220, 252, 231), Color.FromArgb( 22, 101,  52)) },
             };
 
-        // ── Layout constants shared by both dialogs (mirrors ComplaintListForm)
         private const int D_RowH   = 80;
         private const int D_LabelW = 260;
         private const int D_BtnW   = 200;
@@ -38,9 +37,6 @@ namespace PremiumLivingOPS.Views.AfterService
 
         private void ReturnOrderListForm_Load(object sender, EventArgs e) => RefreshGrid();
 
-        // ════════════════════════════════════════════════════════════════
-        //  Refresh
-        // ════════════════════════════════════════════════════════════════
         private void RefreshGrid()
         {
             string statusSel    = cboStatus.SelectedItem?.ToString();
@@ -77,9 +73,6 @@ namespace PremiumLivingOPS.Views.AfterService
             RefreshGrid();
         }
 
-        // ════════════════════════════════════════════════════════════════
-        //  KPI Pills
-        // ════════════════════════════════════════════════════════════════
         private void RefreshKpi()
         {
             pnlKpi.Controls.Clear();
@@ -181,15 +174,11 @@ namespace PremiumLivingOPS.Views.AfterService
             pnlKpi.Controls.Add(flow);
         }
 
-        // ════════════════════════════════════════════════════════════════
-        //  Action state
-        // ════════════════════════════════════════════════════════════════
         private void UpdateActionButtons()
         {
             bool sel = dgvReturns.SelectedRows.Count > 0;
             btnUpdateStatus.Enabled = sel;
             btnViewDetail.Enabled   = sel;
-            // btnAddNew is always enabled
         }
 
         private void dgvReturns_SelectionChanged(object sender, EventArgs e) => UpdateActionButtons();
@@ -207,9 +196,6 @@ namespace PremiumLivingOPS.Views.AfterService
             e.FormattingApplied   = true;
         }
 
-        // ════════════════════════════════════════════════════════════════
-        //  Add New — Create Return Order
-        // ════════════════════════════════════════════════════════════════
         private void btnAddNew_Click(object sender, EventArgs e)
         {
             using var dlg = new CreateReturnOrderDialog(_ctrl);
@@ -217,9 +203,6 @@ namespace PremiumLivingOPS.Views.AfterService
                 RefreshGrid();
         }
 
-        // ════════════════════════════════════════════════════════════════
-        //  Update Status Dialog  (mirrors ComplaintListForm pattern)
-        // ════════════════════════════════════════════════════════════════
         private void btnUpdateStatus_Click(object sender, EventArgs e)
         {
             if (dgvReturns.SelectedRows.Count == 0) return;
@@ -308,7 +291,6 @@ namespace PremiumLivingOPS.Views.AfterService
             cardInner.Padding = new Padding(0);
             cardInner.Controls.Add(BuildStack(rows));
 
-            // ── Dialog: 1800 × 700 ───────────────────────────────────────────────────────
             using var dlg = new Form
             {
                 Text            = $"Update Return Order Status  \u2014  {ent.ReturnID}",
@@ -455,9 +437,6 @@ namespace PremiumLivingOPS.Views.AfterService
             if (dlg.ShowDialog(this) == DialogResult.OK) RefreshGrid();
         }
 
-        // ════════════════════════════════════════════════════════════════
-        //  View Detail Dialog  (mirrors ComplaintListForm pattern)
-        // ════════════════════════════════════════════════════════════════
         private void btnViewDetail_Click(object sender, EventArgs e) => ShowDetailDialog();
 
         private void ShowDetailDialog()
@@ -514,7 +493,6 @@ namespace PremiumLivingOPS.Views.AfterService
                 return row;
             }
 
-            // Card 1 — Identity
             var c1Rows = new Panel[]
             {
                 FieldRow("Return ID",  ReadLabel(r.ReturnID)),
@@ -527,7 +505,6 @@ namespace PremiumLivingOPS.Views.AfterService
             c1Inner.Padding = new Padding(0);
             c1Inner.Controls.Add(BuildStack(c1Rows));
 
-            // Card 2 — Details
             var c2Rows = new Panel[]
             {
                 FieldRow("Customer",      ReadLabel(r.CustomerName)),
@@ -641,9 +618,6 @@ namespace PremiumLivingOPS.Views.AfterService
             dlg.ShowDialog(this);
         }
 
-        // ════════════════════════════════════════════════════════════════
-        //  Shared helpers
-        // ════════════════════════════════════════════════════════════════
         private Panel BuildStack(Panel[] rows)
         {
             var content = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
@@ -666,14 +640,18 @@ namespace PremiumLivingOPS.Views.AfterService
             return content;
         }
 
-        // ════════════════════════════════════════════════════════════════
-        //  Navigation / logout
-        // ════════════════════════════════════════════════════════════════
         private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
             => FormNavigator.NavigateTo(this, menuLabel, subItem);
 
         private void btnLogout_Click(object sender, EventArgs e)
-        { SessionManager.Clear(); Application.Restart(); }
+        {
+            if (MessageBox.Show("Are you sure you want to log out?",
+                                "Logout", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+            {
+                SessionManager.Clear();
+                Application.Restart();
+            }
+        }
 
         private static GraphicsPath RoundedRect(Rectangle r, int radius)
         {
