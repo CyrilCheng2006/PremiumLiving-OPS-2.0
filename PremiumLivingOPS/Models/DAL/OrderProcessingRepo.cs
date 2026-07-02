@@ -14,6 +14,9 @@ namespace PremiumLivingOPS.Models.DAL
     {
         // ╔════════════════════════════════════════════════════════════════
         //  ORDER queries
+        //  NOTE: ALL order queries exclude staging rows (OrderID LIKE 'STG-%').
+        //        Staging rows are internal workaround rows; they must never
+        //        appear in order lists or Modify guards.
         // ╔════════════════════════════════════════════════════════════════
 
         public List<OrderEntity> SearchOrders(
@@ -26,6 +29,7 @@ namespace PremiumLivingOPS.Models.DAL
             using (var conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
+                // Always exclude STG- staging rows from real order lists
                 var sql =
                     @"SELECT o.OrderID, o.QuotationID, o.CustomerID, c.CustomerName,
                              o.AddressID, o.SalesID, s.StaffName AS SalesName,
@@ -35,7 +39,7 @@ namespace PremiumLivingOPS.Models.DAL
                       FROM `Order` o
                       JOIN Customer c ON o.CustomerID = c.CustomerID
                       JOIN Staff    s ON o.SalesID    = s.StaffID
-                      WHERE 1=1";
+                      WHERE o.OrderID NOT LIKE 'STG-%'";
 
                 if (!string.IsNullOrEmpty(status))
                     sql += " AND o.OrderStatus = @status";
@@ -103,7 +107,8 @@ namespace PremiumLivingOPS.Models.DAL
             using (var conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
-                const string sql = "SELECT OrderID FROM `Order` WHERE OrderID LIKE @prefix";
+                // Exclude STG- rows so they don’t interfere with ID generation
+                const string sql = "SELECT OrderID FROM `Order` WHERE OrderID LIKE @prefix AND OrderID NOT LIKE 'STG-%'";
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
                     cmd.Parameters.AddWithValue("@prefix", prefix + "%");
@@ -145,20 +150,8 @@ namespace PremiumLivingOPS.Models.DAL
 
         /// <summary>
         /// Returns QuotationItemEntity rows synthesised from OrderLine data.
-        ///
-        /// There is no QuotationItem table in the schema (Database/schema.sql).
-        /// Items belonging to a Quotation are stored as OrderLine rows attached
-        /// to the Order(s) that reference the Quotation via Order.QuotationID.
-        ///
-        /// Query:
-        ///   OrderLine JOIN Item ON ItemID
-        ///   JOIN Order ON OrderLine.OrderID = Order.OrderID
-        ///   WHERE Order.QuotationID = @quotationId
-        ///
-        /// One Quotation may produce multiple Orders (partial conversions), so
-        /// DISTINCT is applied on (ItemID) and quantities are summed.
-        /// UnitPrice comes from OrderLine.Price; DiscountPercent is always 0
-        /// because the Quotation table has no discount column.
+        /// Includes BOTH staging rows (STG-) and real converted Order rows so
+        /// that Quotation Detail can always show the items regardless of state.
         /// </summary>
         public List<QuotationItemEntity> GetOrderLinesByQuotationId(string quotationId)
         {
@@ -188,13 +181,37 @@ namespace PremiumLivingOPS.Models.DAL
                                 ItemID          = rdr.GetString("ItemID"),
                                 ProductName     = rdr.GetString("ProductName"),
                                 Quantity        = Convert.ToInt32(rdr["TotalQty"]),
-                                Unit            = "",   // no Unit column in OrderLine/schema
+                                Unit            = "",
                                 UnitPrice       = Convert.ToDouble(rdr["AvgPrice"]),
-                                DiscountPercent = 0     // no discount column in Quotation/OrderLine
+                                DiscountPercent = 0
                             });
                 }
             }
             return list;
+        }
+
+        /// <summary>
+        /// Checks whether a REAL (non-staging) Order references this QuotationID.
+        /// Used by IsQuotationLinkedToOrder to decide whether Modify is allowed.
+        /// Staging rows (OrderID LIKE 'STG-%') are explicitly excluded so a
+        /// Pending quotation with only a staging row is NOT blocked from Modify.
+        /// </summary>
+        public bool HasRealOrderLinkedToQuotation(string quotationId)
+        {
+            if (string.IsNullOrEmpty(quotationId)) return false;
+            using (var conn = DatabaseHelper.GetConnection())
+            {
+                conn.Open();
+                const string sql =
+                    @"SELECT COUNT(*) FROM `Order`
+                      WHERE QuotationID = @qid
+                        AND OrderID NOT LIKE 'STG-%'";
+                using (var cmd = new MySqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@qid", quotationId);
+                    return Convert.ToInt32(cmd.ExecuteScalar()) > 0;
+                }
+            }
         }
 
         public bool CreateOrder(OrderEntity order)
@@ -348,8 +365,9 @@ namespace PremiumLivingOPS.Models.DAL
         // Naming convention for staging OrderID:
         //   "STG-" + QuotationID  (e.g. "STG-QT-20260702-0001")
         //
-        // The staging Order uses placeholder values for required NOT NULL
-        // columns (ShippingAddress / BillingAddress / OrderContactName).
+        // IMPORTANT: every real-order query in this file includes
+        //   AND o.OrderID NOT LIKE 'STG-%'
+        // so staging rows are completely invisible to normal operations.
         // ─────────────────────────────────────────────────────────────────
 
         private static string StagingOrderId(string quotationId) => "STG-" + quotationId;
@@ -357,14 +375,6 @@ namespace PremiumLivingOPS.Models.DAL
         /// <summary>
         /// Atomically creates (or replaces) a staging Order + OrderLine rows for
         /// the given Quotation so that items are persisted to the DB.
-        ///
-        /// Steps inside a single transaction:
-        ///   1. DELETE existing OrderLine rows for the staging Order (if any).
-        ///   2. DELETE existing staging Order row (if any).
-        ///   3. INSERT new staging Order with OrderStatus = 'Pending'.
-        ///   4. INSERT new OrderLine rows.
-        ///
-        /// Returns true on success; rolls back and returns false on any error.
         /// </summary>
         public bool CreateStagingOrderForQuotation(
             string                    quotationId,
@@ -386,15 +396,12 @@ namespace PremiumLivingOPS.Models.DAL
                 {
                     try
                     {
-                        // 1. Remove old OrderLine rows for this staging order
                         using (var del1 = new MySqlCommand(
                             "DELETE FROM OrderLine WHERE OrderID = @sid", conn, tx))
                         {
                             del1.Parameters.AddWithValue("@sid", stagingId);
                             del1.ExecuteNonQuery();
                         }
-
-                        // 2. Remove old staging Order row
                         using (var del2 = new MySqlCommand(
                             "DELETE FROM `Order` WHERE OrderID = @sid", conn, tx))
                         {
@@ -402,7 +409,6 @@ namespace PremiumLivingOPS.Models.DAL
                             del2.ExecuteNonQuery();
                         }
 
-                        // 3. Insert staging Order
                         const string insOrder =
                             @"INSERT INTO `Order`
                                 (OrderID, QuotationID, CustomerID, AddressID, SalesID,
@@ -431,7 +437,6 @@ namespace PremiumLivingOPS.Models.DAL
                             ins.ExecuteNonQuery();
                         }
 
-                        // 4. Insert OrderLine rows
                         const string insLine =
                             "INSERT INTO OrderLine (OrderID, ItemID, Quantity, Price) VALUES (@oid, @iid, @qty, @price)";
                         foreach (var item in items)
@@ -455,9 +460,8 @@ namespace PremiumLivingOPS.Models.DAL
         }
 
         /// <summary>
-        /// Removes the staging Order + its OrderLine rows created by
-        /// CreateStagingOrderForQuotation. Called when the Quotation is
-        /// converted to a real Order so the staging row is no longer needed.
+        /// Removes the staging Order + its OrderLine rows.
+        /// Called when the Quotation is converted to a real Order.
         /// </summary>
         public bool DeleteStagingOrderByQuotationId(string quotationId)
         {
@@ -493,9 +497,6 @@ namespace PremiumLivingOPS.Models.DAL
 
         // ╔════════════════════════════════════════════════════════════════
         //  QUOTATION queries
-        //  Schema cols: QuotationID, CustomerID, ExpiryDate, TotalAmount,
-        //               DepositRequired, LeadTimeEstimated, TermsandCondition, QuotationStatus
-        //  No IssuedDate / SalesStaffID / Notes / QuotationItem in schema.
         // ╔════════════════════════════════════════════════════════════════
 
         public List<QuotationEntity> GetAllQuotations()
@@ -555,12 +556,6 @@ namespace PremiumLivingOPS.Models.DAL
             }
         }
 
-        /// <summary>
-        /// Updates the TotalAmount column on a Quotation row.
-        /// Called by OrderProcessingController.SaveModifiedQuotation() after
-        /// the user edits items in ModifyQuotationDialog.
-        /// Schema column: Quotation.TotalAmount (DECIMAL)
-        /// </summary>
         public bool UpdateQuotationTotalAmount(string quotationId, double newTotal)
         {
             using (var conn = DatabaseHelper.GetConnection())
@@ -593,9 +588,6 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
-        /// <summary>
-        /// Creates a new Quotation. Only schema columns are written.
-        /// </summary>
         public bool CreateQuotation(QuotationEntity q)
         {
             using (var conn = DatabaseHelper.GetConnection())
@@ -626,12 +618,9 @@ namespace PremiumLivingOPS.Models.DAL
         }
 
         // ╔════════════════════════════════════════════════════════════════
-        //  LOOKUP queries  (shared by Order + Quotation forms)
+        //  LOOKUP queries
         // ╔════════════════════════════════════════════════════════════════
 
-        /// <summary>
-        /// Customer schema cols: CustomerID, CustomerName, EmailAddress, PhoneNumber
-        /// </summary>
         public List<CustomerEntity> GetAllCustomers()
         {
             var list = new List<CustomerEntity>();
@@ -677,10 +666,6 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
-        /// <summary>
-        /// Product and Item are separate tables joined by ItemID.
-        /// Schema: Item(ItemID, ItemName, ItemDescription) + Product(ItemID, SalesPrice, Category)
-        /// </summary>
         public List<ProductLookup> GetAllProducts()
         {
             var list = new List<ProductLookup>();
@@ -746,8 +731,6 @@ namespace PremiumLivingOPS.Models.DAL
             LeadTimeEstimated = r.IsDBNull(r.GetOrdinal("LeadTimeEstimated")) ? null : r.GetString("LeadTimeEstimated"),
             TermsandCondition = r.IsDBNull(r.GetOrdinal("TermsandCondition")) ? null : r.GetString("TermsandCondition"),
             QuotationStatus   = r.GetString("QuotationStatus")
-            // Items is NOT mapped here — populated separately by GetOrderLinesByQuotationId
-            // SalesStaffName is NOT mapped here — no SalesStaffID column in Quotation table
         };
     }
 }

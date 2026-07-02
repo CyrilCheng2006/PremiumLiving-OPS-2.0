@@ -17,7 +17,7 @@ namespace PremiumLivingOPS.Controllers
 
         // ── In-memory Quotation item cache ───────────────────────────────────
         // Used for fast within-session reads (Detail view, Modify dialog).
-        // Items are NOW also persisted to DB via a staging Order row so they
+        // Items are also persisted to DB via a staging Order row so they
         // survive application restarts — see SaveNewQuotation / SaveModifiedQuotation.
         private static readonly Dictionary<string, List<QuotationItemEntity>> _quotationItemCache
             = new Dictionary<string, List<QuotationItemEntity>>(StringComparer.OrdinalIgnoreCase);
@@ -92,11 +92,9 @@ namespace PremiumLivingOPS.Controllers
         ///
         /// Priority:
         ///   1. _quotationItemCache — fast in-session hit.
-        ///   2. DB via GetOrderLinesByQuotationId() — reads from both the
-        ///      staging Order (STG-{QuotationID}) created at save time AND
-        ///      any real converted Orders that reference this Quotation.
-        ///      This covers cross-session restarts for Pending quotations.
-        ///   3. Empty list — fallback when no data exists.
+        ///   2. DB via GetOrderLinesByQuotationId() — reads from both staging
+        ///      Order (STG-{QuotationID}) and any real converted Orders.
+        ///   3. Empty list — fallback.
         /// </summary>
         public QuotationEntity GetQuotationDetail(string quotationId)
         {
@@ -131,24 +129,27 @@ namespace PremiumLivingOPS.Controllers
 
         // ── Modify Quotation ───────────────────────────────────────────────────────────────────
 
+        /// <summary>
+        /// Returns true only when a REAL (non-staging) Order references this
+        /// QuotationID. Staging rows (STG- prefix) are intentionally excluded
+        /// so that a Pending Quotation with only a staging row is NOT blocked
+        /// from the Modify flow.
+        /// </summary>
         public bool IsQuotationLinkedToOrder(string quotationId)
         {
             if (string.IsNullOrEmpty(quotationId)) return false;
             var q = _repo.GetQuotationById(quotationId);
             if (q == null) return false;
             if (q.QuotationStatus == "Converted") return true;
-            var linkedOrders = _repo.GetOrderLinesByQuotationId(quotationId);
-            return linkedOrders != null && linkedOrders.Count > 0;
+            // Use the dedicated repo method that excludes STG- rows
+            return _repo.HasRealOrderLinkedToQuotation(quotationId);
         }
 
         /// <summary>
         /// Persists the updated item list for a Quotation.
-        ///
         /// Steps:
         ///   1. Update Quotation.TotalAmount in DB.
-        ///   2. Recreate the staging Order + OrderLine rows in DB so items
-        ///      survive restarts (CreateStagingOrderForQuotation is idempotent
-        ///      — it deletes existing staging rows before re-inserting).
+        ///   2. Recreate the staging Order + OrderLine rows (idempotent).
         ///   3. Warm the in-memory cache.
         /// </summary>
         public bool SaveModifiedQuotation(string quotationId, List<QuotationItemEntity> items)
@@ -157,11 +158,9 @@ namespace PremiumLivingOPS.Controllers
 
             double newTotal = items.Sum(i => i.Subtotal);
 
-            // 1. Update header total
             bool ok = _repo.UpdateQuotationTotalAmount(quotationId, newTotal);
             if (!ok) return false;
 
-            // 2. Re-persist items to DB via staging Order
             if (items.Count > 0)
             {
                 var q = _repo.GetQuotationById(quotationId);
@@ -177,7 +176,6 @@ namespace PremiumLivingOPS.Controllers
                 }
             }
 
-            // 3. Warm cache
             _quotationItemCache[quotationId] = new List<QuotationItemEntity>(items);
             return true;
         }
@@ -224,32 +222,20 @@ namespace PremiumLivingOPS.Controllers
 
         /// <summary>
         /// Saves a new Quotation and persists its items to the DB.
-        ///
         /// Steps:
-        ///   1. INSERT Quotation header row (CreateQuotation).
-        ///   2. INSERT a staging Order (OrderStatus = 'Pending',
-        ///      OrderID = "STG-{QuotationID}", QuotationID = this Quotation)
-        ///      plus OrderLine rows for each item. This is the DB workaround
-        ///      for the missing QuotationItem table in schema.sql.
-        ///   3. Warm the in-memory cache for the current session.
-        ///
-        /// The staging Order is invisible to order lists because callers filter
-        /// by status; 'Pending' orders are only surfaced when specifically
-        /// needed for quotation detail retrieval (GetOrderLinesByQuotationId).
-        /// When the Quotation is later converted, the staging row should be
-        /// cleaned up via DeleteStagingOrderByQuotationId.
+        ///   1. INSERT Quotation header row.
+        ///   2. INSERT a staging Order (STG-{QuotationID}) + OrderLine rows.
+        ///   3. Warm in-memory cache.
         /// </summary>
         public bool SaveNewQuotation(QuotationEntity quotation,
                                      List<QuotationItemEntity> items,
                                      string salesStaffId)
         {
-            // 1. Write Quotation header
             bool ok = _repo.CreateQuotation(quotation);
             if (!ok) return false;
 
             if (items != null && items.Count > 0)
             {
-                // 2. Persist items to DB via staging Order
                 _repo.CreateStagingOrderForQuotation(
                     quotation.QuotationID,
                     quotation.CustomerID,
@@ -257,7 +243,6 @@ namespace PremiumLivingOPS.Controllers
                     quotation.TotalAmount,
                     items);
 
-                // 3. Warm cache
                 _quotationItemCache[quotation.QuotationID] = new List<QuotationItemEntity>(items);
             }
 
@@ -312,9 +297,8 @@ namespace PremiumLivingOPS.Controllers
         }
 
         /// <summary>
-        /// Creates a new real Order from scratch (or converted from Quotation).
-        /// If the order references a QuotationID, the staging Order created by
-        /// SaveNewQuotation is cleaned up automatically.
+        /// Creates a new real Order. If converted from a Quotation, the
+        /// staging row is cleaned up automatically.
         /// </summary>
         public bool SaveNewOrder(OrderEntity order, List<OrderLineEntity> lines)
         {
@@ -326,11 +310,9 @@ namespace PremiumLivingOPS.Controllers
                 _repo.CreateOrderLine(l);
             }
 
-            // Clean up staging Order if this Order was converted from a Quotation
             if (!string.IsNullOrEmpty(order.QuotationID))
             {
                 _repo.DeleteStagingOrderByQuotationId(order.QuotationID);
-                // Evict cache so GetQuotationDetail now reads from real Order lines
                 _quotationItemCache.Remove(order.QuotationID);
             }
 
