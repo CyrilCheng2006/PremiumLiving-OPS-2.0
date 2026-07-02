@@ -26,17 +26,17 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         private readonly LogisticsProcessingController _ctrl;
 
         // Step-1 controls
-        private Panel          _pnlStep1;
-        private ComboBox       _cboOrder;
-        private Label          _lblOrderInfo;
-        private Button         _btnNext;
+        private Panel        _pnlStep1;
+        private ComboBox     _cboOrder;
+        private Label        _lblOrderInfo;
+        private Button       _btnNext;
 
         // Step-2 controls
-        private Panel          _pnlStep2;
-        private Label          _lblStep2OrderInfo;
-        private DataGridView   _grid;
-        private Button         _btnBack;
-        private Button         _btnConfirm;
+        private Panel        _pnlStep2;
+        private Label        _lblStep2OrderInfo;
+        private DataGridView _grid;
+        private Button       _btnBack;
+        private Button       _btnConfirm;
 
         // Grid column indices
         private const int COL_CHECK    = 0;
@@ -67,10 +67,10 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         // ================================================================
         private void BuildUI()
         {
-            Text            = "Schedule Shipment";
-            // Wider form so Step-2 grid has enough horizontal room
-            Size            = new Size(1880, 860);
-            MinimumSize     = new Size(1600, 760);
+            Text = "Schedule Shipment";
+            // 1880 * 1.2 = 2256
+            Size        = new Size(2256, 860);
+            MinimumSize = new Size(1920, 760);
             StartPosition   = FormStartPosition.CenterParent;
             BackColor       = Color.FromArgb(240, 244, 249);
             Font            = new Font("Segoe UI", 12f);
@@ -149,7 +149,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlFooter.Controls.Add(_btnBack);
             pnlFooter.Controls.Add(btnCancel);
 
-            // -- Step panels ---------------------------------------------
             BuildStep1Panel();
             BuildStep2Panel();
 
@@ -170,14 +169,14 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 outerHeight:  620,
                 outerPadding: new Padding(20, 14, 20, 8));
 
-            // 7 rows:
-            //  0 - section label      44
-            //  1 - gap                16
-            //  2 - field label        32   <- was 28, now taller so text doesn't overlap
-            //  3 - gap                 8   <- breathing room before combobox
-            //  4 - combobox           52   <- explicit height for ComboBox
-            //  5 - gap                20
-            //  6 - info area        fill
+            // Rows:
+            //  0 - section label   44
+            //  1 - gap             16
+            //  2 - field label     32
+            //  3 - gap              8
+            //  4 - combobox        52
+            //  5 - gap             20
+            //  6 - info area      fill
             var tbl = new TableLayoutPanel
             {
                 Dock        = DockStyle.Fill,
@@ -187,15 +186,14 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 Padding     = new Padding(32, 28, 32, 20)
             };
             tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 44f));   // 0 section label
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 16f));   // 1 gap
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 32f));   // 2 field label
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute,  8f));   // 3 gap
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 52f));   // 4 combobox
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 20f));   // 5 gap
-            tbl.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));   // 6 info area
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute,  44f));  // 0
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute,  16f));  // 1 gap
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute,  32f));  // 2
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute,   8f));  // 3 gap
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute,  52f));  // 4
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute,  20f));  // 5 gap
+            tbl.RowStyles.Add(new RowStyle(SizeType.Percent,  100f));  // 6 info
 
-            // Row 0 — Section heading
             tbl.Controls.Add(new Label
             {
                 Text      = "STEP 1 \u2014 SELECT ORDER",
@@ -205,10 +203,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 TextAlign = ContentAlignment.MiddleLeft
             }, 0, 0);
 
-            // Row 1 — gap (empty label)
             tbl.Controls.Add(new Label { Dock = DockStyle.Fill, AutoSize = false }, 0, 1);
 
-            // Row 2 — Field label
             tbl.Controls.Add(new Label
             {
                 Text      = "Order ID",
@@ -218,10 +214,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 TextAlign = ContentAlignment.BottomLeft
             }, 0, 2);
 
-            // Row 3 — gap
             tbl.Controls.Add(new Label { Dock = DockStyle.Fill, AutoSize = false }, 0, 3);
 
-            // Row 4 — ComboBox
             _cboOrder = new ComboBox
             {
                 Dock          = DockStyle.Top,
@@ -232,10 +226,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             _cboOrder.SelectedIndexChanged += CboOrder_Changed;
             tbl.Controls.Add(_cboOrder, 0, 4);
 
-            // Row 5 — gap
             tbl.Controls.Add(new Label { Dock = DockStyle.Fill, AutoSize = false }, 0, 5);
 
-            // Row 6 — Order info
             _lblOrderInfo = new Label
             {
                 Dock      = DockStyle.Fill,
@@ -259,19 +251,26 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 outerHeight:  620,
                 outerPadding: new Padding(20, 14, 20, 8));
 
+            // Rows:
+            //  0 - section label   44
+            //  1 - order info      40
+            //  2 - hint label      32   <- own dedicated row, never overlapped by grid
+            //  3 - grid           fill
             var tbl = new TableLayoutPanel
             {
                 Dock        = DockStyle.Fill,
                 ColumnCount = 1,
-                RowCount    = 3,
+                RowCount    = 4,
                 BackColor   = Color.Transparent,
                 Padding     = new Padding(20, 16, 20, 12)
             };
             tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 44f));   // section label
-            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, 40f));   // sub info
-            tbl.RowStyles.Add(new RowStyle(SizeType.Percent,  100f));  // grid
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute,  44f));  // 0 heading
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute,  40f));  // 1 order info
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute,  32f));  // 2 hint
+            tbl.RowStyles.Add(new RowStyle(SizeType.Percent,  100f));  // 3 grid
 
+            // Row 0 — heading
             tbl.Controls.Add(new Label
             {
                 Text      = "STEP 2 \u2014 SCHEDULE ITEMS",
@@ -281,6 +280,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 TextAlign = ContentAlignment.MiddleLeft
             }, 0, 0);
 
+            // Row 1 — order summary info
             _lblStep2OrderInfo = new Label
             {
                 Dock      = DockStyle.Fill,
@@ -290,22 +290,20 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             };
             tbl.Controls.Add(_lblStep2OrderInfo, 0, 1);
 
-            // Hint label above the grid
-            var hint = new Label
+            // Row 2 — hint (dedicated row so grid can never overlap it)
+            tbl.Controls.Add(new Label
             {
-                Text      = "Tip: Assign each item to a Batch (A/B/C/D) and pick a date. Leave unchecked to defer. Items in the same batch share one Shipment.",
+                Text      = "Tip: Assign each item to a Batch (A/B/C/D) and pick a date. "
+                          + "Leave unchecked to defer. Items in the same batch share one Shipment.",
                 Font      = new Font("Segoe UI", 9f, FontStyle.Italic),
                 ForeColor = Color.FromArgb(130, 140, 160),
-                Dock      = DockStyle.Top,
+                Dock      = DockStyle.Fill,
                 AutoSize  = false,
-                Height    = 26
-            };
+                TextAlign = ContentAlignment.MiddleLeft
+            }, 0, 2);
 
-            var gridWrapper = new Panel { Dock = DockStyle.Fill };
-            gridWrapper.Controls.Add(BuildGrid());
-            gridWrapper.Controls.Add(hint);
-
-            tbl.Controls.Add(gridWrapper, 0, 2);
+            // Row 3 — grid (fills all remaining vertical space)
+            tbl.Controls.Add(BuildGrid(), 0, 3);
 
             inner.Controls.Add(tbl);
             _pnlStep2 = outer;
@@ -328,9 +326,10 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 Font                  = new Font("Segoe UI", 11f),
                 ColumnHeadersHeight   = 44,
                 RowTemplate           = { Height = 48 },
-                // Allow horizontal scroll so every column is always reachable
-                AutoSizeColumnsMode   = DataGridViewAutoSizeColumnsMode.None,
-                ScrollBars            = ScrollBars.Both
+                // Fill mode: columns collectively occupy 100% of the grid width.
+                // FillWeight on each column acts as a proportional share.
+                AutoSizeColumnsMode   = DataGridViewAutoSizeColumnsMode.Fill,
+                ScrollBars            = ScrollBars.Vertical   // horizontal scroll no longer needed
             };
             _grid.ColumnHeadersDefaultCellStyle.Font      = new Font("Segoe UI", 10f, FontStyle.Bold);
             _grid.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(245, 247, 252);
@@ -340,59 +339,72 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             _grid.DefaultCellStyle.SelectionBackColor     = Color.FromArgb(219, 234, 254);
             _grid.DefaultCellStyle.SelectionForeColor     = Color.FromArgb(15, 31, 53);
 
-            // ── Column definitions ──────────────────────────────────────
-            // Total fixed width: 90+150+260+110+110+110+100+210+120+180 = 1440 px
-            // At form width 1880, CardPanel inner area ~1840 px -> fits without scrolling
-            // ScrollBars.Both keeps it safe if the window is narrower.
+            // ── Column proportions (FillWeight) ─────────────────────────
+            // Total weight = 1000.  Each column's share = weight/1000 of grid width.
+            // Narrow fixed-content cols get small weight; text cols get larger share.
+            //
+            //  COL   Name               Weight   ~% of width
+            //   0    Schedule (chk)       45      4.5%
+            //   1    Item ID              80      8.0%
+            //   2    Item Name           180     18.0%
+            //   3    Order Qty            60      6.0%
+            //   4    Shipped              60      6.0%
+            //   5    Remaining            60      6.0%
+            //   6    Batch                50      5.0%
+            //   7    Ship Date           130     13.0%
+            //   8    Qty to Ship          65      6.5%
+            //   9    Delivery Method     110     11.0%
+            //                          ----
+            //                           840  (remaining 160 distributed by WinForms rounding)
 
-            // COL 0: Checkbox  90
+            // COL 0: Schedule checkbox
             _grid.Columns.Add(new DataGridViewCheckBoxColumn
             {
-                Name       = "colCheck",
-                HeaderText = "Schedule",
-                Width      = 90,
-                Resizable  = DataGridViewTriState.False
+                Name        = "colCheck",
+                HeaderText  = "Schedule",
+                FillWeight  = 45f,
+                Resizable   = DataGridViewTriState.False
             });
-            // COL 1: Item ID  150
+            // COL 1: Item ID
             _grid.Columns.Add(new DataGridViewTextBoxColumn
             {
-                Name       = "colItemID",
-                HeaderText = "Item ID",
-                Width      = 150,
-                ReadOnly   = true
+                Name        = "colItemID",
+                HeaderText  = "Item ID",
+                FillWeight  = 80f,
+                ReadOnly    = true
             });
-            // COL 2: Item Name  260
+            // COL 2: Item Name
             _grid.Columns.Add(new DataGridViewTextBoxColumn
             {
-                Name       = "colItemName",
-                HeaderText = "Item Name",
-                Width      = 260,
-                ReadOnly   = true
+                Name        = "colItemName",
+                HeaderText  = "Item Name",
+                FillWeight  = 180f,
+                ReadOnly    = true
             });
-            // COL 3: Order Qty  110
+            // COL 3: Order Qty
             _grid.Columns.Add(new DataGridViewTextBoxColumn
             {
                 Name             = "colOrderQty",
                 HeaderText       = "Order Qty",
-                Width            = 110,
+                FillWeight       = 60f,
                 ReadOnly         = true,
                 DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleCenter }
             });
-            // COL 4: Already Shipped  110
+            // COL 4: Shipped
             _grid.Columns.Add(new DataGridViewTextBoxColumn
             {
                 Name             = "colShipped",
                 HeaderText       = "Shipped",
-                Width            = 110,
+                FillWeight       = 60f,
                 ReadOnly         = true,
                 DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleCenter }
             });
-            // COL 5: Remaining  110
+            // COL 5: Remaining
             _grid.Columns.Add(new DataGridViewTextBoxColumn
             {
                 Name             = "colRemain",
                 HeaderText       = "Remaining",
-                Width            = 110,
+                FillWeight       = 60f,
                 ReadOnly         = true,
                 DefaultCellStyle = {
                     Alignment = DataGridViewContentAlignment.MiddleCenter,
@@ -400,41 +412,39 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                     Font      = new Font("Segoe UI", 11f, FontStyle.Bold)
                 }
             });
-            // COL 6: Batch  100
-            var cboBatch = new DataGridViewComboBoxColumn
+            // COL 6: Batch
+            _grid.Columns.Add(new DataGridViewComboBoxColumn
             {
                 Name             = "colBatch",
                 HeaderText       = "Batch",
-                Width            = 100,
+                FillWeight       = 50f,
                 DataSource       = new string[] { "A", "B", "C", "D" },
                 DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleCenter }
-            };
-            _grid.Columns.Add(cboBatch);
-            // COL 7: Schedule Date  210
+            });
+            // COL 7: Ship Date
             _grid.Columns.Add(new DataGridViewTextBoxColumn
             {
                 Name             = "colDate",
                 HeaderText       = "Ship Date (YYYY-MM-DD)",
-                Width            = 210,
+                FillWeight       = 130f,
                 DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleCenter }
             });
-            // COL 8: Qty to Ship  120
+            // COL 8: Qty to Ship
             _grid.Columns.Add(new DataGridViewTextBoxColumn
             {
                 Name             = "colQtyShip",
                 HeaderText       = "Qty to Ship",
-                Width            = 120,
+                FillWeight       = 65f,
                 DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleCenter }
             });
-            // COL 9: Delivery Method  180
-            var cboMethod = new DataGridViewComboBoxColumn
+            // COL 9: Delivery Method
+            _grid.Columns.Add(new DataGridViewComboBoxColumn
             {
                 Name       = "colMethod",
                 HeaderText = "Delivery Method",
-                Width      = 180,
+                FillWeight = 110f,
                 DataSource = new string[] { "Courier", "SelfPickup" }
-            };
-            _grid.Columns.Add(cboMethod);
+            });
 
             _grid.CellValueChanged             += Grid_CellValueChanged;
             _grid.CurrentCellDirtyStateChanged += Grid_DirtyState;
@@ -513,10 +523,10 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }
             _selOrder = _orders[_cboOrder.SelectedIndex - 1];
             _lblOrderInfo.Text =
-                "Customer       : " + _selOrder.CustomerName      + "\n" +
-                "Order Status   : " + _selOrder.OrderStatus        + "\n" +
-                "Shipping Addr  : " + _selOrder.ShippingAddress    + "\n" +
-                "Contact        : " + _selOrder.ContactName        + "\n" +
+                "Customer       : " + _selOrder.CustomerName   + "\n" +
+                "Order Status   : " + _selOrder.OrderStatus     + "\n" +
+                "Shipping Addr  : " + _selOrder.ShippingAddress + "\n" +
+                "Contact        : " + _selOrder.ContactName     + "\n" +
                 "Required Date  : " + _selOrder.DeliveryDate.ToString("yyyy-MM-dd") + "\n" +
                 "Grand Total    : HKD " + _selOrder.GrandTotal.ToString("N2");
             _btnNext.Enabled = true;
