@@ -27,7 +27,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         private Button btnModify;
         private Button btnGenDeliveryNote;
         private Button btnGenReplySlip;
-        private Button btnScheduleShipment;   // ← NEW: Schedule Shipment (210×60)
+        private Button btnScheduleShipment;   // ← Schedule Shipment (210×60, purple)
 
         // ── Main grid ─────────────────────────────────────────────────────
         private DataGridView dgvShipments;
@@ -197,7 +197,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             tblCard.Controls.Add(pnlBtns,   0, 2);
 
             var pnlCard = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
-            pnlCard.Paint += PaintCardBorder;
+            pnlCard.Paint += PaintCardBorder;   // defined once in ViewShipmentForm.cs
             pnlCard.Controls.Add(tblCard);
 
             var pnlSearchOuter = new Panel
@@ -210,9 +210,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             //  KPI bar + action buttons
-            //  Now contains FIVE action buttons (including btnScheduleShipment).
-            //  Each button: 210×60. Gap: 8. Left/right pad: 12.
-            //  Total pnlActionBtns width = 12 + (210+8)*4 + 210 + 12 = 1106 px.
+            //  Five buttons: View Details | Modify | Delivery Note | Reply Slip | Schedule
+            //  Each 210×60, gap 8, left/right pad 12.
+            //  Total width = 12 + (210+8)*4 + 210 + 12 = 1106 px.
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             pnlKpi = new Panel
             {
@@ -237,14 +237,12 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             btnGenReplySlip.Enabled     = false;
             btnScheduleShipment.Enabled = false;
 
-            btnViewDetail.Click      += btnViewDetail_Click;
-            btnModify.Click          += btnModify_Click;
-            btnGenDeliveryNote.Click += btnGenDeliveryNote_Click;
-            btnGenReplySlip.Click    += btnGenReplySlip_Click;
+            btnViewDetail.Click       += btnViewDetail_Click;
+            btnModify.Click           += btnModify_Click;
+            btnGenDeliveryNote.Click  += btnGenDeliveryNote_Click;
+            btnGenReplySlip.Click     += btnGenReplySlip_Click;
             btnScheduleShipment.Click += btnScheduleShipment_Click;
 
-            // pnlActionBtns: 5 buttons × (210+8) - 8 trailing gap + 2 × 12 pad
-            //              = 5×210 + 4×8 + 24 = 1050 + 32 + 24 = 1106
             var pnlActionBtns = new Panel
             {
                 Dock      = DockStyle.Right,
@@ -255,11 +253,11 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             {
                 int top = (pnlActionBtns.Height - BtnH) / 2;
                 if (top < 0) top = 0;
-                btnViewDetail.Location       = new Point(BtnPad, top);
-                btnModify.Location           = new Point(BtnPad + (BtnW + BtnGap),                       top);
-                btnGenDeliveryNote.Location  = new Point(BtnPad + (BtnW + BtnGap) * 2,                   top);
-                btnGenReplySlip.Location     = new Point(BtnPad + (BtnW + BtnGap) * 3,                   top);
-                btnScheduleShipment.Location = new Point(BtnPad + (BtnW + BtnGap) * 4,                   top);
+                btnViewDetail.Location       = new Point(BtnPad,                        top);
+                btnModify.Location           = new Point(BtnPad + (BtnW + BtnGap),      top);
+                btnGenDeliveryNote.Location  = new Point(BtnPad + (BtnW + BtnGap) * 2,  top);
+                btnGenReplySlip.Location     = new Point(BtnPad + (BtnW + BtnGap) * 3,  top);
+                btnScheduleShipment.Location = new Point(BtnPad + (BtnW + BtnGap) * 4,  top);
             }
             pnlActionBtns.Controls.Add(btnViewDetail);
             pnlActionBtns.Controls.Add(btnModify);
@@ -273,7 +271,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlKpiRow.Controls.Add(pnlActionBtns);
 
             var pnlKpiInner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
-            pnlKpiInner.Paint += PaintCardBorder;
+            pnlKpiInner.Paint += PaintCardBorder;   // defined once in ViewShipmentForm.cs
             pnlKpiInner.Controls.Add(pnlKpiRow);
 
             var pnlKpiOuter = new Panel
@@ -285,11 +283,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlKpiOuter.Controls.Add(pnlKpiInner);
 
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            //  Shipment Grid — 7 columns (TYPE and METHOD removed;
-            //  both fields remain visible in ShowDetailDialog info panel)
-            //
-            //  Schema: Shipment.ShipmentID / OrderID / CustomerName(JOIN) /
-            //          TrackingNumber / ShipDate / ShipmentStatus / TotalAmount
+            //  Shipment Grid — 7 columns
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             dgvShipments = new DataGridView
             {
@@ -323,7 +317,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                     Padding            = new Padding(12, 6, 12, 6)
                 }
             };
-            // 7 columns — ShipmentType and DeliveryMethod removed (shown in detail dialog)
             dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "colShipmentID", HeaderText = "SHIPMENT NO.",  FillWeight = 16 });
             dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "colOrderID",    HeaderText = "ORDER NO.",     FillWeight = 14 });
             dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCustomer",   HeaderText = "CUSTOMER",      FillWeight = 22 });
@@ -342,12 +335,12 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 BackColor = Color.FromArgb(240, 244, 249)
             };
             var pnlGridInner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
-            pnlGridInner.Paint += PaintCardBorder;
+            pnlGridInner.Paint += PaintCardBorder;   // defined once in ViewShipmentForm.cs
             pnlGridInner.Controls.Add(dgvShipments);
             pnlGridCard.Controls.Add(pnlGridInner);
 
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            //  Assemble — Fill first, then Top (reverse order), AppShell last
+            //  Assemble
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             pnlMain.Controls.Add(pnlGridCard);
             pnlMain.Controls.Add(pnlKpiOuter);
@@ -401,7 +394,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             return b;
         }
 
-        /// <summary>Purple button — used exclusively for Schedule Shipment.</summary>
         private Button MakePurpleBtn(string text, Point loc, int w, int h)
         {
             var b = new Button
@@ -430,11 +422,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             return b;
         }
 
-        private static void PaintCardBorder(object sender, System.Windows.Forms.PaintEventArgs e)
-        {
-            var p = (Panel)sender;
-            using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
-            e.Graphics.DrawRectangle(pen, 0, 0, p.Width - 1, p.Height - 1);
-        }
+        // NOTE: PaintCardBorder is defined in ViewShipmentForm.cs (the non-Designer partial).
+        //       Do NOT redefine it here — that causes CS0111 duplicate member error.
     }
 }
