@@ -27,7 +27,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         private Button btnModify;
         private Button btnGenDeliveryNote;
         private Button btnGenReplySlip;
-        private Button btnScheduleShipment;   // 210×60, purple
+        private Button btnScheduleShipment;   // 290×60, purple
 
         // ── Main grid ─────────────────────────────────────────────────────
         private DataGridView dgvShipments;
@@ -205,8 +205,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             //  KPI bar + action buttons
-            //  Five buttons (210×60 each, gap 8, pad 12 both sides)
-            //  Panel width = 12 + (210+8)*4 + 210 + 12 = 1106 px
+            //  Five buttons (290×60 each, gap 8, pad 12 both sides)
+            //  Panel width = 12 + (290+8)*4 + 290 + 12 = 1506 px
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             pnlKpi = new Panel
             {
@@ -214,7 +214,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 Padding = new Padding(12, 10, 12, 10)
             };
 
-            const int BtnW   = 210;
+            const int BtnW   = 290;
             const int BtnH   = 60;
             const int BtnGap = 8;
             const int BtnPad = 12;
