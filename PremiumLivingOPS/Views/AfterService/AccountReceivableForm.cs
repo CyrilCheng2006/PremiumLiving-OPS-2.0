@@ -36,21 +36,12 @@ namespace PremiumLivingOPS.Views.AfterService
             => FormNavigator.NavigateTo(this, menuLabel, subItem);
 
         private void btnLogout_Click(object sender, EventArgs e)
-        {
-            if (MessageBox.Show("Are you sure you want to log out?",
-                                "Logout", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
-            {
-                SessionManager.Clear();
-                Application.Restart();
-            }
-        }
+        { SessionManager.Clear(); Application.Restart(); }
 
         // ── Grid refresh
         private void RefreshGrid()
         {
             string statusSel = cboStatus.SelectedItem?.ToString();
-            // "Overdue" is a derived UI state — NOT a valid Invoice.PaymentStatus ENUM value.
-            // Pass null to the repo so the SQL WHERE clause is not polluted with an invalid value.
             bool filterOverdue = string.Equals(statusSel, "Overdue", StringComparison.OrdinalIgnoreCase);
             string statusFilter = (string.IsNullOrEmpty(statusSel) || statusSel == "All" || filterOverdue)
                 ? null
@@ -61,7 +52,7 @@ namespace PremiumLivingOPS.Views.AfterService
             var arVm = _ctrl.GetAccountReceivableVM(statusFilter, string.IsNullOrEmpty(keyword) ? null : keyword);
             _shell.SetUser(arVm.UserBar.DisplayName, arVm.UserBar.Department);
             _shell.SetVisibleMenus(arVm.AllowedMenus);
-            _shell.SetBreadcrumb("After-Service  \u203a  Account Receivable");
+            _shell.SetBreadcrumb("After-Service  ›  Account Receivable");
 
             _invoices = _ctrl.GetInvoiceListVM(string.IsNullOrEmpty(keyword) ? null : keyword).Invoices;
 
@@ -94,11 +85,93 @@ namespace PremiumLivingOPS.Views.AfterService
             RefreshGrid();
         }
 
-        // ── SelectionChanged — enable/disable Record button
         private void dgvAR_SelectionChanged(object sender, EventArgs e)
         {
             bool hasRow = dgvAR.SelectedRows.Count > 0 && dgvAR.SelectedRows[0].Index >= 0;
             btnRecord.Enabled = hasRow;
+        }
+
+        // ── KPI Pills
+        // 4 pills: Total Invoices | Partial | Full | Overdue
+        // (Outstanding monetary pill removed — KPI Bar shows counts by status only)
+        private void RefreshKpi()
+        {
+            pnlKpi.Controls.Clear();
+
+            var all = _ctrl.GetAccountReceivableVM().Items;
+
+            int totalCount   = all.Count;
+            int overdueCount = 0;
+            int partialCount = 0;
+            int fullCount    = 0;
+
+            foreach (var i in all)
+            {
+                if (i.IsOverdue)                 overdueCount++;
+                if (i.PaymentStatus == "Partial") partialCount++;
+                if (i.PaymentStatus == "Full")    fullCount++;
+            }
+
+            // KPI Bar: Total + 3 PaymentStatus (Partial / Full / Overdue)
+            var pills = new[]
+            {
+                ("Total Invoices", totalCount.ToString(),   Color.FromArgb( 19,  35,  61), Color.FromArgb(219, 234, 254)),
+                ("Partial",        partialCount.ToString(), Color.FromArgb(146,  64,  14), Color.FromArgb(254, 243, 199)),
+                ("Full",           fullCount.ToString(),    Color.FromArgb( 22, 101,  52), Color.FromArgb(220, 252, 231)),
+                ("Overdue",        overdueCount.ToString(), Color.FromArgb(185,  28,  28), Color.FromArgb(254, 226, 226)),
+            };
+
+            var flow = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight,
+                WrapContents = false, BackColor = Color.Transparent,
+                Padding = new Padding(0), AutoScroll = false,
+            };
+
+            const int PillW   = 340;
+            const int PillH   =  60;
+            const int Gap     =   8;
+            const int NumColW =  90;
+
+            foreach (var (label, value, fg, bg) in pills)
+            {
+                var pill = new Panel
+                {
+                    BackColor = bg, Size = new Size(PillW, PillH),
+                    Margin = new Padding(0, 0, Gap, 0), Cursor = Cursors.Hand
+                };
+                pill.Paint += (s, e) =>
+                {
+                    e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                    using var path  = RoundedRect(((Panel)s).ClientRectangle, 8);
+                    using var brush = new SolidBrush(((Panel)s).BackColor);
+                    e.Graphics.FillPath(brush, path);
+                };
+                var tlp = new TableLayoutPanel
+                {
+                    Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
+                    BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                    Padding = new Padding(10, 0, 8, 0),
+                };
+                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, NumColW));
+                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
+                tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+                tlp.Controls.Add(new Label
+                {
+                    Text = value, Font = new Font("Segoe UI", 14f, FontStyle.Bold),
+                    ForeColor = fg, BackColor = Color.Transparent,
+                    Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, AutoSize = false
+                }, 0, 0);
+                tlp.Controls.Add(new Label
+                {
+                    Text = label, Font = new Font("Segoe UI", 11f),
+                    ForeColor = fg, BackColor = Color.Transparent,
+                    Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
+                }, 1, 0);
+                pill.Controls.Add(tlp);
+                flow.Controls.Add(pill);
+            }
+            pnlKpi.Controls.Add(flow);
         }
 
         // ── CellFormatting
@@ -155,7 +228,7 @@ namespace PremiumLivingOPS.Views.AfterService
         }
 
         // ─────────────────────────────────────────────────────────────────────
-        // Record Payment Dialog (inline Form)
+        // Record Payment Dialog
         // ─────────────────────────────────────────────────────────────────────
         private void ShowRecordPaymentDialog(InvoiceDetailEntity inv)
         {
@@ -169,7 +242,7 @@ namespace PremiumLivingOPS.Views.AfterService
                 FormBorderStyle = FormBorderStyle.FixedDialog, MaximizeBox = false, MinimizeBox = false
             };
 
-            // ══ HEADER — teal title bar
+            // ══ HEADER
             var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 70, BackColor = Color.FromArgb(1, 105, 111) };
             var tblHeader = new TableLayoutPanel
             {
@@ -180,30 +253,29 @@ namespace PremiumLivingOPS.Views.AfterService
             tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
             tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 640f));
             tblHeader.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-
             tblHeader.Controls.Add(new Label
             {
-                Text      = $"Record Payment  —  {inv.InvoiceID}",
-                Font      = new Font("Segoe UI", 17f, FontStyle.Bold), ForeColor = Color.White,
-                Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
+                Text = $"Record Payment  —  {inv.InvoiceID}",
+                Font = new Font("Segoe UI", 17f, FontStyle.Bold), ForeColor = Color.White,
+                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
             }, 0, 0);
-
             Color badgeBg = inv.IsOverdue ? Color.FromArgb(185, 28, 28) : Color.FromArgb(146, 64, 14);
             tblHeader.Controls.Add(new Label
             {
-                Text      = $"Balance: HK$ {inv.RemainingBalance:N2}",
-                Font      = new Font("Segoe UI", 14f, FontStyle.Bold), ForeColor = Color.White,
+                Text = $"Balance: HK$ {inv.RemainingBalance:N2}",
+                Font = new Font("Segoe UI", 14f, FontStyle.Bold), ForeColor = Color.White,
                 BackColor = badgeBg, Dock = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleCenter, AutoSize = false,
-                Margin    = new Padding(0, 8, 0, 8)
+                Margin = new Padding(0, 8, 0, 8)
             }, 1, 0);
             pnlHeader.Controls.Add(tblHeader);
 
             // ══ CARD: Invoice Info
-            var (infoOuter, infoInner) = CardPanel.Create(outerHeight: 220);
+            // 5 rows: Customer/Order | Dates | Amounts | Deposit | Status
+            var (infoOuter, infoInner) = CardPanel.Create(outerHeight: 260);
             var tblInfo = new TableLayoutPanel
             {
-                Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 4,
+                Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 5,
                 BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
                 Padding = new Padding(24, 16, 24, 16)
             };
@@ -211,16 +283,16 @@ namespace PremiumLivingOPS.Views.AfterService
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 36f));
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 14f));
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 36f));
-            for (int r = 0; r < 4; r++) tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 25f));
-            AddInfoRow(tblInfo, 0, "Customer:",      inv.CustomerName,                       "Order No.:",  inv.OrderID);
-            AddInfoRow(tblInfo, 1, "Invoice Date:",  inv.InvoiceDate.ToString("yyyy-MM-dd"), "Due Date:",   inv.DueDate.ToString("yyyy-MM-dd"));
+            for (int r = 0; r < 5; r++) tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 20f));
+            AddInfoRow(tblInfo, 0, "Customer:",      inv.CustomerName,                       "Order No.:",   inv.OrderID);
+            AddInfoRow(tblInfo, 1, "Invoice Date:",  inv.InvoiceDate.ToString("yyyy-MM-dd"), "Due Date:",    inv.DueDate.ToString("yyyy-MM-dd"));
             AddInfoRow(tblInfo, 2, "Total Amount:",  $"HK$ {inv.TotalAmount:N2}",            "Paid Amount:", $"HK$ {inv.PaidAmount:N2}");
-            AddInfoRow(tblInfo, 3, "Balance:",       $"HK$ {inv.RemainingBalance:N2}",       "Status:",     inv.IsOverdue ? "Overdue" : inv.PaymentStatus);
+            AddInfoRow(tblInfo, 3, "Deposit Paid:",  $"HK$ {inv.DepositAmount:N2}",          "Balance:",     $"HK$ {inv.RemainingBalance:N2}");
+            AddInfoRow(tblInfo, 4, "Status:",        inv.IsOverdue ? "Overdue" : inv.PaymentStatus, "",      "");
             infoInner.Controls.Add(tblInfo);
 
             // ══ CARD: Record New Payment
             var (inputOuter, inputInner) = CardPanel.Create(outerHeight: 370);
-
             var pnlInputTitle = new Panel
             {
                 Dock = DockStyle.Top, Height = 52,
@@ -229,9 +301,8 @@ namespace PremiumLivingOPS.Views.AfterService
             pnlInputTitle.Paint += PaintBottomBorder;
             pnlInputTitle.Controls.Add(new Label
             {
-                Text = "\U0001f4b3  Record New Payment",
-                Font = new Font("Segoe UI", 12f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(1, 105, 111),
+                Text = "💳  Record New Payment",
+                Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.FromArgb(1, 105, 111),
                 Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
             });
 
@@ -292,7 +363,7 @@ namespace PremiumLivingOPS.Views.AfterService
             pnlHistTitle.Paint += PaintBottomBorder;
             pnlHistTitle.Controls.Add(new Label
             {
-                Text = "\U0001f4c4  Transaction History",
+                Text = "📄  Transaction History",
                 Font = new Font("Segoe UI", 12f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(19, 35, 61),
                 Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
@@ -342,7 +413,7 @@ namespace PremiumLivingOPS.Views.AfterService
 
             var btnConfirm = new Button
             {
-                Text = "\u2714  Confirm Payment",
+                Text = "✔  Confirm Payment",
                 Font = new Font("Segoe UI", 13f, FontStyle.Bold),
                 ForeColor = Color.White, BackColor = Color.FromArgb(1, 105, 111),
                 FlatStyle = FlatStyle.Flat, Width = 240, Height = 52, Cursor = Cursors.Hand

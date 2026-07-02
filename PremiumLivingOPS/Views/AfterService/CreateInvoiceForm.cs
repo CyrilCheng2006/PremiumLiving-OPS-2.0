@@ -36,7 +36,7 @@ namespace PremiumLivingOPS.Views.AfterService
             RefreshGrid();
         }
 
-        // ── Refresh grid from DB ───────────────────────────────────────────────
+        // ── Refresh grid from DB ────────────────────────────────────────────────────────────────────────
         private void RefreshGrid()
         {
             string orderNo   = txtSearchOrderNo.Text.Trim();
@@ -65,7 +65,7 @@ namespace PremiumLivingOPS.Views.AfterService
                     o.CustomerName,
                     o.OrderContactName,
                     o.IssuedTime.ToString("yyyy-MM-dd"),
-                    o.DeliveryDate?.ToString("yyyy-MM-dd") ?? "\u2014",
+                    o.DeliveryDate?.ToString("yyyy-MM-dd") ?? "—",
                     $"HK$ {o.GrandTotal:N2}",
                     o.OrderStatus);
 
@@ -79,7 +79,7 @@ namespace PremiumLivingOPS.Views.AfterService
             RefreshGrid();
         }
 
-        // ── CellFormatting — colour OrderStatus badge ──────────────────────────
+        // ── CellFormatting — colour OrderStatus badge ──────────────────────────────────────────
         private void dgvOrders_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
             if (dgvOrders.Columns[e.ColumnIndex].Name != "colStatus" || e.Value == null) return;
@@ -93,7 +93,7 @@ namespace PremiumLivingOPS.Views.AfterService
             e.FormattingApplied            = true;
         }
 
-        // ── Grid selection → fill form fields ─────────────────────────────────
+        // ── Grid selection → fill form fields ─────────────────────────────────────────────────
         private void dgvOrders_SelectionChanged(object sender, EventArgs e)
         {
             if (dgvOrders.SelectedRows.Count == 0) { ClearForm(); return; }
@@ -124,9 +124,9 @@ namespace PremiumLivingOPS.Views.AfterService
         private void ClearForm()
         {
             _selectedOrder             = null;
-            lblSelectedOrderID.Text    = "\u2014";
-            lblCustomer.Text           = "\u2014";
-            lblGrandTotal.Text         = "\u2014";
+            lblSelectedOrderID.Text    = "—";
+            lblCustomer.Text           = "—";
+            lblGrandTotal.Text         = "—";
             nudDeposit.Value           = 0;
             nudPaid.Value              = 0;
             lblRemaining.Text          = "HK$ 0.00";
@@ -135,7 +135,7 @@ namespace PremiumLivingOPS.Views.AfterService
             btnCreateInvoice.Enabled   = false;
         }
 
-        // ── Auto-calculate remaining balance ──────────────────────────────────
+        // ── Auto-calculate remaining balance ────────────────────────────────────────────────────
         private void RecalcBalance()
         {
             if (_selectedOrder == null) return;
@@ -151,7 +151,7 @@ namespace PremiumLivingOPS.Views.AfterService
             cboPaymentStatus.SelectedItem = remaining <= 0 ? "Full" : "Partial";
         }
 
-        // ── Create Invoice button ──────────────────────────────────────────────
+        // ── Create Invoice button ────────────────────────────────────────────────────────────────────────
         private void btnCreateInvoice_Click(object sender, EventArgs e)
         {
             if (_selectedOrder == null)
@@ -192,18 +192,14 @@ namespace PremiumLivingOPS.Views.AfterService
             }
         }
 
-        // ── Navigation / logout ───────────────────────────────────────────────
+        // ── Navigation / logout ────────────────────────────────────────────────────────────────────────
         private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
             => FormNavigator.NavigateTo(this, menuLabel, subItem);
 
         private void btnLogout_Click(object sender, EventArgs e)
         {
-            if (MessageBox.Show("Are you sure you want to log out?",
-                                "Logout", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
-            {
-                SessionManager.Clear();
-                Application.Restart();
-            }
+            SessionManager.Clear();
+            Application.Restart();
         }
     }
 }
