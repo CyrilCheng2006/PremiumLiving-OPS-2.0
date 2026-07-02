@@ -53,12 +53,14 @@ namespace PremiumLivingOPS.Models.Entities
 
     /// <summary>
     /// One line item inside a PurchaseOrder (from PurchaseOrderLine table).
-    /// POLineID format: PO-YYYYMMDD-NNNN-01, -02, -03…
+    /// POLineID  format: PO-YYYYMMDD-NNNN-01, -02, -03…
+    /// RequestID links back to the originating MaterialRequest row for full traceability.
     /// </summary>
     public class PurchaseOrderLineEntity
     {
         public string POLineID          { get; set; }   // e.g. PO-20260702-0001-01
         public string PurchaseID        { get; set; }   // e.g. PO-20260702-0001
+        public string RequestID         { get; set; }   // originating MRQ e.g. MRQ-260702-001-01
         public string RawMaterialItemID { get; set; }
         public string MaterialName      { get; set; }
         public string MaterialType      { get; set; }
