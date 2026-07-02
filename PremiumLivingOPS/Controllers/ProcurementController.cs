@@ -29,12 +29,57 @@ namespace PremiumLivingOPS.Controllers
             DateTime? dateFrom = null,
             DateTime? dateTo   = null)
         {
-            var user = SessionManager.CurrentUser;
+            var user   = SessionManager.CurrentUser;
+            var raw    = _repo.SearchGroupedPurchaseOrders(keyword, status, dateFrom, dateTo);
+
+            // ── C# grouping layer ────────────────────────────────────────────────────────
+            // Handles legacy data where PurchaseOrder.PurchaseID was stored with a -NN
+            // suffix (e.g. PO-20260702-0001-01) instead of the correct header format
+            // (PO-YYYYMMDD-NNNN, length = 17).
+            // Rules:
+            //   • If PurchaseID length == 17  → already a proper header; use as-is.
+            //   • If PurchaseID length  > 17  → strip the last 3 chars (-NN) to get the
+            //     header key, then merge all rows that share the same key into one group.
+            //     The merged group sums ItemCount, sums TotalAmount, and picks the most
+            //     recent OrderDate and the first non-empty UrgencyLevel/Status found.
+            // ─────────────────────────────────────────────────────────────────────────────
+
+            // Step 1: normalise every row to its header key
+            var keyed = raw.Select(g => new
+            {
+                HeaderKey = g.PurchaseID.Length > 17
+                    ? g.PurchaseID.Substring(0, 17)   // strip -NN suffix
+                    : g.PurchaseID,
+                Group = g
+            }).ToList();
+
+            // Step 2: group by HeaderKey and merge
+            var groups = keyed
+                .GroupBy(x => x.HeaderKey)
+                .Select(grp =>
+                {
+                    var first = grp.First().Group;
+                    return new ProcurementOrderGroup
+                    {
+                        PurchaseID     = grp.Key,
+                        SupplierID     = first.SupplierID,
+                        SupplierName   = first.SupplierName,
+                        OrderDate      = grp.Max(x => x.Group.OrderDate),
+                        PurchaseStatus = grp.First(x => !string.IsNullOrEmpty(x.Group.PurchaseStatus)).Group.PurchaseStatus,
+                        TotalAmount    = grp.Sum(x => x.Group.TotalAmount),
+                        ItemCount      = grp.Sum(x => x.Group.ItemCount > 0 ? x.Group.ItemCount : 1),
+                        UrgencyLevel   = grp.FirstOrDefault(x => !string.IsNullOrEmpty(x.Group.UrgencyLevel))?.Group.UrgencyLevel ?? string.Empty
+                    };
+                })
+                .OrderByDescending(g => g.OrderDate)
+                .ThenByDescending(g => g.PurchaseID)
+                .ToList();
+
             return new SearchProcurementViewModel
             {
                 UserBar      = new UserBarViewModel { DisplayName = user?.StaffName ?? "Unknown", Department = user?.Department ?? "" },
                 AllowedMenus = NavAccessPolicy.GetAllowedMenus(user?.Department),
-                Groups       = _repo.SearchGroupedPurchaseOrders(keyword, status, dateFrom, dateTo)
+                Groups       = groups
             };
         }
 
@@ -42,18 +87,39 @@ namespace PremiumLivingOPS.Controllers
 
         /// <summary>
         /// Returns the PO header + all its PurchaseOrderLine items for the Detail dialog.
-        /// purchaseId = exact PurchaseID from DB, e.g. "PO-20260702-0001" (no -NN suffix).
+        /// purchaseId = the header key shown in the grid (PO-YYYYMMDD-NNNN, length 17).
+        /// For legacy rows whose PurchaseOrder.PurchaseID has a -NN suffix, we fall back to
+        /// querying PurchaseOrderLine directly so all items still appear in the detail view.
         /// </summary>
         public ProcurementDetailViewModel GetProcurementDetailVM(string purchaseId)
         {
             if (string.IsNullOrWhiteSpace(purchaseId)) return null;
             var user = SessionManager.CurrentUser;
+
+            // Try exact header lookup first (new data)
+            var order = _repo.GetPurchaseOrderById(purchaseId);
+            List<PurchaseOrderLineEntity> lines;
+
+            if (order != null)
+            {
+                // Proper header exists — fetch lines normally
+                lines = _repo.GetLinesByPurchaseId(purchaseId);
+            }
+            else
+            {
+                // Legacy data: no exact header row exists for this key.
+                // Build a synthetic header from the first -NN row found,
+                // and collect lines from all -NN variants.
+                order = _repo.GetPurchaseOrderByPrefix(purchaseId);   // finds PO-YYYYMMDD-NNNN-01
+                lines = _repo.GetLinesByPurchaseIdPrefix(purchaseId); // finds all -NN lines
+            }
+
             return new ProcurementDetailViewModel
             {
                 UserBar      = new UserBarViewModel { DisplayName = user?.StaffName ?? "Unknown", Department = user?.Department ?? "" },
                 AllowedMenus = NavAccessPolicy.GetAllowedMenus(user?.Department),
-                Order        = _repo.GetPurchaseOrderById(purchaseId),
-                Lines        = _repo.GetLinesByPurchaseId(purchaseId)
+                Order        = order,
+                Lines        = lines
             };
         }
 
@@ -109,9 +175,6 @@ namespace PremiumLivingOPS.Controllers
             string purchaseId = _repo.GenerateNextPurchaseId();   // one ID for the whole batch
             double poTotal    = lines.Sum(ln => ln.OrderQty * ln.UnitPrice);
 
-            // Derive urgency / trigger from the first line's associated MRQ
-            // (all lines in a batch share the same MRQ batch → same urgency/trigger).
-            // If the caller hasn't pre-populated these, pass empty strings.
             string urgencyLevel = string.Empty;
             string triggerType  = string.Empty;
 
