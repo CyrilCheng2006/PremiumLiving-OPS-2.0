@@ -50,7 +50,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         }
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  Grid refresh  (Tracking No. column excluded — not passed)
+        //  Grid refresh
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void RefreshGrid()
         {
@@ -101,7 +101,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         }
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  KPI pills  — mirrors ViewOrderForm.RefreshKpi exactly
+        //  KPI pills
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void RefreshKpi()
         {
@@ -129,7 +129,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 Padding = new Padding(0), AutoScroll = false
             };
 
-            // ── Same constants as ViewOrderForm ───────────────────────────
             const int PillW   = 290;
             const int PillH   = 60;
             const int Gap     = 8;
@@ -161,7 +160,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
                 tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
-                // ── Font sizes identical to ViewOrderForm (14f Bold / 12f) ──
                 tlp.Controls.Add(new Label
                 {
                     Text = count, Font = new Font("Segoe UI", 14f, FontStyle.Bold),
@@ -298,7 +296,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         }
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  ShowDetailDialog — redesigned to mirror ViewOrderForm.ShowDetailDialog
+        //  ShowDetailDialog
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void ShowDetailDialog(ShipmentDetailVM s, bool editMode = false)
         {
@@ -349,7 +347,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }, 1, 0);
             pnlHeader.Controls.Add(tblHeader);
 
-            // ── Info panel — 4-col × 6-row mirroring ViewOrderForm ─────────
+            // ── Info panel ────────────────────────────────────────────────
             var pnlInfo = new Panel
             {
                 Dock = DockStyle.Top, Height = 400,
@@ -375,14 +373,17 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 30f));   // row 5: address multi-line
 
             // Left column fields
+            // FIX: use ShippingAddress (correct property name from ShipmentEntity)
             var leftFields = new[]
             {
-                ("Shipment ID",    ship.ShipmentID),
-                ("Order ID",       ship.OrderID),
-                ("Ship Date",      ship.ShipDate.ToString("yyyy-MM-dd")),
-                ("Delivery Date",  ship.ShipDate.ToString("yyyy-MM-dd")),   // use ShipDate as proxy; extend if model has DeliveryDate
-                ("Tracking No.",   string.IsNullOrWhiteSpace(ship.TrackingNumber) ? "\u2014" : ship.TrackingNumber),
-                ("Address",        ship.DeliveryAddress),   // multiline row
+                ("Shipment ID",   ship.ShipmentID),
+                ("Order ID",      ship.OrderID),
+                ("Ship Date",     ship.ShipDate.ToString("yyyy-MM-dd")),
+                ("Delivery Date", ship.DeliveryDate.HasValue
+                                    ? ship.DeliveryDate.Value.ToString("yyyy-MM-dd")
+                                    : ship.ShipDate.ToString("yyyy-MM-dd")),
+                ("Tracking No.",  string.IsNullOrWhiteSpace(ship.TrackingNumber) ? "\u2014" : ship.TrackingNumber),
+                ("Address",       ship.ShippingAddress ?? "\u2014"),  // was ship.DeliveryAddress — fixed
             };
             for (int i = 0; i < leftFields.Length; i++)
             {
@@ -394,14 +395,15 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }
 
             // Right column fields
+            // FIX: removed ship.ContactPerson (not in ShipmentEntity); replaced with DeliveryMethod
             var rightFields = new[]
             {
-                ("Customer",         ship.CustomerName         ?? "\u2014", false),
-                ("Delivery Method",  ship.DeliveryMethod       ?? "\u2014", false),
-                ("Shipment Type",    ship.ShipmentType         ?? "\u2014", false),
-                ("Status",           ship.ShipmentStatus       ?? "\u2014", false),
-                ("Contact Person",   ship.ContactPerson        ?? "\u2014", false),
-                ("Total Amount",     $"HK$ {ship.TotalAmount:N2}",          false),
+                ("Customer",        ship.CustomerName   ?? "\u2014"),
+                ("Delivery Method", ship.DeliveryMethod ?? "\u2014"),
+                ("Shipment Type",   ship.ShipmentType   ?? "\u2014"),
+                ("Status",          ship.ShipmentStatus ?? "\u2014"),
+                ("Total Amount",    $"HK$ {ship.TotalAmount:N2}"),
+                ("",                ""),   // padding row
             };
             for (int i = 0; i < rightFields.Length; i++)
             {
@@ -511,7 +513,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 dgv.Rows.Add(line.ShipmentLineID, line.ItemID, line.ItemName,
                              line.QtyShipped, line.QtyOutstanding?.ToString() ?? "\u2014");
 
-            // ── Total row (mirrors ViewOrderForm Grand Total row) ─────────
+            // ── Total row ─────────────────────────────────────────────────
             var pnlTotalRow = new Panel
             {
                 Dock      = DockStyle.Bottom,
@@ -650,7 +652,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlFooter.Controls.Add(btnDelete);
             pnlFooter.Controls.Add(btnClose);
 
-            // ── Assemble dialog (bottom-up Dock order) ────────────────────
+            // ── Assemble dialog ───────────────────────────────────────────
             dlg.Controls.Add(dgv);
             dlg.Controls.Add(pnlFooter);
             dlg.Controls.Add(pnlTotalRow);
@@ -828,7 +830,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         }
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  UI helpers — mirrors ViewOrderForm helpers exactly
+        //  UI helpers
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private static Label MakeLabelKey(string text) => new Label
         {
