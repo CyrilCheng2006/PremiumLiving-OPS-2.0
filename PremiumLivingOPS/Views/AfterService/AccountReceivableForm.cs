@@ -59,7 +59,7 @@ namespace PremiumLivingOPS.Views.AfterService
             var arVm = _ctrl.GetAccountReceivableVM(statusFilter, string.IsNullOrEmpty(keyword) ? null : keyword);
             _shell.SetUser(arVm.UserBar.DisplayName, arVm.UserBar.Department);
             _shell.SetVisibleMenus(arVm.AllowedMenus);
-            _shell.SetBreadcrumb("After-Service  ›  Account Receivable");
+            _shell.SetBreadcrumb("After-Service  \u203a  Account Receivable");
 
             _invoices = _ctrl.GetInvoiceListVM(string.IsNullOrEmpty(keyword) ? null : keyword).Invoices;
 
@@ -98,9 +98,48 @@ namespace PremiumLivingOPS.Views.AfterService
             btnRecord.Enabled = hasRow;
         }
 
+        // ── CellFormatting — colour Status badge + highlight overdue rows
+        private void dgvAR_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
+        {
+            if (e.RowIndex < 0 || e.RowIndex >= _invoices.Count) return;
+            var inv = _invoices[e.RowIndex];
+
+            if (inv.IsOverdue)
+            {
+                e.CellStyle.BackColor          = OverdueBg;
+                e.CellStyle.SelectionBackColor = Color.FromArgb(255, 220, 220);
+            }
+
+            if (dgvAR.Columns[e.ColumnIndex].Name == "colStatus" && e.Value != null)
+            {
+                string val = e.Value.ToString();
+                if (StatusColors.TryGetValue(val, out var c))
+                {
+                    e.CellStyle.BackColor          = c.bg;
+                    e.CellStyle.ForeColor          = c.fg;
+                    e.CellStyle.SelectionBackColor = c.bg;
+                    e.CellStyle.SelectionForeColor = c.fg;
+                    e.CellStyle.Font               = new Font("Segoe UI", 11f, FontStyle.Bold);
+                    e.CellStyle.Alignment          = DataGridViewContentAlignment.MiddleCenter;
+                }
+                e.FormattingApplied = true;
+            }
+        }
+
+        // ── Record Payment dialog
+        private void OpenRecordPayment()
+        {
+            if (dgvAR.SelectedRows.Count == 0) return;
+            string invoiceId = dgvAR.SelectedRows[0].Cells["colInvoiceID"].Value?.ToString();
+            var inv = _invoices.Find(i => i.InvoiceID == invoiceId);
+            if (inv == null) return;
+
+            using var dlg = new RecordPaymentDialog(_ctrl, inv);
+            if (dlg.ShowDialog(this) == DialogResult.OK)
+                RefreshGrid();
+        }
+
         // ── KPI Pills
-        // 4 pills: Total Invoices | Partial | Full | Overdue
-        // (Outstanding monetary pill removed — KPI Bar shows counts by status only)
         private void RefreshKpi()
         {
             pnlKpi.Controls.Clear();
