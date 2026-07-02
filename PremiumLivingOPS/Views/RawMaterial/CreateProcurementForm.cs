@@ -9,26 +9,22 @@ using System.Windows.Forms;
 namespace PremiumLivingOPS.Views.RawMaterial
 {
     /// <summary>
-    /// View — Create Procurement (Create Purchase Order).
+    /// View — Create Procurement  (batch-prefix, multi-item model).
     ///
-    /// MVC role : View only. All data access goes through ProcurementController.
-    /// AppShell  : mandatory chrome (TopNavBar + UserBar).
-    /// CardPanel : all content wrapped in 3-layer nested cards.
-    ///
-    /// Schema coverage:
-    ///   PurchaseOrder     — header record
-    ///   PurchaseOrderLine — one line per order (single-line in this form)
-    ///   MaterialRequest   — lookup (unlinked requests only)
-    ///   Supplier          — lookup
-    ///   Warehouse         — lookup (delivery destination)
+    /// Interaction flow
+    ///   1. Form loads: all unlinked MRQ batch prefixes appear in dropdown.
+    ///   2. User selects MRQ-260702-001.
+    ///   3. Grid immediately shows all -NN line items under that prefix.
+    ///   4. User reviews / edits OrderQty + UnitPrice per line, selects Supplier.
+    ///   5. Submit → one PurchaseOrder + PurchaseOrderLine per line.
     /// </summary>
     public partial class CreateProcurementForm : Form
     {
         private readonly ProcurementController _ctrl = new ProcurementController();
 
-        private List<MaterialRequestLookup> _requests;
-        private List<SupplierLookup>        _suppliers;
-        private List<WarehouseEntity>       _warehouses;
+        private List<MaterialRequestBatchLookup> _batches   = new List<MaterialRequestBatchLookup>();
+        private List<SupplierLookup>             _suppliers = new List<SupplierLookup>();
+        private List<MaterialRequestLineItem>    _lines     = new List<MaterialRequestLineItem>();
 
         public CreateProcurementForm()
         {
@@ -36,41 +32,39 @@ namespace PremiumLivingOPS.Views.RawMaterial
             this.Load += CreateProcurementForm_Load;
         }
 
-        // ════════════════════════════════════════════════════════════════
-        //  Load
-        // ════════════════════════════════════════════════════════════════
+        // ══ Load ═════════════════════════════════════════════════════
 
         private void CreateProcurementForm_Load(object sender, EventArgs e)
         {
-            nudOrderQty.ValueChanged  += RecalcTotal;
-            nudUnitPrice.ValueChanged += RecalcTotal;
-            cboMaterialRequest.SelectedIndexChanged += CboMaterialRequest_Changed;
+            cboBatchPrefix.SelectedIndexChanged += CboBatchPrefix_Changed;
+            dgvLines.CellValueChanged           += DgvLines_CellValueChanged;
+            btnSubmit.Click -= BtnSubmit_Click;
+            btnReset.Click  -= BtnReset_Click;
+            btnSubmit.Click += BtnSubmit_Click;
+            btnReset.Click  += BtnReset_Click;
             LoadForm();
         }
 
-        // ════════════════════════════════════════════════════════════════
-        //  Data load
-        // ════════════════════════════════════════════════════════════════
+        // ══ Data load ═══════════════════════════════════════════════
 
         private void LoadForm()
         {
             var vm = _ctrl.GetCreateProcurementVM();
 
-            // AppShell
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
-            _shell.SetBreadcrumb("Raw Material  \u203a  Create Procurement");
+            _shell.SetBreadcrumb("Raw Material  ›  Create Procurement");
 
-            // Auto-generated ID — displayed as blue chip
+            // PO ID chip
             lblPurchaseIDValue.Text = vm.NextPurchaseID;
 
-            // Material Request dropdown
-            _requests = vm.MaterialRequests ?? new List<MaterialRequestLookup>();
-            cboMaterialRequest.Items.Clear();
-            cboMaterialRequest.Items.Add("-- Select Material Request --");
-            foreach (var r in _requests)
-                cboMaterialRequest.Items.Add(r);
-            cboMaterialRequest.SelectedIndex = 0;
+            // Batch prefix dropdown
+            _batches = vm.BatchPrefixes ?? new List<MaterialRequestBatchLookup>();
+            cboBatchPrefix.Items.Clear();
+            cboBatchPrefix.Items.Add("-- Select Material Request --");
+            foreach (var b in _batches)
+                cboBatchPrefix.Items.Add(b);
+            cboBatchPrefix.SelectedIndex = 0;
 
             // Supplier dropdown
             _suppliers = vm.Suppliers ?? new List<SupplierLookup>();
@@ -80,127 +74,140 @@ namespace PremiumLivingOPS.Views.RawMaterial
                 cboSupplier.Items.Add(s);
             cboSupplier.SelectedIndex = 0;
 
-            // Warehouse dropdown
-            _warehouses = vm.Warehouses ?? new List<WarehouseEntity>();
-            cboWarehouse.Items.Clear();
-            cboWarehouse.Items.Add("-- Select Warehouse --");
-            foreach (var w in _warehouses)
-                cboWarehouse.Items.Add($"{w.WarehouseID}  \u2014  {w.WarehouseLocation}");
-            cboWarehouse.SelectedIndex = 0;
-
-            // Reset auto-filled chip labels
-            lblRawMaterialID.Text      = "\u2014";
-            lblRawMaterialID.ForeColor = Color.FromArgb(98, 112, 135);
-            lblRawMaterialID.BackColor = Color.FromArgb(235, 240, 250);
-            lblRequestedQty.Text       = "\u2014";
-            lblRequestedQty.ForeColor  = Color.FromArgb(98, 112, 135);
-            lblRequestedQty.BackColor  = Color.FromArgb(235, 240, 250);
-            lblLineTotal.Text          = "HK$ 0.00";
-
-            // Reset line inputs
-            nudOrderQty.Minimum  = 1;
-            nudOrderQty.Maximum  = 9999;
-            nudOrderQty.Value    = 1;
-            nudUnitPrice.Minimum = 0m;
-            nudUnitPrice.Maximum = 9_999_999m;
-            nudUnitPrice.Value   = 0m;
-
+            // Reset header fields
             dtpOrderDate.Value      = DateTime.Today;
             cboStatus.SelectedIndex = 0;
 
-            // Attach submit / reset — remove first to avoid double-subscription
-            btnSubmit.Click -= BtnSubmit_Click;
-            btnReset.Click  -= BtnReset_Click;
-            btnSubmit.Click += BtnSubmit_Click;
-            btnReset.Click  += BtnReset_Click;
+            // Clear lines
+            _lines = new List<MaterialRequestLineItem>();
+            RefreshLinesGrid();
         }
 
-        // ════════════════════════════════════════════════════════════════
-        //  Event handlers
-        // ════════════════════════════════════════════════════════════════
+        // ══ Batch prefix selection ────────────────────────────────────
 
-        private void CboMaterialRequest_Changed(object sender, EventArgs e)
+        private void CboBatchPrefix_Changed(object sender, EventArgs e)
         {
-            if (cboMaterialRequest.SelectedItem is MaterialRequestLookup req)
+            if (cboBatchPrefix.SelectedItem is MaterialRequestBatchLookup batch)
             {
-                lblRawMaterialID.Text      = req.RawMaterialID;
-                lblRawMaterialID.ForeColor = Palette.Primary;
-                lblRawMaterialID.BackColor = Color.FromArgb(219, 234, 254);
-
-                lblRequestedQty.Text       = req.RequestedQty.ToString();
-                lblRequestedQty.ForeColor  = Palette.Primary;
-                lblRequestedQty.BackColor  = Color.FromArgb(219, 234, 254);
+                _lines = _ctrl.GetLinesByBatchPrefix(batch.BatchPrefix);
+                lblBatchInfo.Text      = $"Urgency: {batch.UrgencyLevel}   Trigger: {batch.TriggerType}   —   {batch.LineCount} item(s)";
+                lblBatchInfo.ForeColor = Color.FromArgb(47, 111, 237);
             }
             else
             {
-                lblRawMaterialID.Text      = "\u2014";
-                lblRawMaterialID.ForeColor = Color.FromArgb(98, 112, 135);
-                lblRawMaterialID.BackColor = Color.FromArgb(235, 240, 250);
-
-                lblRequestedQty.Text       = "\u2014";
-                lblRequestedQty.ForeColor  = Color.FromArgb(98, 112, 135);
-                lblRequestedQty.BackColor  = Color.FromArgb(235, 240, 250);
+                _lines = new List<MaterialRequestLineItem>();
+                lblBatchInfo.Text      = string.Empty;
+                lblBatchInfo.ForeColor = Color.FromArgb(98, 112, 135);
             }
+            RefreshLinesGrid();
+            RecalcGrandTotal();
         }
 
-        private void RecalcTotal(object sender, EventArgs e)
+        // ══ Grid ────────────────────────────────────────────────
+
+        private void RefreshLinesGrid()
         {
-            double total = (double)nudOrderQty.Value * (double)nudUnitPrice.Value;
-            lblLineTotal.Text = $"HK$ {total:N2}";
+            dgvLines.CellValueChanged -= DgvLines_CellValueChanged;
+            dgvLines.Rows.Clear();
+
+            for (int i = 0; i < _lines.Count; i++)
+            {
+                var ln = _lines[i];
+                int idx = dgvLines.Rows.Add(
+                    i + 1,
+                    ln.RequestID,
+                    ln.MaterialName,
+                    ln.MaterialType,
+                    ln.WarehouseDisplay,
+                    ln.RequestedQty,
+                    ln.OrderQty,
+                    ln.UnitPrice,
+                    $"HK$ {ln.LineTotal:N2}");
+                dgvLines.Rows[idx].Tag = ln;
+            }
+
+            lblLineCount.Text = $"{_lines.Count} line(s) loaded";
+            dgvLines.CellValueChanged += DgvLines_CellValueChanged;
         }
+
+        private void DgvLines_CellValueChanged(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex < 0 || e.RowIndex >= _lines.Count) return;
+
+            var ln  = _lines[e.RowIndex];
+            var row = dgvLines.Rows[e.RowIndex];
+
+            // colOrderQty (index 6)
+            if (e.ColumnIndex == 6)
+            {
+                if (int.TryParse(row.Cells[6].Value?.ToString(), out int qty) && qty > 0)
+                    ln.OrderQty = qty;
+                else
+                    row.Cells[6].Value = ln.OrderQty;
+            }
+            // colUnitPrice (index 7)
+            else if (e.ColumnIndex == 7)
+            {
+                if (double.TryParse(row.Cells[7].Value?.ToString(), out double price) && price > 0)
+                    ln.UnitPrice = price;
+                else
+                    row.Cells[7].Value = ln.UnitPrice;
+            }
+
+            row.Cells[8].Value = $"HK$ {ln.LineTotal:N2}";
+            RecalcGrandTotal();
+        }
+
+        private void RecalcGrandTotal()
+        {
+            double total = 0;
+            foreach (var ln in _lines) total += ln.LineTotal;
+            lblGrandTotal.Text = $"HK$ {total:N2}";
+        }
+
+        // ══ Submit ──────────────────────────────────────────────
 
         private void BtnSubmit_Click(object sender, EventArgs e)
         {
-            string purchaseId    = lblPurchaseIDValue.Text.Trim();
-            string requestId     = (cboMaterialRequest.SelectedItem as MaterialRequestLookup)?.RequestID;
-            string supplierId    = (cboSupplier.SelectedItem as SupplierLookup)?.SupplierID;
-            string rawMaterialId = (cboMaterialRequest.SelectedItem as MaterialRequestLookup)?.RawMaterialID
-                                   ?? string.Empty;
-            string status      = cboStatus.SelectedItem?.ToString() ?? "Sent";
+            if (!(cboBatchPrefix.SelectedItem is MaterialRequestBatchLookup))
+            { ShowWarning("Please select a Material Request batch prefix."); return; }
+            if (_lines.Count == 0)
+            { ShowWarning("No line items are loaded for the selected Material Request."); return; }
+
+            string supplierId  = (cboSupplier.SelectedItem as SupplierLookup)?.SupplierID;
+            string purchaseBase = lblPurchaseIDValue.Text.Trim();
             DateTime orderDate = dtpOrderDate.Value.Date;
-
-            string warehouseId = null;
-            if (cboWarehouse.SelectedIndex > 0 && cboWarehouse.SelectedIndex <= _warehouses.Count)
-                warehouseId = _warehouses[cboWarehouse.SelectedIndex - 1].WarehouseID;
-
-            int    orderQty  = (int)nudOrderQty.Value;
-            double unitPrice = (double)nudUnitPrice.Value;
+            string status      = cboStatus.SelectedItem?.ToString() ?? "Sent";
 
             try
             {
                 _ctrl.SubmitCreateProcurement(
-                    purchaseId, requestId, supplierId,
-                    orderDate, status,
-                    rawMaterialId, warehouseId,
-                    orderQty, unitPrice);
+                    purchaseBase, supplierId, orderDate, status, _lines);
 
+                int count = _lines.Count;
                 MessageBox.Show(
-                    $"Purchase Order  {purchaseId}  has been created successfully.",
+                    $"{count} Purchase Order(s) created successfully under base ID  {purchaseBase}.",
                     "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
-
                 LoadForm();
             }
             catch (ArgumentException ex)
             {
-                MessageBox.Show(ex.Message, "Validation Error",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                ShowWarning(ex.Message);
             }
             catch (Exception ex)
             {
                 MessageBox.Show(
-                    $"An error occurred while creating the Purchase Order:\n\n{ex.Message}",
+                    $"An error occurred:\n\n{ex.Message}",
                     "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
-        private void BtnReset_Click(object sender, EventArgs e)
-        {
-            LoadForm();
-        }
+        private void BtnReset_Click(object sender, EventArgs e) => LoadForm();
 
-        // ════════════════════════════════════════════════════════════════
-        //  Navigation / session
-        // ════════════════════════════════════════════════════════════════
+        private static void ShowWarning(string msg)
+            => MessageBox.Show(msg, "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+
+        // ══ Navigation ─────────────────────────────────────────
 
         private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
             => FormNavigator.NavigateTo(this, menuLabel, subItem);

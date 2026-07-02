@@ -9,27 +9,25 @@ namespace PremiumLivingOPS.Views.RawMaterial
     {
         private System.ComponentModel.IContainer components = null;
 
-        // ── AppShell (contains TopNavBar + UserBar)
+        // ── AppShell
         private AppShell _shell;
 
-        // ── CARD 1: Purchase Order Info
-        internal Label         lblPurchaseIDValue;
+        // ── CARD 1: Purchase Order Header
+        internal Label          lblPurchaseIDValue;
         internal DateTimePicker dtpOrderDate;
         internal ComboBox       cboStatus;
+        internal ComboBox       cboSupplier;
 
-        // ── CARD 2: Material Request & Supplier
-        internal ComboBox cboMaterialRequest;
-        internal ComboBox cboSupplier;
-        internal Label    lblRawMaterialID;
-        internal Label    lblRequestedQty;
+        // ── CARD 2: Material Request selection
+        internal ComboBox cboBatchPrefix;
+        internal Label    lblBatchInfo;
 
-        // ── CARD 3: Order Line Details
-        internal ComboBox      cboWarehouse;
-        internal NumericUpDown nudOrderQty;
-        internal NumericUpDown nudUnitPrice;
-        internal Label         lblLineTotal;
+        // ── CARD 3: Line Items Grid
+        internal DataGridView dgvLines;
+        internal Label        lblLineCount;
+        internal Label        lblGrandTotal;
 
-        // ── CARD 4: Actions
+        // ── Footer
         private Button btnSubmit;
         private Button btnReset;
 
@@ -43,7 +41,6 @@ namespace PremiumLivingOPS.Views.RawMaterial
         {
             this.SuspendLayout();
 
-            // ── Form
             this.Text          = "Premium Living OPS — Raw Material";
             this.Size          = new Size(1440, 900);
             this.MinimumSize   = new Size(1280, 800);
@@ -52,32 +49,25 @@ namespace PremiumLivingOPS.Views.RawMaterial
             this.WindowState   = FormWindowState.Maximized;
             this.Font          = new Font("Segoe UI", 13f);
 
-            // ── Root panel (Fill)
             var pnlMain = new Panel { Dock = DockStyle.Fill, BackColor = Palette.BgPage };
 
-            // ── AppShell
             _shell = new AppShell();
             _shell.SetPopupContainer(pnlMain);
             _shell.MenuItemClicked += OnTopNavMenuItemClicked;
             _shell.LogoutClicked   += BtnLogout_Click;
 
-            // ════════════════════════════════════════════════════════════
-            // Scroll panel
-            // ════════════════════════════════════════════════════════════
             var pnlScroll = new Panel
             {
-                Dock       = DockStyle.Fill,
-                AutoScroll = true,
-                BackColor  = Palette.BgPage
+                Dock = DockStyle.Fill, AutoScroll = true, BackColor = Palette.BgPage
             };
 
-            // ════════════════════════════════════════════════════════════
-            // CARD 1 — Purchase Order Info
-            // ────────────────────────────────────────────────────────────
-            // PurchaseID chip  (matches CreateOrderForm lblOrderIdValue chip)
+            // ==================================================================
+            // CARD 1 — Purchase Order Header
+            //   Row 0 (lbl) : PO ID (auto)  |  Order Date  |  Status  |  Supplier
+            //   Row 1 (ctrl): chip          |  dtp          |  cbo     |  cbo
+            // ==================================================================
             lblPurchaseIDValue = new Label
             {
-                Text      = "",
                 Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
                 ForeColor = Palette.Primary,
                 BackColor = Color.FromArgb(219, 234, 254),
@@ -85,262 +75,257 @@ namespace PremiumLivingOPS.Views.RawMaterial
                 TextAlign = ContentAlignment.MiddleLeft,
                 Padding   = new Padding(10, 0, 0, 0)
             };
-            var pnlPurchaseIDChip = new Panel
-            {
-                Dock      = DockStyle.Fill,
-                BackColor = Color.Transparent,
-                Padding   = new Padding(0, 8, 12, 8)
-            };
-            pnlPurchaseIDChip.Controls.Add(lblPurchaseIDValue);
+            var pnlIDChip = ChipPanel(lblPurchaseIDValue);
 
-            // OrderDate
             dtpOrderDate = new DateTimePicker
             {
-                Font   = new Font("Segoe UI", 12f),
-                Format = DateTimePickerFormat.Short,
-                Value  = DateTime.Today,
-                Dock   = DockStyle.Fill
+                Font = new Font("Segoe UI", 12f), Format = DateTimePickerFormat.Short,
+                Value = DateTime.Today, Dock = DockStyle.Fill
             };
 
-            // Status
             cboStatus = MakeCombo();
-            cboStatus.Items.AddRange(new object[] { "Sent", "Cancelled", "Partially Received", "Received", "Completed" });
+            cboStatus.Items.AddRange(new object[] {
+                "Sent", "Cancelled", "Partially Received", "Received", "Completed" });
             cboStatus.SelectedIndex = 0;
 
-            // 3-column TLP: PurchaseID | OrderDate | Status
-            var tblCard1 = new TableLayoutPanel
+            cboSupplier = MakeCombo();
+
+            var tblCard1 = MakeTlp(4, 2,
+                new float[] { 25f, 20f, 20f, 35f },
+                new float[] { 40f, 72f });
+            tblCard1.Padding = new Padding(18, 8, 18, 8);
+            tblCard1.Controls.Add(FieldLabel("Purchase Order ID",  false), 0, 0);
+            tblCard1.Controls.Add(FieldLabel("Order Date",         true),  1, 0);
+            tblCard1.Controls.Add(FieldLabel("Status",             true),  2, 0);
+            tblCard1.Controls.Add(FieldLabel("Supplier",           true),  3, 0);
+            tblCard1.Controls.Add(pnlIDChip,            0, 1);
+            tblCard1.Controls.Add(Pad(dtpOrderDate),    1, 1);
+            tblCard1.Controls.Add(Pad(cboStatus),       2, 1);
+            tblCard1.Controls.Add(Pad(cboSupplier),     3, 1);
+
+            var (c1Outer, c1Inner) = CardPanel.Create(outerHeight: 200);
+            var c1Content = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
+            c1Content.Controls.Add(tblCard1);
+            c1Content.Controls.Add(CardTitlePanel("Create Purchase Order"));
+            c1Inner.Controls.Add(c1Content);
+
+            // ==================================================================
+            // CARD 2 — Material Request Selection
+            //   Row 0 (lbl) : MRQ Batch Prefix
+            //   Row 1 (ctrl): cboBatchPrefix (full width)
+            //   Row 2 (info): lblBatchInfo chip
+            // ==================================================================
+            cboBatchPrefix = MakeCombo();
+
+            lblBatchInfo = new Label
             {
-                Dock            = DockStyle.Fill,
-                ColumnCount     = 3,
-                RowCount        = 2,
-                BackColor       = Color.Transparent,
-                CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                Padding         = new Padding(18, 8, 18, 8)
+                Text      = string.Empty,
+                Font      = new Font("Segoe UI", 11f),
+                ForeColor = Color.FromArgb(98, 112, 135),
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Padding   = new Padding(18, 0, 0, 0),
+                BackColor = Color.Transparent
             };
-            tblCard1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.3f));
-            tblCard1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.3f));
-            tblCard1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.4f));
-            tblCard1.RowStyles.Add(new RowStyle(SizeType.Absolute, 40f));
-            tblCard1.RowStyles.Add(new RowStyle(SizeType.Absolute, 72f));
 
-            tblCard1.Controls.Add(FieldLabel("Purchase Order ID", false), 0, 0);
-            tblCard1.Controls.Add(FieldLabel("Order Date",        true),  1, 0);
-            tblCard1.Controls.Add(FieldLabel("Status",            true),  2, 0);
-            tblCard1.Controls.Add(pnlPurchaseIDChip,                      0, 1);
-            tblCard1.Controls.Add(Pad(dtpOrderDate),                      1, 1);
-            tblCard1.Controls.Add(Pad(cboStatus),                         2, 1);
+            var tblCard2 = MakeTlp(1, 3,
+                new float[] { 100f },
+                new float[] { 40f, 72f, 44f });
+            tblCard2.Padding = new Padding(18, 8, 18, 8);
+            tblCard2.Controls.Add(FieldLabel("Material Request (MRQ Batch)", true), 0, 0);
+            tblCard2.Controls.Add(Pad(cboBatchPrefix),                               0, 1);
+            tblCard2.Controls.Add(lblBatchInfo,                                      0, 2);
 
-            var pnlCard1Title   = CardTitlePanel("Create Purchase Order");
-            var pnlCard1Content = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            pnlCard1Content.Controls.Add(tblCard1);
-            pnlCard1Content.Controls.Add(pnlCard1Title);
-            var (pnlCard1Outer, pnlCard1Inner) = CardPanel.Create(outerHeight: 200);
-            pnlCard1Inner.Controls.Add(pnlCard1Content);
+            var (c2Outer, c2Inner) = CardPanel.Create(outerHeight: 220);
+            var c2Content = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
+            c2Content.Controls.Add(tblCard2);
+            c2Content.Controls.Add(CardTitlePanel("Material Request"));
+            c2Inner.Controls.Add(c2Content);
 
-            // ════════════════════════════════════════════════════════════
-            // CARD 2 — Material Request & Supplier
-            // ════════════════════════════════════════════════════════════
-            cboMaterialRequest = MakeCombo();
-            cboSupplier        = MakeCombo();
-
-            // Auto-filled read-only labels (styled like lblOrderIdValue chip)
-            lblRawMaterialID = MakeReadOnlyChip();
-            lblRequestedQty  = MakeReadOnlyChip();
-
-            var pnlRawMatChip = ChipPanel(lblRawMaterialID);
-            var pnlReqQtyChip = ChipPanel(lblRequestedQty);
-
-            var tblCard2 = new TableLayoutPanel
+            // ==================================================================
+            // CARD 3 — Line Items Grid
+            //   Columns (read-only unless editable):
+            //   # | Request ID | Raw Material | Type | Warehouse | Req Qty
+            //   | Order Qty (editable) | Unit Price (editable) | Line Total
+            // ==================================================================
+            dgvLines = new DataGridView
             {
-                Dock            = DockStyle.Fill,
-                ColumnCount     = 2,
-                RowCount        = 4,
-                BackColor       = Color.Transparent,
-                CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                Padding         = new Padding(18, 8, 18, 8)
+                Dock                  = DockStyle.Fill,
+                BackgroundColor       = Color.White,
+                BorderStyle           = BorderStyle.None,
+                RowHeadersVisible     = false,
+                AllowUserToAddRows    = false,
+                AllowUserToDeleteRows = false,
+                SelectionMode         = DataGridViewSelectionMode.FullRowSelect,
+                MultiSelect           = false,
+                AutoSizeColumnsMode   = DataGridViewAutoSizeColumnsMode.Fill,
+                Font                  = new Font("Segoe UI", 11f),
+                ColumnHeadersHeight   = 42,
+                CellBorderStyle       = DataGridViewCellBorderStyle.SingleHorizontal,
+                EnableHeadersVisualStyles = false
             };
-            tblCard2.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
-            tblCard2.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
-            tblCard2.RowStyles.Add(new RowStyle(SizeType.Absolute, 40f));
-            tblCard2.RowStyles.Add(new RowStyle(SizeType.Absolute, 72f));
-            tblCard2.RowStyles.Add(new RowStyle(SizeType.Absolute, 40f));
-            tblCard2.RowStyles.Add(new RowStyle(SizeType.Absolute, 72f));
+            dgvLines.ColumnHeadersDefaultCellStyle.Font      = new Font("Segoe UI", 11f, FontStyle.Bold);
+            dgvLines.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(240, 244, 249);
+            dgvLines.ColumnHeadersDefaultCellStyle.ForeColor = Palette.TextMain;
+            dgvLines.ColumnHeadersDefaultCellStyle.Padding   = new Padding(8, 0, 0, 0);
+            dgvLines.DefaultCellStyle.BackColor          = Color.White;
+            dgvLines.DefaultCellStyle.ForeColor          = Palette.TextMain;
+            dgvLines.DefaultCellStyle.SelectionBackColor = Color.FromArgb(210, 225, 255);
+            dgvLines.DefaultCellStyle.SelectionForeColor = Palette.TextMain;
+            dgvLines.DefaultCellStyle.Padding            = new Padding(8, 6, 8, 6);
+            dgvLines.RowTemplate.Height = 52;
 
-            tblCard2.Controls.Add(FieldLabel("Material Request", true),  0, 0);
-            tblCard2.Controls.Add(FieldLabel("Supplier",         true),  1, 0);
-            tblCard2.Controls.Add(Pad(cboMaterialRequest),                0, 1);
-            tblCard2.Controls.Add(Pad(cboSupplier),                       1, 1);
-            tblCard2.Controls.Add(FieldLabel("Raw Material ID (Auto)", false), 0, 2);
-            tblCard2.Controls.Add(FieldLabel("Requested Qty (Ref)",    false), 1, 2);
-            tblCard2.Controls.Add(pnlRawMatChip,                               0, 3);
-            tblCard2.Controls.Add(pnlReqQtyChip,                               1, 3);
-
-            var pnlCard2Title   = CardTitlePanel("Material Request & Supplier");
-            var pnlCard2Content = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            pnlCard2Content.Controls.Add(tblCard2);
-            pnlCard2Content.Controls.Add(pnlCard2Title);
-            var (pnlCard2Outer, pnlCard2Inner) = CardPanel.Create(outerHeight: 320);
-            pnlCard2Inner.Controls.Add(pnlCard2Content);
-
-            // ════════════════════════════════════════════════════════════
-            // CARD 3 — Order Line Details
-            // ════════════════════════════════════════════════════════════
-            cboWarehouse = MakeCombo();
-            nudOrderQty  = new NumericUpDown
+            // Read-only columns
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colNo",        HeaderText = "#",                   FillWeight =  4, ReadOnly = true });
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colReqID",     HeaderText = "REQUEST ID",           FillWeight = 18, ReadOnly = true });
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colMaterial",  HeaderText = "RAW MATERIAL",         FillWeight = 22, ReadOnly = true });
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colType",      HeaderText = "TYPE",                 FillWeight =  9, ReadOnly = true });
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colWarehouse", HeaderText = "WAREHOUSE",            FillWeight = 18, ReadOnly = true });
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colReqQty",    HeaderText = "REQ QTY",              FillWeight =  7, ReadOnly = true });
+            // Editable columns
+            var colOrderQty = new DataGridViewTextBoxColumn
             {
-                Font          = new Font("Segoe UI", 12f),
-                Minimum       = 1,
-                Maximum       = 99999,
-                Value         = 1,
-                DecimalPlaces = 0,
-                Dock          = DockStyle.Fill
+                Name = "colOrderQty", HeaderText = "ORDER QTY ✏", FillWeight = 8, ReadOnly = false
             };
-            nudUnitPrice = new NumericUpDown
+            colOrderQty.DefaultCellStyle.BackColor = Color.FromArgb(255, 255, 235);
+            colOrderQty.DefaultCellStyle.Font      = new Font("Segoe UI", 11f, FontStyle.Bold);
+            dgvLines.Columns.Add(colOrderQty);
+
+            var colUnitPrice = new DataGridViewTextBoxColumn
             {
-                Font          = new Font("Segoe UI", 12f),
-                Minimum       = 0m,
-                Maximum       = 9_999_999m,
-                Value         = 0m,
-                DecimalPlaces = 2,
-                Dock          = DockStyle.Fill
+                Name = "colUnitPrice", HeaderText = "UNIT PRICE ✏", FillWeight = 10, ReadOnly = false
             };
-            // PO Total Amount — green chip matching lblGrandTotalValue style
-            lblLineTotal = new Label
+            colUnitPrice.DefaultCellStyle.BackColor = Color.FromArgb(255, 255, 235);
+            colUnitPrice.DefaultCellStyle.Font      = new Font("Segoe UI", 11f, FontStyle.Bold);
+            dgvLines.Columns.Add(colUnitPrice);
+
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLineTotal", HeaderText = "LINE TOTAL",           FillWeight = 12, ReadOnly = true });
+
+            // Toolbar row: line count label (left) + grand total chip (right)
+            lblLineCount = new Label
+            {
+                Text      = "0 line(s) loaded",
+                Font      = new Font("Segoe UI", 11f),
+                ForeColor = Color.FromArgb(98, 112, 135),
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Padding   = new Padding(4, 0, 0, 0)
+            };
+
+            lblGrandTotal = new Label
             {
                 Text      = "HK$ 0.00",
                 Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(22, 163, 74),
                 BackColor = Color.FromArgb(220, 252, 231),
-                Dock      = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleLeft,
-                Padding   = new Padding(10, 0, 0, 0)
+                TextAlign = ContentAlignment.MiddleRight,
+                Padding   = new Padding(0, 0, 16, 0),
+                Dock      = DockStyle.Right,
+                Width     = 240
             };
-            var pnlLineTotalChip = new Panel
+
+            var pnlGridToolbar = new Panel
             {
-                Dock      = DockStyle.Fill,
+                Dock      = DockStyle.Top,
+                Height    = 54,
                 BackColor = Color.Transparent,
-                Padding   = new Padding(0, 8, 12, 8)
+                Padding   = new Padding(18, 6, 18, 6)
             };
-            pnlLineTotalChip.Controls.Add(lblLineTotal);
+            pnlGridToolbar.Controls.Add(lblGrandTotal);
+            pnlGridToolbar.Controls.Add(lblLineCount);
 
-            var tblCard3 = new TableLayoutPanel
+            var pnlGridInner = new Panel
             {
-                Dock            = DockStyle.Fill,
-                ColumnCount     = 3,
-                RowCount        = 4,
-                BackColor       = Color.Transparent,
-                CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                Padding         = new Padding(18, 8, 18, 8)
+                Dock = DockStyle.Fill, BackColor = Color.Transparent,
+                Padding = new Padding(18, 0, 18, 12)
             };
-            tblCard3.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40f));
-            tblCard3.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30f));
-            tblCard3.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30f));
-            tblCard3.RowStyles.Add(new RowStyle(SizeType.Absolute, 40f));
-            tblCard3.RowStyles.Add(new RowStyle(SizeType.Absolute, 72f));
-            tblCard3.RowStyles.Add(new RowStyle(SizeType.Absolute, 40f));
-            tblCard3.RowStyles.Add(new RowStyle(SizeType.Absolute, 72f));
+            pnlGridInner.Controls.Add(dgvLines);
+            pnlGridInner.Controls.Add(pnlGridToolbar);
 
-            tblCard3.Controls.Add(FieldLabel("Delivery Warehouse", true),  0, 0);
-            tblCard3.Controls.Add(FieldLabel("Order Quantity",     true),  1, 0);
-            tblCard3.Controls.Add(FieldLabel("Unit Price (HK$)",   true),  2, 0);
-            tblCard3.Controls.Add(Pad(cboWarehouse),                        0, 1);
-            tblCard3.Controls.Add(Pad(nudOrderQty),                         1, 1);
-            tblCard3.Controls.Add(Pad(nudUnitPrice),                        2, 1);
+            var (c3Outer, c3Inner) = CardPanel.Create(outerHeight: 420);
+            var c3Content = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
+            c3Content.Controls.Add(pnlGridInner);
+            c3Content.Controls.Add(CardTitlePanel("Request Line Items"));
+            c3Inner.Controls.Add(c3Content);
 
-            var lblTotalLabel = FieldLabel("PO Total Amount (HK$)", false);
-            tblCard3.Controls.Add(lblTotalLabel, 0, 2);
-            tblCard3.Controls.Add(pnlLineTotalChip, 0, 3);
-            tblCard3.SetColumnSpan(pnlLineTotalChip, 3);
-
-            var pnlCard3Title   = CardTitlePanel("Order Line Details");
-            var pnlCard3Content = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            pnlCard3Content.Controls.Add(tblCard3);
-            pnlCard3Content.Controls.Add(pnlCard3Title);
-            var (pnlCard3Outer, pnlCard3Inner) = CardPanel.Create(outerHeight: 340);
-            pnlCard3Inner.Controls.Add(pnlCard3Content);
-
-            // ════════════════════════════════════════════════════════════
-            // FOOTER — matches CreateOrderForm footer pattern
-            // ════════════════════════════════════════════════════════════
+            // ==================================================================
+            // FOOTER
+            // ==================================================================
             const int BtnW   = 260;
             const int BtnH   = 60;
             const int BtnGap = 8;
             const int BtnPad = 12;
 
-            btnSubmit = MakePrimaryBtn("✔  Submit Purchase Order", Point.Empty, BtnW, BtnH);
-            btnReset  = MakeOutlineBtn("↺  Reset Form",            Point.Empty, 180,  BtnH);
+            btnSubmit = MakePrimaryBtn("\u2714  Submit Purchase Order(s)", Point.Empty, BtnW, BtnH);
+            btnReset  = MakeOutlineBtn("\u21ba  Reset Form",               Point.Empty, 180, BtnH);
 
             var pnlActionBtns = new Panel
             {
-                Dock      = DockStyle.Right,
-                Width     = BtnPad + BtnW + BtnGap + 180 + BtnPad,
+                Dock  = DockStyle.Right,
+                Width = BtnPad + BtnW + BtnGap + 180 + BtnPad,
                 BackColor = Color.Transparent
             };
             void CentreFooterBtns()
             {
-                int top = (pnlActionBtns.Height - BtnH) / 2;
-                if (top < 0) top = 0;
+                int top = Math.Max(0, (pnlActionBtns.Height - BtnH) / 2);
                 btnSubmit.Location = new Point(BtnPad, top);
                 btnReset.Location  = new Point(BtnPad + BtnW + BtnGap, top);
             }
             pnlActionBtns.Controls.Add(btnSubmit);
             pnlActionBtns.Controls.Add(btnReset);
-            pnlActionBtns.Resize += (s, e) => CentreFooterBtns();
+            pnlActionBtns.Resize += (s, ev) => CentreFooterBtns();
 
             var pnlFooterContent = new Panel
-            {
-                Dock      = DockStyle.Fill,
-                BackColor = Color.Transparent,
-                Padding   = new Padding(4, 0, 0, 0)
-            };
+            { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(4, 0, 0, 0) };
             pnlFooterContent.Controls.Add(pnlActionBtns);
 
             var footerInner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
-            footerInner.Paint += (s, e) =>
+            footerInner.Paint += (s, ev) =>
             {
                 var p = (Panel)s;
                 using var pen = new Pen(Palette.BorderColor, 1);
-                e.Graphics.DrawRectangle(pen, 0, 0, p.Width - 1, p.Height - 1);
+                ev.Graphics.DrawRectangle(pen, 0, 0, p.Width - 1, p.Height - 1);
             };
             footerInner.Controls.Add(pnlFooterContent);
 
             var footerOuter = new Panel
             {
-                Dock      = DockStyle.Bottom,
-                Height    = 108,
-                BackColor = Palette.BgPage,
-                Padding   = new Padding(20, 14, 20, 14)
+                Dock = DockStyle.Bottom, Height = 108,
+                BackColor = Palette.BgPage, Padding = new Padding(20, 14, 20, 14)
             };
             footerOuter.Controls.Add(footerInner);
 
-            // ════════════════════════════════════════════════════════════
-            // Assemble scroll content (DockStyle.Top stacks bottom-first)
-            // ════════════════════════════════════════════════════════════
-            pnlScroll.Controls.Add(pnlCard3Outer);   // bottom card
-            pnlScroll.Controls.Add(pnlCard2Outer);
-            pnlScroll.Controls.Add(pnlCard1Outer);   // top card
+            // Assemble (DockStyle.Top stacks bottom-first in Controls.Add order)
+            pnlScroll.Controls.Add(c3Outer);
+            pnlScroll.Controls.Add(c2Outer);
+            pnlScroll.Controls.Add(c1Outer);
 
-            // ════════════════════════════════════════════════════════════
-            // Assemble pnlMain
-            // ════════════════════════════════════════════════════════════
-            pnlMain.Controls.Add(pnlScroll);    // DockStyle.Fill — content
-            pnlMain.Controls.Add(footerOuter);  // DockStyle.Bottom — action bar
-            pnlMain.Controls.Add(_shell);       // DockStyle.Top  — AppShell (topmost)
+            pnlMain.Controls.Add(pnlScroll);
+            pnlMain.Controls.Add(footerOuter);
+            pnlMain.Controls.Add(_shell);
 
             this.Controls.Add(pnlMain);
             this.ResumeLayout(false);
+
+            _shell.Height      = AppShell.TotalHeight;
+            _shell.MinimumSize = new System.Drawing.Size(0, AppShell.TotalHeight);
         }
 
-        // ── Helpers aligned with CreateOrderForm pattern ─────────────────────
-
-        private static ComboBox MakeCombo() =>
-            new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 12f), Dock = DockStyle.Fill };
+        // ── Helpers ───────────────────────────────────────────────────────────────
 
         private static Panel Pad(Control ctrl)
         {
             ctrl.Dock = DockStyle.Fill;
             var p = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(0, 8, 12, 8) };
             p.Controls.Add(ctrl);
+            return p;
+        }
+
+        private static Panel ChipPanel(Label chip)
+        {
+            chip.Dock = DockStyle.Fill;
+            var p = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(0, 8, 12, 8) };
+            p.Controls.Add(chip);
             return p;
         }
 
@@ -358,7 +343,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
         private static Panel CardTitlePanel(string title)
         {
             var pnl = new Panel { Dock = DockStyle.Top, Height = 54, BackColor = Color.Transparent };
-            var lbl = new Label
+            pnl.Controls.Add(new Label
             {
                 Text      = title,
                 Font      = new Font("Segoe UI", 13f, FontStyle.Bold),
@@ -366,49 +351,35 @@ namespace PremiumLivingOPS.Views.RawMaterial
                 Dock      = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft,
                 Padding   = new Padding(18, 0, 0, 0)
-            };
-            var div = new Panel { Dock = DockStyle.Bottom, Height = 1, BackColor = Palette.BorderColor };
-            pnl.Controls.Add(lbl);
-            pnl.Controls.Add(div);
+            });
+            pnl.Controls.Add(new Panel { Dock = DockStyle.Bottom, Height = 1, BackColor = Palette.BorderColor });
             return pnl;
         }
 
-        /// <summary>Read-only auto-filled chip — same visual as lblOrderIdValue.</summary>
-        private static Label MakeReadOnlyChip() =>
-            new Label
-            {
-                Text      = "—",
-                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(98, 112, 135),
-                BackColor = Color.FromArgb(235, 240, 250),
-                Dock      = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleLeft,
-                Padding   = new Padding(10, 0, 0, 0)
-            };
+        private static ComboBox MakeCombo() =>
+            new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 12f), Dock = DockStyle.Fill };
 
-        private static Panel ChipPanel(Label chip)
+        private static TableLayoutPanel MakeTlp(int cols, int rows, float[] colPcts, float[] rowHeights)
         {
-            chip.Dock = DockStyle.Fill;
-            var p = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(0, 8, 12, 8) };
-            p.Controls.Add(chip);
-            return p;
+            var tlp = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill, ColumnCount = cols, RowCount = rows,
+                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+            };
+            foreach (var pct in colPcts)    tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, pct));
+            foreach (var h   in rowHeights) tlp.RowStyles.Add(new RowStyle(SizeType.Absolute, h));
+            return tlp;
         }
 
         private static Button MakePrimaryBtn(string text, Point loc, int w, int h)
         {
             var b = new Button
             {
-                Text      = text,
-                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
-                ForeColor = Color.White,
-                BackColor = Color.FromArgb(47, 111, 237),
-                FlatStyle = FlatStyle.Flat,
-                Location  = loc,
-                Width     = w,
-                Height    = h,
-                Cursor    = Cursors.Hand
+                Text = text, Font = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.White, BackColor = Palette.Primary,
+                FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand
             };
-            b.FlatAppearance.BorderSize             = 0;
+            b.FlatAppearance.BorderSize         = 0;
             b.FlatAppearance.MouseOverBackColor = Color.FromArgb(26, 77, 192);
             b.FlatAppearance.MouseDownBackColor = Color.FromArgb(21, 60, 155);
             return b;
@@ -418,15 +389,9 @@ namespace PremiumLivingOPS.Views.RawMaterial
         {
             var b = new Button
             {
-                Text      = text,
-                Font      = new Font("Segoe UI", 12f),
-                ForeColor = Color.FromArgb(15, 31, 53),
-                BackColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Location  = loc,
-                Width     = w,
-                Height    = h,
-                Cursor    = Cursors.Hand
+                Text = text, Font = new Font("Segoe UI", 12f),
+                ForeColor = Palette.TextMain, BackColor = Color.White,
+                FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand
             };
             b.FlatAppearance.BorderColor        = Palette.BorderColor;
             b.FlatAppearance.BorderSize         = 1;
