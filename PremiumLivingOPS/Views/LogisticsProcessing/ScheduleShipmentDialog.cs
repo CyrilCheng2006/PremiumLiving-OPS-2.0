@@ -8,7 +8,7 @@ using System.Windows.Forms;
 
 namespace PremiumLivingOPS.Views.LogisticsProcessing
 {
-    /// <summary>
+    /// &lt;summary&gt;
     /// Schedule Shipment — popup dialog (MVC View layer).
     ///
     /// Layout (mirrors CreateQuotationDialog visual language):
@@ -24,7 +24,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
     ///   – Receives a ShipmentEntity from the caller (ViewShipmentForm).
     ///   – On ✔ Schedule: calls LogisticsProcessingController.ScheduleShipment(...).
     ///   – Returns DialogResult.OK on success so the caller can refresh.
-    /// </summary>
+    /// &lt;/summary&gt;
     public class ScheduleShipmentDialog : Form
     {
         private readonly LogisticsProcessingController _ctrl;
@@ -48,8 +48,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         private void BuildUI()
         {
             Text            = $"Schedule Shipment  —  {_shipment.ShipmentID}";
-            Size            = new Size(1800, 800);   // ← updated
-            MinimumSize     = new Size(1400, 700);   // ← updated
+            Size            = new Size(1800, 800);
+            MinimumSize     = new Size(1400, 700);
             StartPosition   = FormStartPosition.CenterParent;
             BackColor       = Color.FromArgb(240, 244, 249);
             Font            = new Font("Segoe UI", 13f);
@@ -57,7 +57,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             MaximizeBox     = false;
             MinimizeBox     = false;
 
-            // ── Header (mirrors CreateQuotationDialog dark-navy header) ────────────
+            // ── Header ───────────────────────────────────────────────────────
             var pnlHeader = new Panel
             {
                 Dock = DockStyle.Top, Height = 80,
@@ -84,7 +84,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 AutoSize  = false
             }, 0, 0);
 
-            // Status badge mirrors CreateQuotationDialog pending badge pattern
             StatusColors.TryGetValue(_shipment.ShipmentStatus ?? "", out var sc);
             tblHeader.Controls.Add(new Label
             {
@@ -100,7 +99,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             pnlHeader.Controls.Add(tblHeader);
 
-            // ── Footer (✔ Schedule / Cancel — identical to CreateQuotationDialog) ─
+            // ── Footer ───────────────────────────────────────────────────────
             var pnlFooter = new Panel
             {
                 Dock      = DockStyle.Bottom, Height = 80,
@@ -114,7 +113,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 Text      = "\u2714  Schedule",
                 Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
                 ForeColor = Color.White,
-                BackColor = Color.FromArgb(109, 40, 217),   // purple #6D28D9
+                BackColor = Color.FromArgb(109, 40, 217),
                 FlatStyle = FlatStyle.Flat,
                 Dock      = DockStyle.Right,
                 Width     = 210, Height = 56,
@@ -144,11 +143,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlFooter.Controls.Add(btnSchedule);
             pnlFooter.Controls.Add(btnCancel);
 
-            // ── Info card (three-layer CardPanel) ───────────────────────────────
-            // Outer: grey fill | Inner (white card) | Content: two-row 4-col TLP
-            // Row 0 (read-only): Shipment ID | Order ID | Customer | Current Status
-            // Row 1 (editable):  Scheduled Date | Delivery Method | Contact Person | Notes
-
+            // ── Card ─────────────────────────────────────────────────────────
             var (cardOuter, cardInner) = CardPanel.Create(
                 outerHeight:  560,
                 outerPadding: new Padding(20, 14, 20, 8));
@@ -160,16 +155,19 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 RowCount        = 4,
                 BackColor       = Color.Transparent,
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                Padding         = new Padding(28, 20, 28, 16)
+                // top padding increased so the first section label has room to breathe
+                Padding         = new Padding(28, 24, 28, 16)
             };
             for (int c = 0; c < 4; c++)
                 tblForm.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
-            tblForm.RowStyles.Add(new RowStyle(SizeType.Absolute, 32f));  // section label row 0
-            tblForm.RowStyles.Add(new RowStyle(SizeType.Percent,  42f));  // read-only fields
-            tblForm.RowStyles.Add(new RowStyle(SizeType.Absolute, 32f));  // section label row 1
-            tblForm.RowStyles.Add(new RowStyle(SizeType.Percent,  58f));  // editable fields
 
-            // ── Row 0: section label ──────────────────────────────────────────────
+            // Row heights — section labels use Absolute 40f so 10pt Bold never clips
+            tblForm.RowStyles.Add(new RowStyle(SizeType.Absolute, 40f));  // row 0: section label
+            tblForm.RowStyles.Add(new RowStyle(SizeType.Percent,  38f));  // row 1: read-only fields
+            tblForm.RowStyles.Add(new RowStyle(SizeType.Absolute, 40f));  // row 2: section label
+            tblForm.RowStyles.Add(new RowStyle(SizeType.Percent,  62f));  // row 3: editable fields
+
+            // ── Row 0: section label ─────────────────────────────────────────
             var lblSection0 = new Label
             {
                 Text      = "SHIPMENT INFORMATION",
@@ -177,18 +175,19 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 ForeColor = Color.FromArgb(29, 78, 216),
                 Dock      = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft,
-                AutoSize  = false
+                AutoSize  = false,
+                Padding   = new Padding(0, 0, 0, 4)   // bottom pad separates label from field row
             };
             tblForm.SetColumnSpan(lblSection0, 4);
             tblForm.Controls.Add(lblSection0, 0, 0);
 
-            // ── Row 1: read-only shipment info ────────────────────────────────
-            tblForm.Controls.Add(MakeFieldCell("Shipment ID",     MakeReadOnlyLabel(_shipment.ShipmentID)),              0, 1);
-            tblForm.Controls.Add(MakeFieldCell("Order ID",        MakeReadOnlyLabel(_shipment.OrderID)),                  1, 1);
-            tblForm.Controls.Add(MakeFieldCell("Customer",        MakeReadOnlyLabel(_shipment.CustomerName ?? "\u2014")), 2, 1);
-            tblForm.Controls.Add(MakeFieldCell("Current Status",  MakeReadOnlyLabel(_shipment.ShipmentStatus ?? "\u2014")), 3, 1);
+            // ── Row 1: read-only fields ──────────────────────────────────────
+            tblForm.Controls.Add(MakeFieldCell("Shipment ID",    MakeReadOnlyLabel(_shipment.ShipmentID)),               0, 1);
+            tblForm.Controls.Add(MakeFieldCell("Order ID",       MakeReadOnlyLabel(_shipment.OrderID)),                   1, 1);
+            tblForm.Controls.Add(MakeFieldCell("Customer",       MakeReadOnlyLabel(_shipment.CustomerName ?? "\u2014")), 2, 1);
+            tblForm.Controls.Add(MakeFieldCell("Current Status", MakeReadOnlyLabel(_shipment.ShipmentStatus ?? "\u2014")), 3, 1);
 
-            // ── Row 2: section label ──────────────────────────────────────────────
+            // ── Row 2: section label ─────────────────────────────────────────
             var lblSection1 = new Label
             {
                 Text      = "SCHEDULE DETAILS",
@@ -196,12 +195,13 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 ForeColor = Color.FromArgb(109, 40, 217),
                 Dock      = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft,
-                AutoSize  = false
+                AutoSize  = false,
+                Padding   = new Padding(0, 0, 0, 4)
             };
             tblForm.SetColumnSpan(lblSection1, 4);
             tblForm.Controls.Add(lblSection1, 0, 2);
 
-            // ── Row 3: editable schedule fields ──────────────────────────────
+            // ── Row 3: editable fields ───────────────────────────────────────
             _dtpScheduledDate = new DateTimePicker
             {
                 Dock    = DockStyle.Fill,
@@ -245,7 +245,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             cardInner.Controls.Add(tblForm);
 
-            // ── Assemble (Bottom-first, Top, Fill) ──────────────────────────────
+            // ── Assemble ─────────────────────────────────────────────────────
             Controls.Add(cardOuter);
             Controls.Add(pnlFooter);
             Controls.Add(pnlHeader);
@@ -261,7 +261,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             string   contactPerson  = _txtContactPerson.Text.Trim();
             string   notes          = _txtNotes.Text.Trim();
 
-            if (scheduledDate < DateTime.Today)
+            if (scheduledDate &lt; DateTime.Today)
             {
                 MessageBox.Show(
                     "Scheduled date cannot be in the past.",
@@ -297,6 +297,11 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         //  UI helpers
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+        /// &lt;summary&gt;
+        /// Labelled field cell. Caption row height raised to 36px to prevent
+        /// text clipping at any DPI or font scaling.
+        /// &lt;/summary&gt;
         private static TableLayoutPanel MakeFieldCell(string caption, Control ctrl)
         {
             var tlp = new TableLayoutPanel
@@ -309,8 +314,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 Padding         = new Padding(0, 0, 14, 0)
             };
             tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-            tlp.RowStyles.Add(new RowStyle(SizeType.Absolute, 30f));
-            tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+            tlp.RowStyles.Add(new RowStyle(SizeType.Absolute, 36f));   // ← was 30f
+            tlp.RowStyles.Add(new RowStyle(SizeType.Percent,  100f));
 
             tlp.Controls.Add(new Label
             {
@@ -319,7 +324,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 ForeColor = Color.FromArgb(98, 112, 135),
                 Dock      = DockStyle.Fill,
                 TextAlign = ContentAlignment.BottomLeft,
-                Padding   = new Padding(0, 0, 0, 2)
+                Padding   = new Padding(0, 0, 0, 3)
             }, 0, 0);
 
             ctrl.Dock = DockStyle.Fill;
@@ -327,7 +332,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             return tlp;
         }
 
-        private static Label MakeReadOnlyLabel(string text) => new Label
+        private static Label MakeReadOnlyLabel(string text) =&gt; new Label
         {
             Text         = text,
             Font         = new Font("Segoe UI", 12f),
@@ -344,8 +349,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             e.Graphics.DrawLine(pen, 0, 0, ((Panel)s).Width, 0);
         }
 
-        private static readonly System.Collections.Generic.Dictionary<string, (Color bg, Color fg)> StatusColors =
-            new System.Collections.Generic.Dictionary<string, (Color, Color)>
+        private static readonly System.Collections.Generic.Dictionary&lt;string, (Color bg, Color fg)&gt; StatusColors =
+            new System.Collections.Generic.Dictionary&lt;string, (Color, Color)&gt;
             {
                 { "Pending",    (Color.FromArgb(254, 243, 199), Color.FromArgb(146,  64,  14)) },
                 { "In Transit", (Color.FromArgb(219, 234, 254), Color.FromArgb( 29,  78, 216)) },
