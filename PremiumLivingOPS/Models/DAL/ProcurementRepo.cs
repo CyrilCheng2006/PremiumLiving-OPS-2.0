@@ -10,7 +10,7 @@ namespace PremiumLivingOPS.Models.DAL
     /// </summary>
     public class ProcurementRepo
     {
-        // ══ SEARCH — GROUPED ════════════════════════════════════════════
+        // ══ SEARCH — GROUPED ════════════════════════════════════════════════
 
         /// <summary>
         /// Returns one row per base PO-ID (LEFT(PurchaseID, 17) = "PO-YYYYMMDD-NNNN"),
@@ -24,7 +24,6 @@ namespace PremiumLivingOPS.Models.DAL
             using (var conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
-                // LEFT(PurchaseID, 17) extracts "PO-YYYYMMDD-NNNN" (17 chars)
                 var sql =
                     @"SELECT
                           LEFT(po.PurchaseID, 17)                       AS BasePurchaseID,
@@ -80,8 +79,8 @@ namespace PremiumLivingOPS.Models.DAL
         }
 
         /// <summary>
-        /// Returns all -NN PurchaseOrder rows for a given base ID (e.g. "PO-20260701-0001").
-        /// Used in the Detail dialog header section.
+        /// Returns all -NN PurchaseOrder rows for a given base ID.
+        /// Uses LEFT JOIN for MR/RM/Item so missing FK data never produces an empty result.
         /// </summary>
         public List<ProcurementOrderEntity> GetPurchaseOrdersByBaseId(string basePurchaseId)
         {
@@ -91,19 +90,26 @@ namespace PremiumLivingOPS.Models.DAL
             {
                 conn.Open();
                 const string sql =
-                    @"SELECT po.PurchaseID, po.RequestID, po.SupplierID,
-                             s.SupplierName,
-                             po.POTotalAmount, po.OrderDate, po.PurchaseStatus,
-                             mr.RawMaterialItemID,
-                             i.ItemName      AS RawMaterialName,
-                             mr.RequestedQty, mr.UrgencyLevel, mr.TriggerType
-                      FROM   PurchaseOrder po
-                      JOIN   Supplier       s  ON po.SupplierID  = s.SupplierID
-                      JOIN   MaterialRequest mr ON po.RequestID  = mr.RequestID
-                      JOIN   RawMaterial    rm  ON mr.RawMaterialItemID = rm.ItemID
-                      JOIN   Item           i   ON rm.ItemID     = i.ItemID
+                    @"SELECT po.PurchaseID,
+                             po.RequestID,
+                             po.SupplierID,
+                             COALESCE(s.SupplierName, po.SupplierID)   AS SupplierName,
+                             po.POTotalAmount,
+                             po.OrderDate,
+                             po.PurchaseStatus,
+                             COALESCE(mr.RawMaterialItemID, '')        AS RawMaterialItemID,
+                             COALESCE(i.ItemName, '')                  AS RawMaterialName,
+                             COALESCE(mr.RequestedQty, 0)              AS RequestedQty,
+                             COALESCE(mr.UrgencyLevel, '')             AS UrgencyLevel,
+                             COALESCE(mr.TriggerType, '')              AS TriggerType
+                      FROM   PurchaseOrder   po
+                      LEFT JOIN Supplier       s  ON po.SupplierID          = s.SupplierID
+                      LEFT JOIN MaterialRequest mr ON po.RequestID           = mr.RequestID
+                      LEFT JOIN RawMaterial    rm  ON mr.RawMaterialItemID   = rm.ItemID
+                      LEFT JOIN Item           i   ON rm.ItemID              = i.ItemID
                       WHERE  po.PurchaseID LIKE @prefix
                       ORDER  BY po.PurchaseID";
+
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
                     cmd.Parameters.AddWithValue("@prefix", basePurchaseId + "-%");
@@ -116,7 +122,7 @@ namespace PremiumLivingOPS.Models.DAL
 
         /// <summary>
         /// Returns all PurchaseOrderLine rows for every -NN sub-order of a base ID.
-        /// Used in the Detail dialog lines grid.
+        /// Uses LEFT JOIN defensively so missing RM/Item/Warehouse rows are not excluded.
         /// </summary>
         public List<PurchaseOrderLineEntity> GetAllLinesByBaseId(string basePurchaseId)
         {
@@ -126,19 +132,22 @@ namespace PremiumLivingOPS.Models.DAL
             {
                 conn.Open();
                 const string sql =
-                    @"SELECT pol.POLineID, pol.PurchaseID,
+                    @"SELECT pol.POLineID,
+                             pol.PurchaseID,
                              pol.RawMaterialItemID,
-                             i.ItemName      AS MaterialName,
-                             rm.MaterialType,
+                             COALESCE(i.ItemName, pol.RawMaterialItemID)      AS MaterialName,
+                             COALESCE(rm.MaterialType, '')                    AS MaterialType,
                              pol.WarehouseID,
-                             w.WarehouseLocation,
-                             pol.OrderQty, pol.UnitPrice
+                             COALESCE(w.WarehouseLocation, pol.WarehouseID)   AS WarehouseLocation,
+                             pol.OrderQty,
+                             pol.UnitPrice
                       FROM   PurchaseOrderLine pol
-                      JOIN   RawMaterial rm ON pol.RawMaterialItemID = rm.ItemID
-                      JOIN   Item        i  ON rm.ItemID             = i.ItemID
-                      JOIN   Warehouse   w  ON pol.WarehouseID       = w.WarehouseID
+                      LEFT JOIN RawMaterial rm ON pol.RawMaterialItemID = rm.ItemID
+                      LEFT JOIN Item        i  ON rm.ItemID             = i.ItemID
+                      LEFT JOIN Warehouse   w  ON pol.WarehouseID       = w.WarehouseID
                       WHERE  pol.PurchaseID LIKE @prefix
                       ORDER  BY pol.PurchaseID, pol.POLineID";
+
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
                     cmd.Parameters.AddWithValue("@prefix", basePurchaseId + "-%");
@@ -149,7 +158,7 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
-        // ══ Legacy single-row getter (kept for internal use) ════════════
+        // ══ Legacy single-row getter ═════════════════════════════════════════
         public ProcurementOrderEntity GetPurchaseOrderById(string purchaseId)
         {
             if (string.IsNullOrWhiteSpace(purchaseId)) return null;
@@ -158,16 +167,18 @@ namespace PremiumLivingOPS.Models.DAL
                 conn.Open();
                 const string sql =
                     @"SELECT po.PurchaseID, po.RequestID, po.SupplierID,
-                             s.SupplierName,
+                             COALESCE(s.SupplierName, po.SupplierID)   AS SupplierName,
                              po.POTotalAmount, po.OrderDate, po.PurchaseStatus,
-                             mr.RawMaterialItemID,
-                             i.ItemName      AS RawMaterialName,
-                             mr.RequestedQty, mr.UrgencyLevel, mr.TriggerType
-                      FROM   PurchaseOrder po
-                      JOIN   Supplier       s  ON po.SupplierID  = s.SupplierID
-                      JOIN   MaterialRequest mr ON po.RequestID  = mr.RequestID
-                      JOIN   RawMaterial    rm  ON mr.RawMaterialItemID = rm.ItemID
-                      JOIN   Item           i   ON rm.ItemID     = i.ItemID
+                             COALESCE(mr.RawMaterialItemID, '')        AS RawMaterialItemID,
+                             COALESCE(i.ItemName, '')                  AS RawMaterialName,
+                             COALESCE(mr.RequestedQty, 0)             AS RequestedQty,
+                             COALESCE(mr.UrgencyLevel, '')            AS UrgencyLevel,
+                             COALESCE(mr.TriggerType, '')             AS TriggerType
+                      FROM   PurchaseOrder   po
+                      LEFT JOIN Supplier       s  ON po.SupplierID        = s.SupplierID
+                      LEFT JOIN MaterialRequest mr ON po.RequestID         = mr.RequestID
+                      LEFT JOIN RawMaterial    rm  ON mr.RawMaterialItemID = rm.ItemID
+                      LEFT JOIN Item           i   ON rm.ItemID            = i.ItemID
                       WHERE  po.PurchaseID = @id";
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
@@ -189,15 +200,15 @@ namespace PremiumLivingOPS.Models.DAL
                 const string sql =
                     @"SELECT pol.POLineID, pol.PurchaseID,
                              pol.RawMaterialItemID,
-                             i.ItemName   AS MaterialName,
-                             rm.MaterialType,
+                             COALESCE(i.ItemName, pol.RawMaterialItemID)     AS MaterialName,
+                             COALESCE(rm.MaterialType, '')                   AS MaterialType,
                              pol.WarehouseID,
-                             w.WarehouseLocation,
+                             COALESCE(w.WarehouseLocation, pol.WarehouseID)  AS WarehouseLocation,
                              pol.OrderQty, pol.UnitPrice
                       FROM   PurchaseOrderLine pol
-                      JOIN   RawMaterial rm ON pol.RawMaterialItemID = rm.ItemID
-                      JOIN   Item        i  ON rm.ItemID             = i.ItemID
-                      JOIN   Warehouse   w  ON pol.WarehouseID       = w.WarehouseID
+                      LEFT JOIN RawMaterial rm ON pol.RawMaterialItemID = rm.ItemID
+                      LEFT JOIN Item        i  ON rm.ItemID             = i.ItemID
+                      LEFT JOIN Warehouse   w  ON pol.WarehouseID       = w.WarehouseID
                       WHERE  pol.PurchaseID = @id
                       ORDER  BY pol.POLineID";
                 using (var cmd = new MySqlCommand(sql, conn))
@@ -210,7 +221,7 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
-        // ══ CREATE — BATCH PREFIX LOOKUPS ═══════════════════════════════
+        // ══ CREATE — BATCH PREFIX LOOKUPS ════════════════════════════════════
 
         public List<MaterialRequestBatchLookup> GetUnlinkedBatchPrefixes()
         {
@@ -318,7 +329,7 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
-        // ══ CREATE — WRITE ══════════════════════════════════════════════
+        // ══ CREATE — WRITE ════════════════════════════════════════════════
 
         public void CreatePurchaseOrder(
             string purchaseId, string requestId, string supplierId,
@@ -385,7 +396,7 @@ namespace PremiumLivingOPS.Models.DAL
             }
         }
 
-        // ══ ID GENERATORS ═══════════════════════════════════════════════
+        // ══ ID GENERATORS ═════════════════════════════════════════════════
 
         public string GenerateNextPurchaseId()
         {
@@ -393,7 +404,6 @@ namespace PremiumLivingOPS.Models.DAL
             using (var conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
-                // Extract NNNN from PO-YYYYMMDD-NNNN-NN: substring position 14, length 4
                 const string sql =
                     @"SELECT COALESCE(MAX(CAST(SUBSTRING(PurchaseID, 14, 4) AS UNSIGNED)), 0) + 1
                       FROM   PurchaseOrder
@@ -422,7 +432,7 @@ namespace PremiumLivingOPS.Models.DAL
             }
         }
 
-        // ══ MAPPERS ══════════════════════════════════════════════════════
+        // ══ MAPPERS ═══════════════════════════════════════════════════════
 
         private static ProcurementOrderEntity MapProcurementOrder(MySqlDataReader r)
             => new ProcurementOrderEntity

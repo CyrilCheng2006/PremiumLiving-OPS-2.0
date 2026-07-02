@@ -10,13 +10,6 @@ using System.Windows.Forms;
 
 namespace PremiumLivingOPS.Views.RawMaterial
 {
-    /// <summary>
-    /// View — Search Procurement.
-    ///
-    /// Main grid shows ONE row per base PO-ID (PO-YYYYMMDD-NNNN).
-    /// Row.Tag stores BasePurchaseID so OpenDetailDialog() never relies on cell index.
-    /// "View Detail" opens a dialog showing all -NN sub-orders and their line items.
-    /// </summary>
     public partial class SearchProcurementForm : Form
     {
         private readonly ProcurementController  _ctrl          = new ProcurementController();
@@ -24,7 +17,6 @@ namespace PremiumLivingOPS.Views.RawMaterial
 
         private static readonly Font _fontBadge = new Font("Segoe UI", 11f, FontStyle.Bold);
 
-        // ── Status colour map ────────────────────────────────────────────
         private static readonly Dictionary<string, (Color bg, Color fg)> StatusColors =
             new Dictionary<string, (Color, Color)>
             {
@@ -36,7 +28,6 @@ namespace PremiumLivingOPS.Views.RawMaterial
                 { "Mixed",              (Color.FromArgb(229, 231, 235), Color.FromArgb( 55,  65,  81)) }
             };
 
-        // ── Urgency colour map ───────────────────────────────────────────
         private static readonly Dictionary<string, (Color bg, Color fg)> UrgencyColors =
             new Dictionary<string, (Color, Color)>
             {
@@ -67,7 +58,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
         }
 
         // ════════════════════════════════════════════════════════════════
-        //  Data helpers
+        //  Grid
         // ════════════════════════════════════════════════════════════════
         internal void RefreshGrid()
         {
@@ -99,7 +90,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
                     g.PurchaseStatus,
                     g.UrgencyLevel);
 
-                // Store BasePurchaseID in Tag for safe retrieval in OpenDetailDialog
+                // Store BasePurchaseID in Tag for safe retrieval (sort-safe)
                 dgvOrders.Rows[ri].Tag = g.BasePurchaseID;
             }
 
@@ -268,16 +259,31 @@ namespace PremiumLivingOPS.Views.RawMaterial
         {
             if (dgvOrders.SelectedRows.Count == 0) return;
 
-            // Read from Row.Tag (set in RefreshGrid) — safe regardless of sort order
+            // Read from Row.Tag — set in RefreshGrid(), sort-safe
             string basePurchaseId = dgvOrders.SelectedRows[0].Tag?.ToString();
             if (string.IsNullOrEmpty(basePurchaseId)) return;
 
-            var vm = _ctrl.GetProcurementDetailVM(basePurchaseId);
+            ProcurementDetailViewModel vm = null;
+            try
+            {
+                vm = _ctrl.GetProcurementDetailVM(basePurchaseId);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    $"Failed to load details for {basePurchaseId}.\n\n{ex.Message}",
+                    "Database Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            // Guard: vm must be non-null and have at least one Order row
             if (vm == null || vm.Orders == null || vm.Orders.Count == 0)
             {
                 MessageBox.Show(
-                    $"No records found for Purchase Order: {basePurchaseId}.\n"
-                    + "Please verify the database records.",
+                    $"No Purchase Order records found for: {basePurchaseId}\n\n"
+                    + "Tip: This usually means the PurchaseOrder rows for this base ID\n"
+                    + "do not exist in the database yet, or the ID format is unexpected.\n"
+                    + $"(Searched for PurchaseID LIKE '{basePurchaseId}-%')",
                     "Not Found",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
@@ -312,7 +318,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
                 MaximizeBox     = true, MinimizeBox = false
             };
 
-            // ── HEADER ─────────────────────────────────────────────────────
+            // ── HEADER ────────────────────────────────────────────────────
             StatusColors.TryGetValue(statusDisplay ?? string.Empty, out var hsc);
             Color hBg = hsc.bg != default ? hsc.bg : Color.FromArgb(229, 231, 235);
             Color hFg = hsc.fg != default ? hsc.fg : Color.FromArgb(55, 65, 81);
@@ -344,7 +350,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
             }, 1, 0);
             pnlHeader.Controls.Add(tblHeader);
 
-            // ── META ROW (Supplier / Date / Items / Grand Total) ─────────
+            // ── META ROW: Supplier / Date / Sub-Orders / Grand Total ───────────
             var pnlMeta = new Panel
             {
                 Dock = DockStyle.Top, Height = 64,
@@ -360,16 +366,18 @@ namespace PremiumLivingOPS.Views.RawMaterial
                 tblMeta.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 12.5f));
             tblMeta.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
             tblMeta.Controls.Add(DlgKey("Supplier"),    0, 0);
-            tblMeta.Controls.Add(DlgVal($"{first.SupplierID}  —  {first.SupplierName}"), 1, 0);
+            tblMeta.Controls.Add(DlgVal(!string.IsNullOrEmpty(first.SupplierID)
+                ? $"{first.SupplierID}  —  {first.SupplierName}"
+                : first.SupplierName ?? "—"), 1, 0);
             tblMeta.Controls.Add(DlgKey("Order Date"),  2, 0);
-            tblMeta.Controls.Add(DlgVal(first.OrderDateStr), 3, 0);
+            tblMeta.Controls.Add(DlgVal(first.OrderDateStr ?? "—"), 3, 0);
             tblMeta.Controls.Add(DlgKey("Sub-Orders"),  4, 0);
             tblMeta.Controls.Add(DlgVal($"{orders.Count} item(s)"), 5, 0);
             tblMeta.Controls.Add(DlgKey("Grand Total"), 6, 0);
             tblMeta.Controls.Add(DlgVal($"HK$ {grandTotal:N2}"), 7, 0);
             pnlMeta.Controls.Add(tblMeta);
 
-            // ── URGENCY / TRIGGER META ROW ───────────────────────────
+            // ── META2: Urgency / Trigger ──────────────────────────────────
             var pnlMeta2 = new Panel
             {
                 Dock = DockStyle.Top, Height = 56,
@@ -387,12 +395,12 @@ namespace PremiumLivingOPS.Views.RawMaterial
             tblMeta2.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
             tblMeta2.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
             tblMeta2.Controls.Add(DlgKey("Urgency Level"), 0, 0);
-            tblMeta2.Controls.Add(DlgVal(first.UrgencyLevel ?? "—"), 1, 0);
+            tblMeta2.Controls.Add(DlgVal(string.IsNullOrEmpty(first.UrgencyLevel) ? "—" : first.UrgencyLevel), 1, 0);
             tblMeta2.Controls.Add(DlgKey("Trigger Type"),  2, 0);
-            tblMeta2.Controls.Add(DlgVal(first.TriggerType  ?? "—"), 3, 0);
+            tblMeta2.Controls.Add(DlgVal(string.IsNullOrEmpty(first.TriggerType)  ? "—" : first.TriggerType),  3, 0);
             pnlMeta2.Controls.Add(tblMeta2);
 
-            // ── LINES SECTION LABEL ─────────────────────────────────
+            // ── LINES LABEL ─────────────────────────────────────────────
             var pnlLinesLabel = new Panel
             {
                 Dock = DockStyle.Top, Height = 38,
@@ -407,7 +415,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
             });
             pnlLinesLabel.Paint += DlgPaintBottomBorder;
 
-            // ── FOOTER ────────────────────────────────────────────────────
+            // ── FOOTER ──────────────────────────────────────────────────
             var pnlFooter = new Panel
             {
                 Dock = DockStyle.Bottom, Height = 68,
@@ -427,83 +435,98 @@ namespace PremiumLivingOPS.Views.RawMaterial
             btnClose.Click += (s, ev) => dlg.Close();
             pnlFooter.Controls.Add(btnClose);
 
-            // ── ORDER LINES DataGridView (Fill) ──────────────────────
-            var dgvLines = new DataGridView
+            // ── ORDER LINES DGV or empty-state ─────────────────────────
+            Control fillContent;
+            if (lines.Count > 0)
             {
-                Dock                  = DockStyle.Fill,
-                ReadOnly              = true,
-                AllowUserToAddRows    = false,
-                AllowUserToDeleteRows = false,
-                AllowUserToResizeRows = false,
-                RowHeadersVisible     = false,
-                SelectionMode         = DataGridViewSelectionMode.FullRowSelect,
-                BackgroundColor       = Color.White,
-                BorderStyle           = BorderStyle.None,
-                GridColor             = Color.FromArgb(221, 227, 236),
-                AutoSizeColumnsMode   = DataGridViewAutoSizeColumnsMode.Fill,
-                CellBorderStyle       = DataGridViewCellBorderStyle.SingleHorizontal,
-                Font                  = new Font("Segoe UI", 11f),
-                ColumnHeadersHeight   = 36,
-                RowTemplate           = { Height = 44 },
-                EnableHeadersVisualStyles = false
-            };
-            dgvLines.ColumnHeadersDefaultCellStyle.Font      = new Font("Segoe UI", 10f, FontStyle.Bold);
-            dgvLines.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(246, 249, 255);
-            dgvLines.ColumnHeadersDefaultCellStyle.ForeColor = Color.FromArgb(98, 112, 135);
-            dgvLines.ColumnHeadersDefaultCellStyle.Padding   = new Padding(12, 0, 0, 0);
-            dgvLines.DefaultCellStyle.Padding                = new Padding(12, 6, 12, 6);
-            dgvLines.DefaultCellStyle.SelectionBackColor     = Color.FromArgb(219, 234, 254);
-            dgvLines.DefaultCellStyle.SelectionForeColor     = Color.FromArgb(15, 31, 53);
-            dgvLines.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(249, 250, 251);
+                var dgvLines = new DataGridView
+                {
+                    Dock                  = DockStyle.Fill,
+                    ReadOnly              = true,
+                    AllowUserToAddRows    = false,
+                    AllowUserToDeleteRows = false,
+                    AllowUserToResizeRows = false,
+                    RowHeadersVisible     = false,
+                    SelectionMode         = DataGridViewSelectionMode.FullRowSelect,
+                    BackgroundColor       = Color.White,
+                    BorderStyle           = BorderStyle.None,
+                    GridColor             = Color.FromArgb(221, 227, 236),
+                    AutoSizeColumnsMode   = DataGridViewAutoSizeColumnsMode.Fill,
+                    CellBorderStyle       = DataGridViewCellBorderStyle.SingleHorizontal,
+                    Font                  = new Font("Segoe UI", 11f),
+                    ColumnHeadersHeight   = 36,
+                    RowTemplate           = { Height = 44 },
+                    EnableHeadersVisualStyles = false
+                };
+                dgvLines.ColumnHeadersDefaultCellStyle.Font      = new Font("Segoe UI", 10f, FontStyle.Bold);
+                dgvLines.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(246, 249, 255);
+                dgvLines.ColumnHeadersDefaultCellStyle.ForeColor = Color.FromArgb(98, 112, 135);
+                dgvLines.ColumnHeadersDefaultCellStyle.Padding   = new Padding(12, 0, 0, 0);
+                dgvLines.DefaultCellStyle.Padding                = new Padding(12, 6, 12, 6);
+                dgvLines.DefaultCellStyle.SelectionBackColor     = Color.FromArgb(219, 234, 254);
+                dgvLines.DefaultCellStyle.SelectionForeColor     = Color.FromArgb(15, 31, 53);
+                dgvLines.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(249, 250, 251);
 
-            // Sub-order sequence column ("-NN" shown as LINE #)
-            dgvLines.Columns.Add(new DataGridViewTextBoxColumn
-            {
-                Name = "cLineNo", HeaderText = "LINE #", FillWeight = 7,
-                DefaultCellStyle = {
-                    Alignment = DataGridViewContentAlignment.MiddleCenter,
-                    Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
-                    ForeColor = Color.FromArgb(30, 64, 175)
+                dgvLines.Columns.Add(new DataGridViewTextBoxColumn
+                {
+                    Name = "cLineNo", HeaderText = "LINE #", FillWeight = 7,
+                    DefaultCellStyle = {
+                        Alignment = DataGridViewContentAlignment.MiddleCenter,
+                        Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
+                        ForeColor = Color.FromArgb(30, 64, 175)
+                    }
+                });
+                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cPOID",  HeaderText = "PURCHASE ID",  FillWeight = 16 });
+                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cPOLine",HeaderText = "PO LINE ID",   FillWeight = 14 });
+                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cMat",   HeaderText = "RAW MATERIAL", FillWeight = 22 });
+                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cType",  HeaderText = "TYPE",         FillWeight = 10 });
+                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cWH",    HeaderText = "WAREHOUSE",    FillWeight = 16 });
+                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cQty",   HeaderText = "ORDER QTY",   FillWeight =  9 });
+                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cPrice", HeaderText = "UNIT PRICE",  FillWeight = 12 });
+                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cTotal", HeaderText = "LINE TOTAL",  FillWeight = 12 });
+
+                int seq = 0;
+                foreach (var ln in lines)
+                {
+                    seq++;
+                    string lineNo = ln.PurchaseID?.Length >= 3
+                        ? ln.PurchaseID.Substring(ln.PurchaseID.Length - 3)
+                        : seq.ToString("D2");
+                    dgvLines.Rows.Add(
+                        lineNo,
+                        ln.PurchaseID,
+                        ln.POLineID,
+                        ln.MaterialName,
+                        ln.MaterialType,
+                        ln.WarehouseLocation,
+                        ln.OrderQty,
+                        $"HK$ {ln.UnitPrice:N2}",
+                        $"HK$ {ln.LineTotal:N2}");
                 }
-            });
-            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cPOID",    HeaderText = "PURCHASE ID",   FillWeight = 16 });
-            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cPOLine",  HeaderText = "PO LINE ID",    FillWeight = 14 });
-            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cMat",     HeaderText = "RAW MATERIAL",  FillWeight = 22 });
-            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cType",    HeaderText = "TYPE",          FillWeight = 10 });
-            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cWH",      HeaderText = "WAREHOUSE",     FillWeight = 16 });
-            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cQty",     HeaderText = "ORDER QTY",     FillWeight =  9 });
-            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cPrice",   HeaderText = "UNIT PRICE",    FillWeight = 12 });
-            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cTotal",   HeaderText = "LINE TOTAL",    FillWeight = 12 });
-
-            int lineSeq = 0;
-            foreach (var ln in lines)
+                fillContent = dgvLines;
+            }
+            else
             {
-                lineSeq++;
-                // Extract -NN suffix from PurchaseID (last 3 chars, e.g. "-01")
-                string lineNo = ln.PurchaseID?.Length >= 3
-                    ? ln.PurchaseID.Substring(ln.PurchaseID.Length - 3)
-                    : lineSeq.ToString("D2");
-
-                dgvLines.Rows.Add(
-                    lineNo,
-                    ln.PurchaseID,
-                    ln.POLineID,
-                    ln.MaterialName,
-                    ln.MaterialType,
-                    ln.WarehouseLocation,
-                    ln.OrderQty,
-                    $"HK$ {ln.UnitPrice:N2}",
-                    $"HK$ {ln.LineTotal:N2}");
+                // Graceful empty state — no lines yet (PO exists but no line items)
+                var pnlEmpty = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
+                pnlEmpty.Controls.Add(new Label
+                {
+                    Text      = "No order line items found for this Purchase Order.",
+                    Font      = new Font("Segoe UI", 13f),
+                    ForeColor = Color.FromArgb(156, 163, 175),
+                    Dock      = DockStyle.Fill,
+                    TextAlign = ContentAlignment.MiddleCenter
+                });
+                fillContent = pnlEmpty;
             }
 
-            // ── Assemble dialog (Bottom → Top → Fill order) ──────────────
-            // Add Bottom panels first, then Top panels, then Fill last
-            dlg.Controls.Add(dgvLines);      // Fill  — must be added before Top panels
-            dlg.Controls.Add(pnlLinesLabel); // Top
-            dlg.Controls.Add(pnlMeta2);      // Top
-            dlg.Controls.Add(pnlMeta);       // Top
-            dlg.Controls.Add(pnlHeader);     // Top
-            dlg.Controls.Add(pnlFooter);     // Bottom
+            // ── Assemble: Bottom first, then Top panels, then Fill last ───
+            dlg.Controls.Add(fillContent);    // Fill
+            dlg.Controls.Add(pnlLinesLabel);  // Top
+            dlg.Controls.Add(pnlMeta2);       // Top
+            dlg.Controls.Add(pnlMeta);        // Top
+            dlg.Controls.Add(pnlHeader);      // Top
+            dlg.Controls.Add(pnlFooter);      // Bottom
 
             dlg.ShowDialog(this);
         }
@@ -542,7 +565,6 @@ namespace PremiumLivingOPS.Views.RawMaterial
             e.Graphics.DrawLine(pen, 0, 0, ((Panel)s).Width, 0);
         }
 
-        // ── RoundedRect helper ───────────────────────────────────────
         private static GraphicsPath RoundedRect(Rectangle r, int radius)
         {
             var path = new GraphicsPath(); int d = radius * 2;
