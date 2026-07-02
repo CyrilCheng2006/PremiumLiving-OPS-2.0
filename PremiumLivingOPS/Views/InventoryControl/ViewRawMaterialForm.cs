@@ -127,7 +127,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
 
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
-            _shell.SetBreadcrumb("Inventory Control  \u203a  View Raw Material");
+            _shell.SetBreadcrumb("Inventory Control  ›  View Raw Material");
 
             _currentMaterials = vm.Materials;
 
@@ -693,8 +693,12 @@ namespace PremiumLivingOPS.Views.InventoryControl
 
         private void BtnLogout_Click(object sender, EventArgs e)
         {
-            SessionManager.Clear();
-            Application.Restart();
+            if (MessageBox.Show("Are you sure you want to log out?",
+                                "Logout", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+            {
+                SessionManager.Clear();
+                Application.Restart();
+            }
         }
 
         // ════════════════════════════════════════════════════════════════

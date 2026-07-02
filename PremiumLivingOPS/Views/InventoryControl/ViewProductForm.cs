@@ -127,7 +127,7 @@ namespace PremiumLivingOPS.Views.InventoryControl
 
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
-            _shell.SetBreadcrumb("Inventory Control  \u203a  View Product");
+            _shell.SetBreadcrumb("Inventory Control  ›  View Product");
 
             _currentProducts = vm.Products;
             if (!string.IsNullOrEmpty(status) && status != "All")
@@ -176,10 +176,10 @@ namespace PremiumLivingOPS.Views.InventoryControl
             };
 
             foreach (var item in attentionItems.Take(10))
-                lines.Add($"• {item.ItemID} - {item.ItemName} ({item.StockStatus}, Stock Qty: {item.StockQty})");
+                lines.Add($"\u2022 {item.ItemID} - {item.ItemName} ({item.StockStatus}, Stock Qty: {item.StockQty})");
 
             if (attentionItems.Count > 10)
-                lines.Add($"• ...and {attentionItems.Count - 10} more item(s)");
+                lines.Add($"\u2022 ...and {attentionItems.Count - 10} more item(s)");
 
             lines.Add(string.Empty);
             lines.Add($"Summary: {outOfStockCount} Out of Stock, {lowStockCount} Low Stock.");
@@ -692,8 +692,12 @@ namespace PremiumLivingOPS.Views.InventoryControl
 
         private void BtnLogout_Click(object sender, EventArgs e)
         {
-            SessionManager.Clear();
-            Application.Restart();
+            if (MessageBox.Show("Are you sure you want to log out?",
+                                "Logout", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+            {
+                SessionManager.Clear();
+                Application.Restart();
+            }
         }
 
         private static GraphicsPath RoundedRect(Rectangle r, int radius)
