@@ -57,7 +57,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
         }
 
         // ════════════════════════════════════════════════════════════════
-        //  Grid
+        //  Grid  — one row per PurchaseOrder header (PO-YYYYMMDD-NNNN)
         // ════════════════════════════════════════════════════════════════
         internal void RefreshGrid()
         {
@@ -80,16 +80,18 @@ namespace PremiumLivingOPS.Views.RawMaterial
             dgvOrders.Rows.Clear();
             foreach (var g in _currentGroups)
             {
+                // Display the base PurchaseID (PO-YYYYMMDD-NNNN) without any -NN suffix.
+                // Row.Tag stores the same PurchaseID so OpenDetailDialog can retrieve it.
                 int ri = dgvOrders.Rows.Add(
-                    g.PurchaseID,
-                    g.SupplierName,
-                    $"{g.ItemCount} line(s)",
-                    g.OrderDateStr,
-                    $"HK$ {g.TotalAmount:N2}",
-                    g.PurchaseStatus,
-                    g.UrgencyLevel);
+                    g.PurchaseID,                        // col 0: PURCHASE ID
+                    g.SupplierName,                      // col 1: SUPPLIER
+                    $"{g.ItemCount} line(s)",            // col 2: ITEMS
+                    g.OrderDateStr,                      // col 3: ORDER DATE
+                    $"HK$ {g.TotalAmount:N2}",           // col 4: TOTAL AMOUNT
+                    g.PurchaseStatus,                    // col 5: STATUS
+                    g.UrgencyLevel);                     // col 6: URGENCY
 
-                dgvOrders.Rows[ri].Tag = g.PurchaseID;
+                dgvOrders.Rows[ri].Tag = g.PurchaseID;  // used by OpenDetailDialog
             }
 
             RefreshKpi();
@@ -133,7 +135,6 @@ namespace PremiumLivingOPS.Views.RawMaterial
             const int PillH   =  60;
             const int Gap     =  10;
             const int LeftPad =  12;
-            const int NumColW =  70;
 
             var flow = new FlowLayoutPanel
             {
@@ -170,7 +171,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
                     CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
                     Padding         = new Padding(10, 0, 8, 0)
                 };
-                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, NumColW));
+                tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 70f));
                 tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
                 tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
                 tlp.Controls.Add(new Label
@@ -251,6 +252,9 @@ namespace PremiumLivingOPS.Views.RawMaterial
 
         // ════════════════════════════════════════════════════════════════
         //  Detail Dialog
+        //  Opens with the selected row's PurchaseID (PO-YYYYMMDD-NNNN).
+        //  The dialog header shows the base PurchaseID;
+        //  the lines grid shows every POLineID including the -NN suffix.
         // ════════════════════════════════════════════════════════════════
         private void OpenDetailDialog()
         {
@@ -286,16 +290,12 @@ namespace PremiumLivingOPS.Views.RawMaterial
         // ── Helper: build a 2-column (Key | Value) meta row panel ─────
         private Panel BuildMetaRow(int height, params (string key, string val)[] pairs)
         {
-            // Each row shows exactly 2 key-value pairs side by side.
-            // pairs are split into chunks of 2; each chunk becomes one horizontal row.
-            // All chunks are stacked vertically inside the returned panel.
-
-            const int ROW_H     = 56;   // height per chunk row
-            const int KEY_W_PCT = 18;   // key column % inside each pair half
+            const int ROW_H     = 56;
+            const int KEY_W_PCT = 18;
             const int SIDE_PAD  = 28;
 
-            int chunks   = (int)Math.Ceiling(pairs.Length / 2.0);
-            int totalH   = chunks * ROW_H;
+            int chunks = (int)Math.Ceiling(pairs.Length / 2.0);
+            int totalH = chunks * ROW_H;
 
             var outer = new Panel
             {
@@ -320,12 +320,10 @@ namespace PremiumLivingOPS.Views.RawMaterial
 
             for (int ci = 0; ci < chunks; ci++)
             {
-                // up to 2 pairs in this chunk
                 int idxA = ci * 2;
                 int idxB = idxA + 1;
                 bool hasPairB = idxB < pairs.Length;
 
-                // inner 4-column TLP: keyA | valA | keyB | valB
                 var row = new TableLayoutPanel
                 {
                     Dock            = DockStyle.Fill,
@@ -373,6 +371,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
 
             using var dlg = new Form
             {
+                // Header shows the base PurchaseID (PO-YYYYMMDD-NNNN), no -NN suffix.
                 Text            = $"Purchase Order Detail — {order.PurchaseID}",
                 Size            = new Size(2300, 1100),
                 MinimumSize     = new Size(1400, 800),
@@ -394,6 +393,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
             tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
             tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 220f));
             tblHeader.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+            // Title shows base PurchaseID (no -NN suffix)
             tblHeader.Controls.Add(new Label
             {
                 Text = $"Purchase Order Details  —  {order.PurchaseID}",
@@ -411,32 +411,22 @@ namespace PremiumLivingOPS.Views.RawMaterial
             }, 1, 0);
             pnlHeader.Controls.Add(tblHeader);
 
-            // ── META: 2 pairs per line ──────────────────────────────
-            // Row A: Supplier | Order Date
-            // Row B: Request ID | PO Total
-            // Row C: Urgency | Trigger
-            // Row D: Material (MRQ) — single pair
+            // ── META rows ──────────────────────────────────────────
             string supplierDisplay =
                 string.IsNullOrEmpty(order.SupplierID)
                     ? (order.SupplierName ?? "—")
                     : $"{order.SupplierID}  —  {order.SupplierName}";
 
-            string materialDisplay =
-                string.IsNullOrEmpty(order.RawMaterialName)
-                    ? "—"
-                    : $"{order.RawMaterialName}  ({order.RawMaterialItemID})";
-
             var pnlMeta = BuildMetaRow(0,
-                ("Supplier",        supplierDisplay),
-                ("Order Date",      order.OrderDateStr ?? "—"),
-                ("Request ID",      string.IsNullOrEmpty(order.RequestID) ? "—" : order.RequestID),
-                ("PO Total",        $"HK$ {order.POTotalAmount:N2}"),
-                ("Urgency",         string.IsNullOrEmpty(order.UrgencyLevel) ? "—" : order.UrgencyLevel),
-                ("Trigger",         string.IsNullOrEmpty(order.TriggerType)  ? "—" : order.TriggerType),
-                ("Material (MRQ)",  materialDisplay)
+                ("Supplier",   supplierDisplay),
+                ("Order Date", order.OrderDateStr ?? "—"),
+                ("Urgency",    string.IsNullOrEmpty(order.UrgencyLevel) ? "—" : order.UrgencyLevel),
+                ("Trigger",    string.IsNullOrEmpty(order.TriggerType)  ? "—" : order.TriggerType),
+                ("PO Total",   $"HK$ {order.POTotalAmount:N2}")
             );
 
             // ── ORDER LINES LABEL ───────────────────────────────
+            // Subtitle clarifies that POLineID contains the -NN sequence
             var pnlLinesLabel = new Panel
             {
                 Dock = DockStyle.Top, Height = 38,
@@ -444,7 +434,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
             };
             pnlLinesLabel.Controls.Add(new Label
             {
-                Text = $"ORDER LINES  ({lines.Count} item{(lines.Count == 1 ? "" : "s")})",
+                Text = $"ORDER LINES  ({lines.Count} item{(lines.Count == 1 ? "" : "s")})   —   PO LINE ID includes sequence suffix  (-01, -02 …)",
                 Font = new Font("Segoe UI", 10f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(98, 112, 135),
                 Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft
@@ -471,7 +461,9 @@ namespace PremiumLivingOPS.Views.RawMaterial
             btnClose.Click += (s, ev) => dlg.Close();
             pnlFooter.Controls.Add(btnClose);
 
-            // ── ORDER LINES DGV or empty state ─────────────────────
+            // ── ORDER LINES DGV ────────────────────────────────────
+            // POLineID column shows the full ID including the -NN sequence suffix
+            // so the user can see PO-20260702-0001-01, -02, -03 etc.
             Control fillContent;
             if (lines.Count > 0)
             {
@@ -503,14 +495,16 @@ namespace PremiumLivingOPS.Views.RawMaterial
                 dgvLines.DefaultCellStyle.SelectionForeColor     = Color.FromArgb(15, 31, 53);
                 dgvLines.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(249, 250, 251);
 
-                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cNo",    HeaderText = "#",            FillWeight =  5 });
-                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cLine",  HeaderText = "PO LINE ID",   FillWeight = 16 });
-                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cMat",   HeaderText = "RAW MATERIAL", FillWeight = 22 });
-                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cType",  HeaderText = "TYPE",         FillWeight = 10 });
-                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cWH",    HeaderText = "WAREHOUSE",    FillWeight = 18 });
-                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cQty",   HeaderText = "ORDER QTY",   FillWeight =  9 });
-                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cPrice", HeaderText = "UNIT PRICE",  FillWeight = 12 });
-                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cTotal", HeaderText = "LINE TOTAL",  FillWeight = 12 });
+                // Columns — POLineID (col cLine) shows full ID with -NN suffix
+                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cNo",       HeaderText = "#",            FillWeight =  5 });
+                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cLine",     HeaderText = "PO LINE ID",   FillWeight = 18 });
+                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cRequestID",HeaderText = "REQUEST ID",   FillWeight = 14 });
+                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cMat",      HeaderText = "RAW MATERIAL", FillWeight = 20 });
+                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cType",     HeaderText = "TYPE",         FillWeight = 10 });
+                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cWH",       HeaderText = "WAREHOUSE",    FillWeight = 16 });
+                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cQty",      HeaderText = "ORDER QTY",   FillWeight =  8 });
+                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cPrice",    HeaderText = "UNIT PRICE",  FillWeight = 11 });
+                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cTotal",    HeaderText = "LINE TOTAL",  FillWeight = 11 });
 
                 foreach (DataGridViewColumn col in dgvLines.Columns)
                     if (col.Name == "cNo" || col.Name == "cQty" || col.Name == "cPrice" || col.Name == "cTotal")
@@ -522,7 +516,8 @@ namespace PremiumLivingOPS.Views.RawMaterial
                     seq++;
                     dgvLines.Rows.Add(
                         seq.ToString(),
-                        ln.POLineID,
+                        ln.POLineID,                                                          // full ID: PO-YYYYMMDD-NNNN-NN
+                        string.IsNullOrEmpty(ln.PurchaseID) ? "—" : ln.PurchaseID,
                         ln.MaterialName,
                         string.IsNullOrEmpty(ln.MaterialType) ? "—" : ln.MaterialType,
                         string.IsNullOrEmpty(ln.WarehouseLocation) ? ln.WarehouseID : ln.WarehouseLocation,

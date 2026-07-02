@@ -3,11 +3,18 @@ using PremiumLivingOPS.Models.Entities;
 using PremiumLivingOPS.Models.ViewModels;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace PremiumLivingOPS.Controllers
 {
     /// <summary>
     /// Controller for Raw Material → Procurement module.
+    ///
+    /// PO lifecycle:
+    ///   Create  → one PurchaseOrder header (PO-YYYYMMDD-NNNN)
+    ///             + N PurchaseOrderLine rows (POLineID = PO-YYYYMMDD-NNNN-01/-02…)
+    ///   Search  → grid shows one row per PurchaseOrder header
+    ///   Detail  → dialog shows header + all N lines
     /// </summary>
     public class ProcurementController
     {
@@ -35,7 +42,7 @@ namespace PremiumLivingOPS.Controllers
 
         /// <summary>
         /// Returns the PO header + all its PurchaseOrderLine items for the Detail dialog.
-        /// purchaseId = exact PurchaseID from DB, e.g. "PO-20260319-0025".
+        /// purchaseId = exact PurchaseID from DB, e.g. "PO-20260702-0001" (no -NN suffix).
         /// </summary>
         public ProcurementDetailViewModel GetProcurementDetailVM(string purchaseId)
         {
@@ -73,8 +80,8 @@ namespace PremiumLivingOPS.Controllers
         }
 
         /// <summary>
-        /// Creates one PurchaseOrder (+ one PurchaseOrderLine) per MRQ line.
-        /// Each PO gets its own unique PurchaseID generated from the DB sequence.
+        /// Creates ONE PurchaseOrder header (PO-YYYYMMDD-NNNN) with N PurchaseOrderLine rows
+        /// (POLineID = PO-YYYYMMDD-NNNN-01, -02 …), one per MRQ line in <paramref name="lines"/>.
         /// </summary>
         public void SubmitCreateProcurement(
             string supplierId,
@@ -98,20 +105,21 @@ namespace PremiumLivingOPS.Controllers
                     throw new ArgumentException($"Line {i + 1} ({ln.MaterialName}): Warehouse not resolved.");
             }
 
-            string staffId = SessionManager.CurrentUser?.StaffId ?? "SYSTEM";
+            string staffId    = SessionManager.CurrentUser?.StaffId ?? "SYSTEM";
+            string purchaseId = _repo.GenerateNextPurchaseId();   // one ID for the whole batch
+            double poTotal    = lines.Sum(ln => ln.OrderQty * ln.UnitPrice);
 
-            foreach (var ln in lines)
-            {
-                // Each line becomes its own PurchaseOrder with a fresh sequential ID
-                string poId    = _repo.GenerateNextPurchaseId();
-                double poTotal = ln.OrderQty * ln.UnitPrice;
+            // Derive urgency / trigger from the first line's associated MRQ
+            // (all lines in a batch share the same MRQ batch → same urgency/trigger).
+            // If the caller hasn't pre-populated these, pass empty strings.
+            string urgencyLevel = string.Empty;
+            string triggerType  = string.Empty;
 
-                _repo.CreatePurchaseOrder(
-                    poId, ln.RequestID, supplierId,
-                    poTotal, orderDate, status,
-                    ln.RawMaterialItemID, ln.WarehouseID,
-                    ln.OrderQty, ln.UnitPrice, staffId);
-            }
+            _repo.CreatePurchaseOrderBatch(
+                purchaseId, supplierId, poTotal,
+                orderDate, status,
+                urgencyLevel, triggerType,
+                lines, staffId);
         }
 
         // ══ HELPERS ═══════════════════════════════════════════════════════════════════════════

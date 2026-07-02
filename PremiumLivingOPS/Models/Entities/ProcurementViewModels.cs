@@ -15,13 +15,14 @@ namespace PremiumLivingOPS.Models.Entities
     /// </summary>
     public class ProcurementOrderEntity
     {
-        public string   PurchaseID        { get; set; }   // e.g. PO-20260319-0025
-        public string   RequestID         { get; set; }
+        public string   PurchaseID        { get; set; }   // e.g. PO-20260702-0001
+        public string   RequestID         { get; set; }   // first linked MRQ RequestID (for display)
         public string   SupplierID        { get; set; }
         public string   SupplierName      { get; set; }
         public double   POTotalAmount     { get; set; }
         public DateTime OrderDate         { get; set; }
         public string   PurchaseStatus    { get; set; }
+        // RawMaterial fields are now per-line; kept here for backward compat (first line)
         public string   RawMaterialItemID { get; set; }
         public string   RawMaterialName   { get; set; }
         public int      RequestedQty      { get; set; }
@@ -32,11 +33,12 @@ namespace PremiumLivingOPS.Models.Entities
 
     /// <summary>
     /// One row shown in the Search Procurement grid.
-    /// Corresponds 1-to-1 with a PurchaseOrder row.
+    /// Corresponds 1-to-1 with a PurchaseOrder header row (PO-YYYYMMDD-NNNN).
+    /// ItemCount = number of PurchaseOrderLine rows under this PO.
     /// </summary>
     public class ProcurementOrderGroup
     {
-        /// <summary>Full PurchaseID, e.g. PO-20260319-0025</summary>
+        /// <summary>Header PurchaseID, e.g. PO-20260702-0001 — shown in grid.</summary>
         public string   PurchaseID     { get; set; }
         public string   SupplierID     { get; set; }
         public string   SupplierName   { get; set; }
@@ -51,11 +53,12 @@ namespace PremiumLivingOPS.Models.Entities
 
     /// <summary>
     /// One line item inside a PurchaseOrder (from PurchaseOrderLine table).
+    /// POLineID format: PO-YYYYMMDD-NNNN-01, -02, -03…
     /// </summary>
     public class PurchaseOrderLineEntity
     {
-        public string POLineID          { get; set; }
-        public string PurchaseID        { get; set; }
+        public string POLineID          { get; set; }   // e.g. PO-20260702-0001-01
+        public string PurchaseID        { get; set; }   // e.g. PO-20260702-0001
         public string RawMaterialItemID { get; set; }
         public string MaterialName      { get; set; }
         public string MaterialType      { get; set; }
@@ -145,7 +148,8 @@ namespace PremiumLivingOPS.Models.ViewModels
 
     /// <summary>
     /// Detail ViewModel for the PO detail dialog.
-    /// Contains the single PurchaseOrder header + all its PurchaseOrderLine items.
+    /// Order  = the single PurchaseOrder header (PO-YYYYMMDD-NNNN).
+    /// Lines  = all PurchaseOrderLine rows (POLineID = PO-YYYYMMDD-NNNN-01, -02…).
     /// </summary>
     public class ProcurementDetailViewModel
     {
@@ -153,7 +157,7 @@ namespace PremiumLivingOPS.Models.ViewModels
         public string[]                      AllowedMenus { get; set; }
         /// <summary>The PurchaseOrder header row.</summary>
         public ProcurementOrderEntity        Order        { get; set; }
-        /// <summary>All PurchaseOrderLine rows for this PO.</summary>
+        /// <summary>All PurchaseOrderLine rows for this PO, ordered by POLineID.</summary>
         public List<PurchaseOrderLineEntity> Lines        { get; set; }
     }
 }

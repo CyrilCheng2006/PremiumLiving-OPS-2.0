@@ -7,15 +7,18 @@ namespace PremiumLivingOPS.Models.DAL
 {
     /// <summary>
     /// DAL for Raw Material → Procurement module.
-    /// PurchaseID format in DB: PO-YYYYMMDD-NNNN (no -NN suffix).
+    ///
+    /// PurchaseID format in DB : PO-YYYYMMDD-NNNN       (one header per batch)
+    /// POLineID   format in DB : PO-YYYYMMDD-NNNN-NN    (one per MRQ line in that batch)
     /// </summary>
     public class ProcurementRepo
     {
         // ══ SEARCH ═══════════════════════════════════════════════════════════════════
 
         /// <summary>
-        /// Returns one ProcurementOrderGroup row per PurchaseOrder in the DB.
-        /// Also fetches the line-item count per PO via a sub-query.
+        /// Returns one <see cref="ProcurementOrderGroup"/> row per PurchaseOrder header.
+        /// Each group represents one PO-YYYYMMDD-NNNN; its ItemCount is the number
+        /// of PurchaseOrderLine rows under that header.
         /// </summary>
         public List<ProcurementOrderGroup> SearchGroupedPurchaseOrders(
             string keyword = null, string status = null,
@@ -25,6 +28,8 @@ namespace PremiumLivingOPS.Models.DAL
             using (var conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
+                // Group by PurchaseOrder header; count lines via sub-query.
+                // Keyword matches against the header PurchaseID or Supplier name.
                 var sql =
                     @"SELECT
                           po.PurchaseID,
@@ -34,10 +39,9 @@ namespace PremiumLivingOPS.Models.DAL
                           po.PurchaseStatus,
                           po.POTotalAmount                              AS TotalAmount,
                           COALESCE(lc.LineCount, 0)                    AS ItemCount,
-                          COALESCE(mr.UrgencyLevel, '')                AS UrgencyLevel
+                          COALESCE(po.UrgencyLevel, '')                AS UrgencyLevel
                       FROM  PurchaseOrder po
-                      JOIN  Supplier       s  ON po.SupplierID  = s.SupplierID
-                      LEFT JOIN MaterialRequest mr ON po.RequestID = mr.RequestID
+                      JOIN  Supplier       s  ON po.SupplierID = s.SupplierID
                       LEFT JOIN (
                           SELECT PurchaseID, COUNT(*) AS LineCount
                           FROM   PurchaseOrderLine
@@ -83,31 +87,39 @@ namespace PremiumLivingOPS.Models.DAL
 
         // ══ DETAIL ════════════════════════════════════════════════════════════════
 
-        /// <summary>Returns the PurchaseOrder header row for an exact PurchaseID.</summary>
+        /// <summary>
+        /// Returns the PurchaseOrder header row for an exact PurchaseID
+        /// (format PO-YYYYMMDD-NNNN, without any -NN line suffix).
+        /// </summary>
         public ProcurementOrderEntity GetPurchaseOrderById(string purchaseId)
         {
             if (string.IsNullOrWhiteSpace(purchaseId)) return null;
             using (var conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
+                // RequestID and material info are now on PurchaseOrderLine;
+                // we still expose the first linked MRQ for the header display.
                 const string sql =
                     @"SELECT po.PurchaseID,
-                             po.RequestID,
                              po.SupplierID,
                              COALESCE(s.SupplierName, po.SupplierID)   AS SupplierName,
                              po.POTotalAmount,
                              po.OrderDate,
                              po.PurchaseStatus,
-                             COALESCE(mr.RawMaterialItemID, '')        AS RawMaterialItemID,
-                             COALESCE(i.ItemName, '')                  AS RawMaterialName,
-                             COALESCE(mr.RequestedQty, 0)              AS RequestedQty,
-                             COALESCE(mr.UrgencyLevel, '')             AS UrgencyLevel,
-                             COALESCE(mr.TriggerType,  '')             AS TriggerType
-                      FROM   PurchaseOrder   po
-                      LEFT JOIN Supplier       s  ON po.SupplierID          = s.SupplierID
-                      LEFT JOIN MaterialRequest mr ON po.RequestID           = mr.RequestID
-                      LEFT JOIN RawMaterial    rm  ON mr.RawMaterialItemID   = rm.ItemID
-                      LEFT JOIN Item           i   ON rm.ItemID              = i.ItemID
+                             COALESCE(po.UrgencyLevel, '')             AS UrgencyLevel,
+                             COALESCE(po.TriggerType,  '')             AS TriggerType,
+                             -- first line's RequestID for header display
+                             COALESCE(
+                                 (SELECT pol2.RequestID
+                                  FROM   PurchaseOrderLine pol2
+                                  WHERE  pol2.PurchaseID = po.PurchaseID
+                                  ORDER  BY pol2.POLineID
+                                  LIMIT  1), '')                       AS RequestID,
+                             '' AS RawMaterialItemID,
+                             '' AS RawMaterialName,
+                             0  AS RequestedQty
+                      FROM   PurchaseOrder po
+                      LEFT JOIN Supplier   s ON po.SupplierID = s.SupplierID
                       WHERE  po.PurchaseID = @id";
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
@@ -119,7 +131,10 @@ namespace PremiumLivingOPS.Models.DAL
             return null;
         }
 
-        /// <summary>Returns all PurchaseOrderLine rows for a given PurchaseID.</summary>
+        /// <summary>
+        /// Returns all PurchaseOrderLine rows for a given PurchaseID,
+        /// ordered by POLineID (which carries the -NN suffix).
+        /// </summary>
         public List<PurchaseOrderLineEntity> GetLinesByPurchaseId(string purchaseId)
         {
             var list = new List<PurchaseOrderLineEntity>();
@@ -169,7 +184,9 @@ namespace PremiumLivingOPS.Models.DAL
                           COUNT(*)                                       AS LineCount
                       FROM  MaterialRequest mr
                       WHERE mr.RequestID NOT IN (
-                                SELECT po.RequestID FROM PurchaseOrder po
+                                SELECT pol.RequestID
+                                FROM   PurchaseOrderLine pol
+                                WHERE  pol.RequestID IS NOT NULL
                             )
                         AND mr.RequestID REGEXP '-[0-9]{2}$'
                       GROUP BY BatchPrefix, mr.UrgencyLevel, mr.TriggerType
@@ -210,7 +227,11 @@ namespace PremiumLivingOPS.Models.DAL
                       JOIN   WarehouseItem  wi ON mr.WarehouseItemID   = wi.WarehouseItemID
                       JOIN   Warehouse      w  ON wi.WarehouseID       = w.WarehouseID
                       WHERE  mr.RequestID LIKE @prefix
-                        AND  mr.RequestID NOT IN (SELECT po.RequestID FROM PurchaseOrder po)
+                        AND  mr.RequestID NOT IN (
+                                 SELECT pol.RequestID
+                                 FROM   PurchaseOrderLine pol
+                                 WHERE  pol.RequestID IS NOT NULL
+                             )
                       ORDER  BY mr.RequestID";
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
@@ -262,12 +283,28 @@ namespace PremiumLivingOPS.Models.DAL
         }
 
         // ══ CREATE ─ WRITE ════════════════════════════════════════════════════════
+        // NEW behaviour:
+        //   One call creates ONE PurchaseOrder header (PO-YYYYMMDD-NNNN)
+        //   + N PurchaseOrderLine rows  (POLineID = PO-YYYYMMDD-NNNN-01, -02 …)
+        //   + one Log entry.
+        //
+        // The old overload (single-line) is replaced by this batch overload.
 
-        public void CreatePurchaseOrder(
-            string purchaseId, string requestId, string supplierId,
-            double poTotalAmount, DateTime orderDate, string purchaseStatus,
-            string rawMaterialItemId, string warehouseId,
-            int orderQty, double unitPrice, string staffId)
+        /// <summary>
+        /// Creates one PurchaseOrder header + one PurchaseOrderLine per entry in
+        /// <paramref name="lines"/>.
+        /// POLineID format: {purchaseId}-{seq:D2}  e.g. PO-20260702-0001-01
+        /// </summary>
+        public void CreatePurchaseOrderBatch(
+            string purchaseId,
+            string supplierId,
+            double poTotalAmount,
+            DateTime orderDate,
+            string purchaseStatus,
+            string urgencyLevel,
+            string triggerType,
+            List<MaterialRequestLineItem> lines,
+            string staffId)
         {
             using (var conn = DatabaseHelper.GetConnection())
             {
@@ -276,40 +313,55 @@ namespace PremiumLivingOPS.Models.DAL
                 {
                     try
                     {
-                        string poLineId = GenerateNextPoLineId(conn, trx);
-
+                        // 1. Insert PurchaseOrder header
                         const string insertPO =
                             @"INSERT INTO PurchaseOrder
-                                (PurchaseID, RequestID, SupplierID, POTotalAmount, OrderDate, PurchaseStatus)
+                                (PurchaseID, SupplierID, POTotalAmount, OrderDate,
+                                 PurchaseStatus, UrgencyLevel, TriggerType)
                               VALUES
-                                (@purchaseId, @requestId, @supplierId, @amount, @date, @status)";
+                                (@purchaseId, @supplierId, @amount, @date,
+                                 @status, @urgency, @trigger)";
                         using (var cmd = new MySqlCommand(insertPO, conn, trx))
                         {
                             cmd.Parameters.AddWithValue("@purchaseId", purchaseId);
-                            cmd.Parameters.AddWithValue("@requestId",  requestId);
                             cmd.Parameters.AddWithValue("@supplierId", supplierId);
                             cmd.Parameters.AddWithValue("@amount",     poTotalAmount);
                             cmd.Parameters.AddWithValue("@date",       orderDate.ToString("yyyy-MM-dd"));
                             cmd.Parameters.AddWithValue("@status",     purchaseStatus);
+                            cmd.Parameters.AddWithValue("@urgency",    urgencyLevel ?? "");
+                            cmd.Parameters.AddWithValue("@trigger",    triggerType  ?? "");
                             cmd.ExecuteNonQuery();
                         }
 
+                        // 2. Insert one PurchaseOrderLine per MRQ line
                         const string insertLine =
                             @"INSERT INTO PurchaseOrderLine
-                                (POLineID, RawMaterialItemID, PurchaseID, WarehouseID, OrderQty, UnitPrice)
+                                (POLineID, PurchaseID, RequestID,
+                                 RawMaterialItemID, WarehouseID, OrderQty, UnitPrice)
                               VALUES
-                                (@lineId, @matId, @purchaseId, @whId, @qty, @price)";
-                        using (var cmd = new MySqlCommand(insertLine, conn, trx))
+                                (@lineId, @purchaseId, @requestId,
+                                 @matId, @whId, @qty, @price)";
+
+                        for (int seq = 0; seq < lines.Count; seq++)
                         {
-                            cmd.Parameters.AddWithValue("@lineId",     poLineId);
-                            cmd.Parameters.AddWithValue("@matId",      rawMaterialItemId);
-                            cmd.Parameters.AddWithValue("@purchaseId", purchaseId);
-                            cmd.Parameters.AddWithValue("@whId",       warehouseId);
-                            cmd.Parameters.AddWithValue("@qty",        orderQty);
-                            cmd.Parameters.AddWithValue("@price",      unitPrice);
-                            cmd.ExecuteNonQuery();
+                            var ln      = lines[seq];
+                            // POLineID = PO-YYYYMMDD-NNNN-01, -02 …
+                            string lineId = $"{purchaseId}-{(seq + 1):D2}";
+
+                            using (var cmd = new MySqlCommand(insertLine, conn, trx))
+                            {
+                                cmd.Parameters.AddWithValue("@lineId",     lineId);
+                                cmd.Parameters.AddWithValue("@purchaseId", purchaseId);
+                                cmd.Parameters.AddWithValue("@requestId",  ln.RequestID);
+                                cmd.Parameters.AddWithValue("@matId",      ln.RawMaterialItemID);
+                                cmd.Parameters.AddWithValue("@whId",       ln.WarehouseID);
+                                cmd.Parameters.AddWithValue("@qty",        ln.OrderQty);
+                                cmd.Parameters.AddWithValue("@price",      ln.UnitPrice);
+                                cmd.ExecuteNonQuery();
+                            }
                         }
 
+                        // 3. Log
                         const string insertLog =
                             @"INSERT INTO Log (LogID, StaffID, LogType, TargetTable, NewValue)
                               VALUES (@logId, @staffId, 'Create', 'PurchaseOrder', @newVal)";
@@ -328,39 +380,58 @@ namespace PremiumLivingOPS.Models.DAL
             }
         }
 
+        // ── Legacy single-line overload — kept so old callers compile ──────────
+        /// <summary>
+        /// [Deprecated] Creates one PO with one line.  Prefer CreatePurchaseOrderBatch.
+        /// </summary>
+        public void CreatePurchaseOrder(
+            string purchaseId, string requestId, string supplierId,
+            double poTotalAmount, DateTime orderDate, string purchaseStatus,
+            string rawMaterialItemId, string warehouseId,
+            int orderQty, double unitPrice, string staffId)
+        {
+            var singleLine = new List<MaterialRequestLineItem>
+            {
+                new MaterialRequestLineItem
+                {
+                    RequestID         = requestId,
+                    RawMaterialItemID = rawMaterialItemId,
+                    WarehouseID       = warehouseId,
+                    OrderQty          = orderQty,
+                    UnitPrice         = unitPrice
+                }
+            };
+            CreatePurchaseOrderBatch(
+                purchaseId, supplierId, poTotalAmount,
+                orderDate, purchaseStatus, null, null,
+                singleLine, staffId);
+        }
+
         // ══ ID GENERATORS ════════════════════════════════════════════════════════════════
 
+        /// <summary>
+        /// Generates the next available PurchaseID: PO-YYYYMMDD-NNNN.
+        /// Looks at the 4-digit counter segment (positions 14–17).
+        /// </summary>
         public string GenerateNextPurchaseId()
         {
             string prefix = $"PO-{DateTime.Today:yyyyMMdd}-";
             using (var conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
+                // The PurchaseID is exactly 17 chars: PO-YYYYMMDD-NNNN
+                // Extract the 4-digit counter from position 14 (1-based).
                 const string sql =
                     @"SELECT COALESCE(MAX(CAST(SUBSTRING(PurchaseID, 14, 4) AS UNSIGNED)), 0) + 1
                       FROM   PurchaseOrder
-                      WHERE  PurchaseID LIKE @prefix";
+                      WHERE  PurchaseID LIKE @prefix
+                        AND  LENGTH(PurchaseID) = 17";
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
                     cmd.Parameters.AddWithValue("@prefix", prefix + "%");
                     var next = Convert.ToInt32(cmd.ExecuteScalar());
                     return $"{prefix}{next:D4}";
                 }
-            }
-        }
-
-        private string GenerateNextPoLineId(MySqlConnection conn, MySqlTransaction trx)
-        {
-            string prefix = $"POL-{DateTime.Today:yyyyMMdd}-";
-            const string sql =
-                @"SELECT COALESCE(MAX(CAST(SUBSTRING(POLineID, 15) AS UNSIGNED)), 0) + 1
-                  FROM   PurchaseOrderLine
-                  WHERE  POLineID LIKE @prefix";
-            using (var cmd = new MySqlCommand(sql, conn, trx))
-            {
-                cmd.Parameters.AddWithValue("@prefix", prefix + "%");
-                var next = Convert.ToInt32(cmd.ExecuteScalar());
-                return $"{prefix}{next:D4}";
             }
         }
 
