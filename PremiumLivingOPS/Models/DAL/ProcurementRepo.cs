@@ -8,17 +8,20 @@ namespace PremiumLivingOPS.Models.DAL
     /// <summary>
     /// DAL for Raw Material → Procurement module.
     ///
-    /// PurchaseID format in DB : PO-YYYYMMDD-NNNN       (one header per batch)
-    /// POLineID   format in DB : PO-YYYYMMDD-NNNN-NN    (one per MRQ line in that batch)
+    /// PurchaseOrder schema columns (actual DB):
+    ///   PurchaseID, RequestID, SupplierID, POTotalAmount, OrderDate, PurchaseStatus
+    ///   — NO UrgencyLevel / TriggerType on PurchaseOrder; those live on MaterialRequest.
+    ///
+    /// PurchaseID  format: PO-YYYYMMDD-NNNN       (one header per batch)
+    /// POLineID    format: PO-YYYYMMDD-NNNN-NN    (one per MRQ line in that batch)
     /// </summary>
     public class ProcurementRepo
     {
         // ══ SEARCH ═══════════════════════════════════════════════════════════════════
 
         /// <summary>
-        /// Returns one <see cref="ProcurementOrderGroup"/> row per PurchaseOrder header.
-        /// Each group represents one PO-YYYYMMDD-NNNN; its ItemCount is the number
-        /// of PurchaseOrderLine rows under that header.
+        /// Returns one <see cref="ProcurementOrderGroup"/> per PurchaseOrder header.
+        /// UrgencyLevel is resolved via PurchaseOrder.RequestID → MaterialRequest.
         /// </summary>
         public List<ProcurementOrderGroup> SearchGroupedPurchaseOrders(
             string keyword = null, string status = null,
@@ -28,8 +31,7 @@ namespace PremiumLivingOPS.Models.DAL
             using (var conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
-                // Group by PurchaseOrder header; count lines via sub-query.
-                // Keyword matches against the header PurchaseID or Supplier name.
+
                 var sql =
                     @"SELECT
                           po.PurchaseID,
@@ -37,11 +39,13 @@ namespace PremiumLivingOPS.Models.DAL
                           s.SupplierName,
                           po.OrderDate,
                           po.PurchaseStatus,
-                          po.POTotalAmount                              AS TotalAmount,
-                          COALESCE(lc.LineCount, 0)                    AS ItemCount,
-                          COALESCE(po.UrgencyLevel, '')                AS UrgencyLevel
+                          po.POTotalAmount                   AS TotalAmount,
+                          COALESCE(lc.LineCount, 0)         AS ItemCount,
+                          COALESCE(mr.UrgencyLevel, '')     AS UrgencyLevel
                       FROM  PurchaseOrder po
                       JOIN  Supplier       s  ON po.SupplierID = s.SupplierID
+                      LEFT JOIN MaterialRequest mr
+                                              ON po.RequestID  = mr.RequestID
                       LEFT JOIN (
                           SELECT PurchaseID, COUNT(*) AS LineCount
                           FROM   PurchaseOrderLine
@@ -62,10 +66,14 @@ namespace PremiumLivingOPS.Models.DAL
 
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
-                    if (!string.IsNullOrEmpty(keyword))                    cmd.Parameters.AddWithValue("@kw",       "%" + keyword + "%");
-                    if (!string.IsNullOrEmpty(status) && status != "All") cmd.Parameters.AddWithValue("@status",   status);
-                    if (dateFrom.HasValue)                                 cmd.Parameters.AddWithValue("@dateFrom", dateFrom.Value.ToString("yyyy-MM-dd"));
-                    if (dateTo.HasValue)                                   cmd.Parameters.AddWithValue("@dateTo",   dateTo.Value.ToString("yyyy-MM-dd"));
+                    if (!string.IsNullOrEmpty(keyword))
+                        cmd.Parameters.AddWithValue("@kw", "%" + keyword + "%");
+                    if (!string.IsNullOrEmpty(status) && status != "All")
+                        cmd.Parameters.AddWithValue("@status", status);
+                    if (dateFrom.HasValue)
+                        cmd.Parameters.AddWithValue("@dateFrom", dateFrom.Value.ToString("yyyy-MM-dd"));
+                    if (dateTo.HasValue)
+                        cmd.Parameters.AddWithValue("@dateTo", dateTo.Value.ToString("yyyy-MM-dd"));
 
                     using (var r = cmd.ExecuteReader())
                         while (r.Read())
@@ -90,6 +98,7 @@ namespace PremiumLivingOPS.Models.DAL
         /// <summary>
         /// Returns the PurchaseOrder header row for an exact PurchaseID
         /// (format PO-YYYYMMDD-NNNN, without any -NN line suffix).
+        /// UrgencyLevel / TriggerType are resolved via PurchaseOrder.RequestID → MaterialRequest.
         /// </summary>
         public ProcurementOrderEntity GetPurchaseOrderById(string purchaseId)
         {
@@ -97,29 +106,22 @@ namespace PremiumLivingOPS.Models.DAL
             using (var conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
-                // RequestID and material info are now on PurchaseOrderLine;
-                // we still expose the first linked MRQ for the header display.
                 const string sql =
                     @"SELECT po.PurchaseID,
+                             po.RequestID,
                              po.SupplierID,
-                             COALESCE(s.SupplierName, po.SupplierID)   AS SupplierName,
+                             COALESCE(s.SupplierName, po.SupplierID)  AS SupplierName,
                              po.POTotalAmount,
                              po.OrderDate,
                              po.PurchaseStatus,
-                             COALESCE(po.UrgencyLevel, '')             AS UrgencyLevel,
-                             COALESCE(po.TriggerType,  '')             AS TriggerType,
-                             -- first line's RequestID for header display
-                             COALESCE(
-                                 (SELECT pol2.RequestID
-                                  FROM   PurchaseOrderLine pol2
-                                  WHERE  pol2.PurchaseID = po.PurchaseID
-                                  ORDER  BY pol2.POLineID
-                                  LIMIT  1), '')                       AS RequestID,
+                             COALESCE(mr.UrgencyLevel, '')            AS UrgencyLevel,
+                             COALESCE(mr.TriggerType,  '')            AS TriggerType,
                              '' AS RawMaterialItemID,
                              '' AS RawMaterialName,
                              0  AS RequestedQty
                       FROM   PurchaseOrder po
-                      LEFT JOIN Supplier   s ON po.SupplierID = s.SupplierID
+                      LEFT JOIN Supplier        s  ON po.SupplierID = s.SupplierID
+                      LEFT JOIN MaterialRequest mr ON po.RequestID  = mr.RequestID
                       WHERE  po.PurchaseID = @id";
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
@@ -145,11 +147,12 @@ namespace PremiumLivingOPS.Models.DAL
                 const string sql =
                     @"SELECT pol.POLineID,
                              pol.PurchaseID,
+                             COALESCE(pol.RequestID, '')              AS RequestID,
                              pol.RawMaterialItemID,
-                             COALESCE(i.ItemName, pol.RawMaterialItemID)     AS MaterialName,
-                             COALESCE(rm.MaterialType, '')                   AS MaterialType,
+                             COALESCE(i.ItemName, pol.RawMaterialItemID)    AS MaterialName,
+                             COALESCE(rm.MaterialType, '')                  AS MaterialType,
                              pol.WarehouseID,
-                             COALESCE(w.WarehouseLocation, pol.WarehouseID)  AS WarehouseLocation,
+                             COALESCE(w.WarehouseLocation, pol.WarehouseID) AS WarehouseLocation,
                              pol.OrderQty,
                              pol.UnitPrice
                       FROM   PurchaseOrderLine pol
@@ -283,12 +286,14 @@ namespace PremiumLivingOPS.Models.DAL
         }
 
         // ══ CREATE ─ WRITE ════════════════════════════════════════════════════════
-        // NEW behaviour:
-        //   One call creates ONE PurchaseOrder header (PO-YYYYMMDD-NNNN)
-        //   + N PurchaseOrderLine rows  (POLineID = PO-YYYYMMDD-NNNN-01, -02 …)
-        //   + one Log entry.
         //
-        // The old overload (single-line) is replaced by this batch overload.
+        // PurchaseOrder schema has NO UrgencyLevel / TriggerType columns.
+        // Those values come from MaterialRequest (via RequestID FK).
+        // The INSERT here only writes the columns that actually exist in the table:
+        //   PurchaseID, RequestID, SupplierID, POTotalAmount, OrderDate, PurchaseStatus
+        //
+        // RequestID on PurchaseOrder header = the FIRST line's RequestID (representative).
+        // Each PurchaseOrderLine row carries its own RequestID for full traceability.
 
         /// <summary>
         /// Creates one PurchaseOrder header + one PurchaseOrderLine per entry in
@@ -301,8 +306,8 @@ namespace PremiumLivingOPS.Models.DAL
             double poTotalAmount,
             DateTime orderDate,
             string purchaseStatus,
-            string urgencyLevel,
-            string triggerType,
+            string urgencyLevel,    // kept for caller compatibility — not written to PurchaseOrder
+            string triggerType,     // kept for caller compatibility — not written to PurchaseOrder
             List<MaterialRequestLineItem> lines,
             string staffId)
         {
@@ -313,23 +318,25 @@ namespace PremiumLivingOPS.Models.DAL
                 {
                     try
                     {
-                        // 1. Insert PurchaseOrder header
+                        // Representative RequestID = first line (PurchaseOrder.RequestID FK)
+                        string firstRequestId = lines.Count > 0 ? lines[0].RequestID : null;
+
+                        // 1. Insert PurchaseOrder header — only actual schema columns
                         const string insertPO =
                             @"INSERT INTO PurchaseOrder
-                                (PurchaseID, SupplierID, POTotalAmount, OrderDate,
-                                 PurchaseStatus, UrgencyLevel, TriggerType)
+                                (PurchaseID, RequestID, SupplierID,
+                                 POTotalAmount, OrderDate, PurchaseStatus)
                               VALUES
-                                (@purchaseId, @supplierId, @amount, @date,
-                                 @status, @urgency, @trigger)";
+                                (@purchaseId, @requestId, @supplierId,
+                                 @amount, @date, @status)";
                         using (var cmd = new MySqlCommand(insertPO, conn, trx))
                         {
                             cmd.Parameters.AddWithValue("@purchaseId", purchaseId);
+                            cmd.Parameters.AddWithValue("@requestId",  firstRequestId ?? (object)DBNull.Value);
                             cmd.Parameters.AddWithValue("@supplierId", supplierId);
                             cmd.Parameters.AddWithValue("@amount",     poTotalAmount);
                             cmd.Parameters.AddWithValue("@date",       orderDate.ToString("yyyy-MM-dd"));
                             cmd.Parameters.AddWithValue("@status",     purchaseStatus);
-                            cmd.Parameters.AddWithValue("@urgency",    urgencyLevel ?? "");
-                            cmd.Parameters.AddWithValue("@trigger",    triggerType  ?? "");
                             cmd.ExecuteNonQuery();
                         }
 
@@ -345,14 +352,13 @@ namespace PremiumLivingOPS.Models.DAL
                         for (int seq = 0; seq < lines.Count; seq++)
                         {
                             var ln      = lines[seq];
-                            // POLineID = PO-YYYYMMDD-NNNN-01, -02 …
                             string lineId = $"{purchaseId}-{(seq + 1):D2}";
 
                             using (var cmd = new MySqlCommand(insertLine, conn, trx))
                             {
                                 cmd.Parameters.AddWithValue("@lineId",     lineId);
                                 cmd.Parameters.AddWithValue("@purchaseId", purchaseId);
-                                cmd.Parameters.AddWithValue("@requestId",  ln.RequestID);
+                                cmd.Parameters.AddWithValue("@requestId",  ln.RequestID ?? (object)DBNull.Value);
                                 cmd.Parameters.AddWithValue("@matId",      ln.RawMaterialItemID);
                                 cmd.Parameters.AddWithValue("@whId",       ln.WarehouseID);
                                 cmd.Parameters.AddWithValue("@qty",        ln.OrderQty);
@@ -361,7 +367,7 @@ namespace PremiumLivingOPS.Models.DAL
                             }
                         }
 
-                        // 3. Log
+                        // 3. Audit log
                         const string insertLog =
                             @"INSERT INTO Log (LogID, StaffID, LogType, TargetTable, NewValue)
                               VALUES (@logId, @staffId, 'Create', 'PurchaseOrder', @newVal)";
@@ -381,9 +387,6 @@ namespace PremiumLivingOPS.Models.DAL
         }
 
         // ── Legacy single-line overload — kept so old callers compile ──────────
-        /// <summary>
-        /// [Deprecated] Creates one PO with one line.  Prefer CreatePurchaseOrderBatch.
-        /// </summary>
         public void CreatePurchaseOrder(
             string purchaseId, string requestId, string supplierId,
             double poTotalAmount, DateTime orderDate, string purchaseStatus,
@@ -411,7 +414,7 @@ namespace PremiumLivingOPS.Models.DAL
 
         /// <summary>
         /// Generates the next available PurchaseID: PO-YYYYMMDD-NNNN.
-        /// Looks at the 4-digit counter segment (positions 14–17).
+        /// Counts only exact-length 17-char IDs so -NN suffixed POLineIDs are excluded.
         /// </summary>
         public string GenerateNextPurchaseId()
         {
@@ -419,8 +422,6 @@ namespace PremiumLivingOPS.Models.DAL
             using (var conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
-                // The PurchaseID is exactly 17 chars: PO-YYYYMMDD-NNNN
-                // Extract the 4-digit counter from position 14 (1-based).
                 const string sql =
                     @"SELECT COALESCE(MAX(CAST(SUBSTRING(PurchaseID, 14, 4) AS UNSIGNED)), 0) + 1
                       FROM   PurchaseOrder
@@ -459,6 +460,7 @@ namespace PremiumLivingOPS.Models.DAL
             {
                 POLineID          = r["POLineID"].ToString(),
                 PurchaseID        = r["PurchaseID"].ToString(),
+                RequestID         = r.IsDBNull(r.GetOrdinal("RequestID")) ? "" : r["RequestID"].ToString(),
                 RawMaterialItemID = r["RawMaterialItemID"].ToString(),
                 MaterialName      = r["MaterialName"].ToString(),
                 MaterialType      = r["MaterialType"].ToString(),
