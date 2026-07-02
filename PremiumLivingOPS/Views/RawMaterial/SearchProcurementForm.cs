@@ -81,15 +81,14 @@ namespace PremiumLivingOPS.Views.RawMaterial
             foreach (var g in _currentGroups)
             {
                 int ri = dgvOrders.Rows.Add(
-                    g.PurchaseID,          // col 0: Purchase ID
-                    g.SupplierName,        // col 1: Supplier
-                    $"{g.ItemCount} line(s)",  // col 2: Lines
-                    g.OrderDateStr,        // col 3: Date
-                    $"HK$ {g.TotalAmount:N2}", // col 4: Amount
-                    g.PurchaseStatus,      // col 5: Status
-                    g.UrgencyLevel);       // col 6: Urgency
+                    g.PurchaseID,
+                    g.SupplierName,
+                    $"{g.ItemCount} line(s)",
+                    g.OrderDateStr,
+                    $"HK$ {g.TotalAmount:N2}",
+                    g.PurchaseStatus,
+                    g.UrgencyLevel);
 
-                // Store PurchaseID in Tag for sort-safe retrieval
                 dgvOrders.Rows[ri].Tag = g.PurchaseID;
             }
 
@@ -257,7 +256,6 @@ namespace PremiumLivingOPS.Views.RawMaterial
         {
             if (dgvOrders.SelectedRows.Count == 0) return;
 
-            // Read PurchaseID from Row.Tag (set in RefreshGrid, sort-safe)
             string purchaseId = dgvOrders.SelectedRows[0].Tag?.ToString();
             if (string.IsNullOrEmpty(purchaseId)) return;
 
@@ -297,8 +295,8 @@ namespace PremiumLivingOPS.Views.RawMaterial
             using var dlg = new Form
             {
                 Text            = $"Purchase Order Detail — {order.PurchaseID}",
-                Size            = new Size(1400, 900),
-                MinimumSize     = new Size(1100, 700),
+                Size            = new Size(2300, 1100),
+                MinimumSize     = new Size(1400, 800),
                 StartPosition   = FormStartPosition.CenterParent,
                 BackColor       = Color.White,
                 Font            = new Font("Segoe UI", 13f),
@@ -377,9 +375,9 @@ namespace PremiumLivingOPS.Views.RawMaterial
             for (int i = 0; i < 6; i++)
                 tblMeta2.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f / 6));
             tblMeta2.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-            tblMeta2.Controls.Add(DlgKey("Urgency"),      0, 0);
+            tblMeta2.Controls.Add(DlgKey("Urgency"),       0, 0);
             tblMeta2.Controls.Add(DlgVal(string.IsNullOrEmpty(order.UrgencyLevel) ? "—" : order.UrgencyLevel), 1, 0);
-            tblMeta2.Controls.Add(DlgKey("Trigger"),       2, 0);
+            tblMeta2.Controls.Add(DlgKey("Trigger"),        2, 0);
             tblMeta2.Controls.Add(DlgVal(string.IsNullOrEmpty(order.TriggerType)  ? "—" : order.TriggerType),  3, 0);
             tblMeta2.Controls.Add(DlgKey("Material (MRQ)"), 4, 0);
             tblMeta2.Controls.Add(DlgVal(
@@ -453,16 +451,15 @@ namespace PremiumLivingOPS.Views.RawMaterial
                 dgvLines.DefaultCellStyle.SelectionForeColor     = Color.FromArgb(15, 31, 53);
                 dgvLines.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(249, 250, 251);
 
-                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cNo",    HeaderText = "#",             FillWeight =  5 });
-                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cLine",  HeaderText = "PO LINE ID",    FillWeight = 16 });
-                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cMat",   HeaderText = "RAW MATERIAL",  FillWeight = 22 });
-                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cType",  HeaderText = "TYPE",          FillWeight = 10 });
-                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cWH",    HeaderText = "WAREHOUSE",     FillWeight = 18 });
-                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cQty",   HeaderText = "ORDER QTY",    FillWeight =  9 });
-                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cPrice", HeaderText = "UNIT PRICE",   FillWeight = 12 });
-                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cTotal", HeaderText = "LINE TOTAL",   FillWeight = 12 });
+                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cNo",    HeaderText = "#",            FillWeight =  5 });
+                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cLine",  HeaderText = "PO LINE ID",   FillWeight = 16 });
+                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cMat",   HeaderText = "RAW MATERIAL", FillWeight = 22 });
+                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cType",  HeaderText = "TYPE",         FillWeight = 10 });
+                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cWH",    HeaderText = "WAREHOUSE",    FillWeight = 18 });
+                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cQty",   HeaderText = "ORDER QTY",   FillWeight =  9 });
+                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cPrice", HeaderText = "UNIT PRICE",  FillWeight = 12 });
+                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cTotal", HeaderText = "LINE TOTAL",  FillWeight = 12 });
 
-                // Align numeric columns centre
                 foreach (DataGridViewColumn col in dgvLines.Columns)
                     if (col.Name == "cNo" || col.Name == "cQty" || col.Name == "cPrice" || col.Name == "cTotal")
                         col.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
