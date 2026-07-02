@@ -80,18 +80,16 @@ namespace PremiumLivingOPS.Views.RawMaterial
             dgvOrders.Rows.Clear();
             foreach (var g in _currentGroups)
             {
-                // Display the base PurchaseID (PO-YYYYMMDD-NNNN) without any -NN suffix.
-                // Row.Tag stores the same PurchaseID so OpenDetailDialog can retrieve it.
                 int ri = dgvOrders.Rows.Add(
-                    g.PurchaseID,                        // col 0: PURCHASE ID
-                    g.SupplierName,                      // col 1: SUPPLIER
-                    $"{g.ItemCount} line(s)",            // col 2: ITEMS
-                    g.OrderDateStr,                      // col 3: ORDER DATE
-                    $"HK$ {g.TotalAmount:N2}",           // col 4: TOTAL AMOUNT
-                    g.PurchaseStatus,                    // col 5: STATUS
-                    g.UrgencyLevel);                     // col 6: URGENCY
+                    g.PurchaseID,
+                    g.SupplierName,
+                    $"{g.ItemCount} line(s)",
+                    g.OrderDateStr,
+                    $"HK$ {g.TotalAmount:N2}",
+                    g.PurchaseStatus,
+                    g.UrgencyLevel);
 
-                dgvOrders.Rows[ri].Tag = g.PurchaseID;  // used by OpenDetailDialog
+                dgvOrders.Rows[ri].Tag = g.PurchaseID;
             }
 
             RefreshKpi();
@@ -252,9 +250,6 @@ namespace PremiumLivingOPS.Views.RawMaterial
 
         // ════════════════════════════════════════════════════════════════
         //  Detail Dialog
-        //  Opens with the selected row's PurchaseID (PO-YYYYMMDD-NNNN).
-        //  The dialog header shows the base PurchaseID;
-        //  the lines grid shows every POLineID including the -NN suffix.
         // ════════════════════════════════════════════════════════════════
         private void OpenDetailDialog()
         {
@@ -287,7 +282,6 @@ namespace PremiumLivingOPS.Views.RawMaterial
             ShowProcurementDetailDialog(vm);
         }
 
-        // ── Helper: build a 2-column (Key | Value) meta row panel ─────
         private Panel BuildMetaRow(int height, params (string key, string val)[] pairs)
         {
             const int ROW_H     = 56;
@@ -371,7 +365,6 @@ namespace PremiumLivingOPS.Views.RawMaterial
 
             using var dlg = new Form
             {
-                // Header shows the base PurchaseID (PO-YYYYMMDD-NNNN), no -NN suffix.
                 Text            = $"Purchase Order Detail — {order.PurchaseID}",
                 Size            = new Size(2300, 1100),
                 MinimumSize     = new Size(1400, 800),
@@ -382,7 +375,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
                 MaximizeBox     = true, MinimizeBox = false
             };
 
-            // ── HEADER ────────────────────────────────────────────
+            // ── HEADER ─────────────────────────────────────────────────────
             var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 80, BackColor = Color.FromArgb(19, 35, 61) };
             var tblHeader = new TableLayoutPanel
             {
@@ -393,7 +386,6 @@ namespace PremiumLivingOPS.Views.RawMaterial
             tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
             tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 220f));
             tblHeader.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-            // Title shows base PurchaseID (no -NN suffix)
             tblHeader.Controls.Add(new Label
             {
                 Text = $"Purchase Order Details  —  {order.PurchaseID}",
@@ -411,7 +403,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
             }, 1, 0);
             pnlHeader.Controls.Add(tblHeader);
 
-            // ── META rows ──────────────────────────────────────────
+            // ── META rows ─────────────────────────────────────────────────────
             string supplierDisplay =
                 string.IsNullOrEmpty(order.SupplierID)
                     ? (order.SupplierName ?? "—")
@@ -425,8 +417,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
                 ("PO Total",   $"HK$ {order.POTotalAmount:N2}")
             );
 
-            // ── ORDER LINES LABEL ───────────────────────────────
-            // Subtitle clarifies that POLineID contains the -NN sequence
+            // ── ORDER LINES LABEL ───────────────────────────────────────────────
             var pnlLinesLabel = new Panel
             {
                 Dock = DockStyle.Top, Height = 38,
@@ -441,7 +432,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
             });
             pnlLinesLabel.Paint += DlgPaintBottomBorder;
 
-            // ── FOOTER ────────────────────────────────────────────
+            // ── FOOTER ─────────────────────────────────────────────────────
             var pnlFooter = new Panel
             {
                 Dock = DockStyle.Bottom, Height = 68,
@@ -461,9 +452,9 @@ namespace PremiumLivingOPS.Views.RawMaterial
             btnClose.Click += (s, ev) => dlg.Close();
             pnlFooter.Controls.Add(btnClose);
 
-            // ── ORDER LINES DGV ────────────────────────────────────
-            // POLineID column shows the full ID including the -NN sequence suffix
-            // so the user can see PO-20260702-0001-01, -02, -03 etc.
+            // ── ORDER LINES DGV ──────────────────────────────────────────────
+            // Columns: # | PO LINE ID | RAW MATERIAL | TYPE | WAREHOUSE | ORDER QTY | UNIT PRICE | LINE TOTAL
+            // REQUEST ID column intentionally omitted.
             Control fillContent;
             if (lines.Count > 0)
             {
@@ -495,16 +486,15 @@ namespace PremiumLivingOPS.Views.RawMaterial
                 dgvLines.DefaultCellStyle.SelectionForeColor     = Color.FromArgb(15, 31, 53);
                 dgvLines.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(249, 250, 251);
 
-                // Columns — POLineID (col cLine) shows full ID with -NN suffix
-                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cNo",       HeaderText = "#",            FillWeight =  5 });
-                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cLine",     HeaderText = "PO LINE ID",   FillWeight = 18 });
-                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cRequestID",HeaderText = "REQUEST ID",   FillWeight = 14 });
-                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cMat",      HeaderText = "RAW MATERIAL", FillWeight = 20 });
-                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cType",     HeaderText = "TYPE",         FillWeight = 10 });
-                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cWH",       HeaderText = "WAREHOUSE",    FillWeight = 16 });
-                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cQty",      HeaderText = "ORDER QTY",   FillWeight =  8 });
-                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cPrice",    HeaderText = "UNIT PRICE",  FillWeight = 11 });
-                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cTotal",    HeaderText = "LINE TOTAL",  FillWeight = 11 });
+                // Columns — REQUEST ID intentionally excluded
+                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cNo",    HeaderText = "#",            FillWeight =  5 });
+                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cLine",  HeaderText = "PO LINE ID",   FillWeight = 20 });
+                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cMat",   HeaderText = "RAW MATERIAL", FillWeight = 24 });
+                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cType",  HeaderText = "TYPE",         FillWeight = 12 });
+                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cWH",    HeaderText = "WAREHOUSE",    FillWeight = 20 });
+                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cQty",   HeaderText = "ORDER QTY",    FillWeight =  9 });
+                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cPrice", HeaderText = "UNIT PRICE",   FillWeight = 12 });
+                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cTotal", HeaderText = "LINE TOTAL",   FillWeight = 12 });
 
                 foreach (DataGridViewColumn col in dgvLines.Columns)
                     if (col.Name == "cNo" || col.Name == "cQty" || col.Name == "cPrice" || col.Name == "cTotal")
@@ -516,10 +506,9 @@ namespace PremiumLivingOPS.Views.RawMaterial
                     seq++;
                     dgvLines.Rows.Add(
                         seq.ToString(),
-                        ln.POLineID,                                                          // full ID: PO-YYYYMMDD-NNNN-NN
-                        string.IsNullOrEmpty(ln.PurchaseID) ? "—" : ln.PurchaseID,
+                        ln.POLineID,
                         ln.MaterialName,
-                        string.IsNullOrEmpty(ln.MaterialType) ? "—" : ln.MaterialType,
+                        string.IsNullOrEmpty(ln.MaterialType)      ? "—" : ln.MaterialType,
                         string.IsNullOrEmpty(ln.WarehouseLocation) ? ln.WarehouseID : ln.WarehouseLocation,
                         ln.OrderQty,
                         $"HK$ {ln.UnitPrice:N2}",
@@ -541,7 +530,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
                 fillContent = pnlEmpty;
             }
 
-            // Assemble (Bottom first, then Top panels, then Fill)
+            // Assemble
             dlg.Controls.Add(fillContent);
             dlg.Controls.Add(pnlLinesLabel);
             dlg.Controls.Add(pnlMeta);
@@ -551,7 +540,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
             dlg.ShowDialog(this);
         }
 
-        // ── Dialog helpers ──────────────────────────────────────────
+        // ── Dialog helpers ────────────────────────────────────────────────────────
         private static Label DlgKey(string text) => new Label
         {
             Text      = text,
