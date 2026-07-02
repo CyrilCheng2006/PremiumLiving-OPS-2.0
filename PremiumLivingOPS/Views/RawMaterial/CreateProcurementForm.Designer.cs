@@ -63,8 +63,6 @@ namespace PremiumLivingOPS.Views.RawMaterial
 
             // ==================================================================
             // CARD 1 — Purchase Order Header
-            //   Row 0 (lbl) : PO ID (auto)  |  Order Date  |  Status  |  Supplier
-            //   Row 1 (ctrl): chip          |  dtp          |  cbo     |  cbo
             // ==================================================================
             lblPurchaseIDValue = new Label
             {
@@ -111,20 +109,16 @@ namespace PremiumLivingOPS.Views.RawMaterial
 
             // ==================================================================
             // CARD 2 — Material Request Selection
-            //
-            // Layout (inside CardPanel, below 54px CardTitle):
-            //   Row 0  40px  — field label "Material Request (MRQ Batch) *"
-            //   Row 1  72px  — cboBatchPrefix (full width)
-            //   Row 2  20px  — sub-label "Request Info"
-            //   Row 3  64px  — lblBatchInfo info panel
-            //
-            // Card outerHeight = 54 (title) + 40+72+20+64 (rows) + 16 (padding) = 266
-            // → set to 290 for comfortable breathing room.
+            //   outerHeight = 290 × 1.4 = 406
+            //   Row heights scaled proportionally:
+            //     label row  40  →  56
+            //     combo row  72  → 101
+            //     sub-label  22  →  31
+            //     info panel 64  →  90
+            //   Total rows = 278  +  title(54) + padding(16) + margins(22) ≈ 370 (fits inside 406)
             // ==================================================================
             cboBatchPrefix = MakeCombo();
 
-            // Info panel: styled box that shows Urgency / Trigger / item count
-            // Uses a Panel wrapper so we can give it a visible background + border.
             lblBatchInfo = new Label
             {
                 Text        = "— select a Material Request above —",
@@ -137,7 +131,6 @@ namespace PremiumLivingOPS.Views.RawMaterial
                 BorderStyle = BorderStyle.FixedSingle
             };
 
-            // Wrap label in a padded panel so left/right/bottom gaps are visible
             var pnlBatchInfoWrap = new Panel
             {
                 Dock      = DockStyle.Fill,
@@ -148,15 +141,14 @@ namespace PremiumLivingOPS.Views.RawMaterial
 
             var tblCard2 = MakeTlp(1, 4,
                 new float[] { 100f },
-                new float[] { 40f, 72f, 22f, 64f });
+                new float[] { 56f, 101f, 31f, 90f });
             tblCard2.Padding = new Padding(18, 8, 18, 8);
             tblCard2.Controls.Add(FieldLabel("Material Request (MRQ Batch)", true), 0, 0);
             tblCard2.Controls.Add(Pad(cboBatchPrefix),                               0, 1);
             tblCard2.Controls.Add(FieldLabel("Request Info",                false),  0, 2);
             tblCard2.Controls.Add(pnlBatchInfoWrap,                                  0, 3);
 
-            // outerHeight = CardTitle(54) + rows(40+72+22+64) + tblPadding(16) + card margins(22) = 290
-            var (c2Outer, c2Inner) = CardPanel.Create(outerHeight: 290);
+            var (c2Outer, c2Inner) = CardPanel.Create(outerHeight: 406);
             var c2Content = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             c2Content.Controls.Add(tblCard2);
             c2Content.Controls.Add(CardTitlePanel("Material Request"));
@@ -164,8 +156,6 @@ namespace PremiumLivingOPS.Views.RawMaterial
 
             // ==================================================================
             // CARD 3 — Line Items Grid
-            //   # | Request ID | Raw Material | Type | Warehouse | Req Qty
-            //   | Order Qty (editable) | Unit Price (editable) | Line Total
             // ==================================================================
             dgvLines = new DataGridView
             {
@@ -194,12 +184,12 @@ namespace PremiumLivingOPS.Views.RawMaterial
             dgvLines.DefaultCellStyle.Padding            = new Padding(8, 6, 8, 6);
             dgvLines.RowTemplate.Height = 52;
 
-            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colNo",        HeaderText = "#",           FillWeight =  4, ReadOnly = true });
-            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colReqID",     HeaderText = "REQUEST ID",  FillWeight = 18, ReadOnly = true });
-            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colMaterial",  HeaderText = "RAW MATERIAL",FillWeight = 22, ReadOnly = true });
-            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colType",      HeaderText = "TYPE",        FillWeight =  9, ReadOnly = true });
-            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colWarehouse", HeaderText = "WAREHOUSE",   FillWeight = 18, ReadOnly = true });
-            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colReqQty",    HeaderText = "REQ QTY",     FillWeight =  7, ReadOnly = true });
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colNo",        HeaderText = "#",            FillWeight =  4, ReadOnly = true });
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colReqID",     HeaderText = "REQUEST ID",   FillWeight = 18, ReadOnly = true });
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colMaterial",  HeaderText = "RAW MATERIAL", FillWeight = 22, ReadOnly = true });
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colType",      HeaderText = "TYPE",         FillWeight =  9, ReadOnly = true });
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colWarehouse", HeaderText = "WAREHOUSE",    FillWeight = 18, ReadOnly = true });
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colReqQty",    HeaderText = "REQ QTY",      FillWeight =  7, ReadOnly = true });
 
             var colOrderQty = new DataGridViewTextBoxColumn
             {
@@ -217,7 +207,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
             colUnitPrice.DefaultCellStyle.Font      = new Font("Segoe UI", 11f, FontStyle.Bold);
             dgvLines.Columns.Add(colUnitPrice);
 
-            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLineTotal", HeaderText = "LINE TOTAL",  FillWeight = 12, ReadOnly = true });
+            dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "colLineTotal", HeaderText = "LINE TOTAL",   FillWeight = 12, ReadOnly = true });
 
             lblLineCount = new Label
             {
@@ -312,7 +302,6 @@ namespace PremiumLivingOPS.Views.RawMaterial
             };
             footerOuter.Controls.Add(footerInner);
 
-            // Assemble (DockStyle.Top stacks bottom-first in Controls.Add order)
             pnlScroll.Controls.Add(c3Outer);
             pnlScroll.Controls.Add(c2Outer);
             pnlScroll.Controls.Add(c1Outer);
@@ -328,7 +317,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
             _shell.MinimumSize = new System.Drawing.Size(0, AppShell.TotalHeight);
         }
 
-        // ── Helpers ───────────────────────────────────────────────────────────────
+        // ── Helpers ──────────────────────────────────────────────────────
 
         private static Panel Pad(Control ctrl)
         {
