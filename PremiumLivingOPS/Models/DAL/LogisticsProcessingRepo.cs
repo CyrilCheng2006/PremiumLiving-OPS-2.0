@@ -299,10 +299,33 @@ namespace PremiumLivingOPS.Models.DAL
         }
 
         /// <summary>
+        /// Queries the maximum existing ShipmentLine sequence number for a given date string
+        /// (format: yyyyMMdd).  Returns 0 if no rows exist yet for that date prefix.
+        /// ShipmentLineID format: SHPL-{yyyyMMdd}-{seq:D4}
+        /// e.g. SHPL-20260315-0001, SHPL-20260315-0002 …
+        /// </summary>
+        private int GetMaxShipmentLineSeq(MySqlConnection conn, MySqlTransaction tx, string dateStr)
+        {
+            // dateStr example: "20260315"
+            // SHPL-20260315-XXXX  → right-most 4 chars after the last '-'
+            var cmd = new MySqlCommand(
+                @"SELECT COALESCE(MAX(CAST(RIGHT(ShipmentLineID, 4) AS UNSIGNED)), 0)
+                  FROM   ShipmentLine
+                  WHERE  ShipmentLineID LIKE @prefix",
+                conn, tx);
+            cmd.Parameters.AddWithValue("@prefix", $"SHPL-{dateStr}-%");
+            return Convert.ToInt32(cmd.ExecuteScalar());
+        }
+
+        /// <summary>
         /// Inserts one Shipment header + N ShipmentLines in a single transaction.
         /// ShipmentStatus is set to 'Pending' on creation.
-        /// QtyOutstanding per line = QtyShip (outstanding = not yet delivered).
-        /// ShipmentLineID format: SL-{ShipmentID}-{01..99}
+        /// QtyOutstanding per line = Remain (qty not yet delivered).
+        ///
+        /// ShipmentLineID format: SHPL-{yyyyMMdd}-{seq:D4}
+        ///   — date taken from shipDate parameter
+        ///   — seq is globally unique per date (queries MAX before inserting)
+        ///   e.g. SHPL-20260315-0001, SHPL-20260315-0002
         /// </summary>
         public void CreateScheduledShipment(
             string                   shipmentId,
@@ -333,11 +356,19 @@ namespace PremiumLivingOPS.Models.DAL
             insShip.Parameters.AddWithValue("@amt", totalAmount);
             insShip.ExecuteNonQuery();
 
-            // Insert ShipmentLines
+            // Determine the date string for ShipmentLineID (e.g. "20260315")
+            string dateStr = shipDate.ToString("yyyyMMdd");
+
+            // Fetch current maximum sequence for this date inside the same transaction
+            int seq = GetMaxShipmentLineSeq(conn, tx, dateStr);
+
+            // Insert ShipmentLines — SHPL-{dateStr}-{seq:D4}
             for (int i = 0; i < lines.Count; i++)
             {
+                seq++;   // increment before use so first line is seq+1
                 var ln     = lines[i];
-                string slId = $"SL-{shipmentId}-{(i + 1):D2}";
+                string slId = $"SHPL-{dateStr}-{seq:D4}";   // e.g. SHPL-20260315-0003
+
                 var insLine = new MySqlCommand(@"
                     INSERT INTO ShipmentLine
                         (ShipmentLineID, ShipmentID, OrderID, ItemID,
