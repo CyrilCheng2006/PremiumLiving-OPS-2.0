@@ -22,15 +22,11 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
     //  ┌─ Header 80px ───────────────────────────────────────────────────────┐
     //  │  Modify Shipment — SHP-XXXX                       [ STATUS BADGE ]  │
     //  ├─ Info panel 400px (read-only, same 4-col TLP as View Detail) ───────┤
-    //  │  Shipment ID | Order ID     | Customer   | Ship Date               │
-    //  │  Tracking No.| Delivery Date| Dlv Method | Status                  │
-    //  │  Shipment Type | Total Amt  | Address (span)                       │
     //  ├─ Divider: "EDIT FIELDS" label 40px ──────────────────────────────── │
-    //  ├─ Edit panel  Fill ────────────────────────────────────────────────── │
+    //  ├─ Edit panel  Fill  (each cell: 56px caption + Fill input) ──────── │
     //  │  [ New Status * ]  [ New Tracking No. ]                            │
     //  │  [ Actual Recipient ]  [ Remark ]                                  │
     //  ├─ Total row 64px ───────────────────────────────────────────────────┤
-    //  │  Lines: N                                  Total: HK$ X,XXX.XX     │
     //  ├─ Footer 86px ─────────────────────────────────────────────────────┤
     //  │  [ 🗑 Delete ]          [ Cancel ]   [ ✔ Save Changes ]            │
     //  └────────────────────────────────────────────────────────────────────┘
@@ -47,6 +43,10 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         private TextBox  _txtTracking;
         private TextBox  _txtRecipient;
         private TextBox  _txtRemark;
+
+        // ── Edit cell caption height (doubled to prevent input overlapping label) ─
+        private const int CaptionH = 56;   // was 28, now 2× to give caption full room
+        private const int InputH   = 40;   // fixed height for ComboBox / TextBox
 
         // ── Status colour palette (matches ViewShipmentForm) ─────────────────
         private static readonly Dictionary<string, (Color bg, Color fg)> StatusColors =
@@ -134,9 +134,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             // ── Info panel (read-only, mirrors ShowDetailDialog exactly) ─────────
             var pnlInfo = new Panel
             {
-                Dock    = DockStyle.Top,
-                Height  = 400,
-                Padding = new Padding(28, 18, 28, 8),
+                Dock      = DockStyle.Top,
+                Height    = 400,
+                Padding   = new Padding(28, 18, 28, 8),
                 BackColor = Color.White
             };
             pnlInfo.Paint += (sender, e) =>
@@ -226,9 +226,11 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 Padding   = new Padding(28, 18, 28, 8)
             };
 
+            // Each TLP row is Absolute 120px = CaptionH(56) + InputH(40) + 24px padding
             var tblEdit = new TableLayoutPanel
             {
-                Dock            = DockStyle.Fill,
+                Dock            = DockStyle.Top,
+                Height          = 120 * 2,   // 2 rows × 120px each
                 ColumnCount     = 4,
                 RowCount        = 2,
                 BackColor       = Color.Transparent,
@@ -236,14 +238,15 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             };
             for (int c = 0; c < 4; c++)
                 tblEdit.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
-            tblEdit.RowStyles.Add(new RowStyle(SizeType.Percent, 50f));
-            tblEdit.RowStyles.Add(new RowStyle(SizeType.Percent, 50f));
+            tblEdit.RowStyles.Add(new RowStyle(SizeType.Absolute, 120f));
+            tblEdit.RowStyles.Add(new RowStyle(SizeType.Absolute, 120f));
 
-            // Row 0: New Status | Tracking No. | (spacer) | (spacer)
+            // Row 0: New Status | Tracking No.
             _cboStatus = new ComboBox
             {
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                Font          = new Font("Segoe UI", 12f)
+                Font          = new Font("Segoe UI", 12f),
+                Height        = InputH
             };
             _cboStatus.Items.AddRange(new object[] { "Pending", "In Transit", "Completed" });
             tblEdit.Controls.Add(MakeEditCell("New Status *", _cboStatus), 0, 0);
@@ -252,7 +255,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             {
                 Font            = new Font("Segoe UI", 12f),
                 BorderStyle     = BorderStyle.FixedSingle,
-                PlaceholderText = "e.g. SF1234567890"
+                PlaceholderText = "e.g. SF1234567890",
+                Height          = InputH
             };
             tblEdit.Controls.Add(MakeEditCell("Tracking No.", _txtTracking), 1, 0);
 
@@ -261,7 +265,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             {
                 Font            = new Font("Segoe UI", 12f),
                 BorderStyle     = BorderStyle.FixedSingle,
-                PlaceholderText = "Full name of recipient"
+                PlaceholderText = "Full name of recipient",
+                Height          = InputH
             };
             tblEdit.Controls.Add(MakeEditCell("Actual Recipient", _txtRecipient), 0, 1);
 
@@ -269,7 +274,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             {
                 Font            = new Font("Segoe UI", 12f),
                 BorderStyle     = BorderStyle.FixedSingle,
-                PlaceholderText = "Optional remark"
+                PlaceholderText = "Optional remark",
+                Height          = InputH
             };
             tblEdit.Controls.Add(MakeEditCell("Remark", _txtRemark), 1, 1);
 
@@ -387,7 +393,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             int si = _cboStatus.FindStringExact(_ship.ShipmentStatus);
             _cboStatus.SelectedIndex = si >= 0 ? si : 0;
 
-            _txtTracking.Text  = _ship.TrackingNumber             ?? string.Empty;
+            _txtTracking.Text  = _ship.TrackingNumber              ?? string.Empty;
             _txtRecipient.Text = _detail.ReplySlip?.ActualRecipient ?? string.Empty;
             _txtRemark.Text    = _detail.ReplySlip?.RecipientRemark  ?? string.Empty;
         }
@@ -497,27 +503,37 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             Padding      = new Padding(0, 8, 8, 4)
         };
 
+        /// <summary>
+        /// Edit cell: caption label (56px, top-docked) + input control (bottom-docked).
+        /// Using explicit heights instead of DockStyle.Fill on both prevents the input
+        /// from obscuring the caption when TLP row height is limited.
+        /// </summary>
         private static Panel MakeEditCell(string caption, Control ctrl)
         {
             var cell = new Panel
             {
                 Dock      = DockStyle.Fill,
                 BackColor = Color.Transparent,
-                Padding   = new Padding(0, 0, 14, 0)
+                Padding   = new Padding(0, 4, 14, 4)   // top/bottom 4px breathing room
             };
+
             var lbl = new Label
             {
                 Text      = caption,
                 Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(98, 112, 135),
                 Dock      = DockStyle.Top,
-                Height    = 28,
+                Height    = CaptionH,                  // 56px — doubled from original 28px
                 TextAlign = ContentAlignment.BottomLeft,
-                Padding   = new Padding(0, 0, 0, 2)
+                Padding   = new Padding(0, 0, 0, 6)    // 6px gap between text and input
             };
-            ctrl.Dock = DockStyle.Fill;
-            cell.Controls.Add(ctrl);
-            cell.Controls.Add(lbl);
+
+            // Anchor input to bottom so it sits below the caption with natural height
+            ctrl.Dock = DockStyle.Bottom;
+            ctrl.Height = InputH;                      // 40px fixed; overrides Dock.Fill stretch
+
+            cell.Controls.Add(ctrl);   // added first → bottom
+            cell.Controls.Add(lbl);    // added second → top (WinForms reverse-z order)
             return cell;
         }
 
