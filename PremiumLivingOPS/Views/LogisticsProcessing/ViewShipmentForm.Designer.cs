@@ -27,7 +27,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         private Button btnModify;
         private Button btnGenDeliveryNote;
         private Button btnGenReplySlip;
-        private Button btnScheduleShipment;   // ← Schedule Shipment (210×60, purple)
+        private Button btnScheduleShipment;   // 210×60, purple
 
         // ── Main grid ─────────────────────────────────────────────────────
         private DataGridView dgvShipments;
@@ -54,11 +54,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             //  Root panel
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            var pnlMain = new Panel
-            {
-                Dock      = DockStyle.Fill,
-                BackColor = Color.FromArgb(240, 244, 249)
-            };
+            var pnlMain = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(240, 244, 249) };
 
             // ── AppShell ──────────────────────────────────────────────────
             _shell = new AppShell();
@@ -153,15 +149,13 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 1,
                 BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
-            tblFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
-            tblFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
-            tblFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
-            tblFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
+            for (int c = 0; c < 4; c++)
+                tblFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
             tblFields.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-            tblFields.Controls.Add(MakeCell("Shipment No.",      txtSearchShipmentNo), 0, 0);
-            tblFields.Controls.Add(MakeCell("Customer / Order",  txtSearchCustomer),   1, 0);
-            tblFields.Controls.Add(MakeCell("Status",            cboStatus),           2, 0);
-            tblFields.Controls.Add(cellDate,                                           3, 0);
+            tblFields.Controls.Add(MakeCell("Shipment No.",     txtSearchShipmentNo), 0, 0);
+            tblFields.Controls.Add(MakeCell("Customer / Order", txtSearchCustomer),   1, 0);
+            tblFields.Controls.Add(MakeCell("Status",           cboStatus),           2, 0);
+            tblFields.Controls.Add(cellDate,                                          3, 0);
 
             var pnlBtns = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             btnSearch  = MakePrimaryBtn("\U0001F50D  Search", new Point(0,   0), 210, 60);
@@ -183,21 +177,22 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  65f));
 
             var pnlTitle = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            var lblTitle = new Label
+            pnlTitle.Controls.Add(new Label
             {
                 Text = "Search Shipments", Font = new Font("Segoe UI", 13f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(15, 31, 53),
                 Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft
-            };
-            var divider = new Panel { Dock = DockStyle.Bottom, Height = 1, BackColor = Color.FromArgb(221, 227, 236) };
-            pnlTitle.Controls.Add(lblTitle);
-            pnlTitle.Controls.Add(divider);
+            });
+            pnlTitle.Controls.Add(new Panel
+            {
+                Dock = DockStyle.Bottom, Height = 1, BackColor = Color.FromArgb(221, 227, 236)
+            });
             tblCard.Controls.Add(pnlTitle,  0, 0);
             tblCard.Controls.Add(tblFields, 0, 1);
             tblCard.Controls.Add(pnlBtns,   0, 2);
 
             var pnlCard = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
-            pnlCard.Paint += PaintCardBorder;   // defined once in ViewShipmentForm.cs
+            pnlCard.Paint += PaintCardBorder;
             pnlCard.Controls.Add(tblCard);
 
             var pnlSearchOuter = new Panel
@@ -210,9 +205,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             //  KPI bar + action buttons
-            //  Five buttons: View Details | Modify | Delivery Note | Reply Slip | Schedule
-            //  Each 210×60, gap 8, left/right pad 12.
-            //  Total width = 12 + (210+8)*4 + 210 + 12 = 1106 px.
+            //  Five buttons (210×60 each, gap 8, pad 12 both sides)
+            //  Panel width = 12 + (210+8)*4 + 210 + 12 = 1106 px
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             pnlKpi = new Panel
             {
@@ -225,11 +219,11 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             const int BtnGap = 8;
             const int BtnPad = 12;
 
-            btnViewDetail         = MakePrimaryBtn("\U0001F50D  View Details",  Point.Empty, BtnW, BtnH);
-            btnModify             = MakeWarningBtn("\u270F  Modify",            Point.Empty, BtnW, BtnH);
-            btnGenDeliveryNote    = MakeSuccessBtn("\U0001F4C4  Delivery Note", Point.Empty, BtnW, BtnH);
-            btnGenReplySlip       = MakeSuccessBtn("\U0001F9FE  Reply Slip",    Point.Empty, BtnW, BtnH);
-            btnScheduleShipment   = MakePurpleBtn( "\U0001F4C5  Schedule",      Point.Empty, BtnW, BtnH);
+            btnViewDetail       = MakePrimaryBtn("\U0001F50D  View Details",  Point.Empty, BtnW, BtnH);
+            btnModify           = MakeWarningBtn("\u270F  Modify",            Point.Empty, BtnW, BtnH);
+            btnGenDeliveryNote  = MakeSuccessBtn("\U0001F4C4  Delivery Note", Point.Empty, BtnW, BtnH);
+            btnGenReplySlip     = MakeSuccessBtn("\U0001F9FE  Reply Slip",    Point.Empty, BtnW, BtnH);
+            btnScheduleShipment = MakePurpleBtn( "\U0001F4C5  Schedule",      Point.Empty, BtnW, BtnH);
 
             btnViewDetail.Enabled       = false;
             btnModify.Enabled           = false;
@@ -253,11 +247,11 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             {
                 int top = (pnlActionBtns.Height - BtnH) / 2;
                 if (top < 0) top = 0;
-                btnViewDetail.Location       = new Point(BtnPad,                        top);
-                btnModify.Location           = new Point(BtnPad + (BtnW + BtnGap),      top);
-                btnGenDeliveryNote.Location  = new Point(BtnPad + (BtnW + BtnGap) * 2,  top);
-                btnGenReplySlip.Location     = new Point(BtnPad + (BtnW + BtnGap) * 3,  top);
-                btnScheduleShipment.Location = new Point(BtnPad + (BtnW + BtnGap) * 4,  top);
+                btnViewDetail.Location       = new Point(BtnPad,                       top);
+                btnModify.Location           = new Point(BtnPad + (BtnW + BtnGap),     top);
+                btnGenDeliveryNote.Location  = new Point(BtnPad + (BtnW + BtnGap) * 2, top);
+                btnGenReplySlip.Location     = new Point(BtnPad + (BtnW + BtnGap) * 3, top);
+                btnScheduleShipment.Location = new Point(BtnPad + (BtnW + BtnGap) * 4, top);
             }
             pnlActionBtns.Controls.Add(btnViewDetail);
             pnlActionBtns.Controls.Add(btnModify);
@@ -271,7 +265,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlKpiRow.Controls.Add(pnlActionBtns);
 
             var pnlKpiInner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
-            pnlKpiInner.Paint += PaintCardBorder;   // defined once in ViewShipmentForm.cs
+            pnlKpiInner.Paint += PaintCardBorder;
             pnlKpiInner.Controls.Add(pnlKpiRow);
 
             var pnlKpiOuter = new Panel
@@ -283,7 +277,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlKpiOuter.Controls.Add(pnlKpiInner);
 
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            //  Shipment Grid — 7 columns
+            //  Shipment Grid — 6 columns (Tracking No. removed)
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             dgvShipments = new DataGridView
             {
@@ -317,13 +311,13 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                     Padding            = new Padding(12, 6, 12, 6)
                 }
             };
-            dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "colShipmentID", HeaderText = "SHIPMENT NO.",  FillWeight = 16 });
-            dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "colOrderID",    HeaderText = "ORDER NO.",     FillWeight = 14 });
-            dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCustomer",   HeaderText = "CUSTOMER",      FillWeight = 22 });
-            dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTracking",   HeaderText = "TRACKING NO.",  FillWeight = 14 });
-            dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "colShipDate",   HeaderText = "SHIP DATE",     FillWeight = 13 });
-            dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",     HeaderText = "STATUS",        FillWeight = 12 });
-            dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "colAmount",     HeaderText = "TOTAL AMOUNT",  FillWeight = 14 });
+            // Tracking No. column intentionally omitted
+            dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "colShipmentID", HeaderText = "SHIPMENT NO.", FillWeight = 18 });
+            dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "colOrderID",    HeaderText = "ORDER NO.",    FillWeight = 16 });
+            dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCustomer",   HeaderText = "CUSTOMER",     FillWeight = 26 });
+            dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "colShipDate",   HeaderText = "SHIP DATE",    FillWeight = 15 });
+            dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",     HeaderText = "STATUS",       FillWeight = 13 });
+            dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "colAmount",     HeaderText = "TOTAL AMOUNT", FillWeight = 17 });
             dgvShipments.SelectionChanged += dgvShipments_SelectionChanged;
             dgvShipments.CellFormatting   += dgvShipments_CellFormatting;
             dgvShipments.CellDoubleClick  += dgvShipments_CellDoubleClick;
@@ -335,7 +329,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 BackColor = Color.FromArgb(240, 244, 249)
             };
             var pnlGridInner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
-            pnlGridInner.Paint += PaintCardBorder;   // defined once in ViewShipmentForm.cs
+            pnlGridInner.Paint += PaintCardBorder;
             pnlGridInner.Controls.Add(dgvShipments);
             pnlGridCard.Controls.Add(pnlGridInner);
 
@@ -422,7 +416,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             return b;
         }
 
-        // NOTE: PaintCardBorder is defined in ViewShipmentForm.cs (the non-Designer partial).
-        //       Do NOT redefine it here — that causes CS0111 duplicate member error.
+        // NOTE: PaintCardBorder / PaintTopBorderStatic / PaintBottomBorderStatic
+        //       are defined in ViewShipmentForm.cs — do NOT redefine here.
     }
 }
