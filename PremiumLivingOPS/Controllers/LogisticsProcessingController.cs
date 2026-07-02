@@ -1,6 +1,7 @@
 using PremiumLivingOPS.Models.DAL;
 using PremiumLivingOPS.Models.Entities;
 using PremiumLivingOPS.Models.ViewModels;
+using PremiumLivingOPS.Views.LogisticsProcessing;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -70,10 +71,10 @@ namespace PremiumLivingOPS.Controllers
             }
         }
 
-        // ── Schedule Shipment ───────────────────────────────────────
+        // ── Schedule Shipment (update existing record) ──────────────
         /// <summary>
         /// Updates DeliveryMethod and ShipDate for the specified shipment.
-        /// Called from ScheduleShipmentDialog.
+        /// Called from ScheduleShipmentDialog when editing an existing shipment.
         /// </summary>
         public void ScheduleShipment(
             string   shipmentId,
@@ -94,7 +95,75 @@ namespace PremiumLivingOPS.Controllers
             _repo.ScheduleShipment(shipmentId, scheduledDate, deliveryMethod);
         }
 
-        // ── Delete Shipment ───────────────────────────────────────────
+        // ── Schedule Shipment Wizard — Step 1: list orders ──────────
+        /// <summary>
+        /// Returns orders eligible for shipment scheduling:
+        /// OrderStatus IN ('Processing', 'Partially Delivered', 'Pending').
+        /// Each row is mapped to the lightweight OrderSummary DTO used by
+        /// ScheduleShipmentDialog (Step 1 order-picker).
+        /// </summary>
+        public List<OrderSummary> GetSchedulableOrders()
+            => _repo.GetSchedulableOrders();
+
+        // ── Schedule Shipment Wizard — Step 2: lines with qty status ─
+        /// <summary>
+        /// Returns all OrderLines for the given order together with the
+        /// total qty already shipped across all existing ShipmentLines.
+        /// Used to populate the Step-2 grid in ScheduleShipmentDialog.
+        /// </summary>
+        public List<OrderLineDetail> GetOrderLinesWithShipmentStatus(string orderId)
+        {
+            if (string.IsNullOrWhiteSpace(orderId))
+                throw new ArgumentException("Order ID is required.");
+            return _repo.GetOrderLinesWithShipmentStatus(orderId);
+        }
+
+        // ── Schedule Shipment Wizard — duplicate-batch guard ─────────
+        /// <summary>
+        /// Returns the list of trailing suffixes (e.g. "0029A", "0029B") from
+        /// ShipmentIDs that already exist for the given order.
+        /// ScheduleShipmentDialog uses this to block duplicate Batch letters.
+        /// </summary>
+        public List<string> GetExistingShipmentSuffixes(string orderId)
+        {
+            if (string.IsNullOrWhiteSpace(orderId))
+                return new List<string>();
+            return _repo.GetExistingShipmentSuffixes(orderId);
+        }
+
+        // ── Schedule Shipment Wizard — create shipment(s) ────────────
+        /// <summary>
+        /// Creates one Shipment record + its ShipmentLines from a
+        /// CreateShipmentRequest produced by ScheduleShipmentDialog.
+        /// ShipmentID format : SHP-YYYYMMDD-{orderSuffix}{batchLetter}
+        ///   e.g. SHP-20260309-0029A
+        /// After insertion the parent Order's status is updated:
+        ///   all items covered -> 'Partially Delivered' (caller may upgrade to Completed
+        ///   on the last batch); partial coverage -> 'Partially Delivered'.
+        /// </summary>
+        public void CreateScheduledShipment(CreateShipmentRequest req)
+        {
+            if (req == null)        throw new ArgumentNullException(nameof(req));
+            if (req.Lines == null || req.Lines.Count == 0)
+                throw new ArgumentException("At least one shipment line is required.");
+
+            string shipmentId = "SHP-"
+                + req.ShipDate.ToString("yyyyMMdd")
+                + "-" + req.OrderSuffix + req.Batch;
+
+            double totalAmount = _repo.ComputeShipmentTotal(req.OrderID, req.Lines);
+
+            _repo.CreateScheduledShipment(
+                shipmentId,
+                req.OrderID,
+                req.ShipDate,
+                req.DeliveryMethod,
+                req.ShipmentType,
+                totalAmount,
+                req.Lines);
+        }
+
+        // ── Delete Shipment ─────────────────────────────────────────
         public void DeleteShipment(string shipmentId)
         {
             if (string.IsNullOrWhiteSpace(shipmentId))
@@ -174,11 +243,6 @@ namespace PremiumLivingOPS.Controllers
             };
         }
 
-        /// <summary>
-        /// Builds the full PODetailVM for PODetailDialog:
-        /// header with supplier contact + invoice status + RequestID,
-        /// lines with WarehouseID / WarehouseLocation.
-        /// </summary>
         public PODetailVM GetPODetailVM(string purchaseId)
         {
             var (po, phone, address, invoiceStatus) = _repo.GetPOHeaderFull(purchaseId);
@@ -192,10 +256,6 @@ namespace PremiumLivingOPS.Controllers
             };
         }
 
-        /// <summary>
-        /// Builds ReceiptDetailVM for ReceiptDetailDialog:
-        /// the clicked receipt row as header + all receipts for the same PurchaseID as lines.
-        /// </summary>
         public ReceiptDetailVM GetReceiptDetailVM(GoodsReceivedEntity selectedReceipt)
         {
             if (selectedReceipt == null) throw new ArgumentNullException(nameof(selectedReceipt));
@@ -229,7 +289,7 @@ namespace PremiumLivingOPS.Controllers
             return _repo.InsertPurchaseInvoice(vm);
         }
 
-        // ── CSV Import: Receipt ───────────────────────────────────────────
+        // ── CSV Import: Receipt ──────────────────────────────────────
         public ReceiptImportResult ImportReceiptsFromCsv(string filePath)
         {
             var result    = new ReceiptImportResult();

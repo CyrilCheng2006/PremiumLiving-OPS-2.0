@@ -1,6 +1,7 @@
 using MySql.Data.MySqlClient;
 using PremiumLivingOPS.Models.Entities;
 using PremiumLivingOPS.Models.ViewModels;
+using PremiumLivingOPS.Views.LogisticsProcessing;
 using System;
 using System.Collections.Generic;
 
@@ -19,9 +20,6 @@ namespace PremiumLivingOPS.Models.DAL
             var list = new List<ShipmentEntity>();
             using var conn = DatabaseHelper.GetConnection();
             conn.Open();
-            // s.ShippingAddress does NOT exist on Shipment — use o.ShippingAddress (Order table).
-            // s.TrackingNo   does NOT exist on Shipment — correct column is s.TrackingNumber.
-            // o.DeliveryDate is joined from Order for display.
             var sql = @"
                 SELECT s.ShipmentID, s.OrderID, s.TrackingNumber,
                        s.ShipDate, s.DeliveryMethod, s.ShipmentStatus,
@@ -124,10 +122,7 @@ namespace PremiumLivingOPS.Models.DAL
             cmd.ExecuteNonQuery();
         }
 
-        /// <summary>
-        /// Updates DeliveryMethod and ShipDate (scheduled date) for a shipment.
-        /// Called by LogisticsProcessingController.ScheduleShipment.
-        /// </summary>
+        /// <summary>Updates DeliveryMethod and ShipDate for an existing shipment.</summary>
         public void ScheduleShipment(
             string   shipmentId,
             DateTime scheduledDate,
@@ -155,6 +150,221 @@ namespace PremiumLivingOPS.Models.DAL
             new MySqlCommand($"DELETE FROM DeliveryNote WHERE ShipmentID='{shipmentId}'", conn, tx).ExecuteNonQuery();
             new MySqlCommand($"DELETE FROM ShipmentLine WHERE ShipmentID='{shipmentId}'", conn, tx).ExecuteNonQuery();
             new MySqlCommand($"DELETE FROM Shipment WHERE ShipmentID='{shipmentId}'", conn, tx).ExecuteNonQuery();
+            tx.Commit();
+        }
+
+        // ── Schedule Shipment Wizard — new shipment creation ─────────
+
+        /// <summary>
+        /// Returns orders eligible for scheduling.
+        /// OrderStatus IN ('Processing', 'Partially Delivered', 'Pending').
+        /// </summary>
+        public List<OrderSummary> GetSchedulableOrders()
+        {
+            var list = new List<OrderSummary>();
+            using var conn = DatabaseHelper.GetConnection();
+            conn.Open();
+            var sql = @"
+                SELECT o.OrderID,
+                       COALESCE(c.CustomerName,'')    AS CustomerName,
+                       o.OrderStatus,
+                       COALESCE(o.ShippingAddress,'') AS ShippingAddress,
+                       COALESCE(c.PhoneNumber,'')     AS ContactName,
+                       o.DeliveryDate,
+                       COALESCE(o.GrandTotal, 0)      AS GrandTotal
+                FROM   `Order` o
+                JOIN   Customer c ON c.CustomerID = o.CustomerID
+                WHERE  o.OrderStatus IN ('Processing','Partially Delivered','Pending')
+                ORDER  BY o.DeliveryDate ASC, o.OrderID ASC";
+            using var cmd = new MySqlCommand(sql, conn);
+            using var rd  = cmd.ExecuteReader();
+            while (rd.Read())
+                list.Add(new OrderSummary
+                {
+                    OrderID         = rd.GetString("OrderID"),
+                    CustomerName    = rd.GetString("CustomerName"),
+                    OrderStatus     = rd.GetString("OrderStatus"),
+                    ShippingAddress = rd.GetString("ShippingAddress"),
+                    ContactName     = rd.GetString("ContactName"),
+                    DeliveryDate    = rd.GetDateTime("DeliveryDate"),
+                    GrandTotal      = rd.GetDouble("GrandTotal")
+                });
+            return list;
+        }
+
+        /// <summary>
+        /// Returns all OrderLines for the order plus total qty already shipped
+        /// across every ShipmentLine for those items.
+        /// </summary>
+        public List<OrderLineDetail> GetOrderLinesWithShipmentStatus(string orderId)
+        {
+            var list = new List<OrderLineDetail>();
+            using var conn = DatabaseHelper.GetConnection();
+            conn.Open();
+            // Aggregate shipped qty per item from ShipmentLine, joining via Shipment.OrderID
+            var sql = @"
+                SELECT ol.ItemID,
+                       COALESCE(i.ItemName,'') AS ItemName,
+                       ol.Quantity,
+                       COALESCE(shipped.TotalShipped, 0) AS QtyAlreadyShipped
+                FROM   OrderLine ol
+                LEFT JOIN Item i ON i.ItemID = ol.ItemID
+                LEFT JOIN (
+                    SELECT sl.ItemID,
+                           SUM(sl.QtyShipped) AS TotalShipped
+                    FROM   ShipmentLine sl
+                    JOIN   Shipment     s  ON s.ShipmentID = sl.ShipmentID
+                    WHERE  s.OrderID = @oid
+                    GROUP  BY sl.ItemID
+                ) shipped ON shipped.ItemID = ol.ItemID
+                WHERE  ol.OrderID = @oid
+                ORDER  BY ol.ItemID";
+            using var cmd = new MySqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("@oid", orderId);
+            using var rd = cmd.ExecuteReader();
+            while (rd.Read())
+                list.Add(new OrderLineDetail
+                {
+                    ItemID            = rd.GetString("ItemID"),
+                    ItemName          = rd.GetString("ItemName"),
+                    Quantity          = rd.GetInt32("Quantity"),
+                    QtyAlreadyShipped = rd.GetInt32("QtyAlreadyShipped")
+                });
+            return list;
+        }
+
+        /// <summary>
+        /// Returns the trailing suffixes (orderSuffix + batchLetter) already used
+        /// by existing ShipmentIDs for this order.
+        /// e.g. ShipmentID = SHP-20260309-0029A  ->  suffix = "0029A"
+        /// </summary>
+        public List<string> GetExistingShipmentSuffixes(string orderId)
+        {
+            var list = new List<string>();
+            using var conn = DatabaseHelper.GetConnection();
+            conn.Open();
+            // ShipmentID format: SHP-YYYYMMDD-<suffix>  (suffix = 4-digit order num + 1 letter)
+            var sql = "SELECT ShipmentID FROM Shipment WHERE OrderID = @oid";
+            using var cmd = new MySqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("@oid", orderId);
+            using var rd = cmd.ExecuteReader();
+            while (rd.Read())
+            {
+                string sid = rd.GetString("ShipmentID"); // e.g. SHP-20260309-0029A
+                // Extract everything after the third '-'
+                int thirdDash = -1, dashCount = 0;
+                for (int i = 0; i < sid.Length; i++)
+                {
+                    if (sid[i] == '-') { dashCount++; if (dashCount == 3) { thirdDash = i; break; } }
+                }
+                // Format is SHP-YYYYMMDD-suffix (only 2 dashes), fall back
+                if (thirdDash < 0)
+                {
+                    int secondDash = sid.LastIndexOf('-');
+                    if (secondDash >= 0 && secondDash < sid.Length - 1)
+                        list.Add(sid.Substring(secondDash + 1));
+                }
+                else
+                {
+                    list.Add(sid.Substring(thirdDash + 1));
+                }
+            }
+            return list;
+        }
+
+        /// <summary>
+        /// Computes the total shipment amount by summing (UnitPrice * QtyShip)
+        /// for each line, using the UnitPrice from the OrderLine table.
+        /// </summary>
+        public double ComputeShipmentTotal(string orderId, List<ShipmentLineRequest> lines)
+        {
+            if (lines == null || lines.Count == 0) return 0.0;
+
+            using var conn = DatabaseHelper.GetConnection();
+            conn.Open();
+            double total = 0.0;
+            foreach (var ln in lines)
+            {
+                var cmd = new MySqlCommand(
+                    "SELECT COALESCE(UnitPrice,0) FROM OrderLine WHERE OrderID=@oid AND ItemID=@iid LIMIT 1",
+                    conn);
+                cmd.Parameters.AddWithValue("@oid", orderId);
+                cmd.Parameters.AddWithValue("@iid", ln.ItemID);
+                var result = cmd.ExecuteScalar();
+                double unitPrice = result == DBNull.Value ? 0.0 : Convert.ToDouble(result);
+                total += unitPrice * ln.QtyShip;
+            }
+            return total;
+        }
+
+        /// <summary>
+        /// Inserts one Shipment header + N ShipmentLines in a single transaction.
+        /// ShipmentStatus is set to 'Pending' on creation.
+        /// QtyOutstanding per line = QtyShip (outstanding = not yet delivered).
+        /// ShipmentLineID format: SL-{ShipmentID}-{01..99}
+        /// </summary>
+        public void CreateScheduledShipment(
+            string                   shipmentId,
+            string                   orderId,
+            DateTime                 shipDate,
+            string                   deliveryMethod,
+            string                   shipmentType,
+            double                   totalAmount,
+            List<ShipmentLineRequest> lines)
+        {
+            using var conn = DatabaseHelper.GetConnection();
+            conn.Open();
+            using var tx = conn.BeginTransaction();
+
+            // Insert Shipment header
+            // TrackingNumber is left as empty string on creation (updated later)
+            var insShip = new MySqlCommand(@"
+                INSERT INTO Shipment
+                    (ShipmentID, OrderID, TrackingNumber, ShipDate,
+                     DeliveryMethod, ShipmentStatus, ShipmentType, TotalAmount)
+                VALUES
+                    (@sid, @oid, '', @sd, @dm, 'Pending', @st, @amt)",
+                conn, tx);
+            insShip.Parameters.AddWithValue("@sid", shipmentId);
+            insShip.Parameters.AddWithValue("@oid", orderId);
+            insShip.Parameters.AddWithValue("@sd",  shipDate);
+            insShip.Parameters.AddWithValue("@dm",  deliveryMethod);
+            insShip.Parameters.AddWithValue("@st",  shipmentType);
+            insShip.Parameters.AddWithValue("@amt", totalAmount);
+            insShip.ExecuteNonQuery();
+
+            // Insert ShipmentLines
+            for (int i = 0; i < lines.Count; i++)
+            {
+                var ln     = lines[i];
+                string slId = $"SL-{shipmentId}-{(i + 1):D2}";
+                var insLine = new MySqlCommand(@"
+                    INSERT INTO ShipmentLine
+                        (ShipmentLineID, ShipmentID, OrderID, ItemID,
+                         QtyShipped, QtyOutstanding)
+                    VALUES
+                        (@slid, @sid, @oid, @iid, @qty, @out)",
+                    conn, tx);
+                insLine.Parameters.AddWithValue("@slid", slId);
+                insLine.Parameters.AddWithValue("@sid",  shipmentId);
+                insLine.Parameters.AddWithValue("@oid",  orderId);
+                insLine.Parameters.AddWithValue("@iid",  ln.ItemID);
+                insLine.Parameters.AddWithValue("@qty",  ln.QtyShip);
+                insLine.Parameters.AddWithValue("@out",  ln.Remain);   // remaining after this batch
+                insLine.ExecuteNonQuery();
+            }
+
+            // Update Order status to 'Partially Delivered'
+            // (will be set to Completed separately when all qty is covered)
+            var updOrder = new MySqlCommand(@"
+                UPDATE `Order`
+                SET    OrderStatus = 'Partially Delivered'
+                WHERE  OrderID     = @oid
+                  AND  OrderStatus NOT IN ('Completed','Cancelled')",
+                conn, tx);
+            updOrder.Parameters.AddWithValue("@oid", orderId);
+            updOrder.ExecuteNonQuery();
+
             tx.Commit();
         }
 
@@ -333,19 +543,19 @@ namespace PremiumLivingOPS.Models.DAL
 
         private static GoodsReceivedEntity MapReceipt(MySqlDataReader rd) => new GoodsReceivedEntity
         {
-            ReceiptID        = rd.GetString("ReceiptID"),
-            PurchaseID       = rd.GetString("PurchaseID"),
-            POLineID         = rd.GetString("POLineID"),
-            QtyReceived      = rd.GetInt32("QtyReceived"),
-            ReceiptDate      = rd.GetDateTime("ReceiptDate"),
-            OutstandingQty   = rd["OutstandingQty"] as int?,
-            PurchaseStatus   = rd.GetString("PurchaseStatus"),
-            SupplierName     = rd.GetString("SupplierName"),
+            ReceiptID         = rd.GetString("ReceiptID"),
+            PurchaseID        = rd.GetString("PurchaseID"),
+            POLineID          = rd.GetString("POLineID"),
+            QtyReceived       = rd.GetInt32("QtyReceived"),
+            ReceiptDate       = rd.GetDateTime("ReceiptDate"),
+            OutstandingQty    = rd["OutstandingQty"] as int?,
+            PurchaseStatus    = rd.GetString("PurchaseStatus"),
+            SupplierName      = rd.GetString("SupplierName"),
             RawMaterialItemID = rd.GetString("RawMaterialItemID"),
-            ItemName         = rd.GetString("ItemName"),
-            WarehouseID      = rd.GetString("WarehouseID"),
+            ItemName          = rd.GetString("ItemName"),
+            WarehouseID       = rd.GetString("WarehouseID"),
             WarehouseLocation = rd.GetString("WarehouseLocation"),
-            UnitPrice        = rd.GetDouble("UnitPrice")
+            UnitPrice         = rd.GetDouble("UnitPrice")
         };
 
         // ── PurchaseOrder ────────────────────────────────────────────
