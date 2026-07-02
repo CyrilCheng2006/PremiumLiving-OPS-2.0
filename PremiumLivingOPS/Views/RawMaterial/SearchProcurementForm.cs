@@ -1,6 +1,6 @@
 using PremiumLivingOPS.Controllers;
 using PremiumLivingOPS.Models.Entities;
-using PremiumLivingOPS.Models.ViewModels;   // SearchProcurementViewModel, ProcurementDetailViewModel
+using PremiumLivingOPS.Models.ViewModels;
 using PremiumLivingOPS.Views.Shared;
 using System;
 using System.Collections.Generic;
@@ -13,22 +13,13 @@ namespace PremiumLivingOPS.Views.RawMaterial
     /// <summary>
     /// View — Search Procurement.
     ///
-    /// MVC role : View only. All data access goes through ProcurementController.
-    /// AppShell  : mandatory chrome (TopNavBar + UserBar).
-    /// CardPanel : all content wrapped in 3-layer nested cards.
-    ///
-    /// Schema coverage:
-    ///   PurchaseOrder     — primary list
-    ///   Supplier          — joined for display
-    ///   MaterialRequest   — joined for display
-    ///   RawMaterial / Item — joined for material name
-    ///   PurchaseOrderLine — shown in detail dialog
-    ///   Warehouse         — shown in detail dialog
+    /// Main grid shows ONE row per base PO-ID (PO-YYYYMMDD-NNNN).
+    /// "View Detail" opens a dialog showing all -NN sub-orders and their line items.
     /// </summary>
     public partial class SearchProcurementForm : Form
     {
-        private readonly ProcurementController  _ctrl          = new ProcurementController();
-        private List<ProcurementOrderEntity>    _currentOrders = new List<ProcurementOrderEntity>();
+        private readonly ProcurementController     _ctrl         = new ProcurementController();
+        private List<ProcurementOrderGroup>        _currentGroups = new List<ProcurementOrderGroup>();
 
         // ── Status colour map ────────────────────────────────────────────
         private static readonly Dictionary<string, (Color bg, Color fg)> StatusColors =
@@ -38,7 +29,8 @@ namespace PremiumLivingOPS.Views.RawMaterial
                 { "Cancelled",          (Color.FromArgb(254, 226, 226), Color.FromArgb(153,  27,  27)) },
                 { "Partially Received", (Color.FromArgb(254, 243, 199), Color.FromArgb(146,  64,  14)) },
                 { "Received",           (Color.FromArgb(243, 232, 255), Color.FromArgb( 88,  28, 135)) },
-                { "Completed",          (Color.FromArgb(209, 250, 229), Color.FromArgb(  6,  95,  70)) }
+                { "Completed",          (Color.FromArgb(209, 250, 229), Color.FromArgb(  6,  95,  70)) },
+                { "Mixed",              (Color.FromArgb(229, 231, 235), Color.FromArgb( 55,  65,  81)) }
             };
 
         // ── Urgency colour map ───────────────────────────────────────────
@@ -51,7 +43,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
             };
 
         private const int D_RowH   = 80;
-        private const int D_LabelW = 260;
+        private const int D_LabelW = 220;
         private const int D_BtnW   = 200;
         private const int D_BtnH   = 56;
 
@@ -97,23 +89,23 @@ namespace PremiumLivingOPS.Views.RawMaterial
             _shell.SetVisibleMenus(vm.AllowedMenus);
             _shell.SetBreadcrumb("Raw Material  \u203a  Search Procurement");
 
-            _currentOrders = vm.Orders ?? new List<ProcurementOrderEntity>();
+            _currentGroups = vm.Groups ?? new List<ProcurementOrderGroup>();
 
             dgvOrders.Rows.Clear();
-            foreach (var o in _currentOrders)
+            foreach (var g in _currentGroups)
             {
+                // Item count badge: "3 item(s)"
+                string itemBadge = $"{g.ItemCount} item(s)";
                 dgvOrders.Rows.Add(
-                    o.PurchaseID,
-                    o.SupplierName,
-                    o.RawMaterialName,
-                    o.RequestedQty,
-                    o.OrderDateStr,
-                    $"HK$ {o.POTotalAmount:N2}",
-                    o.PurchaseStatus,
-                    o.UrgencyLevel);
+                    g.BasePurchaseID,
+                    g.SupplierName,
+                    itemBadge,
+                    g.OrderDateStr,
+                    $"HK$ {g.TotalAmount:N2}",
+                    g.PurchaseStatus,
+                    g.UrgencyLevel);
             }
 
-            // KPI reuses already-loaded _currentOrders — no second DB call
             RefreshKpi();
             UpdateActionButtons();
         }
@@ -129,21 +121,19 @@ namespace PremiumLivingOPS.Views.RawMaterial
         }
 
         // ════════════════════════════════════════════════════════════════
-        //  KPI Pills  — reuses _currentOrders (no extra DB round-trip)
+        //  KPI Pills
         // ════════════════════════════════════════════════════════════════
 
         private void RefreshKpi()
         {
             pnlKpi.Controls.Clear();
+            var groups = _currentGroups ?? new List<ProcurementOrderGroup>();
 
-            // Use the already-loaded list; fall back to a full load if empty after reset
-            var orders = _currentOrders ?? new List<ProcurementOrderEntity>();
-
-            int total    = orders.Count;
-            int sent     = orders.FindAll(o => o.PurchaseStatus == "Sent").Count;
-            int partial  = orders.FindAll(o => o.PurchaseStatus == "Partially Received").Count;
-            int received = orders.FindAll(o => o.PurchaseStatus == "Received").Count;
-            int completed= orders.FindAll(o => o.PurchaseStatus == "Completed").Count;
+            int total     = groups.Count;
+            int sent      = groups.FindAll(g => g.PurchaseStatus == "Sent").Count;
+            int partial   = groups.FindAll(g => g.PurchaseStatus == "Partially Received").Count;
+            int received  = groups.FindAll(g => g.PurchaseStatus == "Received").Count;
+            int completed = groups.FindAll(g => g.PurchaseStatus == "Completed").Count;
 
             var pills = new[]
             {
@@ -265,6 +255,16 @@ namespace PremiumLivingOPS.Views.RawMaterial
                 e.CellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                 e.FormattingApplied = true;
             }
+            else if (colName == "colItems")
+            {
+                e.CellStyle.ForeColor          = Color.FromArgb(47, 111, 237);
+                e.CellStyle.BackColor          = Color.FromArgb(219, 234, 254);
+                e.CellStyle.SelectionForeColor = Color.FromArgb(47, 111, 237);
+                e.CellStyle.SelectionBackColor = Color.FromArgb(219, 234, 254);
+                e.CellStyle.Font      = new Font("Segoe UI", 11f, FontStyle.Bold);
+                e.CellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                e.FormattingApplied   = true;
+            }
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -275,22 +275,25 @@ namespace PremiumLivingOPS.Views.RawMaterial
             => FormNavigator.NavigateTo(this, "Raw Material", "Create Procurement");
 
         // ════════════════════════════════════════════════════════════════
-        //  Detail Dialog
+        //  Detail Dialog — shows all -NN sub-orders for the selected base ID
         // ════════════════════════════════════════════════════════════════
 
         private void OpenDetailDialog()
         {
             if (dgvOrders.SelectedRows.Count == 0) return;
 
-            string purchaseId = dgvOrders.SelectedRows[0]
+            string basePurchaseId = dgvOrders.SelectedRows[0]
                 .Cells["colPurchaseID"].Value?.ToString();
-            if (string.IsNullOrEmpty(purchaseId)) return;
+            if (string.IsNullOrEmpty(basePurchaseId)) return;
 
-            var vm = _ctrl.GetProcurementDetailVM(purchaseId);
-            if (vm?.Order == null) return;
+            var vm = _ctrl.GetProcurementDetailVM(basePurchaseId);
+            if (vm == null || vm.Orders == null || vm.Orders.Count == 0) return;
 
-            var o     = vm.Order;
-            var lines = vm.Lines ?? new List<PurchaseOrderLineEntity>();
+            var orders = vm.Orders;
+            var lines  = vm.Lines ?? new List<PurchaseOrderLineEntity>();
+
+            // Use the first sub-order for shared header fields
+            var first = orders[0];
 
             // ── Local helpers ────────────────────────────────────────────
             Label ReadLabel(string text) => new Label
@@ -309,7 +312,6 @@ namespace PremiumLivingOPS.Views.RawMaterial
                         using var pen = new System.Drawing.Pen(Color.FromArgb(221, 227, 236), 1);
                         pe.Graphics.DrawLine(pen, 0, ((Panel)s).Height - 1, ((Panel)s).Width, ((Panel)s).Height - 1);
                     };
-
                 var tlp = new TableLayoutPanel
                 {
                     Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
@@ -318,7 +320,6 @@ namespace PremiumLivingOPS.Views.RawMaterial
                 tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, D_LabelW));
                 tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
                 tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-
                 var lbl = new Label
                 {
                     Text = labelText, Font = new Font("Segoe UI", 12f, FontStyle.Bold),
@@ -337,12 +338,21 @@ namespace PremiumLivingOPS.Views.RawMaterial
             }
 
             // ── CARD 1 – Purchase Order Header ───────────────────────────
+            double grandTotal = 0; foreach (var o in orders) grandTotal += o.POTotalAmount;
+            string statusDisplay = orders.Count == 1
+                ? first.PurchaseStatus
+                : (new System.Collections.Generic.HashSet<string>(orders.ConvertAll(o => o.PurchaseStatus)).Count == 1
+                    ? first.PurchaseStatus
+                    : "Mixed");
+
             var c1Rows = new Panel[]
             {
-                FieldRow("Purchase ID", ReadLabel(o.PurchaseID)),
-                FieldRow("Order Date",  ReadLabel(o.OrderDateStr)),
-                FieldRow("Status",      ReadLabel(o.PurchaseStatus)),
-                FieldRow("PO Total",    ReadLabel($"HK$ {o.POTotalAmount:N2}"), lastRow: true)
+                FieldRow("Purchase ID",  ReadLabel(basePurchaseId)),
+                FieldRow("Order Date",   ReadLabel(first.OrderDateStr)),
+                FieldRow("Status",       ReadLabel(statusDisplay)),
+                FieldRow("Supplier",     ReadLabel($"{first.SupplierID}  \u2014  {first.SupplierName}")),
+                FieldRow("Items",        ReadLabel($"{orders.Count} sub-order(s)")),
+                FieldRow("Grand Total",  ReadLabel($"HK$ {grandTotal:N2}"), lastRow: true)
             };
             var (c1Outer, c1Inner) = CardPanel.Create(
                 outerHeight: c1Rows.Length * D_RowH + 22,
@@ -350,16 +360,11 @@ namespace PremiumLivingOPS.Views.RawMaterial
             c1Inner.Padding = new Padding(0);
             c1Inner.Controls.Add(BuildStack(c1Rows));
 
-            // ── CARD 2 – Supplier & Request ──────────────────────────────
+            // ── CARD 2 – MRQ Info (from first sub-order) ─────────────────
             var c2Rows = new Panel[]
             {
-                FieldRow("Supplier ID",   ReadLabel(o.SupplierID)),
-                FieldRow("Supplier Name", ReadLabel(o.SupplierName)),
-                FieldRow("Request ID",    ReadLabel(o.RequestID)),
-                FieldRow("Raw Material",  ReadLabel($"{o.RawMaterialItemID}  \u2014  {o.RawMaterialName}")),
-                FieldRow("Requested Qty", ReadLabel(o.RequestedQty.ToString())),
-                FieldRow("Trigger Type",  ReadLabel(o.TriggerType)),
-                FieldRow("Urgency Level", ReadLabel(o.UrgencyLevel), lastRow: true)
+                FieldRow("Urgency Level", ReadLabel(first.UrgencyLevel)),
+                FieldRow("Trigger Type",  ReadLabel(first.TriggerType), lastRow: true)
             };
             var (c2Outer, c2Inner) = CardPanel.Create(
                 outerHeight: c2Rows.Length * D_RowH + 30,
@@ -367,7 +372,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
             c2Inner.Padding = new Padding(0);
             c2Inner.Controls.Add(BuildStack(c2Rows));
 
-            // ── CARD 3 – Order Lines Grid ────────────────────────────────
+            // ── CARD 3 – All Line Items across all -NN sub-orders ─────────
             Panel c3Outer = null;
             if (lines.Count > 0)
             {
@@ -398,6 +403,9 @@ namespace PremiumLivingOPS.Views.RawMaterial
                     }
                 };
                 lineDgv.RowTemplate.Height = 68;
+
+                // Columns include PurchaseID (full -NN ID) so user can see which sub-order each line belongs to
+                lineDgv.Columns.Add("cPOID",   "PURCHASE ID");
                 lineDgv.Columns.Add("cPOLine", "PO LINE ID");
                 lineDgv.Columns.Add("cMat",    "RAW MATERIAL");
                 lineDgv.Columns.Add("cType",   "TYPE");
@@ -408,9 +416,14 @@ namespace PremiumLivingOPS.Views.RawMaterial
 
                 foreach (var ln in lines)
                     lineDgv.Rows.Add(
-                        ln.POLineID, ln.MaterialName, ln.MaterialType,
-                        ln.WarehouseLocation, ln.OrderQty,
-                        $"HK$ {ln.UnitPrice:N2}", $"HK$ {ln.LineTotal:N2}");
+                        ln.PurchaseID,
+                        ln.POLineID,
+                        ln.MaterialName,
+                        ln.MaterialType,
+                        ln.WarehouseLocation,
+                        ln.OrderQty,
+                        $"HK$ {ln.UnitPrice:N2}",
+                        $"HK$ {ln.LineTotal:N2}");
 
                 const int LineSecH = 46, LineHdrH = 42, LineRowH = 68;
                 int c3H = LineSecH + LineHdrH + lines.Count * LineRowH + 16 + 22;
@@ -422,7 +435,8 @@ namespace PremiumLivingOPS.Views.RawMaterial
                 };
                 lineHeader.Controls.Add(new Label
                 {
-                    Text = "Order Lines", Font = new Font("Segoe UI", 12f, FontStyle.Bold),
+                    Text = $"Order Lines  ({lines.Count} item(s))",
+                    Font = new Font("Segoe UI", 12f, FontStyle.Bold),
                     ForeColor = Color.FromArgb(47, 111, 237),
                     Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft
                 });
@@ -443,7 +457,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
             // ── Dialog shell ─────────────────────────────────────────────
             using var dlg = new Form
             {
-                Text            = $"View Purchase Order  \u2014  {o.PurchaseID}",
+                Text            = $"View Purchase Order  \u2014  {basePurchaseId}",
                 Size            = new Size(1280, 860),
                 MinimumSize     = new Size(900, 600),
                 StartPosition   = FormStartPosition.CenterParent,
@@ -455,16 +469,16 @@ namespace PremiumLivingOPS.Views.RawMaterial
 
             Color pillBg = Color.FromArgb(229, 231, 235);
             Color pillFg = Color.FromArgb(55, 65, 81);
-            if (StatusColors.TryGetValue(o.PurchaseStatus ?? "", out var hsc))
+            if (StatusColors.TryGetValue(statusDisplay ?? "", out var hsc))
             { pillBg = hsc.bg; pillFg = hsc.fg; }
 
             var statusFont = new Font("Segoe UI", 13f, FontStyle.Bold);
-            int textW      = TextRenderer.MeasureText(o.PurchaseStatus ?? "\u2014", statusFont).Width;
+            int textW      = TextRenderer.MeasureText(statusDisplay ?? "\u2014", statusFont).Width;
             int statusColW = textW + 80;
 
             var statusLbl = new Label
             {
-                Text = o.PurchaseStatus ?? "\u2014",
+                Text = statusDisplay ?? "\u2014",
                 Font = statusFont, ForeColor = pillFg, BackColor = pillBg,
                 Dock = DockStyle.Fill, AutoSize = false,
                 TextAlign = ContentAlignment.MiddleCenter
@@ -486,7 +500,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
             headerTlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
             headerTlp.Controls.Add(new Label
             {
-                Text = $"Purchase Order  \u2014  {o.PurchaseID}",
+                Text = $"Purchase Order  \u2014  {basePurchaseId}",
                 Font = new Font("Segoe UI", 18f, FontStyle.Bold),
                 ForeColor = Color.White, Dock = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft,

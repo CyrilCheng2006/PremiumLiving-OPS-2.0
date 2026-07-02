@@ -16,6 +16,10 @@ namespace PremiumLivingOPS.Controllers
 
         // ══ SEARCH PROCUREMENT ══════════════════════════════════════════
 
+        /// <summary>
+        /// Returns grouped PO data for the main Search Procurement grid.
+        /// One group = one base PO-ID (PO-YYYYMMDD-NNNN).
+        /// </summary>
         public SearchProcurementViewModel GetSearchProcurementVM(
             string keyword     = null,
             string status      = null,
@@ -27,20 +31,24 @@ namespace PremiumLivingOPS.Controllers
             {
                 UserBar      = new UserBarViewModel { DisplayName = user?.StaffName ?? "Unknown", Department = user?.Department ?? "" },
                 AllowedMenus = NavAccessPolicy.GetAllowedMenus(user?.Department),
-                Orders       = _repo.SearchPurchaseOrders(keyword, status, dateFrom, dateTo)
+                Groups       = _repo.SearchGroupedPurchaseOrders(keyword, status, dateFrom, dateTo)
             };
         }
 
-        public ProcurementDetailViewModel GetProcurementDetailVM(string purchaseId)
+        /// <summary>
+        /// Returns all -NN sub-orders and their lines for the Detail dialog.
+        /// basePurchaseId = "PO-YYYYMMDD-NNNN" (no -NN suffix).
+        /// </summary>
+        public ProcurementDetailViewModel GetProcurementDetailVM(string basePurchaseId)
         {
-            if (string.IsNullOrWhiteSpace(purchaseId)) return null;
+            if (string.IsNullOrWhiteSpace(basePurchaseId)) return null;
             var user = SessionManager.CurrentUser;
             return new ProcurementDetailViewModel
             {
                 UserBar      = new UserBarViewModel { DisplayName = user?.StaffName ?? "Unknown", Department = user?.Department ?? "" },
                 AllowedMenus = NavAccessPolicy.GetAllowedMenus(user?.Department),
-                Order        = _repo.GetPurchaseOrderById(purchaseId),
-                Lines        = _repo.GetLinesByPurchaseId(purchaseId)
+                Orders       = _repo.GetPurchaseOrdersByBaseId(basePurchaseId),
+                Lines        = _repo.GetAllLinesByBaseId(basePurchaseId)
             };
         }
 
@@ -59,10 +67,6 @@ namespace PremiumLivingOPS.Controllers
             };
         }
 
-        /// <summary>
-        /// Returns all -NN line items for a given batch prefix.
-        /// Called when user selects a batch prefix in the dropdown.
-        /// </summary>
         public List<MaterialRequestLineItem> GetLinesByBatchPrefix(string batchPrefix)
         {
             if (string.IsNullOrWhiteSpace(batchPrefix))
@@ -70,10 +74,6 @@ namespace PremiumLivingOPS.Controllers
             return _repo.GetLineItemsByBatchPrefix(batchPrefix);
         }
 
-        /// <summary>
-        /// Submits one PurchaseOrder + one PurchaseOrderLine per staged line.
-        /// purchaseIdBase is the base ID; each PO gets purchaseIdBase-NN suffix.
-        /// </summary>
         public void SubmitCreateProcurement(
             string purchaseIdBase,
             string supplierId,
@@ -101,9 +101,8 @@ namespace PremiumLivingOPS.Controllers
 
             for (int i = 0; i < lines.Count; i++)
             {
-                var ln         = lines[i];
-                int lineNo     = i + 1;
-                string poId    = $"{purchaseIdBase}-{lineNo:D2}";
+                var    ln      = lines[i];
+                string poId    = $"{purchaseIdBase}-{(i + 1):D2}";
                 double poTotal = ln.OrderQty * ln.UnitPrice;
 
                 _repo.CreatePurchaseOrder(
@@ -114,7 +113,7 @@ namespace PremiumLivingOPS.Controllers
             }
         }
 
-        // ══ HELPERS ═══════════════════════════════════════════════
+        // ══ HELPERS ═════════════════════════════════════════════════════
         public List<SupplierLookup> GetAllSuppliers()  => _repo.GetAllSuppliers();
         public string GenerateNextPurchaseId()         => _repo.GenerateNextPurchaseId();
     }
