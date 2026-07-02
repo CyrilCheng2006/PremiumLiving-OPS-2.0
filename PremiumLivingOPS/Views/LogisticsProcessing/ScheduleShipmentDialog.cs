@@ -13,10 +13,12 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
     ///
     /// Layout (mirrors CreateQuotationDialog visual language):
     ///   – pnlHeader       Top  80   — dark navy, title + status badge
-    ///   – Outer CardPanel Top  300  — grey outer → white card → 4-col form grid
+    ///   – Outer CardPanel Fill      — grey outer → white card → 4-col form grid
     ///       Fields: Scheduled Date | Delivery Method | Contact Person | Notes
     ///               Shipment ID (read-only) | Order ID (read-only) | Customer (read-only) | Current Status (read-only)
     ///   – pnlFooter       Bottom 80 — [✔ Schedule 210×60]  [Cancel 210×60]
+    ///
+    /// Window: 1800 × 800  (MinimumSize 1400 × 700)
     ///
     /// Data contract:
     ///   – Receives a ShipmentEntity from the caller (ViewShipmentForm).
@@ -46,8 +48,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         private void BuildUI()
         {
             Text            = $"Schedule Shipment  —  {_shipment.ShipmentID}";
-            Size            = new Size(1040, 560);
-            MinimumSize     = new Size(900, 500);
+            Size            = new Size(1800, 800);   // ← updated
+            MinimumSize     = new Size(1400, 700);   // ← updated
             StartPosition   = FormStartPosition.CenterParent;
             BackColor       = Color.FromArgb(240, 244, 249);
             Font            = new Font("Segoe UI", 13f);
@@ -148,7 +150,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             // Row 1 (editable):  Scheduled Date | Delivery Method | Contact Person | Notes
 
             var (cardOuter, cardInner) = CardPanel.Create(
-                outerHeight:  300,
+                outerHeight:  560,
                 outerPadding: new Padding(20, 14, 20, 8));
 
             var tblForm = new TableLayoutPanel
@@ -158,13 +160,13 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 RowCount        = 4,
                 BackColor       = Color.Transparent,
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                Padding         = new Padding(24, 14, 24, 12)
+                Padding         = new Padding(28, 20, 28, 16)
             };
             for (int c = 0; c < 4; c++)
                 tblForm.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
-            tblForm.RowStyles.Add(new RowStyle(SizeType.Absolute, 30f));  // section label row 0
+            tblForm.RowStyles.Add(new RowStyle(SizeType.Absolute, 32f));  // section label row 0
             tblForm.RowStyles.Add(new RowStyle(SizeType.Percent,  42f));  // read-only fields
-            tblForm.RowStyles.Add(new RowStyle(SizeType.Absolute, 28f));  // section label row 1
+            tblForm.RowStyles.Add(new RowStyle(SizeType.Absolute, 32f));  // section label row 1
             tblForm.RowStyles.Add(new RowStyle(SizeType.Percent,  58f));  // editable fields
 
             // ── Row 0: section label ──────────────────────────────────────────────
@@ -181,10 +183,10 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             tblForm.Controls.Add(lblSection0, 0, 0);
 
             // ── Row 1: read-only shipment info ────────────────────────────────
-            tblForm.Controls.Add(MakeFieldCell("Shipment ID",     MakeReadOnlyLabel(_shipment.ShipmentID)),   0, 1);
-            tblForm.Controls.Add(MakeFieldCell("Order ID",        MakeReadOnlyLabel(_shipment.OrderID)),       1, 1);
-            tblForm.Controls.Add(MakeFieldCell("Customer",        MakeReadOnlyLabel(_shipment.CustomerName ?? "—")), 2, 1);
-            tblForm.Controls.Add(MakeFieldCell("Current Status",  MakeReadOnlyLabel(_shipment.ShipmentStatus ?? "—")), 3, 1);
+            tblForm.Controls.Add(MakeFieldCell("Shipment ID",     MakeReadOnlyLabel(_shipment.ShipmentID)),              0, 1);
+            tblForm.Controls.Add(MakeFieldCell("Order ID",        MakeReadOnlyLabel(_shipment.OrderID)),                  1, 1);
+            tblForm.Controls.Add(MakeFieldCell("Customer",        MakeReadOnlyLabel(_shipment.CustomerName ?? "\u2014")), 2, 1);
+            tblForm.Controls.Add(MakeFieldCell("Current Status",  MakeReadOnlyLabel(_shipment.ShipmentStatus ?? "\u2014")), 3, 1);
 
             // ── Row 2: section label ──────────────────────────────────────────────
             var lblSection1 = new Label
