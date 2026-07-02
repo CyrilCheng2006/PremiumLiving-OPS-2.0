@@ -340,6 +340,157 @@ namespace PremiumLivingOPS.Models.DAL
             }
         }
 
+        // ── Quotation Item Staging helpers ────────────────────────────────
+        // Schema has no QuotationItem table. Quotation items are persisted by
+        // creating a shadow Order (OrderStatus = 'Pending', QuotationID = this
+        // quotation) so they survive application restarts.
+        //
+        // Naming convention for staging OrderID:
+        //   "STG-" + QuotationID  (e.g. "STG-QT-20260702-0001")
+        //
+        // The staging Order uses placeholder values for required NOT NULL
+        // columns (ShippingAddress / BillingAddress / OrderContactName).
+        // ─────────────────────────────────────────────────────────────────
+
+        private static string StagingOrderId(string quotationId) => "STG-" + quotationId;
+
+        /// <summary>
+        /// Atomically creates (or replaces) a staging Order + OrderLine rows for
+        /// the given Quotation so that items are persisted to the DB.
+        ///
+        /// Steps inside a single transaction:
+        ///   1. DELETE existing OrderLine rows for the staging Order (if any).
+        ///   2. DELETE existing staging Order row (if any).
+        ///   3. INSERT new staging Order with OrderStatus = 'Pending'.
+        ///   4. INSERT new OrderLine rows.
+        ///
+        /// Returns true on success; rolls back and returns false on any error.
+        /// </summary>
+        public bool CreateStagingOrderForQuotation(
+            string                    quotationId,
+            string                    customerId,
+            string                    salesStaffId,
+            double                    totalAmount,
+            List<QuotationItemEntity> items)
+        {
+            if (string.IsNullOrEmpty(quotationId) || string.IsNullOrEmpty(customerId)
+                || string.IsNullOrEmpty(salesStaffId) || items == null || items.Count == 0)
+                return false;
+
+            string stagingId = StagingOrderId(quotationId);
+
+            using (var conn = DatabaseHelper.GetConnection())
+            {
+                conn.Open();
+                using (var tx = conn.BeginTransaction())
+                {
+                    try
+                    {
+                        // 1. Remove old OrderLine rows for this staging order
+                        using (var del1 = new MySqlCommand(
+                            "DELETE FROM OrderLine WHERE OrderID = @sid", conn, tx))
+                        {
+                            del1.Parameters.AddWithValue("@sid", stagingId);
+                            del1.ExecuteNonQuery();
+                        }
+
+                        // 2. Remove old staging Order row
+                        using (var del2 = new MySqlCommand(
+                            "DELETE FROM `Order` WHERE OrderID = @sid", conn, tx))
+                        {
+                            del2.Parameters.AddWithValue("@sid", stagingId);
+                            del2.ExecuteNonQuery();
+                        }
+
+                        // 3. Insert staging Order
+                        const string insOrder =
+                            @"INSERT INTO `Order`
+                                (OrderID, QuotationID, CustomerID, AddressID, SalesID,
+                                 IssuedTime, DeliveryDate, ShippingAddress, BillingAddress,
+                                 SubTotal, DiscountType, DiscountValue, DiscountAmount,
+                                 GrandTotal, OrderContactName, OrderStatus)
+                              VALUES
+                                (@OrderID, @QuotationID, @CustomerID, NULL, @SalesID,
+                                 @IssuedTime, @DeliveryDate, @ShippingAddress, @BillingAddress,
+                                 @SubTotal, NULL, 0, 0,
+                                 @GrandTotal, @OrderContactName, 'Pending')";
+
+                        using (var ins = new MySqlCommand(insOrder, conn, tx))
+                        {
+                            ins.Parameters.AddWithValue("@OrderID",          stagingId);
+                            ins.Parameters.AddWithValue("@QuotationID",      quotationId);
+                            ins.Parameters.AddWithValue("@CustomerID",       customerId);
+                            ins.Parameters.AddWithValue("@SalesID",          salesStaffId);
+                            ins.Parameters.AddWithValue("@IssuedTime",       DateTime.Today.ToString("yyyy-MM-dd"));
+                            ins.Parameters.AddWithValue("@DeliveryDate",     DateTime.Today.ToString("yyyy-MM-dd"));
+                            ins.Parameters.AddWithValue("@ShippingAddress",  "[Quotation Staging]");
+                            ins.Parameters.AddWithValue("@BillingAddress",   "[Quotation Staging]");
+                            ins.Parameters.AddWithValue("@SubTotal",         totalAmount);
+                            ins.Parameters.AddWithValue("@GrandTotal",       totalAmount);
+                            ins.Parameters.AddWithValue("@OrderContactName", "[Quotation Staging]");
+                            ins.ExecuteNonQuery();
+                        }
+
+                        // 4. Insert OrderLine rows
+                        const string insLine =
+                            "INSERT INTO OrderLine (OrderID, ItemID, Quantity, Price) VALUES (@oid, @iid, @qty, @price)";
+                        foreach (var item in items)
+                        {
+                            using (var insL = new MySqlCommand(insLine, conn, tx))
+                            {
+                                insL.Parameters.AddWithValue("@oid",   stagingId);
+                                insL.Parameters.AddWithValue("@iid",   item.ItemID);
+                                insL.Parameters.AddWithValue("@qty",   item.Quantity);
+                                insL.Parameters.AddWithValue("@price", item.UnitPrice);
+                                insL.ExecuteNonQuery();
+                            }
+                        }
+
+                        tx.Commit();
+                        return true;
+                    }
+                    catch { tx.Rollback(); return false; }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Removes the staging Order + its OrderLine rows created by
+        /// CreateStagingOrderForQuotation. Called when the Quotation is
+        /// converted to a real Order so the staging row is no longer needed.
+        /// </summary>
+        public bool DeleteStagingOrderByQuotationId(string quotationId)
+        {
+            if (string.IsNullOrEmpty(quotationId)) return false;
+            string stagingId = StagingOrderId(quotationId);
+
+            using (var conn = DatabaseHelper.GetConnection())
+            {
+                conn.Open();
+                using (var tx = conn.BeginTransaction())
+                {
+                    try
+                    {
+                        using (var del1 = new MySqlCommand(
+                            "DELETE FROM OrderLine WHERE OrderID = @sid", conn, tx))
+                        {
+                            del1.Parameters.AddWithValue("@sid", stagingId);
+                            del1.ExecuteNonQuery();
+                        }
+                        using (var del2 = new MySqlCommand(
+                            "DELETE FROM `Order` WHERE OrderID = @sid", conn, tx))
+                        {
+                            del2.Parameters.AddWithValue("@sid", stagingId);
+                            del2.ExecuteNonQuery();
+                        }
+                        tx.Commit();
+                        return true;
+                    }
+                    catch { tx.Rollback(); return false; }
+                }
+            }
+        }
+
         // ╔════════════════════════════════════════════════════════════════
         //  QUOTATION queries
         //  Schema cols: QuotationID, CustomerID, ExpiryDate, TotalAmount,
