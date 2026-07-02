@@ -112,7 +112,7 @@ namespace PremiumLivingOPS.Models.Entities
     public class GroupedProcurementDetailViewModel
     {
         public UserBarViewModel            UserBar         { get; set; }
-        public List<string>                AllowedMenus    { get; set; }
+        public string[]                    AllowedMenus    { get; set; }
         public string                      BasePurchaseID  { get; set; }
         public string                      SupplierDisplay { get; set; }
         public string                      PurchaseStatus  { get; set; }
@@ -139,7 +139,7 @@ namespace PremiumLivingOPS.Models.Entities
     public class ProcurementDetailViewModel
     {
         public UserBarViewModel              UserBar      { get; set; }
-        public List<string>                  AllowedMenus { get; set; }
+        public string[]                      AllowedMenus { get; set; }
         public ProcurementOrderEntity        Order        { get; set; }
         public List<PurchaseOrderLineEntity> Lines        { get; set; }
     }
@@ -151,7 +151,7 @@ namespace PremiumLivingOPS.Models.Entities
     public class SearchProcurementViewModel
     {
         public UserBarViewModel            UserBar      { get; set; }
-        public List<string>                AllowedMenus { get; set; }
+        public string[]                    AllowedMenus { get; set; }
         public List<ProcurementOrderGroup> Groups       { get; set; }
     }
 
@@ -162,7 +162,7 @@ namespace PremiumLivingOPS.Models.Entities
     public class CreateProcurementViewModel
     {
         public UserBarViewModel                 UserBar        { get; set; }
-        public List<string>                     AllowedMenus   { get; set; }
+        public string[]                         AllowedMenus   { get; set; }
         public List<MaterialRequestBatchLookup> BatchPrefixes  { get; set; }
         public List<SupplierLookup>             Suppliers      { get; set; }
         public string                           NextPurchaseID { get; set; }
