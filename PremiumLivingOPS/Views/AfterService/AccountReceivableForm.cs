@@ -36,7 +36,14 @@ namespace PremiumLivingOPS.Views.AfterService
             => FormNavigator.NavigateTo(this, menuLabel, subItem);
 
         private void btnLogout_Click(object sender, EventArgs e)
-        { SessionManager.Clear(); Application.Restart(); }
+        {
+            if (MessageBox.Show("Are you sure you want to log out?",
+                                "Logout", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+            {
+                SessionManager.Clear();
+                Application.Restart();
+            }
+        }
 
         // ── Grid refresh
         private void RefreshGrid()
@@ -112,7 +119,6 @@ namespace PremiumLivingOPS.Views.AfterService
                 if (i.PaymentStatus == "Full")    fullCount++;
             }
 
-            // KPI Bar: Total + 3 PaymentStatus (Partial / Full / Overdue)
             var pills = new[]
             {
                 ("Total Invoices", totalCount.ToString(),   Color.FromArgb( 19,  35,  61), Color.FromArgb(219, 234, 254)),
@@ -123,22 +129,27 @@ namespace PremiumLivingOPS.Views.AfterService
 
             var flow = new FlowLayoutPanel
             {
-                Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight,
-                WrapContents = false, BackColor = Color.Transparent,
-                Padding = new Padding(0), AutoScroll = false,
+                Dock          = DockStyle.Fill,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents  = false,
+                BackColor     = Color.Transparent,
+                Padding       = new Padding(0),
+                AutoScroll    = false,
             };
 
             const int PillW   = 340;
-            const int PillH   =  60;
-            const int Gap     =   8;
-            const int NumColW =  90;
+            const int PillH   = 60;
+            const int Gap     = 8;
+            const int NumColW = 90;
 
             foreach (var (label, value, fg, bg) in pills)
             {
                 var pill = new Panel
                 {
-                    BackColor = bg, Size = new Size(PillW, PillH),
-                    Margin = new Padding(0, 0, Gap, 0), Cursor = Cursors.Hand
+                    BackColor = bg,
+                    Size      = new Size(PillW, PillH),
+                    Margin    = new Padding(0, 0, Gap, 0),
+                    Cursor    = Cursors.Hand,
                 };
                 pill.Paint += (s, e) =>
                 {
@@ -147,322 +158,42 @@ namespace PremiumLivingOPS.Views.AfterService
                     using var brush = new SolidBrush(((Panel)s).BackColor);
                     e.Graphics.FillPath(brush, path);
                 };
+
                 var tlp = new TableLayoutPanel
                 {
-                    Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
-                    BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                    Padding = new Padding(10, 0, 8, 0),
+                    Dock            = DockStyle.Fill,
+                    ColumnCount     = 2,
+                    RowCount        = 1,
+                    BackColor       = Color.Transparent,
+                    CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                    Padding         = new Padding(10, 0, 8, 0),
                 };
                 tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, NumColW));
                 tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
                 tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+
                 tlp.Controls.Add(new Label
                 {
-                    Text = value, Font = new Font("Segoe UI", 14f, FontStyle.Bold),
+                    Text      = value,
+                    Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
                     ForeColor = fg, BackColor = Color.Transparent,
-                    Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, AutoSize = false
+                    Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, AutoSize = false,
                 }, 0, 0);
                 tlp.Controls.Add(new Label
                 {
-                    Text = label, Font = new Font("Segoe UI", 11f),
+                    Text      = label,
+                    Font      = new Font("Segoe UI", 12f),
                     ForeColor = fg, BackColor = Color.Transparent,
-                    Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
+                    Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false,
                 }, 1, 0);
+
                 pill.Controls.Add(tlp);
                 flow.Controls.Add(pill);
             }
+
             pnlKpi.Controls.Add(flow);
         }
 
-        // ── CellFormatting
-        private void dgvAR_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
-        {
-            if (e.RowIndex < 0 || e.RowIndex >= _invoices.Count) return;
-            var inv = _invoices[e.RowIndex];
-
-            if (inv.IsOverdue)
-            {
-                e.CellStyle.BackColor          = OverdueBg;
-                e.CellStyle.SelectionBackColor = Color.FromArgb(255, 220, 220);
-            }
-
-            if (dgvAR.Columns[e.ColumnIndex].Name == "colStatus" && e.Value != null)
-            {
-                if (StatusColors.TryGetValue(e.Value.ToString(), out var c))
-                {
-                    e.CellStyle.BackColor          = c.bg;
-                    e.CellStyle.ForeColor          = c.fg;
-                    e.CellStyle.SelectionBackColor = c.bg;
-                    e.CellStyle.SelectionForeColor = c.fg;
-                    e.CellStyle.Font      = new Font("Segoe UI", 11f, FontStyle.Bold);
-                    e.CellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-                }
-                e.FormattingApplied = true;
-            }
-        }
-
-        // ── Record Payment
-        private void OpenRecordPayment()
-        {
-            if (dgvAR.SelectedRows.Count == 0)
-            {
-                MessageBox.Show("Please select an invoice from the list.",
-                    "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
-
-            int idx = dgvAR.SelectedRows[0].Index;
-            if (idx < 0 || idx >= _invoices.Count) return;
-            var inv = _invoices[idx];
-
-            if (inv.PaymentStatus == "Full" && !inv.IsOverdue)
-            {
-                MessageBox.Show(
-                    $"Invoice {inv.InvoiceID} is already fully paid.\nNo further payment is required.",
-                    "Already Paid", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
-
-            ShowRecordPaymentDialog(inv);
-            RefreshGrid();
-        }
-
-        // ─────────────────────────────────────────────────────────────────────
-        // Record Payment Dialog
-        // ─────────────────────────────────────────────────────────────────────
-        private void ShowRecordPaymentDialog(InvoiceDetailEntity inv)
-        {
-            using var dlg = new Form
-            {
-                Text            = $"Record Payment  —  {inv.InvoiceID}",
-                Size            = new Size(1800, 1400),
-                StartPosition   = FormStartPosition.CenterParent,
-                BackColor       = Color.FromArgb(240, 244, 249),
-                Font            = new Font("Segoe UI", 13f),
-                FormBorderStyle = FormBorderStyle.FixedDialog, MaximizeBox = false, MinimizeBox = false
-            };
-
-            // ══ HEADER
-            var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 70, BackColor = Color.FromArgb(1, 105, 111) };
-            var tblHeader = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
-                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                Padding = new Padding(28, 0, 0, 0)
-            };
-            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
-            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 640f));
-            tblHeader.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-            tblHeader.Controls.Add(new Label
-            {
-                Text = $"Record Payment  —  {inv.InvoiceID}",
-                Font = new Font("Segoe UI", 17f, FontStyle.Bold), ForeColor = Color.White,
-                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
-            }, 0, 0);
-            Color badgeBg = inv.IsOverdue ? Color.FromArgb(185, 28, 28) : Color.FromArgb(146, 64, 14);
-            tblHeader.Controls.Add(new Label
-            {
-                Text = $"Balance: HK$ {inv.RemainingBalance:N2}",
-                Font = new Font("Segoe UI", 14f, FontStyle.Bold), ForeColor = Color.White,
-                BackColor = badgeBg, Dock = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleCenter, AutoSize = false,
-                Margin = new Padding(0, 8, 0, 8)
-            }, 1, 0);
-            pnlHeader.Controls.Add(tblHeader);
-
-            // ══ CARD: Invoice Info
-            // 5 rows: Customer/Order | Dates | Amounts | Deposit | Status
-            var (infoOuter, infoInner) = CardPanel.Create(outerHeight: 260);
-            var tblInfo = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 5,
-                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                Padding = new Padding(24, 16, 24, 16)
-            };
-            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 14f));
-            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 36f));
-            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 14f));
-            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 36f));
-            for (int r = 0; r < 5; r++) tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 20f));
-            AddInfoRow(tblInfo, 0, "Customer:",      inv.CustomerName,                       "Order No.:",   inv.OrderID);
-            AddInfoRow(tblInfo, 1, "Invoice Date:",  inv.InvoiceDate.ToString("yyyy-MM-dd"), "Due Date:",    inv.DueDate.ToString("yyyy-MM-dd"));
-            AddInfoRow(tblInfo, 2, "Total Amount:",  $"HK$ {inv.TotalAmount:N2}",            "Paid Amount:", $"HK$ {inv.PaidAmount:N2}");
-            AddInfoRow(tblInfo, 3, "Deposit Paid:",  $"HK$ {inv.DepositAmount:N2}",          "Balance:",     $"HK$ {inv.RemainingBalance:N2}");
-            AddInfoRow(tblInfo, 4, "Status:",        inv.IsOverdue ? "Overdue" : inv.PaymentStatus, "",      "");
-            infoInner.Controls.Add(tblInfo);
-
-            // ══ CARD: Record New Payment
-            var (inputOuter, inputInner) = CardPanel.Create(outerHeight: 370);
-            var pnlInputTitle = new Panel
-            {
-                Dock = DockStyle.Top, Height = 52,
-                BackColor = Color.FromArgb(240, 253, 250), Padding = new Padding(24, 0, 0, 0)
-            };
-            pnlInputTitle.Paint += PaintBottomBorder;
-            pnlInputTitle.Controls.Add(new Label
-            {
-                Text = "💳  Record New Payment",
-                Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.FromArgb(1, 105, 111),
-                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
-            });
-
-            var tblInput = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 3,
-                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                Padding = new Padding(24, 16, 24, 16)
-            };
-            tblInput.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 700f));
-            tblInput.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
-            tblInput.RowStyles.Add(new RowStyle(SizeType.Percent, 33.3f));
-            tblInput.RowStyles.Add(new RowStyle(SizeType.Percent, 33.3f));
-            tblInput.RowStyles.Add(new RowStyle(SizeType.Percent, 33.3f));
-
-            var nudAmount = new NumericUpDown
-            {
-                Font = new Font("Segoe UI", 13f),
-                Minimum = 0.01m, Maximum = (decimal)Math.Max(inv.RemainingBalance, 0.01),
-                DecimalPlaces = 2,
-                Value = (decimal)(inv.RemainingBalance > 0 ? inv.RemainingBalance : 0.01),
-                ThousandsSeparator = true, Dock = DockStyle.Fill
-            };
-            tblInput.Controls.Add(MakeInputLabel("Payment Amount (HK$) *"), 0, 0);
-            tblInput.Controls.Add(nudAmount,                                 1, 0);
-
-            var cboType = new ComboBox
-            {
-                DropDownStyle = ComboBoxStyle.DropDownList,
-                Font = new Font("Segoe UI", 13f), Dock = DockStyle.Fill
-            };
-            cboType.Items.AddRange(new object[] { "Installment", "Full", "Deposit" });
-            cboType.SelectedIndex = inv.RemainingBalance <= inv.TotalAmount * 0.5 ? 1 : 0;
-            tblInput.Controls.Add(MakeInputLabel("Payment Type *"), 0, 1);
-            tblInput.Controls.Add(cboType,                          1, 1);
-
-            var lblDate = new Label
-            {
-                Text = DateTime.Today.ToString("yyyy-MM-dd"),
-                Font = new Font("Segoe UI", 13f), ForeColor = Color.FromArgb(60, 60, 60),
-                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
-            };
-            tblInput.Controls.Add(MakeInputLabel("Payment Date"), 0, 2);
-            tblInput.Controls.Add(lblDate,                        1, 2);
-
-            inputInner.Controls.Add(tblInput);
-            inputInner.Controls.Add(pnlInputTitle);
-
-            // ══ CARD: Transaction History
-            var (histOuter, histInner) = CardPanel.CreateFill();
-            var pnlHistTitle = new Panel
-            {
-                Dock = DockStyle.Top, Height = 52,
-                BackColor = Color.FromArgb(246, 249, 255), Padding = new Padding(24, 0, 0, 0)
-            };
-            pnlHistTitle.Paint += PaintBottomBorder;
-            pnlHistTitle.Controls.Add(new Label
-            {
-                Text = "📄  Transaction History",
-                Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Color.FromArgb(19, 35, 61),
-                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
-            });
-
-            var dgvTxn = new DataGridView
-            {
-                ReadOnly = true, AllowUserToAddRows = false, AllowUserToDeleteRows = false,
-                RowHeadersVisible = false, SelectionMode = DataGridViewSelectionMode.FullRowSelect,
-                MultiSelect = false, BackgroundColor = Color.White, BorderStyle = BorderStyle.None,
-                GridColor = Palette.BorderColor, Font = new Font("Segoe UI", 12f),
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-                CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal,
-                RowTemplate = { Height = 44 }, Dock = DockStyle.Fill,
-                ColumnHeadersHeight = 42, EnableHeadersVisualStyles = false,
-                ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
-                {
-                    BackColor = Color.FromArgb(246, 249, 255), ForeColor = Palette.TextMuted,
-                    Font = new Font("Segoe UI", 11f, FontStyle.Bold),
-                    Padding = new Padding(10, 0, 0, 0), Alignment = DataGridViewContentAlignment.MiddleLeft
-                },
-                DefaultCellStyle = new DataGridViewCellStyle
-                {
-                    BackColor = Color.White, ForeColor = Palette.TextMain,
-                    SelectionBackColor = Color.FromArgb(219, 234, 254), SelectionForeColor = Palette.TextMain,
-                    Padding = new Padding(10, 4, 10, 4)
-                }
-            };
-            dgvTxn.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTxnID",   HeaderText = "TXN ID",  FillWeight = 30 });
-            dgvTxn.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTxnDate", HeaderText = "DATE",    FillWeight = 20 });
-            dgvTxn.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTxnType", HeaderText = "TYPE",    FillWeight = 20 });
-            dgvTxn.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTxnAmt",  HeaderText = "AMOUNT",  FillWeight = 30 });
-            foreach (var t in inv.Transactions)
-                dgvTxn.Rows.Add(
-                    t.TransactionID,
-                    t.TransactionDate.ToString("yyyy-MM-dd"),
-                    t.TransactionType,
-                    $"HK$ {t.Amount:N2}");
-            histInner.Controls.Add(dgvTxn);
-            histInner.Controls.Add(pnlHistTitle);
-
-            // ══ FOOTER
-            var pnlFooter = new Panel { Dock = DockStyle.Bottom, Height = 80, BackColor = Color.White };
-            pnlFooter.Paint += PaintTopBorder;
-
-            var btnConfirm = new Button
-            {
-                Text = "✔  Confirm Payment",
-                Font = new Font("Segoe UI", 13f, FontStyle.Bold),
-                ForeColor = Color.White, BackColor = Color.FromArgb(1, 105, 111),
-                FlatStyle = FlatStyle.Flat, Width = 240, Height = 52, Cursor = Cursors.Hand
-            };
-            btnConfirm.FlatAppearance.BorderSize = 0;
-            btnConfirm.FlatAppearance.MouseOverBackColor = Color.FromArgb(12, 78, 84);
-
-            var btnCancel = new Button
-            {
-                Text = "Cancel",
-                Font = new Font("Segoe UI", 13f),
-                ForeColor = Palette.TextMain, BackColor = Color.White,
-                FlatStyle = FlatStyle.Flat, Width = 160, Height = 52, Cursor = Cursors.Hand
-            };
-            btnCancel.FlatAppearance.BorderColor = Palette.BorderColor;
-            btnCancel.FlatAppearance.BorderSize = 1;
-            btnCancel.Click += (s, e) => dlg.Close();
-
-            pnlFooter.Controls.Add(btnConfirm);
-            pnlFooter.Controls.Add(btnCancel);
-            pnlFooter.Resize += (s, e) =>
-            {
-                btnConfirm.Location = new Point(pnlFooter.Width - 420, (pnlFooter.Height - 52) / 2);
-                btnCancel.Location  = new Point(pnlFooter.Width - 180, (pnlFooter.Height - 52) / 2);
-            };
-
-            btnConfirm.Click += (s, e) =>
-            {
-                double amount = (double)nudAmount.Value;
-                string type   = cboType.SelectedItem?.ToString() ?? "Installment";
-                bool ok = _ctrl.RecordPayment(inv.InvoiceID, amount, type);
-                if (ok)
-                {
-                    MessageBox.Show(
-                        $"Payment of HK$ {amount:N2} recorded successfully.",
-                        "Payment Recorded", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    dlg.Close();
-                }
-                else
-                {
-                    MessageBox.Show("Failed to record payment. Please try again.",
-                        "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
-            };
-
-            dlg.Controls.Add(histOuter);
-            dlg.Controls.Add(inputOuter);
-            dlg.Controls.Add(infoOuter);
-            dlg.Controls.Add(pnlHeader);
-            dlg.Controls.Add(pnlFooter);
-            dlg.ShowDialog(this);
-        }
-
-        // ── Helpers
         private static GraphicsPath RoundedRect(Rectangle r, int radius)
         {
             var path = new GraphicsPath();
@@ -473,30 +204,6 @@ namespace PremiumLivingOPS.Views.AfterService
             path.AddArc(r.X,         r.Bottom - d, d, d,  90, 90);
             path.CloseFigure();
             return path;
-        }
-
-        private static void AddInfoRow(TableLayoutPanel tbl, int row, string lbl1, string val1, string lbl2, string val2)
-        {
-            tbl.Controls.Add(new Label { Text = lbl1, Font = new Font("Segoe UI", 11f, FontStyle.Bold), ForeColor = Palette.TextMuted, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft,  AutoSize = false }, 0, row);
-            tbl.Controls.Add(new Label { Text = val1, Font = new Font("Segoe UI", 12f),                 ForeColor = Palette.TextMain,  Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft,  AutoSize = false }, 1, row);
-            tbl.Controls.Add(new Label { Text = lbl2, Font = new Font("Segoe UI", 11f, FontStyle.Bold), ForeColor = Palette.TextMuted, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft,  AutoSize = false }, 2, row);
-            tbl.Controls.Add(new Label { Text = val2, Font = new Font("Segoe UI", 12f),                 ForeColor = Palette.TextMain,  Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft,  AutoSize = false }, 3, row);
-        }
-
-        private static Label MakeInputLabel(string text) =>
-            new Label { Text = text, Font = new Font("Segoe UI", 12f, FontStyle.Bold), ForeColor = Palette.TextMuted, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false };
-
-        private static void PaintBottomBorder(object sender, System.Windows.Forms.PaintEventArgs e)
-        {
-            var p = (Panel)sender;
-            using var pen = new Pen(Palette.BorderColor, 1);
-            e.Graphics.DrawLine(pen, 0, p.Height - 1, p.Width, p.Height - 1);
-        }
-
-        private static void PaintTopBorder(object sender, System.Windows.Forms.PaintEventArgs e)
-        {
-            using var pen = new Pen(Palette.BorderColor, 1);
-            e.Graphics.DrawLine(pen, 0, 0, ((Panel)sender).Width, 0);
         }
     }
 }

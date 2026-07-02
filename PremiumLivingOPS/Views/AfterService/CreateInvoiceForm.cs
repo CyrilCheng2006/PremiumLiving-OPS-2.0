@@ -65,7 +65,7 @@ namespace PremiumLivingOPS.Views.AfterService
                     o.CustomerName,
                     o.OrderContactName,
                     o.IssuedTime.ToString("yyyy-MM-dd"),
-                    o.DeliveryDate?.ToString("yyyy-MM-dd") ?? "—",
+                    o.DeliveryDate?.ToString("yyyy-MM-dd") ?? "\u2014",
                     $"HK$ {o.GrandTotal:N2}",
                     o.OrderStatus);
 
@@ -124,9 +124,9 @@ namespace PremiumLivingOPS.Views.AfterService
         private void ClearForm()
         {
             _selectedOrder             = null;
-            lblSelectedOrderID.Text    = "—";
-            lblCustomer.Text           = "—";
-            lblGrandTotal.Text         = "—";
+            lblSelectedOrderID.Text    = "\u2014";
+            lblCustomer.Text           = "\u2014";
+            lblGrandTotal.Text         = "\u2014";
             nudDeposit.Value           = 0;
             nudPaid.Value              = 0;
             lblRemaining.Text          = "HK$ 0.00";
@@ -198,8 +198,12 @@ namespace PremiumLivingOPS.Views.AfterService
 
         private void btnLogout_Click(object sender, EventArgs e)
         {
-            SessionManager.Clear();
-            Application.Restart();
+            if (MessageBox.Show("Are you sure you want to log out?",
+                                "Logout", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+            {
+                SessionManager.Clear();
+                Application.Restart();
+            }
         }
     }
 }
