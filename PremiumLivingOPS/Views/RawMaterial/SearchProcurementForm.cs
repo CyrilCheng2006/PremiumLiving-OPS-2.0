@@ -24,8 +24,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
                 { "Cancelled",          (Color.FromArgb(254, 226, 226), Color.FromArgb(153,  27,  27)) },
                 { "Partially Received", (Color.FromArgb(254, 243, 199), Color.FromArgb(146,  64,  14)) },
                 { "Received",           (Color.FromArgb(243, 232, 255), Color.FromArgb( 88,  28, 135)) },
-                { "Completed",          (Color.FromArgb(209, 250, 229), Color.FromArgb(  6,  95,  70)) },
-                { "Mixed",              (Color.FromArgb(229, 231, 235), Color.FromArgb( 55,  65,  81)) }
+                { "Completed",          (Color.FromArgb(209, 250, 229), Color.FromArgb(  6,  95,  70)) }
             };
 
         private static readonly Dictionary<string, (Color bg, Color fg)> UrgencyColors =
@@ -74,7 +73,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
 
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
-            _shell.SetBreadcrumb("Raw Material  \u203a  Search Procurement");
+            _shell.SetBreadcrumb("Raw Material  ›  Search Procurement");
 
             _currentGroups = vm.Groups ?? new List<ProcurementOrderGroup>();
 
@@ -82,16 +81,16 @@ namespace PremiumLivingOPS.Views.RawMaterial
             foreach (var g in _currentGroups)
             {
                 int ri = dgvOrders.Rows.Add(
-                    g.BasePurchaseID,
-                    g.SupplierName,
-                    $"{g.ItemCount} item(s)",
-                    g.OrderDateStr,
-                    $"HK$ {g.TotalAmount:N2}",
-                    g.PurchaseStatus,
-                    g.UrgencyLevel);
+                    g.PurchaseID,          // col 0: Purchase ID
+                    g.SupplierName,        // col 1: Supplier
+                    $"{g.ItemCount} line(s)",  // col 2: Lines
+                    g.OrderDateStr,        // col 3: Date
+                    $"HK$ {g.TotalAmount:N2}", // col 4: Amount
+                    g.PurchaseStatus,      // col 5: Status
+                    g.UrgencyLevel);       // col 6: Urgency
 
-                // Store BasePurchaseID in Tag for safe retrieval (sort-safe)
-                dgvOrders.Rows[ri].Tag = g.BasePurchaseID;
+                // Store PurchaseID in Tag for sort-safe retrieval
+                dgvOrders.Rows[ri].Tag = g.PurchaseID;
             }
 
             RefreshKpi();
@@ -254,61 +253,50 @@ namespace PremiumLivingOPS.Views.RawMaterial
         // ════════════════════════════════════════════════════════════════
         //  Detail Dialog
         // ════════════════════════════════════════════════════════════════
-
         private void OpenDetailDialog()
         {
             if (dgvOrders.SelectedRows.Count == 0) return;
 
-            // Read from Row.Tag — set in RefreshGrid(), sort-safe
-            string basePurchaseId = dgvOrders.SelectedRows[0].Tag?.ToString();
-            if (string.IsNullOrEmpty(basePurchaseId)) return;
+            // Read PurchaseID from Row.Tag (set in RefreshGrid, sort-safe)
+            string purchaseId = dgvOrders.SelectedRows[0].Tag?.ToString();
+            if (string.IsNullOrEmpty(purchaseId)) return;
 
             ProcurementDetailViewModel vm = null;
             try
             {
-                vm = _ctrl.GetProcurementDetailVM(basePurchaseId);
+                vm = _ctrl.GetProcurementDetailVM(purchaseId);
             }
             catch (Exception ex)
             {
                 MessageBox.Show(
-                    $"Failed to load details for {basePurchaseId}.\n\n{ex.Message}",
+                    $"Failed to load details for {purchaseId}.\n\n{ex.Message}",
                     "Database Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
-            // Guard: vm must be non-null and have at least one Order row
-            if (vm == null || vm.Orders == null || vm.Orders.Count == 0)
+            if (vm?.Order == null)
             {
                 MessageBox.Show(
-                    $"No Purchase Order records found for: {basePurchaseId}\n\n"
-                    + "Tip: This usually means the PurchaseOrder rows for this base ID\n"
-                    + "do not exist in the database yet, or the ID format is unexpected.\n"
-                    + $"(Searched for PurchaseID LIKE '{basePurchaseId}-%')",
-                    "Not Found",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    $"No Purchase Order found for: {purchaseId}",
+                    "Not Found", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
-            ShowProcurementDetailDialog(basePurchaseId, vm);
+            ShowProcurementDetailDialog(vm);
         }
 
-        private void ShowProcurementDetailDialog(string basePurchaseId, ProcurementDetailViewModel vm)
+        private void ShowProcurementDetailDialog(ProcurementDetailViewModel vm)
         {
-            var orders = vm.Orders;
-            var lines  = vm.Lines ?? new List<PurchaseOrderLineEntity>();
-            var first  = orders[0];
+            var order = vm.Order;
+            var lines = vm.Lines ?? new List<PurchaseOrderLineEntity>();
 
-            double grandTotal = 0;
-            foreach (var o in orders) grandTotal += o.POTotalAmount;
-
-            string statusDisplay = orders.Count == 1
-                ? first.PurchaseStatus
-                : (new HashSet<string>(orders.ConvertAll(o => o.PurchaseStatus)).Count == 1
-                    ? first.PurchaseStatus : "Mixed");
+            StatusColors.TryGetValue(order.PurchaseStatus ?? string.Empty, out var hsc);
+            Color hBg = hsc.bg != default ? hsc.bg : Color.FromArgb(229, 231, 235);
+            Color hFg = hsc.fg != default ? hsc.fg : Color.FromArgb(55, 65, 81);
 
             using var dlg = new Form
             {
-                Text            = $"Purchase Order Detail — {basePurchaseId}",
+                Text            = $"Purchase Order Detail — {order.PurchaseID}",
                 Size            = new Size(1400, 900),
                 MinimumSize     = new Size(1100, 700),
                 StartPosition   = FormStartPosition.CenterParent,
@@ -318,11 +306,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
                 MaximizeBox     = true, MinimizeBox = false
             };
 
-            // ── HEADER ────────────────────────────────────────────────────
-            StatusColors.TryGetValue(statusDisplay ?? string.Empty, out var hsc);
-            Color hBg = hsc.bg != default ? hsc.bg : Color.FromArgb(229, 231, 235);
-            Color hFg = hsc.fg != default ? hsc.fg : Color.FromArgb(55, 65, 81);
-
+            // ── HEADER ──────────────────────────────────────────────────
             var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 80, BackColor = Color.FromArgb(19, 35, 61) };
             var tblHeader = new TableLayoutPanel
             {
@@ -335,14 +319,14 @@ namespace PremiumLivingOPS.Views.RawMaterial
             tblHeader.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
             tblHeader.Controls.Add(new Label
             {
-                Text = $"Purchase Order Details  —  {basePurchaseId}",
+                Text = $"Purchase Order Details  —  {order.PurchaseID}",
                 Font = new Font("Segoe UI", 18f, FontStyle.Bold),
                 ForeColor = Color.White, Dock = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
             }, 0, 0);
             tblHeader.Controls.Add(new Label
             {
-                Text = statusDisplay ?? "—",
+                Text = order.PurchaseStatus ?? "—",
                 Font = new Font("Segoe UI", 13f, FontStyle.Bold),
                 ForeColor = hFg, BackColor = hBg,
                 Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter,
@@ -350,7 +334,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
             }, 1, 0);
             pnlHeader.Controls.Add(tblHeader);
 
-            // ── META ROW: Supplier / Date / Sub-Orders / Grand Total ───────────
+            // ── META ROW 1: Supplier / Date / Request ID / Amount ───────────
             var pnlMeta = new Panel
             {
                 Dock = DockStyle.Top, Height = 64,
@@ -366,18 +350,19 @@ namespace PremiumLivingOPS.Views.RawMaterial
                 tblMeta.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 12.5f));
             tblMeta.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
             tblMeta.Controls.Add(DlgKey("Supplier"),    0, 0);
-            tblMeta.Controls.Add(DlgVal(!string.IsNullOrEmpty(first.SupplierID)
-                ? $"{first.SupplierID}  —  {first.SupplierName}"
-                : first.SupplierName ?? "—"), 1, 0);
+            tblMeta.Controls.Add(DlgVal(
+                string.IsNullOrEmpty(order.SupplierID)
+                    ? order.SupplierName ?? "—"
+                    : $"{order.SupplierID}  —  {order.SupplierName}"), 1, 0);
             tblMeta.Controls.Add(DlgKey("Order Date"),  2, 0);
-            tblMeta.Controls.Add(DlgVal(first.OrderDateStr ?? "—"), 3, 0);
-            tblMeta.Controls.Add(DlgKey("Sub-Orders"),  4, 0);
-            tblMeta.Controls.Add(DlgVal($"{orders.Count} item(s)"), 5, 0);
-            tblMeta.Controls.Add(DlgKey("Grand Total"), 6, 0);
-            tblMeta.Controls.Add(DlgVal($"HK$ {grandTotal:N2}"), 7, 0);
+            tblMeta.Controls.Add(DlgVal(order.OrderDateStr ?? "—"), 3, 0);
+            tblMeta.Controls.Add(DlgKey("Request ID"),  4, 0);
+            tblMeta.Controls.Add(DlgVal(string.IsNullOrEmpty(order.RequestID) ? "—" : order.RequestID), 5, 0);
+            tblMeta.Controls.Add(DlgKey("PO Total"),    6, 0);
+            tblMeta.Controls.Add(DlgVal($"HK$ {order.POTotalAmount:N2}"), 7, 0);
             pnlMeta.Controls.Add(tblMeta);
 
-            // ── META2: Urgency / Trigger ──────────────────────────────────
+            // ── META ROW 2: Urgency / Trigger / Material ────────────────
             var pnlMeta2 = new Panel
             {
                 Dock = DockStyle.Top, Height = 56,
@@ -386,21 +371,22 @@ namespace PremiumLivingOPS.Views.RawMaterial
             pnlMeta2.Paint += DlgPaintBottomBorder;
             var tblMeta2 = new TableLayoutPanel
             {
-                Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 1,
+                Dock = DockStyle.Fill, ColumnCount = 6, RowCount = 1,
                 BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
-            tblMeta2.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
-            tblMeta2.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
-            tblMeta2.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
-            tblMeta2.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
+            for (int i = 0; i < 6; i++)
+                tblMeta2.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f / 6));
             tblMeta2.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-            tblMeta2.Controls.Add(DlgKey("Urgency Level"), 0, 0);
-            tblMeta2.Controls.Add(DlgVal(string.IsNullOrEmpty(first.UrgencyLevel) ? "—" : first.UrgencyLevel), 1, 0);
-            tblMeta2.Controls.Add(DlgKey("Trigger Type"),  2, 0);
-            tblMeta2.Controls.Add(DlgVal(string.IsNullOrEmpty(first.TriggerType)  ? "—" : first.TriggerType),  3, 0);
+            tblMeta2.Controls.Add(DlgKey("Urgency"),      0, 0);
+            tblMeta2.Controls.Add(DlgVal(string.IsNullOrEmpty(order.UrgencyLevel) ? "—" : order.UrgencyLevel), 1, 0);
+            tblMeta2.Controls.Add(DlgKey("Trigger"),       2, 0);
+            tblMeta2.Controls.Add(DlgVal(string.IsNullOrEmpty(order.TriggerType)  ? "—" : order.TriggerType),  3, 0);
+            tblMeta2.Controls.Add(DlgKey("Material (MRQ)"), 4, 0);
+            tblMeta2.Controls.Add(DlgVal(
+                string.IsNullOrEmpty(order.RawMaterialName) ? "—" : $"{order.RawMaterialName}  ({order.RawMaterialItemID})"), 5, 0);
             pnlMeta2.Controls.Add(tblMeta2);
 
-            // ── LINES LABEL ─────────────────────────────────────────────
+            // ── ORDER LINES LABEL ───────────────────────────────────
             var pnlLinesLabel = new Panel
             {
                 Dock = DockStyle.Top, Height = 38,
@@ -415,7 +401,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
             });
             pnlLinesLabel.Paint += DlgPaintBottomBorder;
 
-            // ── FOOTER ──────────────────────────────────────────────────
+            // ── FOOTER ───────────────────────────────────────────────
             var pnlFooter = new Panel
             {
                 Dock = DockStyle.Bottom, Height = 68,
@@ -435,7 +421,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
             btnClose.Click += (s, ev) => dlg.Close();
             pnlFooter.Controls.Add(btnClose);
 
-            // ── ORDER LINES DGV or empty-state ─────────────────────────
+            // ── ORDER LINES DGV or empty state ───────────────────────
             Control fillContent;
             if (lines.Count > 0)
             {
@@ -467,38 +453,30 @@ namespace PremiumLivingOPS.Views.RawMaterial
                 dgvLines.DefaultCellStyle.SelectionForeColor     = Color.FromArgb(15, 31, 53);
                 dgvLines.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(249, 250, 251);
 
-                dgvLines.Columns.Add(new DataGridViewTextBoxColumn
-                {
-                    Name = "cLineNo", HeaderText = "LINE #", FillWeight = 7,
-                    DefaultCellStyle = {
-                        Alignment = DataGridViewContentAlignment.MiddleCenter,
-                        Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
-                        ForeColor = Color.FromArgb(30, 64, 175)
-                    }
-                });
-                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cPOID",  HeaderText = "PURCHASE ID",  FillWeight = 16 });
-                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cPOLine",HeaderText = "PO LINE ID",   FillWeight = 14 });
-                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cMat",   HeaderText = "RAW MATERIAL", FillWeight = 22 });
-                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cType",  HeaderText = "TYPE",         FillWeight = 10 });
-                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cWH",    HeaderText = "WAREHOUSE",    FillWeight = 16 });
-                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cQty",   HeaderText = "ORDER QTY",   FillWeight =  9 });
-                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cPrice", HeaderText = "UNIT PRICE",  FillWeight = 12 });
-                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cTotal", HeaderText = "LINE TOTAL",  FillWeight = 12 });
+                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cNo",    HeaderText = "#",             FillWeight =  5 });
+                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cLine",  HeaderText = "PO LINE ID",    FillWeight = 16 });
+                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cMat",   HeaderText = "RAW MATERIAL",  FillWeight = 22 });
+                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cType",  HeaderText = "TYPE",          FillWeight = 10 });
+                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cWH",    HeaderText = "WAREHOUSE",     FillWeight = 18 });
+                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cQty",   HeaderText = "ORDER QTY",    FillWeight =  9 });
+                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cPrice", HeaderText = "UNIT PRICE",   FillWeight = 12 });
+                dgvLines.Columns.Add(new DataGridViewTextBoxColumn { Name = "cTotal", HeaderText = "LINE TOTAL",   FillWeight = 12 });
+
+                // Align numeric columns centre
+                foreach (DataGridViewColumn col in dgvLines.Columns)
+                    if (col.Name == "cNo" || col.Name == "cQty" || col.Name == "cPrice" || col.Name == "cTotal")
+                        col.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
 
                 int seq = 0;
                 foreach (var ln in lines)
                 {
                     seq++;
-                    string lineNo = ln.PurchaseID?.Length >= 3
-                        ? ln.PurchaseID.Substring(ln.PurchaseID.Length - 3)
-                        : seq.ToString("D2");
                     dgvLines.Rows.Add(
-                        lineNo,
-                        ln.PurchaseID,
+                        seq.ToString(),
                         ln.POLineID,
                         ln.MaterialName,
-                        ln.MaterialType,
-                        ln.WarehouseLocation,
+                        string.IsNullOrEmpty(ln.MaterialType) ? "—" : ln.MaterialType,
+                        string.IsNullOrEmpty(ln.WarehouseLocation) ? ln.WarehouseID : ln.WarehouseLocation,
                         ln.OrderQty,
                         $"HK$ {ln.UnitPrice:N2}",
                         $"HK$ {ln.LineTotal:N2}");
@@ -507,7 +485,6 @@ namespace PremiumLivingOPS.Views.RawMaterial
             }
             else
             {
-                // Graceful empty state — no lines yet (PO exists but no line items)
                 var pnlEmpty = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
                 pnlEmpty.Controls.Add(new Label
                 {
@@ -520,18 +497,18 @@ namespace PremiumLivingOPS.Views.RawMaterial
                 fillContent = pnlEmpty;
             }
 
-            // ── Assemble: Bottom first, then Top panels, then Fill last ───
-            dlg.Controls.Add(fillContent);    // Fill
-            dlg.Controls.Add(pnlLinesLabel);  // Top
-            dlg.Controls.Add(pnlMeta2);       // Top
-            dlg.Controls.Add(pnlMeta);        // Top
-            dlg.Controls.Add(pnlHeader);      // Top
-            dlg.Controls.Add(pnlFooter);      // Bottom
+            // Assemble (Bottom first, then Top panels, then Fill)
+            dlg.Controls.Add(fillContent);
+            dlg.Controls.Add(pnlLinesLabel);
+            dlg.Controls.Add(pnlMeta2);
+            dlg.Controls.Add(pnlMeta);
+            dlg.Controls.Add(pnlHeader);
+            dlg.Controls.Add(pnlFooter);
 
             dlg.ShowDialog(this);
         }
 
-        // ── Dialog helper labels ──────────────────────────────────────
+        // ── Dialog helpers ─────────────────────────────────────────
         private static Label DlgKey(string text) => new Label
         {
             Text      = text,
