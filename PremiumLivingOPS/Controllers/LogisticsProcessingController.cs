@@ -1,7 +1,6 @@
 using PremiumLivingOPS.Models.DAL;
 using PremiumLivingOPS.Models.Entities;
 using PremiumLivingOPS.Models.ViewModels;
-using PremiumLivingOPS.Views.LogisticsProcessing;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -71,7 +70,7 @@ namespace PremiumLivingOPS.Controllers
             }
         }
 
-        // ── Schedule Shipment (update existing record) ──────────────
+        // ── Schedule Shipment (update existing record) ──────────────────
         /// <summary>
         /// Updates DeliveryMethod and ShipDate for the specified shipment.
         /// Called from ScheduleShipmentDialog when editing an existing shipment.
@@ -95,21 +94,18 @@ namespace PremiumLivingOPS.Controllers
             _repo.ScheduleShipment(shipmentId, scheduledDate, deliveryMethod);
         }
 
-        // ── Schedule Shipment Wizard — Step 1: list orders ──────────
+        // ── Schedule Shipment Wizard — Step 1: list orders ──────────────
         /// <summary>
         /// Returns orders eligible for shipment scheduling:
         /// OrderStatus IN ('Processing', 'Partially Delivered', 'Pending').
-        /// Each row is mapped to the lightweight OrderSummary DTO used by
-        /// ScheduleShipmentDialog (Step 1 order-picker).
         /// </summary>
         public List<OrderSummary> GetSchedulableOrders()
             => _repo.GetSchedulableOrders();
 
-        // ── Schedule Shipment Wizard — Step 2: lines with qty status ─
+        // ── Schedule Shipment Wizard — Step 2: lines with qty status ────
         /// <summary>
         /// Returns all OrderLines for the given order together with the
         /// total qty already shipped across all existing ShipmentLines.
-        /// Used to populate the Step-2 grid in ScheduleShipmentDialog.
         /// </summary>
         public List<OrderLineDetail> GetOrderLinesWithShipmentStatus(string orderId)
         {
@@ -118,11 +114,10 @@ namespace PremiumLivingOPS.Controllers
             return _repo.GetOrderLinesWithShipmentStatus(orderId);
         }
 
-        // ── Schedule Shipment Wizard — duplicate-batch guard ─────────
+        // ── Schedule Shipment Wizard — duplicate-batch guard ───────────
         /// <summary>
-        /// Returns the list of trailing suffixes (e.g. "0029A", "0029B") from
-        /// ShipmentIDs that already exist for the given order.
-        /// ScheduleShipmentDialog uses this to block duplicate Batch letters.
+        /// Returns existing ShipmentID suffixes for the given order,
+        /// used to block duplicate Batch letters.
         /// </summary>
         public List<string> GetExistingShipmentSuffixes(string orderId)
         {
@@ -135,11 +130,7 @@ namespace PremiumLivingOPS.Controllers
         /// <summary>
         /// Creates one Shipment record + its ShipmentLines from a
         /// CreateShipmentRequest produced by ScheduleShipmentDialog.
-        /// ShipmentID format : SHP-YYYYMMDD-{orderSuffix}{batchLetter}
-        ///   e.g. SHP-20260309-0029A
-        /// After insertion the parent Order's status is updated:
-        ///   all items covered -> 'Partially Delivered' (caller may upgrade to Completed
-        ///   on the last batch); partial coverage -> 'Partially Delivered'.
+        /// ShipmentID format: SHP-YYYYMMDD-{orderSuffix}{batchLetter}
         /// </summary>
         public void CreateScheduledShipment(CreateShipmentRequest req)
         {
@@ -163,7 +154,7 @@ namespace PremiumLivingOPS.Controllers
                 req.Lines);
         }
 
-        // ── Delete Shipment ─────────────────────────────────────────
+        // ── Delete Shipment ───────────────────────────────────────────
         public void DeleteShipment(string shipmentId)
         {
             if (string.IsNullOrWhiteSpace(shipmentId))
@@ -171,7 +162,7 @@ namespace PremiumLivingOPS.Controllers
             _repo.DeleteShipment(shipmentId);
         }
 
-        // ── Generate Delivery Note ──────────────────────────────────
+        // ── Generate Delivery Note ────────────────────────────────
         public string GenerateDeliveryNote(string shipmentId)
         {
             if (string.IsNullOrWhiteSpace(shipmentId))
@@ -199,7 +190,7 @@ namespace PremiumLivingOPS.Controllers
                 shipment.CustomerName);
         }
 
-        // ── Generate Reply Slip ────────────────────────────────────
+        // ── Generate Reply Slip ─────────────────────────────────
         public string GenerateReplySlip(string shipmentId,
                                         string actualRecipient,
                                         string remark)
@@ -222,7 +213,7 @@ namespace PremiumLivingOPS.Controllers
             return _repo.InsertReplySlip(dn.DeliveryID, actualRecipient, remark, DateTime.Today);
         }
 
-        // ── Handling Goods Received ──────────────────────────────────
+        // ── Handling Goods Received ──────────────────────────────
         public HandlingGoodsReceivedVM GetHandlingGoodsReceivedVM(
             string statusFilter = null,
             string keyword      = null,
@@ -289,7 +280,7 @@ namespace PremiumLivingOPS.Controllers
             return _repo.InsertPurchaseInvoice(vm);
         }
 
-        // ── CSV Import: Receipt ──────────────────────────────────────
+        // ── CSV Import: Receipt ───────────────────────────────────
         public ReceiptImportResult ImportReceiptsFromCsv(string filePath)
         {
             var result    = new ReceiptImportResult();

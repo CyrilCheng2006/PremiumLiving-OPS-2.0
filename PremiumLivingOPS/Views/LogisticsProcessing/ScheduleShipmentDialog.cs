@@ -190,7 +190,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             tbl.Controls.Add(new Label
             {
-                Text      = "STEP 1 — SELECT ORDER",
+                Text      = "STEP 1 \u2014 SELECT ORDER",
                 Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(29, 78, 216),
                 Dock      = DockStyle.Fill,
@@ -256,7 +256,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             tbl.Controls.Add(new Label
             {
-                Text      = "STEP 2 — SCHEDULE ITEMS",
+                Text      = "STEP 2 \u2014 SCHEDULE ITEMS",
                 Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(109, 40, 217),
                 Dock      = DockStyle.Fill,
@@ -347,28 +347,28 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             // COL 3: Order Qty (read-only)
             _grid.Columns.Add(new DataGridViewTextBoxColumn
             {
-                Name            = "colOrderQty",
-                HeaderText      = "Order Qty",
-                Width           = 100,
-                ReadOnly        = true,
+                Name             = "colOrderQty",
+                HeaderText       = "Order Qty",
+                Width            = 100,
+                ReadOnly         = true,
                 DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleCenter }
             });
             // COL 4: Already Shipped (read-only)
             _grid.Columns.Add(new DataGridViewTextBoxColumn
             {
-                Name            = "colShipped",
-                HeaderText      = "Shipped",
-                Width           = 100,
-                ReadOnly        = true,
+                Name             = "colShipped",
+                HeaderText       = "Shipped",
+                Width            = 100,
+                ReadOnly         = true,
                 DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleCenter }
             });
             // COL 5: Remaining (read-only)
             _grid.Columns.Add(new DataGridViewTextBoxColumn
             {
-                Name            = "colRemain",
-                HeaderText      = "Remaining",
-                Width           = 100,
-                ReadOnly        = true,
+                Name             = "colRemain",
+                HeaderText       = "Remaining",
+                Width            = 100,
+                ReadOnly         = true,
                 DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleCenter,
                                      ForeColor  = Color.FromArgb(146, 64, 14),
                                      Font       = new Font("Segoe UI", 11f, FontStyle.Bold) }
@@ -376,27 +376,27 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             // COL 6: Batch (A/B/C/D)
             var cboBatch = new DataGridViewComboBoxColumn
             {
-                Name            = "colBatch",
-                HeaderText      = "Batch",
-                Width           = 90,
-                DataSource      = new string[] { "A", "B", "C", "D" },
+                Name             = "colBatch",
+                HeaderText       = "Batch",
+                Width            = 90,
+                DataSource       = new string[] { "A", "B", "C", "D" },
                 DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleCenter }
             };
             _grid.Columns.Add(cboBatch);
             // COL 7: Schedule Date
             _grid.Columns.Add(new DataGridViewTextBoxColumn
             {
-                Name            = "colDate",
-                HeaderText      = "Ship Date (YYYY-MM-DD)",
-                Width           = 200,
+                Name             = "colDate",
+                HeaderText       = "Ship Date (YYYY-MM-DD)",
+                Width            = 200,
                 DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleCenter }
             });
             // COL 8: Qty to Ship
             _grid.Columns.Add(new DataGridViewTextBoxColumn
             {
-                Name            = "colQtyShip",
-                HeaderText      = "Qty to Ship",
-                Width           = 110,
+                Name             = "colQtyShip",
+                HeaderText       = "Qty to Ship",
+                Width            = 110,
                 DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleCenter }
             });
             // COL 9: Delivery Method
@@ -409,8 +409,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             };
             _grid.Columns.Add(cboMethod);
 
-            _grid.CellValueChanged     += Grid_CellValueChanged;
-            _grid.CurrentCellDirtyStateChanged += Grid_DirtyState;
+            _grid.CellValueChanged                += Grid_CellValueChanged;
+            _grid.CurrentCellDirtyStateChanged    += Grid_DirtyState;
 
             return _grid;
         }
@@ -529,7 +529,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         private void Grid_CellValueChanged(object sender, DataGridViewCellEventArgs e)
         {
             if (e.RowIndex < 0) return;
-            // When checkbox ticked, enable editing columns in that row
             if (e.ColumnIndex == COL_CHECK)
             {
                 bool chk = Convert.ToBoolean(_grid.Rows[e.RowIndex].Cells[COL_CHECK].Value);
@@ -632,11 +631,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }
 
             // 5. Determine ShipmentType per batch
-            //    Full  = all remaining qty across ALL order lines are covered by this + previous batches
-            //    Partial = some items still unscheduled
-            int totalRemaining   = _lines.Sum(l => l.Quantity - l.QtyAlreadyShipped);
-            int totalScheduled   = scheduledRows.Sum(r => r.QtyShip);
-            bool allCovered      = totalScheduled >= totalRemaining;
+            int totalRemaining = _lines.Sum(l => l.Quantity - l.QtyAlreadyShipped);
+            int totalScheduled = scheduledRows.Sum(r => r.QtyShip);
+            bool allCovered    = totalScheduled >= totalRemaining;
 
             // 6. Build confirmation summary
             string summary = "The following shipment batches will be created:\n\n";
@@ -711,9 +708,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 Height    = 56,
                 Cursor    = Cursors.Hand
             };
-            b.FlatAppearance.BorderSize         = 0;
-            b.FlatAppearance.MouseOverBackColor  = hover;
-            b.FlatAppearance.MouseDownBackColor  = down;
+            b.FlatAppearance.BorderSize        = 0;
+            b.FlatAppearance.MouseOverBackColor = hover;
+            b.FlatAppearance.MouseDownBackColor = down;
             return b;
         }
 
@@ -724,7 +721,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         }
 
         // ================================================================
-        //  Inner DTOs
+        //  Inner DTO (View-private only — scheduling grid row state)
         // ================================================================
         private class ScheduleRow
         {
@@ -735,46 +732,5 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             public int      Remain   { get; set; }
             public string   Method   { get; set; }
         }
-    }
-
-    // ====================================================================
-    //  Request / summary DTOs  (used between View and Controller)
-    // ====================================================================
-
-    public class OrderSummary
-    {
-        public string   OrderID         { get; set; }
-        public string   CustomerName    { get; set; }
-        public string   OrderStatus     { get; set; }
-        public string   ShippingAddress { get; set; }
-        public string   ContactName     { get; set; }
-        public DateTime DeliveryDate    { get; set; }
-        public double   GrandTotal      { get; set; }
-    }
-
-    public class OrderLineDetail
-    {
-        public string ItemID           { get; set; }
-        public string ItemName         { get; set; }
-        public int    Quantity         { get; set; }
-        public int    QtyAlreadyShipped { get; set; }
-    }
-
-    public class CreateShipmentRequest
-    {
-        public string                    OrderID        { get; set; }
-        public string                    Batch          { get; set; }
-        public string                    OrderSuffix    { get; set; }
-        public DateTime                  ShipDate       { get; set; }
-        public string                    DeliveryMethod { get; set; }
-        public string                    ShipmentType   { get; set; }
-        public List<ShipmentLineRequest> Lines          { get; set; }
-    }
-
-    public class ShipmentLineRequest
-    {
-        public string ItemID  { get; set; }
-        public int    QtyShip { get; set; }
-        public int    Remain  { get; set; }
     }
 }
