@@ -8,16 +8,19 @@ namespace PremiumLivingOPS.Models.DAL
     /// <summary>
     /// DAL for Raw Material → Procurement module.
     ///
-    /// PurchaseOrder schema columns (actual DB):
-    ///   PurchaseID, RequestID, SupplierID, POTotalAmount, OrderDate, PurchaseStatus
-    ///   — NO UrgencyLevel / TriggerType on PurchaseOrder; those live on MaterialRequest.
+    /// Actual DB schema (do NOT add columns that are not here):
+    ///   PurchaseOrder    : PurchaseID, RequestID, SupplierID, POTotalAmount, OrderDate, PurchaseStatus
+    ///   PurchaseOrderLine: POLineID, RawMaterialItemID, PurchaseID, WarehouseID, OrderQty, UnitPrice
+    ///   MaterialRequest  : RequestID, UrgencyLevel, TriggerType, RawMaterialItemID, WarehouseItemID, RequestedQty, ...
     ///
-    /// PurchaseID  format: PO-YYYYMMDD-NNNN       (one header per batch)
-    /// POLineID    format: PO-YYYYMMDD-NNNN-NN    (one per MRQ line in that batch)
+    /// MRQ linkage chain: PurchaseOrderLine.PurchaseID → PurchaseOrder.RequestID → MaterialRequest
+    ///
+    /// PurchaseID format : PO-YYYYMMDD-NNNN       (one header per batch)
+    /// POLineID   format : PO-YYYYMMDD-NNNN-NN    (one per item line in that batch)
     /// </summary>
     public class ProcurementRepo
     {
-        // ══ SEARCH ═══════════════════════════════════════════════════════════════════
+        // ══ SEARCH ════════════════════════════════════════════════════════════════
 
         /// <summary>
         /// Returns one <see cref="ProcurementOrderGroup"/> per PurchaseOrder header.
@@ -43,9 +46,8 @@ namespace PremiumLivingOPS.Models.DAL
                           COALESCE(lc.LineCount, 0)         AS ItemCount,
                           COALESCE(mr.UrgencyLevel, '')     AS UrgencyLevel
                       FROM  PurchaseOrder po
-                      JOIN  Supplier       s  ON po.SupplierID = s.SupplierID
-                      LEFT JOIN MaterialRequest mr
-                                              ON po.RequestID  = mr.RequestID
+                      JOIN  Supplier         s  ON po.SupplierID = s.SupplierID
+                      LEFT JOIN MaterialRequest mr ON po.RequestID = mr.RequestID
                       LEFT JOIN (
                           SELECT PurchaseID, COUNT(*) AS LineCount
                           FROM   PurchaseOrderLine
@@ -93,12 +95,11 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
-        // ══ DETAIL ════════════════════════════════════════════════════════════════
+        // ══ DETAIL ═══════════════════════════════════════════════════════════════─
 
         /// <summary>
-        /// Returns the PurchaseOrder header row for an exact PurchaseID
-        /// (format PO-YYYYMMDD-NNNN, without any -NN line suffix).
-        /// UrgencyLevel / TriggerType are resolved via PurchaseOrder.RequestID → MaterialRequest.
+        /// Returns the PurchaseOrder header for a given PurchaseID.
+        /// UrgencyLevel / TriggerType resolved via PurchaseOrder.RequestID → MaterialRequest.
         /// </summary>
         public ProcurementOrderEntity GetPurchaseOrderById(string purchaseId)
         {
@@ -134,8 +135,8 @@ namespace PremiumLivingOPS.Models.DAL
         }
 
         /// <summary>
-        /// Returns all PurchaseOrderLine rows for a given PurchaseID,
-        /// ordered by POLineID (which carries the -NN suffix).
+        /// Returns all PurchaseOrderLine rows for a given PurchaseID, ordered by POLineID.
+        /// Note: PurchaseOrderLine has NO RequestID column; the MRQ link lives on PurchaseOrder.
         /// </summary>
         public List<PurchaseOrderLineEntity> GetLinesByPurchaseId(string purchaseId)
         {
@@ -147,7 +148,6 @@ namespace PremiumLivingOPS.Models.DAL
                 const string sql =
                     @"SELECT pol.POLineID,
                              pol.PurchaseID,
-                             COALESCE(pol.RequestID, '')              AS RequestID,
                              pol.RawMaterialItemID,
                              COALESCE(i.ItemName, pol.RawMaterialItemID)    AS MaterialName,
                              COALESCE(rm.MaterialType, '')                  AS MaterialType,
@@ -171,14 +171,21 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
-        // ══ CREATE ─ BATCH PREFIX LOOKUPS ═════════════════════════════════════════════════
+        // ══ CREATE ─ BATCH PREFIX LOOKUPS ══════════════════════════════════════════════
 
+        /// <summary>
+        /// Returns MRQ batch prefixes that have NOT yet been linked to a PurchaseOrder.
+        /// "Linked" means PurchaseOrder.RequestID starts with the same batch prefix.
+        /// Uses PurchaseOrder.RequestID (NOT PurchaseOrderLine) for the existence check.
+        /// </summary>
         public List<MaterialRequestBatchLookup> GetUnlinkedBatchPrefixes()
         {
             var list = new List<MaterialRequestBatchLookup>();
             using (var conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
+                // A batch prefix is "linked" if any PurchaseOrder.RequestID starts with it.
+                // We derive the prefix by stripping the last 3 chars (-NN) from mr.RequestID.
                 const string sql =
                     @"SELECT
                           LEFT(mr.RequestID, LENGTH(mr.RequestID) - 3)  AS BatchPrefix,
@@ -186,12 +193,13 @@ namespace PremiumLivingOPS.Models.DAL
                           mr.TriggerType,
                           COUNT(*)                                       AS LineCount
                       FROM  MaterialRequest mr
-                      WHERE mr.RequestID NOT IN (
-                                SELECT pol.RequestID
-                                FROM   PurchaseOrderLine pol
-                                WHERE  pol.RequestID IS NOT NULL
+                      WHERE mr.RequestID REGEXP '-[0-9]{2}$'
+                        AND LEFT(mr.RequestID, LENGTH(mr.RequestID) - 3) NOT IN (
+                                SELECT LEFT(po.RequestID, LENGTH(po.RequestID) - 3)
+                                FROM   PurchaseOrder po
+                                WHERE  po.RequestID IS NOT NULL
+                                  AND  po.RequestID REGEXP '-[0-9]{2}$'
                             )
-                        AND mr.RequestID REGEXP '-[0-9]{2}$'
                       GROUP BY BatchPrefix, mr.UrgencyLevel, mr.TriggerType
                       ORDER BY BatchPrefix";
                 using (var cmd = new MySqlCommand(sql, conn))
@@ -208,6 +216,10 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
+        /// <summary>
+        /// Returns all MaterialRequest line items for a given batch prefix
+        /// that have not yet been ordered (no matching PurchaseOrder.RequestID).
+        /// </summary>
         public List<MaterialRequestLineItem> GetLineItemsByBatchPrefix(string batchPrefix)
         {
             var list = new List<MaterialRequestLineItem>();
@@ -215,6 +227,7 @@ namespace PremiumLivingOPS.Models.DAL
             using (var conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
+                // Exclude MRQ lines whose RequestID already appears in PurchaseOrder.RequestID.
                 const string sql =
                     @"SELECT mr.RequestID,
                              mr.RawMaterialItemID,
@@ -231,9 +244,9 @@ namespace PremiumLivingOPS.Models.DAL
                       JOIN   Warehouse      w  ON wi.WarehouseID       = w.WarehouseID
                       WHERE  mr.RequestID LIKE @prefix
                         AND  mr.RequestID NOT IN (
-                                 SELECT pol.RequestID
-                                 FROM   PurchaseOrderLine pol
-                                 WHERE  pol.RequestID IS NOT NULL
+                                 SELECT po.RequestID
+                                 FROM   PurchaseOrder po
+                                 WHERE  po.RequestID IS NOT NULL
                              )
                       ORDER  BY mr.RequestID";
                 using (var cmd = new MySqlCommand(sql, conn))
@@ -287,13 +300,11 @@ namespace PremiumLivingOPS.Models.DAL
 
         // ══ CREATE ─ WRITE ════════════════════════════════════════════════════════
         //
-        // PurchaseOrder schema has NO UrgencyLevel / TriggerType columns.
-        // Those values come from MaterialRequest (via RequestID FK).
-        // The INSERT here only writes the columns that actually exist in the table:
-        //   PurchaseID, RequestID, SupplierID, POTotalAmount, OrderDate, PurchaseStatus
+        // Actual PurchaseOrder columns    : PurchaseID, RequestID, SupplierID, POTotalAmount, OrderDate, PurchaseStatus
+        // Actual PurchaseOrderLine columns: POLineID, RawMaterialItemID, PurchaseID, WarehouseID, OrderQty, UnitPrice
         //
-        // RequestID on PurchaseOrder header = the FIRST line's RequestID (representative).
-        // Each PurchaseOrderLine row carries its own RequestID for full traceability.
+        // PurchaseOrder.RequestID = the representative MRQ RequestID for the whole batch.
+        // PurchaseOrderLine has NO RequestID column — MRQ traceability is via PurchaseOrder.
 
         /// <summary>
         /// Creates one PurchaseOrder header + one PurchaseOrderLine per entry in
@@ -306,8 +317,8 @@ namespace PremiumLivingOPS.Models.DAL
             double poTotalAmount,
             DateTime orderDate,
             string purchaseStatus,
-            string urgencyLevel,    // kept for caller compatibility — not written to PurchaseOrder
-            string triggerType,     // kept for caller compatibility — not written to PurchaseOrder
+            string urgencyLevel,    // caller compat only — not stored on PurchaseOrder
+            string triggerType,     // caller compat only — not stored on PurchaseOrder
             List<MaterialRequestLineItem> lines,
             string staffId)
         {
@@ -318,10 +329,10 @@ namespace PremiumLivingOPS.Models.DAL
                 {
                     try
                     {
-                        // Representative RequestID = first line (PurchaseOrder.RequestID FK)
+                        // Representative RequestID = first MRQ line's RequestID
                         string firstRequestId = lines.Count > 0 ? lines[0].RequestID : null;
 
-                        // 1. Insert PurchaseOrder header — only actual schema columns
+                        // 1. PurchaseOrder header — only actual schema columns
                         const string insertPO =
                             @"INSERT INTO PurchaseOrder
                                 (PurchaseID, RequestID, SupplierID,
@@ -340,25 +351,22 @@ namespace PremiumLivingOPS.Models.DAL
                             cmd.ExecuteNonQuery();
                         }
 
-                        // 2. Insert one PurchaseOrderLine per MRQ line
+                        // 2. PurchaseOrderLine rows — only actual schema columns (NO RequestID)
                         const string insertLine =
                             @"INSERT INTO PurchaseOrderLine
-                                (POLineID, PurchaseID, RequestID,
-                                 RawMaterialItemID, WarehouseID, OrderQty, UnitPrice)
+                                (POLineID, PurchaseID, RawMaterialItemID, WarehouseID, OrderQty, UnitPrice)
                               VALUES
-                                (@lineId, @purchaseId, @requestId,
-                                 @matId, @whId, @qty, @price)";
+                                (@lineId, @purchaseId, @matId, @whId, @qty, @price)";
 
                         for (int seq = 0; seq < lines.Count; seq++)
                         {
-                            var ln      = lines[seq];
+                            var    ln     = lines[seq];
                             string lineId = $"{purchaseId}-{(seq + 1):D2}";
 
                             using (var cmd = new MySqlCommand(insertLine, conn, trx))
                             {
                                 cmd.Parameters.AddWithValue("@lineId",     lineId);
                                 cmd.Parameters.AddWithValue("@purchaseId", purchaseId);
-                                cmd.Parameters.AddWithValue("@requestId",  ln.RequestID ?? (object)DBNull.Value);
                                 cmd.Parameters.AddWithValue("@matId",      ln.RawMaterialItemID);
                                 cmd.Parameters.AddWithValue("@whId",       ln.WarehouseID);
                                 cmd.Parameters.AddWithValue("@qty",        ln.OrderQty);
@@ -455,12 +463,16 @@ namespace PremiumLivingOPS.Models.DAL
                 TriggerType       = r["TriggerType"].ToString()
             };
 
+        /// <summary>
+        /// Maps a PurchaseOrderLine row.
+        /// PurchaseOrderLine has no RequestID column — RequestID on the entity is left empty.
+        /// </summary>
         private static PurchaseOrderLineEntity MapPOLine(MySqlDataReader r)
             => new PurchaseOrderLineEntity
             {
                 POLineID          = r["POLineID"].ToString(),
                 PurchaseID        = r["PurchaseID"].ToString(),
-                RequestID         = r.IsDBNull(r.GetOrdinal("RequestID")) ? "" : r["RequestID"].ToString(),
+                RequestID         = "",   // PurchaseOrderLine has no RequestID column
                 RawMaterialItemID = r["RawMaterialItemID"].ToString(),
                 MaterialName      = r["MaterialName"].ToString(),
                 MaterialType      = r["MaterialType"].ToString(),
