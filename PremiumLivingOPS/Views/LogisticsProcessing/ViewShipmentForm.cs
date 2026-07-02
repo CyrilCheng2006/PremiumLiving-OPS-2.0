@@ -229,10 +229,20 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             ShowDetailDialog(_selectedDetail);
         }
 
+        /// <summary>
+        /// Open the independent ModifyShipmentDialog for the selected shipment.
+        /// Replaces the old editMode overlay inside ShowDetailDialog.
+        /// </summary>
         private void btnModify_Click(object sender, EventArgs e)
         {
             if (_selectedDetail == null) return;
-            ShowDetailDialog(_selectedDetail, editMode: true);
+
+            using var dlg = new ModifyShipmentDialog(_ctrl, _selectedDetail);
+            if (dlg.ShowDialog(this) == DialogResult.OK)
+            {
+                _selectedDetail = null;
+                RefreshGrid();
+            }
         }
 
         private void btnScheduleShipment_Click(object sender, EventArgs e)
@@ -296,12 +306,11 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         }
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  ShowDetailDialog
+        //  ShowDetailDialog  (read-only view — editMode param removed)
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        private void ShowDetailDialog(ShipmentDetailVM s, bool editMode = false)
+        private void ShowDetailDialog(ShipmentDetailVM s)
         {
-            bool needsRefresh = false;
-            var   ship        = s.Shipment;
+            var   ship = s.Shipment;
 
             using var dlg = new Form
             {
@@ -315,7 +324,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 MinimizeBox     = false
             };
 
-            // ── Header ────────────────────────────────────────────────────
+            // ── Header ──
             var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 80, BackColor = Color.FromArgb(19, 35, 61) };
             var tblHeader = new TableLayoutPanel
             {
@@ -347,7 +356,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }, 1, 0);
             pnlHeader.Controls.Add(tblHeader);
 
-            // ── Info panel ────────────────────────────────────────────────
+            // ── Info panel ──
             var pnlInfo = new Panel
             {
                 Dock = DockStyle.Top, Height = 400,
@@ -370,10 +379,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
             for (int r = 0; r < 5; r++) tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 14f));
-            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 30f));   // row 5: address multi-line
+            tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 30f));
 
-            // Left column fields
-            // FIX: use ShippingAddress (correct property name from ShipmentEntity)
             var leftFields = new[]
             {
                 ("Shipment ID",   ship.ShipmentID),
@@ -383,7 +390,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                                     ? ship.DeliveryDate.Value.ToString("yyyy-MM-dd")
                                     : ship.ShipDate.ToString("yyyy-MM-dd")),
                 ("Tracking No.",  string.IsNullOrWhiteSpace(ship.TrackingNumber) ? "\u2014" : ship.TrackingNumber),
-                ("Address",       ship.ShippingAddress ?? "\u2014"),  // was ship.DeliveryAddress — fixed
+                ("Address",       ship.ShippingAddress ?? "\u2014"),
             };
             for (int i = 0; i < leftFields.Length; i++)
             {
@@ -394,8 +401,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                     1, i);
             }
 
-            // Right column fields
-            // FIX: removed ship.ContactPerson (not in ShipmentEntity); replaced with DeliveryMethod
             var rightFields = new[]
             {
                 ("Customer",        ship.CustomerName   ?? "\u2014"),
@@ -403,7 +408,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 ("Shipment Type",   ship.ShipmentType   ?? "\u2014"),
                 ("Status",          ship.ShipmentStatus ?? "\u2014"),
                 ("Total Amount",    $"HK$ {ship.TotalAmount:N2}"),
-                ("",                ""),   // padding row
+                ("",                ""),
             };
             for (int i = 0; i < rightFields.Length; i++)
             {
@@ -412,55 +417,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }
             pnlInfo.Controls.Add(tblInfo);
 
-            // ── Edit row (visible only in edit mode) ──────────────────────
-            var cboStatusEdit = new ComboBox
-            {
-                DropDownStyle = ComboBoxStyle.DropDownList,
-                Font = new Font("Segoe UI", 12f), Width = 200
-            };
-            cboStatusEdit.Items.AddRange(new object[] { "Pending", "In Transit", "Completed" });
-            int sIdx = cboStatusEdit.FindStringExact(ship.ShipmentStatus);
-            cboStatusEdit.SelectedIndex = sIdx >= 0 ? sIdx : 0;
-
-            var txtRecipient = new TextBox
-            {
-                Font = new Font("Segoe UI", 12f), Width = 260,
-                PlaceholderText = "Actual recipient name",
-                BorderStyle = BorderStyle.FixedSingle
-            };
-
-            var txtRemark = new TextBox
-            {
-                Font = new Font("Segoe UI", 12f), Width = 320,
-                PlaceholderText = "Optional remark",
-                BorderStyle = BorderStyle.FixedSingle
-            };
-
-            Panel pnlEditRow = null;
-            if (editMode)
-            {
-                pnlEditRow = new Panel
-                {
-                    Dock = DockStyle.Top, Height = 60,
-                    BackColor = Color.FromArgb(246, 249, 255),
-                    Padding = new Padding(20, 10, 20, 10)
-                };
-                var tblEdit = new TableLayoutPanel
-                {
-                    Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 1,
-                    BackColor = Color.Transparent
-                };
-                tblEdit.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 220f));
-                tblEdit.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 280f));
-                tblEdit.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
-                tblEdit.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-                tblEdit.Controls.Add(MakeEditCell("New Status", cboStatusEdit), 0, 0);
-                tblEdit.Controls.Add(MakeEditCell("Recipient",  txtRecipient),  1, 0);
-                tblEdit.Controls.Add(MakeEditCell("Remark",     txtRemark),     2, 0);
-                pnlEditRow.Controls.Add(tblEdit);
-            }
-
-            // ── Section label for lines ───────────────────────────────────
+            // ── Section label for lines ──
             var pnlLineLabel = new Panel
             {
                 Dock = DockStyle.Top, Height = 40,
@@ -476,7 +433,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             });
             pnlLineLabel.Paint += PaintBottomBorderStatic;
 
-            // ── Lines grid ────────────────────────────────────────────────
+            // ── Lines grid ──
             var dgv = new DataGridView
             {
                 ReadOnly = true, AllowUserToAddRows = false, RowHeadersVisible = false,
@@ -513,13 +470,10 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 dgv.Rows.Add(line.ShipmentLineID, line.ItemID, line.ItemName,
                              line.QtyShipped, line.QtyOutstanding?.ToString() ?? "\u2014");
 
-            // ── Total row ─────────────────────────────────────────────────
+            // ── Total row ──
             var pnlTotalRow = new Panel
             {
-                Dock      = DockStyle.Bottom,
-                Height    = 64,
-                BackColor = Color.White,
-                Padding   = new Padding(0)
+                Dock = DockStyle.Bottom, Height = 64, BackColor = Color.White
             };
             pnlTotalRow.Paint += PaintTopBorderStatic;
 
@@ -531,64 +485,33 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             tblTotals.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
             tblTotals.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
             tblTotals.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-
             tblTotals.Controls.Add(new Label
             {
-                Text      = $"Shipment Lines:   {s.Lines.Count}",
-                Dock      = DockStyle.Fill, AutoSize = false,
-                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                Text = $"Shipment Lines:   {s.Lines.Count}",
+                Dock = DockStyle.Fill, AutoSize = false,
+                Font = new Font("Segoe UI", 12f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(15, 31, 53),
                 TextAlign = ContentAlignment.MiddleLeft,
                 Padding   = new Padding(28, 0, 0, 0)
             }, 0, 0);
-
             tblTotals.Controls.Add(new Label
             {
-                Text      = $"Total Amount:   HK$ {ship.TotalAmount:N2}",
-                Dock      = DockStyle.Fill, AutoSize = false,
-                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                Text = $"Total Amount:   HK$ {ship.TotalAmount:N2}",
+                Dock = DockStyle.Fill, AutoSize = false,
+                Font = new Font("Segoe UI", 12f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(47, 111, 237),
                 TextAlign = ContentAlignment.MiddleRight,
                 Padding   = new Padding(0, 0, 28, 0)
             }, 1, 0);
-
             pnlTotalRow.Controls.Add(tblTotals);
 
-            // ── Footer ────────────────────────────────────────────────────
+            // ── Footer (Close only — no edit controls) ──
             var pnlFooter = new Panel
             {
-                Dock    = DockStyle.Bottom, Height = 86,
+                Dock = DockStyle.Bottom, Height = 86,
                 BackColor = Color.White, Padding = new Padding(28, 14, 28, 14)
             };
             pnlFooter.Paint += PaintTopBorderStatic;
-
-            var btnSave = new Button
-            {
-                Text = "\u2714  Save Changes",
-                Font = new Font("Segoe UI", 12f, FontStyle.Bold),
-                ForeColor = Color.White, BackColor = Color.FromArgb(47, 111, 237),
-                FlatStyle = FlatStyle.Flat,
-                Size = new Size(200, 56), Cursor = Cursors.Hand,
-                Anchor = AnchorStyles.Right | AnchorStyles.Top,
-                Location = new Point(2500 - 28 - 200 - 8 - 160 - 8 - 150 - 16, 14),
-                Visible = editMode
-            };
-            btnSave.FlatAppearance.BorderSize = 0;
-            btnSave.FlatAppearance.MouseOverBackColor = Color.FromArgb(26, 77, 192);
-
-            var btnDelete = new Button
-            {
-                Text = "\uD83D\uDDD1  Delete",
-                Font = new Font("Segoe UI", 12f, FontStyle.Bold),
-                ForeColor = Color.White, BackColor = Color.FromArgb(185, 28, 28),
-                FlatStyle = FlatStyle.Flat,
-                Size = new Size(160, 56), Cursor = Cursors.Hand,
-                Anchor = AnchorStyles.Right | AnchorStyles.Top,
-                Location = new Point(2500 - 28 - 160 - 8 - 150 - 16, 14),
-                Visible = editMode
-            };
-            btnDelete.FlatAppearance.BorderSize = 0;
-            btnDelete.FlatAppearance.MouseOverBackColor = Color.FromArgb(153, 27, 27);
 
             var btnClose = new Button
             {
@@ -604,65 +527,15 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             btnClose.FlatAppearance.BorderSize         = 1;
             btnClose.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
             btnClose.Click += (_, __) => dlg.Close();
-
-            btnSave.Click += (_, __) =>
-            {
-                string newStatus    = cboStatusEdit.SelectedItem?.ToString();
-                string newRecipient = txtRecipient.Text.Trim();
-                string newRemark    = txtRemark.Text.Trim();
-                try
-                {
-                    _ctrl.UpdateShipment(ship.ShipmentID, newStatus, newRecipient, newRemark);
-                    needsRefresh = true;
-                    MessageBox.Show("Shipment updated.", "Success",
-                        MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    dlg.DialogResult = DialogResult.OK;
-                    dlg.Close();
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Save failed:\n{ex.Message}", "Error",
-                        MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
-            };
-
-            btnDelete.Click += (_, __) =>
-            {
-                var confirm = MessageBox.Show(
-                    $"Permanently delete Shipment {ship.ShipmentID} and all related records?\nThis cannot be undone.",
-                    "Confirm Delete", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
-                if (confirm != DialogResult.Yes) return;
-                try
-                {
-                    _ctrl.DeleteShipment(ship.ShipmentID);
-                    needsRefresh = true;
-                    MessageBox.Show("Shipment deleted.", "Deleted",
-                        MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    dlg.DialogResult = DialogResult.OK;
-                    dlg.Close();
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Delete failed:\n{ex.Message}", "Error",
-                        MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
-            };
-
-            pnlFooter.Controls.Add(btnSave);
-            pnlFooter.Controls.Add(btnDelete);
             pnlFooter.Controls.Add(btnClose);
 
-            // ── Assemble dialog ───────────────────────────────────────────
+            // ── Assemble ──
             dlg.Controls.Add(dgv);
             dlg.Controls.Add(pnlFooter);
             dlg.Controls.Add(pnlTotalRow);
             dlg.Controls.Add(pnlLineLabel);
-            if (editMode && pnlEditRow != null)
-                dlg.Controls.Add(pnlEditRow);
             dlg.Controls.Add(pnlInfo);
             dlg.Controls.Add(pnlHeader);
-
-            dlg.FormClosed += (_, __) => { if (needsRefresh) RefreshGrid(); };
             dlg.ShowDialog(this);
         }
 
