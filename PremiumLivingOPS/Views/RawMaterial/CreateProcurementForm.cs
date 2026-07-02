@@ -8,16 +8,6 @@ using System.Windows.Forms;
 
 namespace PremiumLivingOPS.Views.RawMaterial
 {
-    /// <summary>
-    /// View — Create Procurement  (batch-prefix, multi-item model).
-    ///
-    /// Interaction flow
-    ///   1. Form loads: all unlinked MRQ batch prefixes appear in dropdown.
-    ///   2. User selects MRQ-260702-001.
-    ///   3. Grid immediately shows all -NN line items under that prefix.
-    ///   4. User reviews / edits OrderQty + UnitPrice per line, selects Supplier.
-    ///   5. Submit → one PurchaseOrder + PurchaseOrderLine per line.
-    /// </summary>
     public partial class CreateProcurementForm : Form
     {
         private readonly ProcurementController _ctrl = new ProcurementController();
@@ -32,7 +22,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
             this.Load += CreateProcurementForm_Load;
         }
 
-        // ══ Load ═════════════════════════════════════════════════════
+        // ══ Load ══════════════════════════════════════════════════════════════
 
         private void CreateProcurementForm_Load(object sender, EventArgs e)
         {
@@ -45,7 +35,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
             LoadForm();
         }
 
-        // ══ Data load ═══════════════════════════════════════════════
+        // ══ Data load ═════════════════════════════════════════════════════
 
         private void LoadForm()
         {
@@ -55,10 +45,8 @@ namespace PremiumLivingOPS.Views.RawMaterial
             _shell.SetVisibleMenus(vm.AllowedMenus);
             _shell.SetBreadcrumb("Raw Material  ›  Create Procurement");
 
-            // PO ID chip
             lblPurchaseIDValue.Text = vm.NextPurchaseID;
 
-            // Batch prefix dropdown
             _batches = vm.BatchPrefixes ?? new List<MaterialRequestBatchLookup>();
             cboBatchPrefix.Items.Clear();
             cboBatchPrefix.Items.Add("-- Select Material Request --");
@@ -66,7 +54,6 @@ namespace PremiumLivingOPS.Views.RawMaterial
                 cboBatchPrefix.Items.Add(b);
             cboBatchPrefix.SelectedIndex = 0;
 
-            // Supplier dropdown
             _suppliers = vm.Suppliers ?? new List<SupplierLookup>();
             cboSupplier.Items.Clear();
             cboSupplier.Items.Add("-- Select Supplier --");
@@ -74,16 +61,14 @@ namespace PremiumLivingOPS.Views.RawMaterial
                 cboSupplier.Items.Add(s);
             cboSupplier.SelectedIndex = 0;
 
-            // Reset header fields
             dtpOrderDate.Value      = DateTime.Today;
             cboStatus.SelectedIndex = 0;
 
-            // Clear lines
             _lines = new List<MaterialRequestLineItem>();
             RefreshLinesGrid();
         }
 
-        // ══ Batch prefix selection ────────────────────────────────────
+        // ══ Batch prefix selection ══════════════════════════════════════════
 
         private void CboBatchPrefix_Changed(object sender, EventArgs e)
         {
@@ -103,7 +88,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
             RecalcGrandTotal();
         }
 
-        // ══ Grid ────────────────────────────────────────────────
+        // ══ Grid ════════════════════════════════════════════════════════════
 
         private void RefreshLinesGrid()
         {
@@ -112,7 +97,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
 
             for (int i = 0; i < _lines.Count; i++)
             {
-                var ln = _lines[i];
+                var ln  = _lines[i];
                 int idx = dgvLines.Rows.Add(
                     i + 1,
                     ln.RequestID,
@@ -137,16 +122,14 @@ namespace PremiumLivingOPS.Views.RawMaterial
             var ln  = _lines[e.RowIndex];
             var row = dgvLines.Rows[e.RowIndex];
 
-            // colOrderQty (index 6)
-            if (e.ColumnIndex == 6)
+            if (e.ColumnIndex == 6)   // colOrderQty
             {
                 if (int.TryParse(row.Cells[6].Value?.ToString(), out int qty) && qty > 0)
                     ln.OrderQty = qty;
                 else
                     row.Cells[6].Value = ln.OrderQty;
             }
-            // colUnitPrice (index 7)
-            else if (e.ColumnIndex == 7)
+            else if (e.ColumnIndex == 7)  // colUnitPrice
             {
                 if (double.TryParse(row.Cells[7].Value?.ToString(), out double price) && price > 0)
                     ln.UnitPrice = price;
@@ -165,7 +148,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
             lblGrandTotal.Text = $"HK$ {total:N2}";
         }
 
-        // ══ Submit ──────────────────────────────────────────────
+        // ══ Submit ═══════════════════════════════════════════════════════════
 
         private void BtnSubmit_Click(object sender, EventArgs e)
         {
@@ -174,19 +157,17 @@ namespace PremiumLivingOPS.Views.RawMaterial
             if (_lines.Count == 0)
             { ShowWarning("No line items are loaded for the selected Material Request."); return; }
 
-            string supplierId  = (cboSupplier.SelectedItem as SupplierLookup)?.SupplierID;
-            string purchaseBase = lblPurchaseIDValue.Text.Trim();
-            DateTime orderDate = dtpOrderDate.Value.Date;
-            string status      = cboStatus.SelectedItem?.ToString() ?? "Sent";
+            string   supplierId = (cboSupplier.SelectedItem as SupplierLookup)?.SupplierID;
+            DateTime orderDate  = dtpOrderDate.Value.Date;
+            string   status     = cboStatus.SelectedItem?.ToString() ?? "Sent";
 
             try
             {
-                _ctrl.SubmitCreateProcurement(
-                    purchaseBase, supplierId, orderDate, status, _lines);
+                // purchaseIdBase removed — controller generates a unique ID per line internally
+                _ctrl.SubmitCreateProcurement(supplierId, orderDate, status, _lines);
 
-                int count = _lines.Count;
                 MessageBox.Show(
-                    $"{count} Purchase Order(s) created successfully under base ID  {purchaseBase}.",
+                    $"{_lines.Count} Purchase Order(s) created successfully.",
                     "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 LoadForm();
             }
@@ -207,7 +188,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
         private static void ShowWarning(string msg)
             => MessageBox.Show(msg, "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
 
-        // ══ Navigation ─────────────────────────────────────────
+        // ══ Navigation ══════════════════════════════════════════════════════
 
         private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
             => FormNavigator.NavigateTo(this, menuLabel, subItem);
