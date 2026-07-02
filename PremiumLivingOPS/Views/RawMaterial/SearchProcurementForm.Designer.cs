@@ -68,7 +68,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
             {
                 Font            = new Font("Segoe UI", 12f),
                 BorderStyle     = BorderStyle.FixedSingle,
-                PlaceholderText = "Purchase ID, Supplier or Material…"
+                PlaceholderText = "Purchase ID or Supplier…"
             };
             txtKeyword.KeyDown += (s, ke) => { if (ke.KeyCode == Keys.Enter) RefreshGrid(); };
 
@@ -115,8 +115,8 @@ namespace PremiumLivingOPS.Views.RawMaterial
             const int BtnH   =  52;
             const int BtnGap =   8;
 
-            btnSearch = MakePrimaryBtn("\uD83D\uDD0D  Search", Point.Empty,          SBtnW, BtnH);
-            btnReset  = MakeOutlineBtn("\u21BA  Reset",  new Point(SBtnW + BtnGap, 0), RBtnW, BtnH);
+            btnSearch = MakePrimaryBtn("🔍  Search", Point.Empty,          SBtnW, BtnH);
+            btnReset  = MakeOutlineBtn("↺  Reset",  new Point(SBtnW + BtnGap, 0), RBtnW, BtnH);
             btnSearch.Click += (s, e) => RefreshGrid();
             btnReset.Click  += (s, e) => ResetFilters();
 
@@ -184,8 +184,8 @@ namespace PremiumLivingOPS.Views.RawMaterial
             const int ABtnGap =   8;
             const int ABtnPad =  12;
 
-            btnViewDetail = MakePrimaryBtn("\uD83D\uDD0D  View Details", Point.Empty, ABtnW, ABtnH);
-            btnCreateNew  = MakeGreenBtn  ("\uFF0B  Create New",         Point.Empty, ABtnW, ABtnH);
+            btnViewDetail = MakePrimaryBtn("🔍  View Details", Point.Empty, ABtnW, ABtnH);
+            btnCreateNew  = MakeGreenBtn  ("＋  Create New",  Point.Empty, ABtnW, ABtnH);
             btnViewDetail.Enabled = false;
 
             var pnlActionBtns = new Panel
@@ -222,7 +222,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
             pnlActionOuter.Controls.Add(pnlActionCard);
 
             // ════════════════════════════════════════════════════════════
-            // CARD 3 — Results Grid (Fill)
+            // CARD 3 — Results Grid  (7 columns, grouped by base PO-ID)
             // ════════════════════════════════════════════════════════════
             dgvOrders = new DataGridView
             {
@@ -255,15 +255,15 @@ namespace PremiumLivingOPS.Views.RawMaterial
                     Padding            = new Padding(12, 10, 12, 10)
                 }
             };
-            dgvOrders.RowTemplate.Height = 72;   // increased from 48 — prevents cell text clipping
+            dgvOrders.RowTemplate.Height = 72;
 
-            dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPurchaseID", HeaderText = "PURCHASE ID",  FillWeight = 16 });
-            dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colSupplier",   HeaderText = "SUPPLIER",     FillWeight = 20 });
-            dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colMaterial",   HeaderText = "RAW MATERIAL", FillWeight = 20 });
-            dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colReqQty",     HeaderText = "REQ QTY",      FillWeight =  8 });
+            // 7 columns — must match RefreshGrid() Rows.Add(...) order exactly
+            dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPurchaseID", HeaderText = "PURCHASE ID",  FillWeight = 18 });
+            dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colSupplier",   HeaderText = "SUPPLIER",     FillWeight = 22 });
+            dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colItems",      HeaderText = "ITEMS",        FillWeight =  9 });
             dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colOrderDate",  HeaderText = "ORDER DATE",   FillWeight = 12 });
-            dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPOTotal",    HeaderText = "PO TOTAL",     FillWeight = 12 });
-            dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",     HeaderText = "STATUS",       FillWeight = 14 });
+            dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTotal",      HeaderText = "TOTAL AMOUNT", FillWeight = 14 });
+            dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",     HeaderText = "STATUS",       FillWeight = 15 });
             dgvOrders.Columns.Add(new DataGridViewTextBoxColumn { Name = "colUrgency",    HeaderText = "URGENCY",      FillWeight = 10 });
 
             var pnlGridCard = new Panel
@@ -290,7 +290,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
         }
 
         // ════════════════════════════════════════════════════════════
-        // Helpers — aligned 1-to-1 with SearchMaterialRequestForm
+        // Helpers
         // ════════════════════════════════════════════════════════════
 
         private static Panel BuildTitlePanel(string title, bool isSectionTitle)
