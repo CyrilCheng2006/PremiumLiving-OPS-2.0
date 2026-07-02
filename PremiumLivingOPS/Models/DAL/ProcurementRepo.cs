@@ -77,6 +77,7 @@ namespace PremiumLivingOPS.Models.DAL
         /// <summary>Get a single PurchaseOrder by PurchaseID.</summary>
         public ProcurementOrderEntity GetPurchaseOrderById(string purchaseId)
         {
+            if (string.IsNullOrWhiteSpace(purchaseId)) return null;
             using (var conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
@@ -107,6 +108,7 @@ namespace PremiumLivingOPS.Models.DAL
         public List<PurchaseOrderLineEntity> GetLinesByPurchaseId(string purchaseId)
         {
             var list = new List<PurchaseOrderLineEntity>();
+            if (string.IsNullOrWhiteSpace(purchaseId)) return list;
             using (var conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
@@ -271,11 +273,12 @@ namespace PremiumLivingOPS.Models.DAL
         public string GenerateNextPurchaseId()
         {
             string prefix = $"PO-{DateTime.Today:yyyyMMdd}-";
+            // prefix length = 3 + 1 + 8 + 1 = 13 chars  =>  SUBSTRING(PurchaseID, 14)
             using (var conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
                 const string sql =
-                    @"SELECT COALESCE(MAX(CAST(SUBSTRING(PurchaseID, 15) AS UNSIGNED)), 0) + 1
+                    @"SELECT COALESCE(MAX(CAST(SUBSTRING(PurchaseID, 14) AS UNSIGNED)), 0) + 1
                       FROM   PurchaseOrder
                       WHERE  PurchaseID LIKE @prefix";
                 using (var cmd = new MySqlCommand(sql, conn))
@@ -290,6 +293,7 @@ namespace PremiumLivingOPS.Models.DAL
         private string GenerateNextPoLineId(MySqlConnection conn, MySqlTransaction trx)
         {
             string prefix = $"POL-{DateTime.Today:yyyyMMdd}-";
+            // prefix length = 4 + 1 + 8 + 1 = 14 chars  =>  SUBSTRING(POLineID, 15)
             const string sql =
                 @"SELECT COALESCE(MAX(CAST(SUBSTRING(POLineID, 15) AS UNSIGNED)), 0) + 1
                   FROM   PurchaseOrderLine

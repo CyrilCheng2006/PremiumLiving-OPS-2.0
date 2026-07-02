@@ -61,11 +61,11 @@ namespace PremiumLivingOPS.Views.RawMaterial
             _shell.SetVisibleMenus(vm.AllowedMenus);
             _shell.SetBreadcrumb("Raw Material  \u203a  Create Procurement");
 
-            // Auto-generated ID — displayed as blue chip (lblPurchaseIDValue)
+            // Auto-generated ID — displayed as blue chip
             lblPurchaseIDValue.Text = vm.NextPurchaseID;
 
             // Material Request dropdown
-            _requests = vm.MaterialRequests;
+            _requests = vm.MaterialRequests ?? new List<MaterialRequestLookup>();
             cboMaterialRequest.Items.Clear();
             cboMaterialRequest.Items.Add("-- Select Material Request --");
             foreach (var r in _requests)
@@ -73,7 +73,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
             cboMaterialRequest.SelectedIndex = 0;
 
             // Supplier dropdown
-            _suppliers = vm.Suppliers;
+            _suppliers = vm.Suppliers ?? new List<SupplierLookup>();
             cboSupplier.Items.Clear();
             cboSupplier.Items.Add("-- Select Supplier --");
             foreach (var s in _suppliers)
@@ -81,18 +81,20 @@ namespace PremiumLivingOPS.Views.RawMaterial
             cboSupplier.SelectedIndex = 0;
 
             // Warehouse dropdown
-            _warehouses = vm.Warehouses;
+            _warehouses = vm.Warehouses ?? new List<WarehouseEntity>();
             cboWarehouse.Items.Clear();
             cboWarehouse.Items.Add("-- Select Warehouse --");
             foreach (var w in _warehouses)
-                cboWarehouse.Items.Add($"{w.WarehouseID}  —  {w.WarehouseLocation}");
+                cboWarehouse.Items.Add($"{w.WarehouseID}  \u2014  {w.WarehouseLocation}");
             cboWarehouse.SelectedIndex = 0;
 
             // Reset auto-filled chip labels
-            lblRawMaterialID.Text      = "—";
+            lblRawMaterialID.Text      = "\u2014";
             lblRawMaterialID.ForeColor = Color.FromArgb(98, 112, 135);
-            lblRequestedQty.Text       = "—";
+            lblRawMaterialID.BackColor = Color.FromArgb(235, 240, 250);
+            lblRequestedQty.Text       = "\u2014";
             lblRequestedQty.ForeColor  = Color.FromArgb(98, 112, 135);
+            lblRequestedQty.BackColor  = Color.FromArgb(235, 240, 250);
             lblLineTotal.Text          = "HK$ 0.00";
 
             // Reset line inputs
@@ -106,7 +108,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
             dtpOrderDate.Value      = DateTime.Today;
             cboStatus.SelectedIndex = 0;
 
-            // Attach submit / reset after controls exist
+            // Attach submit / reset — remove first to avoid double-subscription
             btnSubmit.Click -= BtnSubmit_Click;
             btnReset.Click  -= BtnReset_Click;
             btnSubmit.Click += BtnSubmit_Click;
@@ -121,7 +123,6 @@ namespace PremiumLivingOPS.Views.RawMaterial
         {
             if (cboMaterialRequest.SelectedItem is MaterialRequestLookup req)
             {
-                // Show auto-filled values as blue chips
                 lblRawMaterialID.Text      = req.RawMaterialID;
                 lblRawMaterialID.ForeColor = Palette.Primary;
                 lblRawMaterialID.BackColor = Color.FromArgb(219, 234, 254);
@@ -132,11 +133,11 @@ namespace PremiumLivingOPS.Views.RawMaterial
             }
             else
             {
-                lblRawMaterialID.Text      = "—";
+                lblRawMaterialID.Text      = "\u2014";
                 lblRawMaterialID.ForeColor = Color.FromArgb(98, 112, 135);
                 lblRawMaterialID.BackColor = Color.FromArgb(235, 240, 250);
 
-                lblRequestedQty.Text       = "—";
+                lblRequestedQty.Text       = "\u2014";
                 lblRequestedQty.ForeColor  = Color.FromArgb(98, 112, 135);
                 lblRequestedQty.BackColor  = Color.FromArgb(235, 240, 250);
             }
@@ -153,9 +154,8 @@ namespace PremiumLivingOPS.Views.RawMaterial
             string purchaseId    = lblPurchaseIDValue.Text.Trim();
             string requestId     = (cboMaterialRequest.SelectedItem as MaterialRequestLookup)?.RequestID;
             string supplierId    = (cboSupplier.SelectedItem as SupplierLookup)?.SupplierID;
-            string rawMaterialId = lblRawMaterialID.Text.Trim();
-            // Treat the placeholder dash as empty
-            if (rawMaterialId == "—") rawMaterialId = string.Empty;
+            string rawMaterialId = (cboMaterialRequest.SelectedItem as MaterialRequestLookup)?.RawMaterialID
+                                   ?? string.Empty;
             string status      = cboStatus.SelectedItem?.ToString() ?? "Sent";
             DateTime orderDate = dtpOrderDate.Value.Date;
 

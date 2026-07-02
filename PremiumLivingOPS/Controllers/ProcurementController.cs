@@ -40,6 +40,7 @@ namespace PremiumLivingOPS.Controllers
 
         public ProcurementDetailViewModel GetProcurementDetailVM(string purchaseId)
         {
+            if (string.IsNullOrWhiteSpace(purchaseId)) return null;
             var user = SessionManager.CurrentUser;
             return new ProcurementDetailViewModel
             {
@@ -97,7 +98,6 @@ namespace PremiumLivingOPS.Controllers
 
             double poTotal = orderQty * unitPrice;
 
-            // ✔ Staff.StaffId (lowercase 'd') — matches Staff.cs property definition
             string staffId = SessionManager.CurrentUser?.StaffId ?? "SYSTEM";
 
             _repo.CreatePurchaseOrder(

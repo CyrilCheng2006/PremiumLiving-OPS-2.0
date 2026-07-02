@@ -50,7 +50,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
                 { "Medium",   (Color.FromArgb(209, 250, 229), Color.FromArgb(  6,  95,  70)) }
             };
 
-        private const int D_RowH   = 80;   // increased from 60 — prevents label text clipping at bottom
+        private const int D_RowH   = 80;
         private const int D_LabelW = 260;
         private const int D_BtnW   = 200;
         private const int D_BtnH   = 56;
@@ -97,7 +97,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
             _shell.SetVisibleMenus(vm.AllowedMenus);
             _shell.SetBreadcrumb("Raw Material  \u203a  Search Procurement");
 
-            _currentOrders = vm.Orders;
+            _currentOrders = vm.Orders ?? new List<ProcurementOrderEntity>();
 
             dgvOrders.Rows.Clear();
             foreach (var o in _currentOrders)
@@ -113,6 +113,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
                     o.UrgencyLevel);
             }
 
+            // KPI reuses already-loaded _currentOrders — no second DB call
             RefreshKpi();
             UpdateActionButtons();
         }
@@ -128,20 +129,21 @@ namespace PremiumLivingOPS.Views.RawMaterial
         }
 
         // ════════════════════════════════════════════════════════════════
-        //  KPI Pills
+        //  KPI Pills  — reuses _currentOrders (no extra DB round-trip)
         // ════════════════════════════════════════════════════════════════
 
         private void RefreshKpi()
         {
             pnlKpi.Controls.Clear();
 
-            var allOrders = _ctrl.GetSearchProcurementVM().Orders;
+            // Use the already-loaded list; fall back to a full load if empty after reset
+            var orders = _currentOrders ?? new List<ProcurementOrderEntity>();
 
-            int total    = allOrders.Count;
-            int sent     = allOrders.FindAll(o => o.PurchaseStatus == "Sent").Count;
-            int partial  = allOrders.FindAll(o => o.PurchaseStatus == "Partially Received").Count;
-            int received = allOrders.FindAll(o => o.PurchaseStatus == "Received").Count;
-            int completed= allOrders.FindAll(o => o.PurchaseStatus == "Completed").Count;
+            int total    = orders.Count;
+            int sent     = orders.FindAll(o => o.PurchaseStatus == "Sent").Count;
+            int partial  = orders.FindAll(o => o.PurchaseStatus == "Partially Received").Count;
+            int received = orders.FindAll(o => o.PurchaseStatus == "Received").Count;
+            int completed= orders.FindAll(o => o.PurchaseStatus == "Completed").Count;
 
             var pills = new[]
             {
@@ -282,6 +284,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
 
             string purchaseId = dgvOrders.SelectedRows[0]
                 .Cells["colPurchaseID"].Value?.ToString();
+            if (string.IsNullOrEmpty(purchaseId)) return;
 
             var vm = _ctrl.GetProcurementDetailVM(purchaseId);
             if (vm?.Order == null) return;
@@ -441,8 +444,8 @@ namespace PremiumLivingOPS.Views.RawMaterial
             using var dlg = new Form
             {
                 Text            = $"View Purchase Order  \u2014  {o.PurchaseID}",
-                Size            = new Size(2200, 1500),
-                MinimumSize     = new Size(1100, 700),
+                Size            = new Size(1280, 860),
+                MinimumSize     = new Size(900, 600),
                 StartPosition   = FormStartPosition.CenterParent,
                 FormBorderStyle = FormBorderStyle.FixedDialog,
                 MaximizeBox     = false, MinimizeBox = false,
@@ -558,7 +561,10 @@ namespace PremiumLivingOPS.Views.RawMaterial
             content.Resize += (s, _) =>
             {
                 var p = (Panel)s;
-                stack.Width = p.Width; stack.Left = 0; stack.Top = 0;
+                stack.Width  = p.Width;
+                stack.Height = rows.Length * D_RowH;
+                stack.Left   = 0;
+                stack.Top    = 0;
                 foreach (Panel r in stack.Controls) r.Width = p.Width;
             };
             return content;
