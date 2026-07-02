@@ -322,19 +322,19 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             _grid.DefaultCellStyle.SelectionForeColor     = Color.FromArgb(15, 31, 53);
 
             // ── Column FillWeight proportions ───────────────────────────
-            //  COL  Name               Weight    %
+            //  COL  Name               Weight    ~%
             //   0   Schedule (chk)       45     4.5%
-            //   1   Item ID              75     7.5%  ← updated
-            //   2   Item Name           225    22.5%  ← updated
+            //   1   Item ID              60     6.0%  ← updated
+            //   2   Item Name           245    24.5%  ← updated
             //   3   Order Qty            60     6.0%
             //   4   Shipped              60     6.0%
             //   5   Remaining            60     6.0%
             //   6   Batch                50     5.0%
-            //   7   Ship Date            90     9.0%  ← updated
+            //   7   Ship Date            75     7.5%  ← updated
             //   8   Qty to Ship          65     6.5%
             //   9   Delivery Method     110    11.0%
-            //                          ---
-            //                          840  (WinForms distributes remainder)
+            //                          ----
+            //                           830
 
             // COL 0
             _grid.Columns.Add(new DataGridViewCheckBoxColumn
@@ -349,7 +349,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             {
                 Name       = "colItemID",
                 HeaderText = "Item ID",
-                FillWeight = 75f,      // 7.5%
+                FillWeight = 60f,      // 6.0%
                 ReadOnly   = true
             });
             // COL 2
@@ -357,7 +357,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             {
                 Name       = "colItemName",
                 HeaderText = "Item Name",
-                FillWeight = 225f,     // 22.5%
+                FillWeight = 245f,     // 24.5%
                 ReadOnly   = true
             });
             // COL 3
@@ -405,7 +405,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             {
                 Name             = "colDate",
                 HeaderText       = "Ship Date (YYYY-MM-DD)",
-                FillWeight       = 90f,   // 9.0%
+                FillWeight       = 75f,   // 7.5%
                 DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleCenter }
             });
             // COL 8
