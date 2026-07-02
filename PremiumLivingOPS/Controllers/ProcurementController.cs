@@ -31,12 +31,28 @@ namespace PremiumLivingOPS.Controllers
             };
         }
 
-        // ══ DETAIL ══════════════════════════════════════════════════════
+        // ══ DETAIL (GROUPED BY BASE ID) ══════════════════════════════════
 
         /// <summary>
-        /// Returns the PO header + all its PurchaseOrderLine items for the Detail dialog.
-        /// purchaseId = exact PurchaseID from DB, e.g. "PO-20260319-0025".
+        /// Returns a grouped detail ViewModel for the Detail Dialog.
+        /// baseId = "PO-YYYYMMDD-NNNN" (without the -NN suffix).
+        /// Includes all child POs (PO-YYYYMMDD-NNNN-NN) and their line items.
         /// </summary>
+        public GroupedProcurementDetailViewModel GetGroupedProcurementDetailVM(string baseId)
+        {
+            if (string.IsNullOrWhiteSpace(baseId)) return null;
+            var user = SessionManager.CurrentUser;
+            var vm   = _repo.GetGroupedDetailByBaseId(baseId);
+            if (vm != null)
+            {
+                vm.UserBar      = new UserBarViewModel { DisplayName = user?.StaffName ?? "Unknown", Department = user?.Department ?? "" };
+                vm.AllowedMenus = NavAccessPolicy.GetAllowedMenus(user?.Department);
+            }
+            return vm;
+        }
+
+        // ══ LEGACY SINGLE-PO DETAIL ══════════════════════════════════════
+
         public ProcurementDetailViewModel GetProcurementDetailVM(string purchaseId)
         {
             if (string.IsNullOrWhiteSpace(purchaseId)) return null;
@@ -102,7 +118,6 @@ namespace PremiumLivingOPS.Controllers
 
             foreach (var ln in lines)
             {
-                // Each line becomes its own PurchaseOrder with a fresh sequential ID
                 string poId    = _repo.GenerateNextPurchaseId();
                 double poTotal = ln.OrderQty * ln.UnitPrice;
 
