@@ -283,6 +283,85 @@ namespace PremiumLivingOPS.Views.RawMaterial
             ShowProcurementDetailDialog(vm);
         }
 
+        // ── Helper: build a 2-column (Key | Value) meta row panel ─────
+        private Panel BuildMetaRow(int height, params (string key, string val)[] pairs)
+        {
+            // Each row shows exactly 2 key-value pairs side by side.
+            // pairs are split into chunks of 2; each chunk becomes one horizontal row.
+            // All chunks are stacked vertically inside the returned panel.
+
+            const int ROW_H     = 56;   // height per chunk row
+            const int KEY_W_PCT = 18;   // key column % inside each pair half
+            const int SIDE_PAD  = 28;
+
+            int chunks   = (int)Math.Ceiling(pairs.Length / 2.0);
+            int totalH   = chunks * ROW_H;
+
+            var outer = new Panel
+            {
+                Dock      = DockStyle.Top,
+                Height    = totalH,
+                BackColor = Color.White,
+                Padding   = new Padding(SIDE_PAD, 0, SIDE_PAD, 0)
+            };
+            outer.Paint += DlgPaintBottomBorder;
+
+            var stack = new TableLayoutPanel
+            {
+                Dock            = DockStyle.Fill,
+                ColumnCount     = 1,
+                RowCount        = chunks,
+                BackColor       = Color.Transparent,
+                CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+            };
+            for (int r = 0; r < chunks; r++)
+                stack.RowStyles.Add(new RowStyle(SizeType.Absolute, ROW_H));
+            stack.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+
+            for (int ci = 0; ci < chunks; ci++)
+            {
+                // up to 2 pairs in this chunk
+                int idxA = ci * 2;
+                int idxB = idxA + 1;
+                bool hasPairB = idxB < pairs.Length;
+
+                // inner 4-column TLP: keyA | valA | keyB | valB
+                var row = new TableLayoutPanel
+                {
+                    Dock            = DockStyle.Fill,
+                    ColumnCount     = hasPairB ? 4 : 2,
+                    RowCount        = 1,
+                    BackColor       = Color.Transparent,
+                    CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+                };
+                row.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+
+                if (hasPairB)
+                {
+                    row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, KEY_W_PCT));
+                    row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f - KEY_W_PCT));
+                    row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, KEY_W_PCT));
+                    row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f - KEY_W_PCT));
+                    row.Controls.Add(DlgKey(pairs[idxA].key), 0, 0);
+                    row.Controls.Add(DlgVal(pairs[idxA].val), 1, 0);
+                    row.Controls.Add(DlgKey(pairs[idxB].key), 2, 0);
+                    row.Controls.Add(DlgVal(pairs[idxB].val), 3, 0);
+                }
+                else
+                {
+                    row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, KEY_W_PCT * 2));
+                    row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f - KEY_W_PCT * 2));
+                    row.Controls.Add(DlgKey(pairs[idxA].key), 0, 0);
+                    row.Controls.Add(DlgVal(pairs[idxA].val), 1, 0);
+                }
+
+                stack.Controls.Add(row, 0, ci);
+            }
+
+            outer.Controls.Add(stack);
+            return outer;
+        }
+
         private void ShowProcurementDetailDialog(ProcurementDetailViewModel vm)
         {
             var order = vm.Order;
@@ -304,7 +383,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
                 MaximizeBox     = true, MinimizeBox = false
             };
 
-            // ── HEADER ──────────────────────────────────────────────────
+            // ── HEADER ────────────────────────────────────────────
             var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 80, BackColor = Color.FromArgb(19, 35, 61) };
             var tblHeader = new TableLayoutPanel
             {
@@ -332,59 +411,32 @@ namespace PremiumLivingOPS.Views.RawMaterial
             }, 1, 0);
             pnlHeader.Controls.Add(tblHeader);
 
-            // ── META ROW 1: Supplier / Date / Request ID / Amount ───────────
-            var pnlMeta = new Panel
-            {
-                Dock = DockStyle.Top, Height = 64,
-                BackColor = Color.White, Padding = new Padding(28, 0, 28, 0)
-            };
-            pnlMeta.Paint += DlgPaintBottomBorder;
-            var tblMeta = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill, ColumnCount = 8, RowCount = 1,
-                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
-            };
-            for (int i = 0; i < 8; i++)
-                tblMeta.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 12.5f));
-            tblMeta.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-            tblMeta.Controls.Add(DlgKey("Supplier"),    0, 0);
-            tblMeta.Controls.Add(DlgVal(
+            // ── META: 2 pairs per line ──────────────────────────────
+            // Row A: Supplier | Order Date
+            // Row B: Request ID | PO Total
+            // Row C: Urgency | Trigger
+            // Row D: Material (MRQ) — single pair
+            string supplierDisplay =
                 string.IsNullOrEmpty(order.SupplierID)
-                    ? order.SupplierName ?? "—"
-                    : $"{order.SupplierID}  —  {order.SupplierName}"), 1, 0);
-            tblMeta.Controls.Add(DlgKey("Order Date"),  2, 0);
-            tblMeta.Controls.Add(DlgVal(order.OrderDateStr ?? "—"), 3, 0);
-            tblMeta.Controls.Add(DlgKey("Request ID"),  4, 0);
-            tblMeta.Controls.Add(DlgVal(string.IsNullOrEmpty(order.RequestID) ? "—" : order.RequestID), 5, 0);
-            tblMeta.Controls.Add(DlgKey("PO Total"),    6, 0);
-            tblMeta.Controls.Add(DlgVal($"HK$ {order.POTotalAmount:N2}"), 7, 0);
-            pnlMeta.Controls.Add(tblMeta);
+                    ? (order.SupplierName ?? "—")
+                    : $"{order.SupplierID}  —  {order.SupplierName}";
 
-            // ── META ROW 2: Urgency / Trigger / Material ────────────────
-            var pnlMeta2 = new Panel
-            {
-                Dock = DockStyle.Top, Height = 56,
-                BackColor = Color.White, Padding = new Padding(28, 0, 28, 0)
-            };
-            pnlMeta2.Paint += DlgPaintBottomBorder;
-            var tblMeta2 = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill, ColumnCount = 6, RowCount = 1,
-                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
-            };
-            for (int i = 0; i < 6; i++)
-                tblMeta2.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f / 6));
-            tblMeta2.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-            tblMeta2.Controls.Add(DlgKey("Urgency"),       0, 0);
-            tblMeta2.Controls.Add(DlgVal(string.IsNullOrEmpty(order.UrgencyLevel) ? "—" : order.UrgencyLevel), 1, 0);
-            tblMeta2.Controls.Add(DlgKey("Trigger"),        2, 0);
-            tblMeta2.Controls.Add(DlgVal(string.IsNullOrEmpty(order.TriggerType)  ? "—" : order.TriggerType),  3, 0);
-            tblMeta2.Controls.Add(DlgKey("Material (MRQ)"), 4, 0);
-            tblMeta2.Controls.Add(DlgVal(
-                string.IsNullOrEmpty(order.RawMaterialName) ? "—" : $"{order.RawMaterialName}  ({order.RawMaterialItemID})"), 5, 0);
-            pnlMeta2.Controls.Add(tblMeta2);
+            string materialDisplay =
+                string.IsNullOrEmpty(order.RawMaterialName)
+                    ? "—"
+                    : $"{order.RawMaterialName}  ({order.RawMaterialItemID})";
 
-            // ── ORDER LINES LABEL ───────────────────────────────────
+            var pnlMeta = BuildMetaRow(0,
+                ("Supplier",        supplierDisplay),
+                ("Order Date",      order.OrderDateStr ?? "—"),
+                ("Request ID",      string.IsNullOrEmpty(order.RequestID) ? "—" : order.RequestID),
+                ("PO Total",        $"HK$ {order.POTotalAmount:N2}"),
+                ("Urgency",         string.IsNullOrEmpty(order.UrgencyLevel) ? "—" : order.UrgencyLevel),
+                ("Trigger",         string.IsNullOrEmpty(order.TriggerType)  ? "—" : order.TriggerType),
+                ("Material (MRQ)",  materialDisplay)
+            );
+
+            // ── ORDER LINES LABEL ───────────────────────────────
             var pnlLinesLabel = new Panel
             {
                 Dock = DockStyle.Top, Height = 38,
@@ -399,7 +451,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
             });
             pnlLinesLabel.Paint += DlgPaintBottomBorder;
 
-            // ── FOOTER ───────────────────────────────────────────────
+            // ── FOOTER ────────────────────────────────────────────
             var pnlFooter = new Panel
             {
                 Dock = DockStyle.Bottom, Height = 68,
@@ -419,7 +471,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
             btnClose.Click += (s, ev) => dlg.Close();
             pnlFooter.Controls.Add(btnClose);
 
-            // ── ORDER LINES DGV or empty state ───────────────────────
+            // ── ORDER LINES DGV or empty state ─────────────────────
             Control fillContent;
             if (lines.Count > 0)
             {
@@ -497,7 +549,6 @@ namespace PremiumLivingOPS.Views.RawMaterial
             // Assemble (Bottom first, then Top panels, then Fill)
             dlg.Controls.Add(fillContent);
             dlg.Controls.Add(pnlLinesLabel);
-            dlg.Controls.Add(pnlMeta2);
             dlg.Controls.Add(pnlMeta);
             dlg.Controls.Add(pnlHeader);
             dlg.Controls.Add(pnlFooter);
@@ -505,7 +556,7 @@ namespace PremiumLivingOPS.Views.RawMaterial
             dlg.ShowDialog(this);
         }
 
-        // ── Dialog helpers ─────────────────────────────────────────
+        // ── Dialog helpers ──────────────────────────────────────────
         private static Label DlgKey(string text) => new Label
         {
             Text      = text,

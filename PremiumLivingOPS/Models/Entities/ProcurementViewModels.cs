@@ -1,28 +1,57 @@
 using System;
 using System.Collections.Generic;
 
+// ============================================================
+//  FILE: Models/Entities/ProcurementViewModels.cs
+// ============================================================
+
 namespace PremiumLivingOPS.Models.Entities
 {
-    // ════════════════════════════════════════════════════════════════════
-    //  ENTITY: ProcurementOrderEntity (extends PurchaseOrderEntity from
-    //          GoodsReceivedEntity.cs with Procurement-specific fields)
-    // ════════════════════════════════════════════════════════════════════
+    // ── PROCUREMENT — Domain Entities ───────────────────────────────────────────
 
-    public class ProcurementOrderEntity : PurchaseOrderEntity
+    /// <summary>
+    /// Flat projection for a single PurchaseOrder row.
+    /// PurchaseID format: PO-YYYYMMDD-NNNN  (no -NN suffix).
+    /// </summary>
+    public class ProcurementOrderEntity
     {
-        public string RawMaterialItemID { get; set; }
-        public string RawMaterialName   { get; set; }
-        public int    RequestedQty      { get; set; }
-        public string UrgencyLevel      { get; set; }
-        public string TriggerType       { get; set; }
-
-        public string OrderDateStr => OrderDate.ToString("yyyy-MM-dd");
+        public string   PurchaseID        { get; set; }   // e.g. PO-20260319-0025
+        public string   RequestID         { get; set; }
+        public string   SupplierID        { get; set; }
+        public string   SupplierName      { get; set; }
+        public double   POTotalAmount     { get; set; }
+        public DateTime OrderDate         { get; set; }
+        public string   PurchaseStatus    { get; set; }
+        public string   RawMaterialItemID { get; set; }
+        public string   RawMaterialName   { get; set; }
+        public int      RequestedQty      { get; set; }
+        public string   UrgencyLevel      { get; set; }
+        public string   TriggerType       { get; set; }
+        public string   OrderDateStr      => OrderDate.ToString("yyyy-MM-dd");
     }
 
-    // ════════════════════════════════════════════════════════════════════
-    //  ENTITY: PurchaseOrderLineEntity
-    // ════════════════════════════════════════════════════════════════════
+    /// <summary>
+    /// One row shown in the Search Procurement grid.
+    /// Corresponds 1-to-1 with a PurchaseOrder row.
+    /// </summary>
+    public class ProcurementOrderGroup
+    {
+        /// <summary>Full PurchaseID, e.g. PO-20260319-0025</summary>
+        public string   PurchaseID     { get; set; }
+        public string   SupplierID     { get; set; }
+        public string   SupplierName   { get; set; }
+        public DateTime OrderDate      { get; set; }
+        public string   PurchaseStatus { get; set; }
+        public double   TotalAmount    { get; set; }
+        /// <summary>Number of PurchaseOrderLine items for this PO.</summary>
+        public int      ItemCount      { get; set; }
+        public string   UrgencyLevel   { get; set; }
+        public string   OrderDateStr   => OrderDate.ToString("yyyy-MM-dd");
+    }
 
+    /// <summary>
+    /// One line item inside a PurchaseOrder (from PurchaseOrderLine table).
+    /// </summary>
     public class PurchaseOrderLineEntity
     {
         public string POLineID          { get; set; }
@@ -37,40 +66,22 @@ namespace PremiumLivingOPS.Models.Entities
         public double LineTotal         => OrderQty * UnitPrice;
     }
 
-    // ════════════════════════════════════════════════════════════════════
-    //  LOOKUP: Supplier
-    // ════════════════════════════════════════════════════════════════════
-
-    public class SupplierLookup
-    {
-        public string SupplierID      { get; set; }
-        public string SupplierName    { get; set; }
-        public string PhoneNumber     { get; set; }
-        public string SupplierAddress { get; set; }
-
-        public string DisplayText => $"{SupplierID}  —  {SupplierName}";
-    }
-
-    // ════════════════════════════════════════════════════════════════════
-    //  LOOKUP: MaterialRequest batch prefix (for Create Procurement)
-    // ════════════════════════════════════════════════════════════════════
-
+    /// <summary>
+    /// Dropdown item: one unique MRQ batch prefix e.g. "MRQ-260702-001"
+    /// </summary>
     public class MaterialRequestBatchLookup
     {
-        /// <summary>e.g. "MR-20260701-0001" (without the -NN line suffix)</summary>
         public string BatchPrefix  { get; set; }
         public string UrgencyLevel { get; set; }
         public string TriggerType  { get; set; }
         public int    LineCount    { get; set; }
-
-        public string DisplayText =>
-            $"{BatchPrefix}  ({LineCount} line{(LineCount == 1 ? "" : "s")})  [{UrgencyLevel}]";
+        public override string ToString() =>
+            $"{BatchPrefix}  ({LineCount} item(s), {UrgencyLevel})";
     }
 
-    // ════════════════════════════════════════════════════════════════════
-    //  LOOKUP: One MaterialRequest line item (for Create Procurement grid)
-    // ════════════════════════════════════════════════════════════════════
-
+    /// <summary>
+    /// One -NN line inside a batch prefix, shown in the Create Procurement grid.
+    /// </summary>
     public class MaterialRequestLineItem
     {
         public string RequestID         { get; set; }
@@ -86,85 +97,63 @@ namespace PremiumLivingOPS.Models.Entities
         public double LineTotal         => OrderQty * UnitPrice;
     }
 
-    // ════════════════════════════════════════════════════════════════════
-    //  SEARCH: one row in the Search Procurement DataGridView
-    // ════════════════════════════════════════════════════════════════════
-
-    public class ProcurementOrderGroup
+    /// <summary>Supplier lookup row for Create Procurement.</summary>
+    public class SupplierLookup
     {
-        public string       BasePurchaseID   { get; set; }
-        public List<string> ChildPurchaseIDs { get; set; } = new List<string>();
-        public string       SupplierID       { get; set; }
-        public string       SupplierName     { get; set; }
-        public DateTime     OrderDate        { get; set; }
-        public string       PurchaseStatus   { get; set; }
-        public double       TotalAmount      { get; set; }
-        public int          ItemCount        { get; set; }
-        public string       UrgencyLevel     { get; set; }
-
-        public string OrderDateStr => OrderDate.ToString("yyyy-MM-dd");
+        public string SupplierID      { get; set; }
+        public string SupplierName    { get; set; }
+        public string PhoneNumber     { get; set; }
+        public string SupplierAddress { get; set; }
+        public override string ToString() => $"{SupplierName}  ({SupplierID})";
     }
 
-    // ════════════════════════════════════════════════════════════════════
-    //  DETAIL: grouped — one dialog for all child POs under a BaseID
-    // ════════════════════════════════════════════════════════════════════
-
-    public class GroupedProcurementDetailViewModel
+    /// <summary>Legacy single-item lookup — kept for compatibility.</summary>
+    public class MaterialRequestLookup
     {
-        public UserBarViewModel            UserBar         { get; set; }
-        public string[]                    AllowedMenus    { get; set; }
-        public string                      BasePurchaseID  { get; set; }
-        public string                      SupplierDisplay { get; set; }
-        public string                      PurchaseStatus  { get; set; }
-        public double                      TotalAmount     { get; set; }
-        public string                      OrderDateStr    { get; set; }
-        public List<ProcurementChildGroup> Children        { get; set; } = new List<ProcurementChildGroup>();
+        public string RequestID      { get; set; }
+        public string RawMaterialID  { get; set; }
+        public string MaterialName   { get; set; }
+        public int    RequestedQty   { get; set; }
+        public string UrgencyLevel   { get; set; }
+        public string TriggerType    { get; set; }
+        public override string ToString() =>
+            $"{RequestID}  —  {MaterialName}  ({RequestedQty} units, {UrgencyLevel})";
+    }
+}
+
+namespace PremiumLivingOPS.Models.ViewModels
+{
+    using PremiumLivingOPS.Models.Entities;
+
+    /// <summary>ViewModel for Search Procurement page.</summary>
+    public class SearchProcurementViewModel
+    {
+        public UserBarViewModel             UserBar      { get; set; }
+        public string[]                     AllowedMenus { get; set; }
+        public List<ProcurementOrderGroup>  Groups       { get; set; }
     }
 
-    public class ProcurementChildGroup
+    /// <summary>ViewModel for Create Procurement page.</summary>
+    public class CreateProcurementViewModel
     {
-        public string                        PurchaseID     { get; set; }
-        public string                        RequestID      { get; set; }
-        public string                        UrgencyLevel   { get; set; }
-        public string                        TriggerType    { get; set; }
-        public string                        PurchaseStatus { get; set; }
-        public double                        SubTotal       { get; set; }
-        public List<PurchaseOrderLineEntity> Lines          { get; set; } = new List<PurchaseOrderLineEntity>();
+        public UserBarViewModel                  UserBar        { get; set; }
+        public string[]                          AllowedMenus   { get; set; }
+        public List<MaterialRequestBatchLookup>  BatchPrefixes  { get; set; }
+        public List<SupplierLookup>              Suppliers      { get; set; }
+        public string                            NextPurchaseID { get; set; }
     }
 
-    // ════════════════════════════════════════════════════════════════════
-    //  LEGACY SINGLE-PO DETAIL
-    // ════════════════════════════════════════════════════════════════════
-
+    /// <summary>
+    /// Detail ViewModel for the PO detail dialog.
+    /// Contains the single PurchaseOrder header + all its PurchaseOrderLine items.
+    /// </summary>
     public class ProcurementDetailViewModel
     {
         public UserBarViewModel              UserBar      { get; set; }
         public string[]                      AllowedMenus { get; set; }
+        /// <summary>The PurchaseOrder header row.</summary>
         public ProcurementOrderEntity        Order        { get; set; }
+        /// <summary>All PurchaseOrderLine rows for this PO.</summary>
         public List<PurchaseOrderLineEntity> Lines        { get; set; }
-    }
-
-    // ════════════════════════════════════════════════════════════════════
-    //  SEARCH PAGE VM
-    // ════════════════════════════════════════════════════════════════════
-
-    public class SearchProcurementViewModel
-    {
-        public UserBarViewModel            UserBar      { get; set; }
-        public string[]                    AllowedMenus { get; set; }
-        public List<ProcurementOrderGroup> Groups       { get; set; }
-    }
-
-    // ════════════════════════════════════════════════════════════════════
-    //  CREATE PAGE VM
-    // ════════════════════════════════════════════════════════════════════
-
-    public class CreateProcurementViewModel
-    {
-        public UserBarViewModel                 UserBar        { get; set; }
-        public string[]                         AllowedMenus   { get; set; }
-        public List<MaterialRequestBatchLookup> BatchPrefixes  { get; set; }
-        public List<SupplierLookup>             Suppliers      { get; set; }
-        public string                           NextPurchaseID { get; set; }
     }
 }
