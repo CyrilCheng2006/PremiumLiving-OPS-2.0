@@ -40,7 +40,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         {
             _ctrl     = ctrl     ?? throw new ArgumentNullException(nameof(ctrl));
             _shipment = shipment ?? throw new ArgumentNullException(nameof(shipment));
-            InitializeComponent();
             BuildUI();
         }
 
@@ -56,7 +55,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             MaximizeBox     = false;
             MinimizeBox     = false;
 
-            // ── Header (mirrors CreateQuotationDialog dark-navy header) ──────
+            // ── Header (mirrors CreateQuotationDialog dark-navy header) ────────────
             var pnlHeader = new Panel
             {
                 Dock = DockStyle.Top, Height = 80,
@@ -143,7 +142,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlFooter.Controls.Add(btnSchedule);
             pnlFooter.Controls.Add(btnCancel);
 
-            // ── Info card (three-layer CardPanel) ─────────────────────────────
+            // ── Info card (three-layer CardPanel) ───────────────────────────────
             // Outer: grey fill | Inner (white card) | Content: two-row 4-col TLP
             // Row 0 (read-only): Shipment ID | Order ID | Customer | Current Status
             // Row 1 (editable):  Scheduled Date | Delivery Method | Contact Person | Notes
@@ -168,7 +167,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             tblForm.RowStyles.Add(new RowStyle(SizeType.Absolute, 28f));  // section label row 1
             tblForm.RowStyles.Add(new RowStyle(SizeType.Percent,  58f));  // editable fields
 
-            // ── Row 0: section label ─────────────────────────────────────────
+            // ── Row 0: section label ──────────────────────────────────────────────
             var lblSection0 = new Label
             {
                 Text      = "SHIPMENT INFORMATION",
@@ -181,18 +180,18 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             tblForm.SetColumnSpan(lblSection0, 4);
             tblForm.Controls.Add(lblSection0, 0, 0);
 
-            // ── Row 1: read-only shipment info ───────────────────────────────
+            // ── Row 1: read-only shipment info ────────────────────────────────
             tblForm.Controls.Add(MakeFieldCell("Shipment ID",     MakeReadOnlyLabel(_shipment.ShipmentID)),   0, 1);
             tblForm.Controls.Add(MakeFieldCell("Order ID",        MakeReadOnlyLabel(_shipment.OrderID)),       1, 1);
             tblForm.Controls.Add(MakeFieldCell("Customer",        MakeReadOnlyLabel(_shipment.CustomerName ?? "—")), 2, 1);
             tblForm.Controls.Add(MakeFieldCell("Current Status",  MakeReadOnlyLabel(_shipment.ShipmentStatus ?? "—")), 3, 1);
 
-            // ── Row 2: section label ─────────────────────────────────────────
+            // ── Row 2: section label ──────────────────────────────────────────────
             var lblSection1 = new Label
             {
                 Text      = "SCHEDULE DETAILS",
                 Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(109, 40, 217),   // purple to distinguish schedule section
+                ForeColor = Color.FromArgb(109, 40, 217),
                 Dock      = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft,
                 AutoSize  = false
@@ -200,13 +199,13 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             tblForm.SetColumnSpan(lblSection1, 4);
             tblForm.Controls.Add(lblSection1, 0, 2);
 
-            // ── Row 3: editable schedule fields ─────────────────────────────
+            // ── Row 3: editable schedule fields ──────────────────────────────
             _dtpScheduledDate = new DateTimePicker
             {
-                Dock   = DockStyle.Fill,
-                Format = DateTimePickerFormat.Short,
-                Font   = new Font("Segoe UI", 12f),
-                Value  = _shipment.DeliveryDate?.Date ?? DateTime.Today.AddDays(1),
+                Dock    = DockStyle.Fill,
+                Format  = DateTimePickerFormat.Short,
+                Font    = new Font("Segoe UI", 12f),
+                Value   = _shipment.DeliveryDate?.Date ?? DateTime.Today.AddDays(1),
                 MinDate = DateTime.Today
             };
 
@@ -217,7 +216,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 Font          = new Font("Segoe UI", 12f)
             };
             _cboDeliveryMethod.Items.AddRange(new object[] { "Courier", "SelfPickup" });
-            // Pre-select current delivery method
             int dmIdx = _cboDeliveryMethod.FindStringExact(_shipment.DeliveryMethod ?? "Courier");
             _cboDeliveryMethod.SelectedIndex = dmIdx >= 0 ? dmIdx : 0;
 
@@ -245,8 +243,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             cardInner.Controls.Add(tblForm);
 
-            // ── Assemble (Bottom-first, Top, Fill) ───────────────────────────
-            Controls.Add(cardOuter);   // Fill (handled by CardPanel.Create → DockStyle.Top)
+            // ── Assemble (Bottom-first, Top, Fill) ──────────────────────────────
+            Controls.Add(cardOuter);
             Controls.Add(pnlFooter);
             Controls.Add(pnlHeader);
         }
@@ -256,12 +254,11 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         private void BtnSchedule_Click(object sender, EventArgs e)
         {
-            DateTime scheduledDate   = _dtpScheduledDate.Value.Date;
-            string   deliveryMethod  = _cboDeliveryMethod.SelectedItem?.ToString() ?? "Courier";
-            string   contactPerson   = _txtContactPerson.Text.Trim();
-            string   notes           = _txtNotes.Text.Trim();
+            DateTime scheduledDate  = _dtpScheduledDate.Value.Date;
+            string   deliveryMethod = _cboDeliveryMethod.SelectedItem?.ToString() ?? "Courier";
+            string   contactPerson  = _txtContactPerson.Text.Trim();
+            string   notes          = _txtNotes.Text.Trim();
 
-            // Basic validation
             if (scheduledDate < DateTime.Today)
             {
                 MessageBox.Show(
@@ -298,8 +295,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         //  UI helpers
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-        /// <summary>Labelled field cell (caption on top, control below).</summary>
         private static TableLayoutPanel MakeFieldCell(string caption, Control ctrl)
         {
             var tlp = new TableLayoutPanel
@@ -330,7 +325,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             return tlp;
         }
 
-        /// <summary>Read-only label value matching MakeLabelVal in ViewShipmentForm.</summary>
         private static Label MakeReadOnlyLabel(string text) => new Label
         {
             Text         = text,
@@ -348,7 +342,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             e.Graphics.DrawLine(pen, 0, 0, ((Panel)s).Width, 0);
         }
 
-        // ── Status colour palette (same as ViewShipmentForm) ──────────────
         private static readonly System.Collections.Generic.Dictionary<string, (Color bg, Color fg)> StatusColors =
             new System.Collections.Generic.Dictionary<string, (Color, Color)>
             {
