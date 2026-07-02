@@ -15,12 +15,12 @@ namespace PremiumLivingOPS.Models.DAL
     ///
     /// MRQ linkage chain: PurchaseOrderLine.PurchaseID → PurchaseOrder.RequestID → MaterialRequest
     ///
-    /// PurchaseID format : PO-YYYYMMDD-NNNN       (one header per batch)
-    /// POLineID   format : PO-YYYYMMDD-NNNN-NN    (one per item line in that batch)
+    /// PurchaseID format : PO-YYYYMMDD-NNNN        length = 16  (e.g. PO-20260702-0001)
+    /// POLineID   format : PO-YYYYMMDD-NNNN-NN     length = 19  (e.g. PO-20260702-0001-01)
     /// </summary>
     public class ProcurementRepo
     {
-        // ══ SEARCH ═══════════════════════════════════════════════════════════════
+        // ══ SEARCH ════════════════════════════════════════════════════════════════════════
 
         /// <summary>
         /// Returns one <see cref="ProcurementOrderGroup"/> per PurchaseOrder header.
@@ -95,7 +95,7 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
-        // ══ DETAIL ─────────────────────────────────────────────────────────────────═
+        // ══ DETAIL ════════════════════════════════════════════════════════════════════════
 
         /// <summary>
         /// Returns the PurchaseOrder header for a given PurchaseID.
@@ -137,8 +137,7 @@ namespace PremiumLivingOPS.Models.DAL
         /// <summary>
         /// Legacy fallback: when no exact header row exists for <paramref name="headerKey"/>
         /// (PO-YYYYMMDD-NNNN), find the first PurchaseOrder whose PurchaseID starts with
-        /// that key (e.g. PO-20260702-0001-01) and return it as a synthetic header,
-        /// replacing its PurchaseID with the clean header key.
+        /// that key and return it as a synthetic header.
         /// </summary>
         public ProcurementOrderEntity GetPurchaseOrderByPrefix(string headerKey)
         {
@@ -172,7 +171,6 @@ namespace PremiumLivingOPS.Models.DAL
                     {
                         if (!r.Read()) return null;
                         var entity = MapProcurementOrder(r);
-                        // Override the stored -NN ID with the clean header key
                         entity.PurchaseID = headerKey;
                         return entity;
                     }
@@ -180,10 +178,6 @@ namespace PremiumLivingOPS.Models.DAL
             }
         }
 
-        /// <summary>
-        /// Returns all PurchaseOrderLine rows for a given PurchaseID, ordered by POLineID.
-        /// Note: PurchaseOrderLine has NO RequestID column; the MRQ link lives on PurchaseOrder.
-        /// </summary>
         public List<PurchaseOrderLineEntity> GetLinesByPurchaseId(string purchaseId)
         {
             var list = new List<PurchaseOrderLineEntity>();
@@ -217,12 +211,6 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
-        /// <summary>
-        /// Legacy fallback: fetches PurchaseOrderLine rows where PurchaseID starts with
-        /// <paramref name="headerKey"/> (catches -01/-02/-03 stored as PurchaseID).
-        /// Also synthesises a POLineID sequence if the stored POLineID itself is the
-        /// same as the PurchaseID (edge case from very early data).
-        /// </summary>
         public List<PurchaseOrderLineEntity> GetLinesByPurchaseIdPrefix(string headerKey)
         {
             var list = new List<PurchaseOrderLineEntity>();
@@ -230,8 +218,6 @@ namespace PremiumLivingOPS.Models.DAL
             using (var conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
-                // Match rows whose PurchaseID starts with the header key (e.g. PO-20260702-0001-)
-                // OR equals the header key exactly (covers both old and new data in one query).
                 const string sql =
                     @"SELECT pol.POLineID,
                              pol.PurchaseID,
@@ -258,21 +244,14 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
-        // ══ CREATE ─ BATCH PREFIX LOOKUPS ══════════════════════════════════════════════════════
+        // ══ CREATE ─ BATCH PREFIX LOOKUPS ═════════════════════════════════════════════════════════════
 
-        /// <summary>
-        /// Returns MRQ batch prefixes that have NOT yet been linked to a PurchaseOrder.
-        /// "Linked" means PurchaseOrder.RequestID starts with the same batch prefix.
-        /// Uses PurchaseOrder.RequestID (NOT PurchaseOrderLine) for the existence check.
-        /// </summary>
         public List<MaterialRequestBatchLookup> GetUnlinkedBatchPrefixes()
         {
             var list = new List<MaterialRequestBatchLookup>();
             using (var conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
-                // A batch prefix is "linked" if any PurchaseOrder.RequestID starts with it.
-                // We derive the prefix by stripping the last 3 chars (-NN) from mr.RequestID.
                 const string sql =
                     @"SELECT
                           LEFT(mr.RequestID, LENGTH(mr.RequestID) - 3)  AS BatchPrefix,
@@ -303,10 +282,6 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
-        /// <summary>
-        /// Returns all MaterialRequest line items for a given batch prefix
-        /// that have not yet been ordered (no matching PurchaseOrder.RequestID).
-        /// </summary>
         public List<MaterialRequestLineItem> GetLineItemsByBatchPrefix(string batchPrefix)
         {
             var list = new List<MaterialRequestLineItem>();
@@ -314,7 +289,6 @@ namespace PremiumLivingOPS.Models.DAL
             using (var conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
-                // Exclude MRQ lines whose RequestID already appears in PurchaseOrder.RequestID.
                 const string sql =
                     @"SELECT mr.RequestID,
                              mr.RawMaterialItemID,
@@ -385,13 +359,10 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
-        // ══ CREATE ─ WRITE ════════════════════════════════════════════════════════════════
+        // ══ CREATE ─ WRITE ═════════════════════════════════════════════════════════════════════════════════════
         //
         // Actual PurchaseOrder columns    : PurchaseID, RequestID, SupplierID, POTotalAmount, OrderDate, PurchaseStatus
         // Actual PurchaseOrderLine columns: POLineID, RawMaterialItemID, PurchaseID, WarehouseID, OrderQty, UnitPrice
-        //
-        // PurchaseOrder.RequestID = the representative MRQ RequestID for the whole batch.
-        // PurchaseOrderLine has NO RequestID column — MRQ traceability is via PurchaseOrder.
 
         /// <summary>
         /// Creates one PurchaseOrder header + one PurchaseOrderLine per entry in
@@ -404,8 +375,8 @@ namespace PremiumLivingOPS.Models.DAL
             double poTotalAmount,
             DateTime orderDate,
             string purchaseStatus,
-            string urgencyLevel,    // caller compat only — not stored on PurchaseOrder
-            string triggerType,     // caller compat only — not stored on PurchaseOrder
+            string urgencyLevel,
+            string triggerType,
             List<MaterialRequestLineItem> lines,
             string staffId)
         {
@@ -416,10 +387,8 @@ namespace PremiumLivingOPS.Models.DAL
                 {
                     try
                     {
-                        // Representative RequestID = first MRQ line's RequestID
                         string firstRequestId = lines.Count > 0 ? lines[0].RequestID : null;
 
-                        // 1. PurchaseOrder header — only actual schema columns
                         const string insertPO =
                             @"INSERT INTO PurchaseOrder
                                 (PurchaseID, RequestID, SupplierID,
@@ -438,7 +407,6 @@ namespace PremiumLivingOPS.Models.DAL
                             cmd.ExecuteNonQuery();
                         }
 
-                        // 2. PurchaseOrderLine rows — only actual schema columns (NO RequestID)
                         const string insertLine =
                             @"INSERT INTO PurchaseOrderLine
                                 (POLineID, PurchaseID, RawMaterialItemID, WarehouseID, OrderQty, UnitPrice)
@@ -462,7 +430,6 @@ namespace PremiumLivingOPS.Models.DAL
                             }
                         }
 
-                        // 3. Audit log
                         const string insertLog =
                             @"INSERT INTO Log (LogID, StaffID, LogType, TargetTable, NewValue)
                               VALUES (@logId, @staffId, 'Create', 'PurchaseOrder', @newVal)";
@@ -481,7 +448,6 @@ namespace PremiumLivingOPS.Models.DAL
             }
         }
 
-        // ── Legacy single-line overload — kept so old callers compile ──────────────────
         public void CreatePurchaseOrder(
             string purchaseId, string requestId, string supplierId,
             double poTotalAmount, DateTime orderDate, string purchaseStatus,
@@ -505,11 +471,18 @@ namespace PremiumLivingOPS.Models.DAL
                 singleLine, staffId);
         }
 
-        // ══ ID GENERATORS ══════════════════════════════════════════════════════════════════════════════
+        // ══ ID GENERATOR ════════════════════════════════════════════════════════════════════════════════════════
 
         /// <summary>
-        /// Generates the next available PurchaseID: PO-YYYYMMDD-NNNN.
-        /// Counts only exact-length 17-char IDs so -NN suffixed POLineIDs are excluded.
+        /// Generates the next available PurchaseID in PO-YYYYMMDD-NNNN format (16 chars).
+        ///
+        /// PO-YYYYMMDD-NNNN breakdown (1-based MySQL positions):
+        ///   P O -  Y  Y  Y  Y  M  M  D  D  -  N  N  N  N
+        ///   1 2 3  4  5  6  7  8  9 10 11 12 13 14 15 16
+        ///
+        /// SUBSTRING(PurchaseID, 13, 4) extracts chars 13-16 → the NNNN sequence.
+        /// LENGTH = 16 ensures only proper header IDs are considered
+        /// (POLineIDs are 19 chars: PO-YYYYMMDD-NNNN-NN).
         /// </summary>
         public string GenerateNextPurchaseId()
         {
@@ -518,10 +491,10 @@ namespace PremiumLivingOPS.Models.DAL
             {
                 conn.Open();
                 const string sql =
-                    @"SELECT COALESCE(MAX(CAST(SUBSTRING(PurchaseID, 14, 4) AS UNSIGNED)), 0) + 1
+                    @"SELECT COALESCE(MAX(CAST(SUBSTRING(PurchaseID, 13, 4) AS UNSIGNED)), 0) + 1
                       FROM   PurchaseOrder
                       WHERE  PurchaseID LIKE @prefix
-                        AND  LENGTH(PurchaseID) = 17";
+                        AND  LENGTH(PurchaseID) = 16";
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
                     cmd.Parameters.AddWithValue("@prefix", prefix + "%");
@@ -531,7 +504,7 @@ namespace PremiumLivingOPS.Models.DAL
             }
         }
 
-        // ══ MAPPERS ════════════════════════════════════════════════════════════════════════
+        // ══ MAPPERS ════════════════════════════════════════════════════════════════════════════════════════════
 
         private static ProcurementOrderEntity MapProcurementOrder(MySqlDataReader r)
             => new ProcurementOrderEntity
@@ -550,16 +523,12 @@ namespace PremiumLivingOPS.Models.DAL
                 TriggerType       = r["TriggerType"].ToString()
             };
 
-        /// <summary>
-        /// Maps a PurchaseOrderLine row.
-        /// PurchaseOrderLine has no RequestID column — RequestID on the entity is left empty.
-        /// </summary>
         private static PurchaseOrderLineEntity MapPOLine(MySqlDataReader r)
             => new PurchaseOrderLineEntity
             {
                 POLineID          = r["POLineID"].ToString(),
                 PurchaseID        = r["PurchaseID"].ToString(),
-                RequestID         = "",   // PurchaseOrderLine has no RequestID column
+                RequestID         = "",
                 RawMaterialItemID = r["RawMaterialItemID"].ToString(),
                 MaterialName      = r["MaterialName"].ToString(),
                 MaterialType      = r["MaterialType"].ToString(),
