@@ -28,7 +28,7 @@ namespace PremiumLivingOPS.Views.AfterService
         {
             this.SuspendLayout();
 
-            this.Text          = "Premium Living OPS — Account Receivable";
+            this.Text          = "Premium Living OPS \u2014 Account Receivable";
             this.Size          = new Size(1440, 900);
             this.MinimumSize   = new Size(1200, 720);
             this.StartPosition = FormStartPosition.CenterScreen;
@@ -39,8 +39,6 @@ namespace PremiumLivingOPS.Views.AfterService
             var pnlMain = new Panel { Dock = DockStyle.Fill, BackColor = Palette.BgPage };
             _shell = new AppShell();
             _shell.SetPopupContainer(pnlMain);
-            // FIX CS0103: wire via lambda so the handler method in Form.cs is resolved at runtime,
-            //             not at Designer compile time where it was reported as missing.
             _shell.MenuItemClicked += (menu, sub) => OnTopNavMenuItemClicked(menu, sub);
             _shell.LogoutClicked   += (s, e)       => btnLogout_Click(s, e);
 
@@ -97,8 +95,8 @@ namespace PremiumLivingOPS.Views.AfterService
             tblFields.Controls.Add(MakeCell("Payment Status", cboStatus),  1, 0);
 
             var pnlBtns = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
-            btnSearch = MakePrimaryBtn("🔍  Search", new Point(0,   0), 210, 60);
-            btnReset  = MakeOutlineBtn("↺  Reset",  new Point(218, 0), 210, 60);
+            btnSearch = MakePrimaryBtn("\U0001f50d  Search", new Point(0,   0), 210, 60);
+            btnReset  = MakeOutlineBtn("\u21ba  Reset",  new Point(218, 0), 210, 60);
             btnSearch.Click += (s, e) => RefreshGrid();
             btnReset.Click  += (s, e) => ResetSearch();
             pnlBtns.Controls.Add(btnSearch);
@@ -146,7 +144,7 @@ namespace PremiumLivingOPS.Views.AfterService
             const int BtnH   =  60;
             const int BtnPad =  12;
 
-            btnRecord = MakeTealBtn("💳  Record Payment", Point.Empty, BtnW, BtnH);
+            btnRecord = MakeTealBtn("\U0001f4b3  Record Payment", Point.Empty, BtnW, BtnH);
             btnRecord.Enabled = false;
             btnRecord.Click  += (s, e) => OpenRecordPayment();
 
@@ -173,8 +171,6 @@ namespace PremiumLivingOPS.Views.AfterService
 
             // ════════════════════════════════════════════════════════════════
             // CARD 3 — Invoice Grid  (Fill)
-            // Columns (9): InvoiceID | OrderID | InvoiceDate | Customer |
-            //              Total | Paid | Balance | Status | DueDate
             // ════════════════════════════════════════════════════════════════
             var (gridOuter, gridInner) = CardPanel.CreateFill();
 
@@ -212,8 +208,8 @@ namespace PremiumLivingOPS.Views.AfterService
             dgvAR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",      HeaderText = "STATUS",         FillWeight =  9 });
             dgvAR.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDueDate",     HeaderText = "DUE DATE",       FillWeight =  9 });
 
-            dgvAR.SelectionChanged += dgvAR_SelectionChanged;
-            dgvAR.CellFormatting   += dgvAR_CellFormatting;
+            dgvAR.SelectionChanged += (s, e) => dgvAR_SelectionChanged(s, e);
+            dgvAR.CellFormatting   += (s, e) => dgvAR_CellFormatting(s, e);
             dgvAR.CellDoubleClick  += (s, e) => { if (e.RowIndex >= 0) OpenRecordPayment(); };
 
             gridInner.Controls.Add(dgvAR);
