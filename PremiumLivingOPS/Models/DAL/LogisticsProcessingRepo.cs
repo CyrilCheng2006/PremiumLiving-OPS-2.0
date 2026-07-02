@@ -1,7 +1,6 @@
 using MySql.Data.MySqlClient;
 using PremiumLivingOPS.Models.Entities;
 using PremiumLivingOPS.Models.ViewModels;
-using PremiumLivingOPS.Views.LogisticsProcessing;
 using System;
 using System.Collections.Generic;
 
@@ -195,17 +194,19 @@ namespace PremiumLivingOPS.Models.DAL
         /// <summary>
         /// Returns all OrderLines for the order plus total qty already shipped
         /// across every ShipmentLine for those items.
+        /// NOTE: OrderLine uses the column name 'Price' (not 'UnitPrice').
         /// </summary>
         public List<OrderLineDetail> GetOrderLinesWithShipmentStatus(string orderId)
         {
             var list = new List<OrderLineDetail>();
             using var conn = DatabaseHelper.GetConnection();
             conn.Open();
-            // Aggregate shipped qty per item from ShipmentLine, joining via Shipment.OrderID
+            // schema.sql: OrderLine(OrderID, ItemID, Quantity, Price)
             var sql = @"
                 SELECT ol.ItemID,
                        COALESCE(i.ItemName,'') AS ItemName,
                        ol.Quantity,
+                       ol.Price                AS UnitPrice,
                        COALESCE(shipped.TotalShipped, 0) AS QtyAlreadyShipped
                 FROM   OrderLine ol
                 LEFT JOIN Item i ON i.ItemID = ol.ItemID
@@ -228,6 +229,7 @@ namespace PremiumLivingOPS.Models.DAL
                     ItemID            = rd.GetString("ItemID"),
                     ItemName          = rd.GetString("ItemName"),
                     Quantity          = rd.GetInt32("Quantity"),
+                    UnitPrice         = rd.GetDouble("UnitPrice"),
                     QtyAlreadyShipped = rd.GetInt32("QtyAlreadyShipped")
                 });
             return list;
@@ -243,21 +245,18 @@ namespace PremiumLivingOPS.Models.DAL
             var list = new List<string>();
             using var conn = DatabaseHelper.GetConnection();
             conn.Open();
-            // ShipmentID format: SHP-YYYYMMDD-<suffix>  (suffix = 4-digit order num + 1 letter)
             var sql = "SELECT ShipmentID FROM Shipment WHERE OrderID = @oid";
             using var cmd = new MySqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("@oid", orderId);
             using var rd = cmd.ExecuteReader();
             while (rd.Read())
             {
-                string sid = rd.GetString("ShipmentID"); // e.g. SHP-20260309-0029A
-                // Extract everything after the third '-'
+                string sid = rd.GetString("ShipmentID");
                 int thirdDash = -1, dashCount = 0;
                 for (int i = 0; i < sid.Length; i++)
                 {
                     if (sid[i] == '-') { dashCount++; if (dashCount == 3) { thirdDash = i; break; } }
                 }
-                // Format is SHP-YYYYMMDD-suffix (only 2 dashes), fall back
                 if (thirdDash < 0)
                 {
                     int secondDash = sid.LastIndexOf('-');
@@ -273,8 +272,9 @@ namespace PremiumLivingOPS.Models.DAL
         }
 
         /// <summary>
-        /// Computes the total shipment amount by summing (UnitPrice * QtyShip)
-        /// for each line, using the UnitPrice from the OrderLine table.
+        /// Computes the total shipment amount by summing (Price * QtyShip)
+        /// for each line, using the Price column from the OrderLine table.
+        /// schema.sql: OrderLine.Price  (NOT UnitPrice — that column is on PurchaseOrderLine).
         /// </summary>
         public double ComputeShipmentTotal(string orderId, List<ShipmentLineRequest> lines)
         {
@@ -285,13 +285,14 @@ namespace PremiumLivingOPS.Models.DAL
             double total = 0.0;
             foreach (var ln in lines)
             {
+                // OrderLine column is 'Price', not 'UnitPrice'
                 var cmd = new MySqlCommand(
-                    "SELECT COALESCE(UnitPrice,0) FROM OrderLine WHERE OrderID=@oid AND ItemID=@iid LIMIT 1",
+                    "SELECT COALESCE(Price, 0) FROM OrderLine WHERE OrderID=@oid AND ItemID=@iid LIMIT 1",
                     conn);
                 cmd.Parameters.AddWithValue("@oid", orderId);
                 cmd.Parameters.AddWithValue("@iid", ln.ItemID);
                 var result = cmd.ExecuteScalar();
-                double unitPrice = result == DBNull.Value ? 0.0 : Convert.ToDouble(result);
+                double unitPrice = result == null || result == DBNull.Value ? 0.0 : Convert.ToDouble(result);
                 total += unitPrice * ln.QtyShip;
             }
             return total;
@@ -317,7 +318,6 @@ namespace PremiumLivingOPS.Models.DAL
             using var tx = conn.BeginTransaction();
 
             // Insert Shipment header
-            // TrackingNumber is left as empty string on creation (updated later)
             var insShip = new MySqlCommand(@"
                 INSERT INTO Shipment
                     (ShipmentID, OrderID, TrackingNumber, ShipDate,
@@ -350,12 +350,11 @@ namespace PremiumLivingOPS.Models.DAL
                 insLine.Parameters.AddWithValue("@oid",  orderId);
                 insLine.Parameters.AddWithValue("@iid",  ln.ItemID);
                 insLine.Parameters.AddWithValue("@qty",  ln.QtyShip);
-                insLine.Parameters.AddWithValue("@out",  ln.Remain);   // remaining after this batch
+                insLine.Parameters.AddWithValue("@out",  ln.Remain);
                 insLine.ExecuteNonQuery();
             }
 
             // Update Order status to 'Partially Delivered'
-            // (will be set to Completed separately when all qty is covered)
             var updOrder = new MySqlCommand(@"
                 UPDATE `Order`
                 SET    OrderStatus = 'Partially Delivered'
