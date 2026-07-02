@@ -70,6 +70,30 @@ namespace PremiumLivingOPS.Controllers
             }
         }
 
+        // ── Schedule Shipment ───────────────────────────────────────
+        /// <summary>
+        /// Updates DeliveryMethod and ShipDate for the specified shipment.
+        /// Called from ScheduleShipmentDialog.
+        /// </summary>
+        public void ScheduleShipment(
+            string   shipmentId,
+            DateTime scheduledDate,
+            string   deliveryMethod,
+            string   contactPerson,
+            string   notes)
+        {
+            if (string.IsNullOrWhiteSpace(shipmentId))
+                throw new ArgumentException("Shipment ID is required.");
+            if (scheduledDate < DateTime.Today)
+                throw new ArgumentException("Scheduled date cannot be in the past.");
+
+            var validMethods = new[] { "Courier", "SelfPickup" };
+            if (System.Array.IndexOf(validMethods, deliveryMethod) < 0)
+                throw new ArgumentException($"Invalid delivery method '{deliveryMethod}'.");
+
+            _repo.ScheduleShipment(shipmentId, scheduledDate, deliveryMethod);
+        }
+
         // ── Delete Shipment ───────────────────────────────────────────
         public void DeleteShipment(string shipmentId)
         {

@@ -124,6 +124,28 @@ namespace PremiumLivingOPS.Models.DAL
             cmd.ExecuteNonQuery();
         }
 
+        /// <summary>
+        /// Updates DeliveryMethod and ShipDate (scheduled date) for a shipment.
+        /// Called by LogisticsProcessingController.ScheduleShipment.
+        /// </summary>
+        public void ScheduleShipment(
+            string   shipmentId,
+            DateTime scheduledDate,
+            string   deliveryMethod)
+        {
+            using var conn = DatabaseHelper.GetConnection();
+            conn.Open();
+            var sql = @"UPDATE Shipment
+                        SET    DeliveryMethod = @method,
+                               ShipDate       = @date
+                        WHERE  ShipmentID     = @id";
+            using var cmd = new MySqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("@method", deliveryMethod);
+            cmd.Parameters.AddWithValue("@date",   scheduledDate);
+            cmd.Parameters.AddWithValue("@id",     shipmentId);
+            cmd.ExecuteNonQuery();
+        }
+
         public void DeleteShipment(string shipmentId)
         {
             using var conn = DatabaseHelper.GetConnection();
