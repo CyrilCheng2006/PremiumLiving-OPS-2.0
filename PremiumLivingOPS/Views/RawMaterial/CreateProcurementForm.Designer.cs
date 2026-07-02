@@ -109,13 +109,15 @@ namespace PremiumLivingOPS.Views.RawMaterial
 
             // ==================================================================
             // CARD 2 — Material Request Selection
-            //   outerHeight = 290 × 1.4 = 406
-            //   Row heights scaled proportionally:
-            //     label row  40  →  56
-            //     combo row  72  → 101
-            //     sub-label  22  →  31
-            //     info panel 64  →  90
-            //   Total rows = 278  +  title(54) + padding(16) + margins(22) ≈ 370 (fits inside 406)
+            //
+            // Row heights mirror the label/control ratio used in Card 1:
+            //   label row  = 56px  (same as Row 0 — MRQ label)
+            //   combo row  = 101px (same as Row 1 — MRQ combo)
+            //   sub-label  = 56px  (↑ raised from 31 to match label standard)
+            //   info panel = 72px  (↓ reduced from 90 to match control standard)
+            //
+            // outerHeight = title(54) + rows(56+101+56+72) + padding(16) + margins(22) = 377
+            //             → rounded up to 390 for comfortable fit.
             // ==================================================================
             cboBatchPrefix = MakeCombo();
 
@@ -139,16 +141,17 @@ namespace PremiumLivingOPS.Views.RawMaterial
             };
             pnlBatchInfoWrap.Controls.Add(lblBatchInfo);
 
+            // Row heights: label=56 | combo=101 | sub-label=56 | info-panel=72
             var tblCard2 = MakeTlp(1, 4,
                 new float[] { 100f },
-                new float[] { 56f, 101f, 31f, 90f });
+                new float[] { 56f, 101f, 56f, 72f });
             tblCard2.Padding = new Padding(18, 8, 18, 8);
             tblCard2.Controls.Add(FieldLabel("Material Request (MRQ Batch)", true), 0, 0);
             tblCard2.Controls.Add(Pad(cboBatchPrefix),                               0, 1);
             tblCard2.Controls.Add(FieldLabel("Request Info",                false),  0, 2);
             tblCard2.Controls.Add(pnlBatchInfoWrap,                                  0, 3);
 
-            var (c2Outer, c2Inner) = CardPanel.Create(outerHeight: 406);
+            var (c2Outer, c2Inner) = CardPanel.Create(outerHeight: 390);
             var c2Content = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             c2Content.Controls.Add(tblCard2);
             c2Content.Controls.Add(CardTitlePanel("Material Request"));
