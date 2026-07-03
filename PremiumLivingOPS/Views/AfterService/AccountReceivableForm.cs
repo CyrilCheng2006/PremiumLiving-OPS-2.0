@@ -89,7 +89,7 @@ namespace PremiumLivingOPS.Views.AfterService
         {
             bool hasRow = dgvAR.SelectedRows.Count > 0 && dgvAR.SelectedRows[0].Index >= 0;
             btnRecord.Enabled     = hasRow;
-            btnViewDetail.Enabled = hasRow;   // NEW: both buttons track selection
+            btnViewDetail.Enabled = hasRow;
         }
 
         // ── KPI Pills
@@ -252,7 +252,7 @@ namespace PremiumLivingOPS.Views.AfterService
                 MinimizeBox     = false
             };
 
-            // ── HEADER (dark navy — same palette as ViewShipmentForm.ShowDetailDialog)
+            // ── HEADER (dark navy)
             var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 80, BackColor = Color.FromArgb(19, 35, 61) };
             var tblHeader = new TableLayoutPanel
             {
@@ -313,6 +313,7 @@ namespace PremiumLivingOPS.Views.AfterService
             pnlInfo.Controls.Add(tblInfo);
 
             // ── AMOUNT SUMMARY STRIP — 3 pills (Total / Paid / Balance)
+            // Pill width = 380 × 1.8 = 684px; label col = 140 × 1.8 = 252px
             var pnlAmounts = new Panel
             {
                 Dock = DockStyle.Top, Height = 82,
@@ -338,7 +339,8 @@ namespace PremiumLivingOPS.Views.AfterService
             };
             foreach (var (alabel, aval, afg, abg) in amtPills)
             {
-                var pill = new Panel { BackColor = abg, Size = new Size(380, 58), Margin = new Padding(0, 0, 10, 0) };
+                // ★ 1.8x wider: 380 → 684
+                var pill = new Panel { BackColor = abg, Size = new Size(684, 58), Margin = new Padding(0, 0, 10, 0) };
                 pill.Paint += (s, e) =>
                 {
                     e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
@@ -352,7 +354,8 @@ namespace PremiumLivingOPS.Views.AfterService
                     BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
                     Padding = new Padding(12, 0, 8, 0)
                 };
-                atl.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140f));
+                // ★ 1.8x wider label col: 140 → 252
+                atl.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 252f));
                 atl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
                 atl.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
                 atl.Controls.Add(new Label { Text = alabel, Font = new Font("Segoe UI", 10f, FontStyle.Bold), ForeColor = afg, BackColor = Color.Transparent, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft,   AutoSize = false }, 0, 0);
