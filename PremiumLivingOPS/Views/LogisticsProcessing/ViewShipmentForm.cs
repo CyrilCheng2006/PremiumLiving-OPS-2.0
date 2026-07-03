@@ -141,12 +141,12 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                     BackColor = bg, Size = new Size(PillW, PillH),
                     Margin = new Padding(0, 0, Gap, 0), Cursor = Cursors.Hand
                 };
-                pill.Paint += (s, e) =>
+                pill.Paint += (s, ev) =>
                 {
-                    e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                    ev.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
                     using var path  = RoundedRect(((Panel)s).ClientRectangle, 8);
                     using var brush = new SolidBrush(((Panel)s).BackColor);
-                    e.Graphics.FillPath(brush, path);
+                    ev.Graphics.FillPath(brush, path);
                 };
                 var tlp = new TableLayoutPanel
                 {
@@ -170,7 +170,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                     Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
                 }, 1, 0);
                 string localFilterItem = filterItem;
-                EventHandler clickHandler = (s, e) =>
+                EventHandler clickHandler = (s, ev) =>
                 {
                     int idx = cboStatus.FindStringExact(localFilterItem);
                     if (idx >= 0) cboStatus.SelectedIndex = idx;
@@ -194,11 +194,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             UpdateActionButtons();
         }
 
-        /// <summary>
-        /// Updates enabled state, label text and colour of every action button.
-        /// The two document buttons toggle between Generate (green) and View (blue)
-        /// based on whether the document already exists.
-        /// </summary>
         private void UpdateActionButtons()
         {
             bool hasRow = _selectedDetail != null;
@@ -210,7 +205,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             btnModify.Enabled           = hasRow;
             btnScheduleShipment.Enabled = hasRow && status != "Completed";
 
-            // ── Delivery Note button — always enabled when a row is selected
             btnGenDeliveryNote.Enabled = hasRow;
             if (hasDN)
             {
@@ -231,7 +225,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 }
             }
 
-            // ── Reply Slip button
             if (!hasRow)
             {
                 btnGenReplySlip.Enabled = false;
@@ -397,11 +390,12 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 Dock = DockStyle.Top, Height = 400,
                 Padding = new Padding(28, 18, 28, 8), BackColor = Color.White
             };
-            pnlInfo.Paint += (sender, ev) =>
+            // FIX CS0103: lambda params renamed to (sender2, ev2) — 'e' belonged to outer scope
+            pnlInfo.Paint += (sender2, ev2) =>
             {
                 using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
-                e.Graphics.DrawLine(pen, 28, ((Panel)sender).Height - 1,
-                                    ((Panel)sender).Width - 28, ((Panel)sender).Height - 1);
+                ev2.Graphics.DrawLine(pen, 28, ((Panel)sender2).Height - 1,
+                                      ((Panel)sender2).Width - 28, ((Panel)sender2).Height - 1);
             };
             var tblInfo = new TableLayoutPanel
             {
@@ -607,7 +601,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             AddInfoRow(tblInfo, 3, "Tracking No.:", ship.TrackingNumber ?? "\u2014",            "Ship Type:",       ship.ShipmentType);
             pnlInfo.Controls.Add(tblInfo);
 
-            // Reply Slip detail title bar  — uses rs.ReceivedDate (correct field)
             var pnlSlipTitle = new Panel
             {
                 Dock = DockStyle.Top, Height = 44,
@@ -622,7 +615,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
             });
 
-            // Reply Slip fields body  — uses rs.RecipientRemark (correct field)
             var pnlSlipBody = new Panel
             {
                 Dock = DockStyle.Top, Height = 160,
@@ -777,7 +769,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             {
                 int top   = (pnlFooter.ClientSize.Height - 56) / 2;
                 int rEdge = pnlFooter.ClientSize.Width - 28;
-                btnGen.Location    = new Point(rEdge - 240,            top);
+                btnGen.Location    = new Point(rEdge - 240,             top);
                 btnCancel.Location = new Point(rEdge - 240 - 16 - 160, top);
             };
             btnGen.Location    = new Point(2500 - 28 - 240,             (86 - 56) / 2);
@@ -827,7 +819,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
         // ── Shared dialog builder helpers
 
-        /// <summary>Builds the standard navy header panel with title + status badge.</summary>
         private Panel BuildNavyHeader(string title, string status)
         {
             var pnl = new Panel { Dock = DockStyle.Top, Height = 80, BackColor = Color.FromArgb(19, 35, 61) };
@@ -860,7 +851,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             return pnl;
         }
 
-        /// <summary>Builds a 4-col TLP with equal-width rows. Pass row heights as percent values.</summary>
         private static TableLayoutPanel Build4ColTlp(int rows, params float[] rowHeights)
         {
             var tbl = new TableLayoutPanel
@@ -881,7 +871,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             return tbl;
         }
 
-        /// <summary>Builds the standard SHIPMENT ITEMS section-label panel.</summary>
         private static Panel BuildSectionLabel(string text)
         {
             var pnl = new Panel
@@ -899,7 +888,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             return pnl;
         }
 
-        /// <summary>Builds the standard items DataGridView used in all dialogs.</summary>
         private static DataGridView BuildItemsGrid()
         {
             var dgv = new DataGridView
@@ -933,10 +921,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             return dgv;
         }
 
-        /// <summary>
-        /// Builds the standard two-col Total Row.
-        /// TotalAmount is double (matches ShipmentEntity.TotalAmount).
-        /// </summary>
         private static Panel BuildTotalRow(int lineCount, double totalAmount)
         {
             var pnl = new Panel { Dock = DockStyle.Bottom, Height = 64, BackColor = Color.White };
@@ -969,7 +953,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             return pnl;
         }
 
-        /// <summary>Builds a read-only footer with a single Close button (SizeChanged positioned).</summary>
         private static Panel BuildCloseFooter(Form owner)
         {
             var pnl = new Panel
@@ -1045,9 +1028,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             TableLayoutPanel tbl, int row,
             string keyL, string valL, string keyR, string valR)
         {
-            tbl.Controls.Add(MakeLabelKey(keyL),         0, row);
+            tbl.Controls.Add(MakeLabelKey(keyL),            0, row);
             tbl.Controls.Add(MakeLabelVal(valL ?? "\u2014"), 1, row);
-            tbl.Controls.Add(MakeLabelKey(keyR),         2, row);
+            tbl.Controls.Add(MakeLabelKey(keyR),            2, row);
             tbl.Controls.Add(MakeLabelVal(valR ?? "\u2014"), 3, row);
         }
 
