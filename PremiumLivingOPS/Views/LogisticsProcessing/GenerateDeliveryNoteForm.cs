@@ -9,19 +9,19 @@ using System.Windows.Forms;
 
 namespace PremiumLivingOPS.Views.LogisticsProcessing
 {
-    /// <summary>
+    /// &lt;summary&gt;
     /// Generate Delivery Note—inline dialog aligned to ShowDetailDialog visual standard.
     /// Layout (Top-to-Bottom, then Fill, then Bottom):
     ///   pnlHeader    Top  80  — dark navy + status badge (Margin 14px top/bottom)
     ///   pnlInfo      Top  220 — 4-col TLP read-only fields
     ///   pnlDNTitle   Top  44  — green title bar
-    ///   pnlDNBody    Top  200 — delivery note preview (Ship Address multi-line, row taller)
+    ///   pnlDNBody    Top  240 — delivery note preview (Ship Address multi-line, row taller)
     ///   pnlWarn      Top  48/0— warning strip (visible only if DN already exists)
     ///   pnlLineLabel Top  40  — "SHIPMENT ITEMS" bar
     ///   dgv          Fill     — shipment items grid
     ///   pnlTotalRow  Bottom 64— left: Lines Count / right: Total Amount (blue)
     ///   pnlFooter    Bottom 86— [✔ Confirm Generate 210×56]  [Cancel 160×56]
-    /// </summary>
+    /// &lt;/summary&gt;
     public partial class GenerateDeliveryNoteForm : Form
     {
         private readonly LogisticsProcessingController _ctrl =
@@ -30,8 +30,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
         public string GeneratedDeliveryID { get; private set; }
 
-        private static readonly Dictionary<string, (Color bg, Color fg)> StatusColors =
-            new Dictionary<string, (Color, Color)>
+        private static readonly Dictionary&lt;string, (Color bg, Color fg)&gt; StatusColors =
+            new Dictionary&lt;string, (Color, Color)&gt;
             {
                 { "Pending",    (Color.FromArgb(254, 243, 199), Color.FromArgb(146,  64,  14)) },
                 { "In Transit", (Color.FromArgb(219, 234, 254), Color.FromArgb( 29,  78, 216)) },
@@ -52,7 +52,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             StatusColors.TryGetValue(s != null ? (s.ShipmentStatus ?? "") : "", out sc);
 
             int outQty = 0;
-            foreach (var line in _vm.Lines ?? new List<ShipmentLineEntity>())
+            foreach (var line in _vm.Lines ?? new List&lt;ShipmentLineEntity&gt;())
                 outQty += line.QtyOutstanding ?? 0;
 
             this.Text            = string.Format("Generate Delivery Note  —  {0}", s != null ? s.ShipmentID : "");
@@ -109,7 +109,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
             tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
-            for (int r = 0; r < 4; r++) tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 25f));
+            for (int r = 0; r &lt; 4; r++) tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 25f));
             AddDetailRow(tblInfo, 0, "Shipment ID:",  s != null ? s.ShipmentID : "—",                         "Order ID:",        s != null ? s.OrderID : "—");
             AddDetailRow(tblInfo, 1, "Customer:",     s != null ? s.CustomerName : "—",                        "Tracking No.:",    s != null ? s.TrackingNumber : "—");
             AddDetailRow(tblInfo, 2, "Ship Date:",    s != null ? s.ShipDate.ToString("yyyy-MM-dd") : "—",    "Delivery Method:", s != null ? s.DeliveryMethod : "—");
@@ -132,10 +132,11 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             });
 
             // ── DN Preview body
-            // Row 1 (Ship Address) uses 50% height so there is enough vertical space for 2 lines.
+            // Row 1 (Ship Address) uses 50% height so there is enough vertical space for 2 wrapped lines.
+            // pnlDNBody height raised to 240 so 50% of that = 120px per address row — comfortably fits 2 lines.
             var pnlDNBody = new Panel
             {
-                Dock = DockStyle.Top, Height = 200,
+                Dock = DockStyle.Top, Height = 240,
                 BackColor = Color.FromArgb(249, 254, 251), Padding = new Padding(28, 12, 28, 12)
             };
             pnlDNBody.Paint += PaintBottomBorder;
@@ -230,7 +231,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cName", HeaderText = "ITEM NAME",       FillWeight = 42 });
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cQty",  HeaderText = "QTY SHIPPED",     FillWeight = 13 });
             dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "cOut",  HeaderText = "QTY OUTSTANDING", FillWeight = 13 });
-            foreach (var line in _vm.Lines ?? new List<ShipmentLineEntity>())
+            foreach (var line in _vm.Lines ?? new List&lt;ShipmentLineEntity&gt;())
                 dgv.Rows.Add(line.ShipmentLineID, line.ItemID, line.ItemName,
                              line.QtyShipped, line.QtyOutstanding ?? 0);
 
@@ -345,7 +346,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             this.Controls.Add(pnlHeader);
         }
 
-        // ── Helpers
+        // ── Helpers ──────────────────────────────────────────────────────
         private static void AddDetailRow(
             TableLayoutPanel tbl, int row,
             string keyL, string valL, string keyR, string valR)
@@ -376,11 +377,12 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             };
         }
 
-        /// <summary>
+        /// &lt;summary&gt;
         /// Multi-line label for long values such as Shipping Address.
         /// WordWrap=true + TopLeft alignment allows the text to wrap to a second line.
-        /// The row in tblDN is given 50% height specifically to accommodate 2 lines.
-        /// </summary>
+        /// The row in tblDN is given 50% height and pnlDNBody is 240px tall,
+        /// giving ~120px per address row — comfortably fitting 2 lines of text.
+        /// &lt;/summary&gt;
         private static Label MakeLabelValMultiline(string text)
         {
             return new Label
@@ -392,7 +394,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 TextAlign = ContentAlignment.TopLeft,
                 AutoSize  = false,
                 WordWrap  = true,
-                Padding   = new Padding(0, 8, 8, 0)
+                Padding   = new Padding(0, 6, 8, 6)
             };
         }
 
