@@ -30,14 +30,13 @@ namespace PremiumLivingOPS.Services
         private static readonly XColor BorderCl = XColor.FromArgb(221, 227, 236);
         private static readonly XColor White    = XColors.White;
 
-        // ── String formats
+        // ── String formats (PdfSharp 6.x — XStringFormats static class removed)
         private static readonly XStringFormat FmtCenterLeft  = new XStringFormat { Alignment = XStringAlignment.Near,   LineAlignment = XLineAlignment.Center };
         private static readonly XStringFormat FmtCenter      = new XStringFormat { Alignment = XStringAlignment.Center, LineAlignment = XLineAlignment.Center };
         private static readonly XStringFormat FmtCenterRight = new XStringFormat { Alignment = XStringAlignment.Far,    LineAlignment = XLineAlignment.Center };
         private static readonly XStringFormat FmtBottomLeft  = new XStringFormat { Alignment = XStringAlignment.Near,   LineAlignment = XLineAlignment.Far    };
-        private static readonly XStringFormat FmtTopLeft     = new XStringFormat { Alignment = XStringAlignment.Near,   LineAlignment = XLineAlignment.Near   };
 
-        // ── Fonts (expression-body properties: new instance created AFTER FontResolver is set)
+        // ── Fonts (property → new instance each call; XFont must be created after FontResolver is set)
         private static XFont FontTitle  => new XFont("Arial", 18, XFontStyleEx.Bold);
         private static XFont FontSub    => new XFont("Arial", 12, XFontStyleEx.Bold);
         private static XFont FontBody   => new XFont("Arial", 10, XFontStyleEx.Regular);
@@ -45,18 +44,11 @@ namespace PremiumLivingOPS.Services
         private static XFont FontSmall  => new XFont("Arial",  8, XFontStyleEx.Regular);
         private static XFont FontHeader => new XFont("Arial",  9, XFontStyleEx.Bold);
 
-        // ── Address wrapping config
-        private static readonly HashSet<string> WrapKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            "Ship Address:", "Ship Address"
-        };
-        private const double RowH     = 16;
-        private const double AddrRowH = RowH * 2;   // 32 px – room for two lines
-
         // ══ Public export entry-points ══════════════════════════════════════════
 
         public static void ExportDeliveryNote(ShipmentDetailVM s, string filePath)
         {
+            // Must register BEFORE creating any XFont.
             WindowsFontResolver.EnsureRegistered();
 
             var ship = s.Shipment;
@@ -106,6 +98,7 @@ namespace PremiumLivingOPS.Services
 
         public static void ExportReplySlip(ShipmentDetailVM s, string filePath)
         {
+            // Must register BEFORE creating any XFont.
             WindowsFontResolver.EnsureRegistered();
 
             var ship = s.Shipment;
@@ -172,113 +165,28 @@ namespace PremiumLivingOPS.Services
             return y + h + 4;
         }
 
-        /// <summary>
-        /// Renders a two-column info block.
-        /// Fields whose key is in <see cref="WrapKeys"/> get double row height
-        /// and their value is word-wrapped across two lines.
-        /// </summary>
         private static double DrawInfoBlock(
             XGraphics gfx, double y, (string key, string val)[] fields)
         {
             int    half   = (fields.Length + 1) / 2;
             double colW   = ContentW / 2;
+            double rowH   = 16;
             double startY = y;
 
-            // Pre-compute cumulative Y offsets for left and right columns
-            double[] leftY  = new double[half];
-            double[] rightY = new double[fields.Length - half];
-            double accumL = 0, accumR = 0;
             for (int i = 0; i < fields.Length; i++)
             {
-                double h = WrapKeys.Contains(fields[i].key) ? AddrRowH : RowH;
-                if (i < half) { leftY[i]        = accumL; accumL += h; }
-                else          { rightY[i - half] = accumR; accumR += h; }
-            }
-            double blockH = Math.Max(accumL, accumR);
-
-            for (int i = 0; i < fields.Length; i++)
-            {
-                bool   isWrap = WrapKeys.Contains(fields[i].key);
-                double cx     = (i < half) ? Margin : Margin + colW;
-                double offset = (i < half) ? leftY[i] : rightY[i - half];
-                double cy     = startY + offset;
-
-                // Label
+                double cx = (i < half) ? Margin : Margin + colW;
+                double cy = startY + (i < half ? i : i - half) * rowH;
                 gfx.DrawString(fields[i].key, FontBold, new XSolidBrush(LabelFg),
-                    new XRect(cx, cy, colW * 0.38, RowH), FmtCenterLeft);
-
-                if (isWrap)
-                {
-                    // FontBody is a property (not a method) — no parentheses
-                    var wrappedLines = WrapText(gfx, fields[i].val, FontBody, colW * 0.60);
-                    for (int li = 0; li < Math.Min(wrappedLines.Count, 2); li++)
-                    {
-                        gfx.DrawString(wrappedLines[li], FontBody, new XSolidBrush(BodyFg),
-                            new XRect(cx + colW * 0.38, cy + li * RowH, colW * 0.60, RowH),
-                            FmtCenterLeft);
-                    }
-                }
-                else
-                {
-                    gfx.DrawString(fields[i].val, FontBody, new XSolidBrush(BodyFg),
-                        new XRect(cx + colW * 0.38, cy, colW * 0.60, RowH), FmtCenterLeft);
-                }
+                    new XRect(cx, cy, colW * 0.38, rowH), FmtCenterLeft);
+                gfx.DrawString(fields[i].val, FontBody, new XSolidBrush(BodyFg),
+                    new XRect(cx + colW * 0.38, cy, colW * 0.60, rowH), FmtCenterLeft);
             }
 
+            double blockH = half * rowH;
             gfx.DrawLine(new XPen(BorderCl, 0.5),
                 Margin, startY + blockH, Margin + ContentW, startY + blockH);
             return startY + blockH + 8;
-        }
-
-        /// <summary>
-        /// Word-wraps <paramref name="text"/> to fit within <paramref name="maxWidth"/>.
-        /// Returns at most 2 lines; overflow on line 2 is trimmed with ….
-        /// </summary>
-        private static List<string> WrapText(
-            XGraphics gfx, string text, XFont font, double maxWidth)
-        {
-            var result = new List<string>();
-            if (string.IsNullOrEmpty(text)) { result.Add(""); return result; }
-
-            string[] words   = text.Split(' ');
-            string   current = "";
-
-            foreach (string word in words)
-            {
-                string candidate = string.IsNullOrEmpty(current)
-                    ? word
-                    : current + " " + word;
-
-                if (gfx.MeasureString(candidate, font).Width <= maxWidth)
-                {
-                    current = candidate;
-                }
-                else
-                {
-                    if (!string.IsNullOrEmpty(current))
-                        result.Add(current);
-                    current = word;
-                    if (result.Count >= 2) break;
-                }
-            }
-
-            if (!string.IsNullOrEmpty(current))
-            {
-                if (result.Count < 2)
-                    result.Add(current);
-                else
-                {
-                    // Trim line 2 to fit, then append ellipsis
-                    string last = result[1];
-                    while (last.Length > 0 &&
-                           gfx.MeasureString(last + "\u2026", font).Width > maxWidth)
-                        last = last.Substring(0, last.Length - 1);
-                    result[1] = last + "\u2026";
-                }
-            }
-
-            if (result.Count == 0) result.Add(text);
-            return result;
         }
 
         private static double DrawItemsTable(
