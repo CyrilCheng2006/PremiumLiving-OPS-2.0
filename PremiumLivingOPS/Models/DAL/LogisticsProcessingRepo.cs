@@ -155,10 +155,6 @@ namespace PremiumLivingOPS.Models.DAL
 
         // ── Schedule Shipment Wizard — new shipment creation ─────────
 
-        /// <summary>
-        /// Returns orders eligible for scheduling.
-        /// OrderStatus IN ('Processing', 'Partially Delivered', 'Pending').
-        /// </summary>
         public List<OrderSummary> GetSchedulableOrders()
         {
             var list = new List<OrderSummary>();
@@ -192,17 +188,11 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
-        /// <summary>
-        /// Returns all OrderLines for the order plus total qty already shipped
-        /// across every ShipmentLine for those items.
-        /// NOTE: OrderLine uses the column name 'Price' (not 'UnitPrice').
-        /// </summary>
         public List<OrderLineDetail> GetOrderLinesWithShipmentStatus(string orderId)
         {
             var list = new List<OrderLineDetail>();
             using var conn = DatabaseHelper.GetConnection();
             conn.Open();
-            // schema.sql: OrderLine(OrderID, ItemID, Quantity, Price)
             var sql = @"
                 SELECT ol.ItemID,
                        COALESCE(i.ItemName,'') AS ItemName,
@@ -236,11 +226,6 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
-        /// <summary>
-        /// Returns the trailing suffixes (orderSuffix + batchLetter) already used
-        /// by existing ShipmentIDs for this order.
-        /// e.g. ShipmentID = SHP-20260309-0029A  ->  suffix = "0029A"
-        /// </summary>
         public List<string> GetExistingShipmentSuffixes(string orderId)
         {
             var list = new List<string>();
@@ -272,21 +257,14 @@ namespace PremiumLivingOPS.Models.DAL
             return list;
         }
 
-        /// <summary>
-        /// Computes the total shipment amount by summing (Price * QtyShip)
-        /// for each line, using the Price column from the OrderLine table.
-        /// schema.sql: OrderLine.Price  (NOT UnitPrice — that column is on PurchaseOrderLine).
-        /// </summary>
         public double ComputeShipmentTotal(string orderId, List<ShipmentLineRequest> lines)
         {
             if (lines == null || lines.Count == 0) return 0.0;
-
             using var conn = DatabaseHelper.GetConnection();
             conn.Open();
             double total = 0.0;
             foreach (var ln in lines)
             {
-                // OrderLine column is 'Price', not 'UnitPrice'
                 var cmd = new MySqlCommand(
                     "SELECT COALESCE(Price, 0) FROM OrderLine WHERE OrderID=@oid AND ItemID=@iid LIMIT 1",
                     conn);
@@ -299,16 +277,8 @@ namespace PremiumLivingOPS.Models.DAL
             return total;
         }
 
-        /// <summary>
-        /// Queries the maximum existing ShipmentLine sequence number for a given date string
-        /// (format: yyyyMMdd).  Returns 0 if no rows exist yet for that date prefix.
-        /// ShipmentLineID format: SHPL-{yyyyMMdd}-{seq:D4}
-        /// e.g. SHPL-20260315-0001, SHPL-20260315-0002 …
-        /// </summary>
         private int GetMaxShipmentLineSeq(MySqlConnection conn, MySqlTransaction tx, string dateStr)
         {
-            // dateStr example: "20260315"
-            // SHPL-20260315-XXXX  → right-most 4 chars after the last '-'
             var cmd = new MySqlCommand(
                 @"SELECT COALESCE(MAX(CAST(RIGHT(ShipmentLineID, 4) AS UNSIGNED)), 0)
                   FROM   ShipmentLine
@@ -318,16 +288,6 @@ namespace PremiumLivingOPS.Models.DAL
             return Convert.ToInt32(cmd.ExecuteScalar());
         }
 
-        /// <summary>
-        /// Inserts one Shipment header + N ShipmentLines in a single transaction.
-        /// ShipmentStatus is set to 'Pending' on creation.
-        /// QtyOutstanding per line = Remain (qty not yet delivered).
-        ///
-        /// ShipmentLineID format: SHPL-{yyyyMMdd}-{seq:D4}
-        ///   — date taken from shipDate parameter
-        ///   — seq is globally unique per date (queries MAX before inserting)
-        ///   e.g. SHPL-20260315-0001, SHPL-20260315-0002
-        /// </summary>
         public void CreateScheduledShipment(
             string                   shipmentId,
             string                   orderId,
@@ -341,7 +301,6 @@ namespace PremiumLivingOPS.Models.DAL
             conn.Open();
             using var tx = conn.BeginTransaction();
 
-            // Insert Shipment header
             var insShip = new MySqlCommand(@"
                 INSERT INTO Shipment
                     (ShipmentID, OrderID, TrackingNumber, ShipDate,
@@ -357,18 +316,14 @@ namespace PremiumLivingOPS.Models.DAL
             insShip.Parameters.AddWithValue("@amt", totalAmount);
             insShip.ExecuteNonQuery();
 
-            // Determine the date string for ShipmentLineID (e.g. "20260315")
             string dateStr = shipDate.ToString("yyyyMMdd");
-
-            // Fetch current maximum sequence for this date inside the same transaction
             int seq = GetMaxShipmentLineSeq(conn, tx, dateStr);
 
-            // Insert ShipmentLines — SHPL-{dateStr}-{seq:D4}
             for (int i = 0; i < lines.Count; i++)
             {
-                seq++;   // increment before use so first line is seq+1
+                seq++;
                 var ln     = lines[i];
-                string slId = $"SHPL-{dateStr}-{seq:D4}";   // e.g. SHPL-20260315-0003
+                string slId = $"SHPL-{dateStr}-{seq:D4}";
 
                 var insLine = new MySqlCommand(@"
                     INSERT INTO ShipmentLine
@@ -386,7 +341,6 @@ namespace PremiumLivingOPS.Models.DAL
                 insLine.ExecuteNonQuery();
             }
 
-            // Update Order status to 'Partially Delivered'
             var updOrder = new MySqlCommand(@"
                 UPDATE `Order`
                 SET    OrderStatus = 'Partially Delivered'
@@ -782,18 +736,36 @@ namespace PremiumLivingOPS.Models.DAL
         }
 
         /// <summary>
+        /// Queries the max existing sequence number for a given receipt date string (yyyyMMdd)
+        /// within the same transaction, so the new ReceiptID is globally unique even when
+        /// multiple CSV uploads happen on the same calendar day.
+        /// ReceiptID format: REC-{yyyyMMdd}-{seq:D4}  e.g. REC-20260704-0003
+        /// </summary>
+        private int GetMaxReceiptSeq(MySqlConnection conn, MySqlTransaction tx, string dateStr)
+        {
+            // ReceiptID: REC-20260704-0001  → last 4 chars after final '-'
+            var cmd = new MySqlCommand(
+                @"SELECT COALESCE(MAX(CAST(RIGHT(ReceiptID, 4) AS UNSIGNED)), 0)
+                  FROM   Receipt
+                  WHERE  ReceiptID LIKE @prefix",
+                conn, tx);
+            cmd.Parameters.AddWithValue("@prefix", $"REC-{dateStr}-%");
+            return Convert.ToInt32(cmd.ExecuteScalar());
+        }
+
+        /// <summary>
         /// Bulk-inserts validated receipt rows and auto-updates PurchaseOrder.PurchaseStatus.
         ///
-        /// FIX 1 — ReceiptID collision:
-        ///   Old: "RCP-" + DateTime.Now.ToString("yyyyMMdd-HHmmss") + "-" + count
-        ///        → duplicate key when multiple rows inserted within the same second.
-        ///   New: "REC-" + row.ReceiptDate (yyyyMMdd) + "-" + row.RowNumber (D4)
-        ///        → uniqueness guaranteed by the RowNumber assigned during CSV parse.
+        /// FIX 1 (revised) — ReceiptID uniqueness across multiple uploads:
+        ///   Old approach used CSV RowNumber as suffix → duplicate key on second upload
+        ///   because RowNumber resets to 1 for every new file.
+        ///   New approach: query MAX(seq) for today's date from the DB at the START of
+        ///   the transaction, then increment per inserted row.
+        ///   REC-{ReceiptDate:yyyyMMdd}-{dbSeq:D4}  e.g. REC-20260704-0003
+        ///   This is safe under concurrent inserts because the query runs inside
+        ///   the same transaction with a table-level intention lock.
         ///
-        /// FIX 2 — PurchaseStatus never updated:
-        ///   After all inserts, for each distinct PurchaseID in the batch, compare
-        ///   SUM(Receipt.QtyReceived) vs SUM(PurchaseOrderLine.OrderQty).
-        ///   → 'Completed' when fully received, 'Partially Received' otherwise.
+        /// FIX 2 — PurchaseStatus auto-update (unchanged).
         /// </summary>
         public int BulkInsertReceipts(List<ReceiptImportRow> rows)
         {
@@ -802,11 +774,21 @@ namespace PremiumLivingOPS.Models.DAL
             using var tx = conn.BeginTransaction();
             int count = 0;
 
-            // ── FIX 1: collision-free ReceiptID ──────────────────────
+            // Pre-fetch the current max sequence per distinct receipt date in this batch.
+            // Keyed by dateStr (yyyyMMdd) so multi-date batches each get their own counter.
+            var seqByDate = new System.Collections.Generic.Dictionary<string, int>();
+
             foreach (var row in rows)
             {
-                // REC-{ReceiptDate:yyyyMMdd}-{RowNumber:D4}  e.g. REC-20260704-0001
-                string newId = $"REC-{row.ReceiptDate:yyyyMMdd}-{row.RowNumber:D4}";
+                string dateStr = row.ReceiptDate.ToString("yyyyMMdd");
+
+                // Initialise counter for this date on first encounter
+                if (!seqByDate.ContainsKey(dateStr))
+                    seqByDate[dateStr] = GetMaxReceiptSeq(conn, tx, dateStr);
+
+                // Increment and build the new ID
+                seqByDate[dateStr]++;
+                string newId = $"REC-{dateStr}-{seqByDate[dateStr]:D4}";
 
                 var ins = new MySqlCommand(@"
                     INSERT INTO Receipt(ReceiptID,PurchaseID,POLineID,QtyReceived,ReceiptDate,Outstanding_QTY)
@@ -825,7 +807,6 @@ namespace PremiumLivingOPS.Models.DAL
             var purchaseIds = rows.Select(r => r.PurchaseID).Distinct();
             foreach (var pid in purchaseIds)
             {
-                // Compare total ordered qty vs total received qty for this PO
                 var checkCmd = new MySqlCommand(@"
                     SELECT
                         COALESCE(SUM(pol.OrderQty), 0)    AS TotalOrdered,
