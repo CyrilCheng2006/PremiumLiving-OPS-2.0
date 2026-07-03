@@ -1,7 +1,7 @@
 using PremiumLivingOPS.Controllers;
 using PremiumLivingOPS.Models.Entities;
 using PremiumLivingOPS.Models.ViewModels;
-using PremiumLivingOPS.Services;
+using PremiumLivingOPS.Views.Auth;
 using PremiumLivingOPS.Views.Shared;
 using System;
 using System.Collections.Generic;
@@ -226,19 +226,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 }
             }
 
-            if (!hasRow)
+            btnGenReplySlip.Enabled = hasDN;
+            if (hasRS)
             {
-                btnGenReplySlip.Enabled = false;
-                if (_rsBtnIsView)
-                {
-                    btnGenReplySlip.Text = "\U0001F9FE  Reply Slip";
-                    ApplyBtnColour(btnGenReplySlip, GreenNorm, GreenHover, GreenDown);
-                    _rsBtnIsView = false;
-                }
-            }
-            else if (hasRS)
-            {
-                btnGenReplySlip.Enabled = true;
                 if (!_rsBtnIsView)
                 {
                     btnGenReplySlip.Text = "\U0001F441  View Reply Slip";
@@ -246,19 +236,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                     _rsBtnIsView = true;
                 }
             }
-            else if (hasDN)
-            {
-                btnGenReplySlip.Enabled = true;
-                if (_rsBtnIsView)
-                {
-                    btnGenReplySlip.Text = "\U0001F9FE  Reply Slip";
-                    ApplyBtnColour(btnGenReplySlip, GreenNorm, GreenHover, GreenDown);
-                    _rsBtnIsView = false;
-                }
-            }
             else
             {
-                btnGenReplySlip.Enabled = false;
                 if (_rsBtnIsView)
                 {
                     btnGenReplySlip.Text = "\U0001F9FE  Reply Slip";
@@ -280,9 +259,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         private void btnReset_Click(object sender, EventArgs e)     => ResetFilters();
         private void btnLogout_Click(object sender, EventArgs e)
         {
-            SessionService.Instance.Logout();
-            this.Hide();
-            new LoginForm().Show();
+            SessionManager.Clear();
+            Application.Restart();
         }
 
         private void chkDateFrom_CheckedChanged(object sender, EventArgs e)
@@ -315,7 +293,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         private void btnModify_Click(object sender, EventArgs e)
         {
             if (_selectedDetail == null) return;
-            using var dlg = new ModifyShipmentDialog(_selectedDetail);
+            using var dlg = new ModifyShipmentDialog(_ctrl, _selectedDetail);
             if (dlg.ShowDialog(this) == DialogResult.OK)
                 RefreshGrid();
         }
@@ -342,7 +320,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             var dlg = new Form
             {
                 Text = $"Shipment Details — {s.ShipmentID}",
-                Size = new Size(2500, 1100),
+                Size = new Size(2500, 1000),
                 StartPosition = FormStartPosition.CenterParent,
                 BackColor = Color.White,
                 Font = new Font("Segoe UI", 13f),
@@ -363,24 +341,22 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             tblH.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
             tblH.Controls.Add(new Label
             {
-                Text = $"Shipment Details — {s.ShipmentID}",
+                Text = $"Shipment Details  \u2014  {s.ShipmentID}",
                 Font = new Font("Segoe UI", 18f, FontStyle.Bold),
                 ForeColor = Color.White, Dock = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
             }, 0, 0);
-            var (sbg, sfg) = StatusColors.TryGetValue(s.ShipmentStatus, out var sc)
-                ? sc : (Color.LightGray, Color.Black);
             tblH.Controls.Add(new Label
             {
                 Text = s.ShipmentStatus,
                 Font = new Font("Segoe UI", 14f, FontStyle.Bold),
-                ForeColor = sfg, BackColor = sbg,
+                ForeColor = Color.FromArgb(6, 95, 70), BackColor = Color.FromArgb(209, 250, 229),
                 Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter,
                 AutoSize = false, Margin = new Padding(0, 14, 0, 14)
             }, 1, 0);
             pnlHeader.Controls.Add(tblH);
 
-            // Info panel
+            // Info rows
             var pnlInfo = new Panel
             {
                 Dock = DockStyle.Top, Height = 280,
@@ -388,25 +364,28 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             };
             pnlInfo.Paint += PaintBottomBorderStatic;
             var tblInfo = Build4ColTlp(5);
-            AddInfoRowStatic(tblInfo, 0, "Shipment ID:",    s.ShipmentID,                         "Order ID:",        s.OrderID);
-            AddInfoRowStatic(tblInfo, 1, "Customer:",       s.CustomerName,                        "Tracking No.:",    s.TrackingNumber ?? "\u2014");
-            AddInfoRowStatic(tblInfo, 2, "Ship Date:",      s.ShipDate.ToString("yyyy-MM-dd"),     "Delivery Method:", s.DeliveryMethod);
-            AddInfoRowStatic(tblInfo, 3, "Status:",         s.ShipmentStatus,                      "Ship Type:",       s.ShipmentType);
-            tblInfo.Controls.Add(MakeLabelKeyStatic("Address:"),                                   0, 4);
-            tblInfo.Controls.Add(MakeLabelValMultiLineStatic(s.ShippingAddress ?? "\u2014"),       1, 4);
-            AddInfoRowStatic(tblInfo, 4, string.Empty, string.Empty, "Total Amount:", $"HK$ {s.TotalAmount:N2}");
-            // override col 0,1 row 4 already set; col 2,3 row 4 = Total Amount
+            AddInfoRow(tblInfo, 0, "Shipment ID:",  s.ShipmentID,                         "Order ID:",        s.OrderID);
+            AddInfoRow(tblInfo, 1, "Customer:",     s.CustomerName,                        "Tracking No.:",    s.TrackingNumber ?? "\u2014");
+            AddInfoRow(tblInfo, 2, "Ship Date:",    s.ShipDate.ToString("yyyy-MM-dd"),     "Delivery Method:", s.DeliveryMethod);
+            AddInfoRow(tblInfo, 3, "Status:",       s.ShipmentStatus,                      "Ship Type:",       s.ShipmentType);
+            // Address spans full width (multi-line)
+            tblInfo.Controls.Add(MakeLabelKey("Address:"),                      0, 4);
+            tblInfo.Controls.Add(MakeLabelValMultiLine(s.ShippingAddress ?? "\u2014"), 1, 4);
+            tblInfo.SetColumnSpan(tblInfo.GetControlFromPosition(1, 4), 3);
             pnlInfo.Controls.Add(tblInfo);
 
-            // Items grid area
+            // Items section label
             var pnlLineLabel = BuildSectionLabel("SHIPMENT ITEMS");
-            var dgv          = BuildItemsGrid();
+
+            // Items grid
+            var dgv = BuildItemsGrid();
             foreach (var ln in lines)
                 dgv.Rows.Add(ln.ShipmentLineID, ln.ItemID, ln.ItemName, ln.QtyShipped, ln.QtyOutstanding?.ToString() ?? "\u2014");
 
-            int lineCount = lines.Count;
-            double total  = (double)(s.TotalAmount);
-            var pnlTotal  = BuildTotalRow(lineCount, total);
+            // Total row
+            var pnlTotal = BuildTotalRow(lines.Count, (double)s.TotalAmount);
+
+            // Footer
             var pnlFooter = BuildCloseFooter(dlg);
 
             dlg.Controls.Add(pnlFooter);
@@ -421,8 +400,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
         private void ShowViewDeliveryNoteDialog(ShipmentDetailVM detail)
         {
-            var s  = detail.Shipment;
-            var dn = detail.DeliveryNote;
+            var s   = detail.Shipment;
+            var dn  = detail.DeliveryNote;
             var lines = detail.Lines ?? new List<ShipmentLineEntity>();
 
             var dlg = new Form
@@ -472,13 +451,13 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             };
             pnlInfo.Paint += PaintBottomBorderStatic;
             var tblInfo = Build4ColTlp(4);
-            AddInfoRowStatic(tblInfo, 0, "Shipment ID:",  s.ShipmentID,                         "Order ID:",        s.OrderID);
-            AddInfoRowStatic(tblInfo, 1, "Customer:",     s.CustomerName,                        "Tracking No.:",    s.TrackingNumber ?? "\u2014");
-            AddInfoRowStatic(tblInfo, 2, "Ship Date:",    s.ShipDate.ToString("yyyy-MM-dd"),     "Delivery Method:", s.DeliveryMethod);
-            AddInfoRowStatic(tblInfo, 3, "Status:",       s.ShipmentStatus,                      "Ship Type:",       s.ShipmentType);
+            AddInfoRow(tblInfo, 0, "Shipment ID:",  s.ShipmentID,                         "Order ID:",        s.OrderID);
+            AddInfoRow(tblInfo, 1, "Customer:",     s.CustomerName,                        "Tracking No.:",    s.TrackingNumber ?? "\u2014");
+            AddInfoRow(tblInfo, 2, "Ship Date:",    s.ShipDate.ToString("yyyy-MM-dd"),     "Delivery Method:", s.DeliveryMethod);
+            AddInfoRow(tblInfo, 3, "Status:",       s.ShipmentStatus,                      "Ship Type:",       s.ShipmentType);
             pnlInfo.Controls.Add(tblInfo);
 
-            // DN green title bar
+            // DN title bar
             var pnlDNTitle = new Panel
             {
                 Dock = DockStyle.Top, Height = 44,
@@ -487,26 +466,26 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlDNTitle.Paint += PaintBottomBorderStatic;
             pnlDNTitle.Controls.Add(new Label
             {
-                Text      = "\u2709  Delivery Note",
+                Text      = "\U0001F4C4  Delivery Note Details",
                 Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(6, 95, 70),
                 Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
             });
 
-            // DN body
+            // DN body — multi-line Ship Address
             var pnlDNBody = new Panel
             {
-                Dock = DockStyle.Top, Height = 380,
+                Dock = DockStyle.Top, Height = 220,
                 BackColor = Color.FromArgb(249, 254, 251), Padding = new Padding(28, 12, 28, 12)
             };
             pnlDNBody.Paint += PaintBottomBorderStatic;
             var tblDN = Build4ColTlp(3, 28f, 44f, 28f);
-            AddInfoRowStatic(tblDN, 0, "Delivery ID:",   dn?.DeliveryID,                        "Delivery Date:", dn?.DeliveryDate.ToString("yyyy-MM-dd"));
-            tblDN.Controls.Add(MakeLabelKeyStatic("Ship Address:"),                              0, 1);
-            tblDN.Controls.Add(MakeLabelValMultiLineStatic(s.ShippingAddress ?? "\u2014"),       1, 1);
-            tblDN.Controls.Add(MakeLabelKeyStatic("Ship To:"),                                   2, 1);
-            tblDN.Controls.Add(MakeLabelValStatic(s.CustomerName),                              3, 1);
-            AddInfoRowStatic(tblDN, 2, "Delivery Method:", s.DeliveryMethod, "Shipment Type:", s.ShipmentType);
+            AddInfoRow(tblDN, 0, "Delivery ID:", dn?.DeliveryID, "Delivery Date:", dn?.DeliveryDate.ToString("yyyy-MM-dd"));
+            tblDN.Controls.Add(MakeLabelKey("Ship Address:"),                       0, 1);
+            tblDN.Controls.Add(MakeLabelValMultiLine(s.ShippingAddress ?? "\u2014"), 1, 1);
+            tblDN.Controls.Add(MakeLabelKey("Ship To:"),                             2, 1);
+            tblDN.Controls.Add(MakeLabelVal(s.CustomerName),                        3, 1);
+            AddInfoRow(tblDN, 2, "Total Amount:", $"HK$ {s.TotalAmount:N2}", "Ship Type:", s.ShipmentType);
             pnlDNBody.Controls.Add(tblDN);
 
             // Items
@@ -516,8 +495,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 dgv.Rows.Add(ln.ShipmentLineID, ln.ItemID, ln.ItemName, ln.QtyShipped, ln.QtyOutstanding?.ToString() ?? "\u2014");
 
             var pnlTotal  = BuildTotalRow(lines.Count, (double)s.TotalAmount);
-            var pnlFooter = BuildDocFooter(dlg, "\U0001F4C4  Export PDF", (_, __) =>
-                MessageBox.Show("PDF export coming soon.", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information));
+            var pnlFooter = BuildCloseFooter(dlg);
 
             dlg.Controls.Add(pnlFooter);
             dlg.Controls.Add(pnlTotal);
@@ -539,7 +517,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             var dlg = new Form
             {
-                Text = $"Reply Slip — {rs?.ReplySlipID}",
+                Text = $"Reply Slip — {rs?.SlipID}",
                 Size = new Size(2500, 1100),
                 StartPosition = FormStartPosition.CenterParent,
                 BackColor = Color.White,
@@ -561,7 +539,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             tblH.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
             tblH.Controls.Add(new Label
             {
-                Text = $"Reply Slip — {rs?.ReplySlipID}",
+                Text = $"Reply Slip — {rs?.SlipID}",
                 Font = new Font("Segoe UI", 18f, FontStyle.Bold),
                 ForeColor = Color.White, Dock = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
@@ -584,13 +562,13 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             };
             pnlInfo.Paint += PaintBottomBorderStatic;
             var tblInfo = Build4ColTlp(4);
-            AddInfoRowStatic(tblInfo, 0, "Shipment ID:",  s.ShipmentID,                         "Order ID:",        s.OrderID);
-            AddInfoRowStatic(tblInfo, 1, "Customer:",     s.CustomerName,                        "Tracking No.:",    s.TrackingNumber ?? "\u2014");
-            AddInfoRowStatic(tblInfo, 2, "Ship Date:",    s.ShipDate.ToString("yyyy-MM-dd"),     "Delivery Method:", s.DeliveryMethod);
-            AddInfoRowStatic(tblInfo, 3, "Status:",       s.ShipmentStatus,                      "Ship Type:",       s.ShipmentType);
+            AddInfoRow(tblInfo, 0, "Shipment ID:",  s.ShipmentID,                         "Order ID:",        s.OrderID);
+            AddInfoRow(tblInfo, 1, "Customer:",     s.CustomerName,                        "Tracking No.:",    s.TrackingNumber ?? "\u2014");
+            AddInfoRow(tblInfo, 2, "Ship Date:",    s.ShipDate.ToString("yyyy-MM-dd"),     "Delivery Method:", s.DeliveryMethod);
+            AddInfoRow(tblInfo, 3, "Status:",       s.ShipmentStatus,                      "Ship Type:",       s.ShipmentType);
             pnlInfo.Controls.Add(tblInfo);
 
-            // RS blue title bar
+            // RS title bar
             var pnlSlipTitle = new Panel
             {
                 Dock = DockStyle.Top, Height = 44,
@@ -599,13 +577,13 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlSlipTitle.Paint += PaintBottomBorderStatic;
             pnlSlipTitle.Controls.Add(new Label
             {
-                Text      = "\U0001F9FE  Reply Slip",
+                Text      = "\U0001F9FE  Reply Slip Details",
                 Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(29, 78, 216),
                 Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
             });
 
-            // RS body
+            // RS body — multi-line Ship Address
             var pnlSlipBody = new Panel
             {
                 Dock = DockStyle.Top, Height = 380,
@@ -613,7 +591,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             };
             pnlSlipBody.Paint += PaintBottomBorderStatic;
             var tblSlip = Build4ColTlp(3, 28f, 44f, 28f);
-            AddInfoRowStatic(tblSlip, 0, "Reply Slip ID:", rs?.ReplySlipID, "Issued Date:", rs?.IssuedDate.ToString("yyyy-MM-dd"));
+            AddInfoRowStatic(tblSlip, 0, "Reply Slip ID:", rs?.SlipID, "Received Date:", rs?.ReceivedDate.ToString("yyyy-MM-dd"));
             tblSlip.Controls.Add(MakeLabelKeyStatic("Ship Address:"),                             0, 1);
             tblSlip.Controls.Add(MakeLabelValMultiLineStatic(s.ShippingAddress ?? "\u2014"),      1, 1);
             tblSlip.Controls.Add(MakeLabelKeyStatic("Recipient:"),                                2, 1);
@@ -628,8 +606,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 dgv.Rows.Add(ln.ShipmentLineID, ln.ItemID, ln.ItemName, ln.QtyShipped, ln.QtyOutstanding?.ToString() ?? "\u2014");
 
             var pnlTotal  = BuildTotalRow(lines.Count, (double)s.TotalAmount);
-            var pnlFooter = BuildDocFooter(dlg, "\U0001F4C4  Export PDF", (_, __) =>
-                MessageBox.Show("PDF export coming soon.", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information));
+            var pnlFooter = BuildCloseFooter(dlg);
 
             dlg.Controls.Add(pnlFooter);
             dlg.Controls.Add(pnlTotal);
@@ -645,9 +622,144 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
         private void ShowGenerateDeliveryNoteDialog(ShipmentDetailVM detail)
         {
-            using var dlg = new GenerateDeliveryNoteForm(detail);
-            if (dlg.ShowDialog(this) == DialogResult.OK)
-                RefreshGrid();
+            var s     = detail.Shipment;
+            var lines = detail.Lines ?? new List<ShipmentLineEntity>();
+
+            var dlg = new Form
+            {
+                Text = $"Generate Delivery Note — {s.ShipmentID}",
+                Size = new Size(2500, 1000),
+                StartPosition = FormStartPosition.CenterParent,
+                BackColor = Color.White,
+                Font = new Font("Segoe UI", 13f),
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox = false, MinimizeBox = false
+            };
+
+            // Header
+            var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 80, BackColor = Color.FromArgb(19, 35, 61) };
+            var tblH = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
+                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                Padding = new Padding(24, 0, 24, 0)
+            };
+            tblH.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+            tblH.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 264f));
+            tblH.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+            tblH.Controls.Add(new Label
+            {
+                Text = $"Generate Delivery Note  \u2014  {s.ShipmentID}",
+                Font = new Font("Segoe UI", 18f, FontStyle.Bold),
+                ForeColor = Color.White, Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
+            }, 0, 0);
+            tblH.Controls.Add(new Label
+            {
+                Text = s.ShipmentStatus,
+                Font = new Font("Segoe UI", 14f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(6, 95, 70), BackColor = Color.FromArgb(209, 250, 229),
+                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter,
+                AutoSize = false, Margin = new Padding(0, 14, 0, 14)
+            }, 1, 0);
+            pnlHeader.Controls.Add(tblH);
+
+            // Info rows
+            var pnlInfo = new Panel
+            {
+                Dock = DockStyle.Top, Height = 220,
+                Padding = new Padding(28, 18, 28, 8), BackColor = Color.White
+            };
+            pnlInfo.Paint += PaintBottomBorderStatic;
+            var tblInfo = Build4ColTlp(4);
+            AddInfoRowStatic(tblInfo, 0, "Shipment ID:",  s.ShipmentID,                         "Order ID:",        s.OrderID);
+            AddInfoRowStatic(tblInfo, 1, "Customer:",     s.CustomerName,                        "Tracking No.:",    s.TrackingNumber ?? "\u2014");
+            AddInfoRowStatic(tblInfo, 2, "Ship Date:",    s.ShipDate.ToString("yyyy-MM-dd"),     "Delivery Method:", s.DeliveryMethod);
+            AddInfoRowStatic(tblInfo, 3, "Status:",       s.ShipmentStatus,                      "Ship Type:",       s.ShipmentType);
+            pnlInfo.Controls.Add(tblInfo);
+
+            // Items
+            var pnlLineLabel = BuildSectionLabel("SHIPMENT ITEMS");
+            var dgv          = BuildItemsGrid();
+            foreach (var ln in lines)
+                dgv.Rows.Add(ln.ShipmentLineID, ln.ItemID, ln.ItemName, ln.QtyShipped, ln.QtyOutstanding?.ToString() ?? "\u2014");
+
+            var pnlTotal = BuildTotalRow(lines.Count, (double)s.TotalAmount);
+
+            // Footer with Generate button
+            const int BtnH = 60;
+            var pnlFooter = new Panel
+            {
+                Dock = DockStyle.Bottom, Height = 90,
+                BackColor = Color.White, Padding = new Padding(28, 15, 28, 15)
+            };
+            pnlFooter.Paint += PaintTopBorderStatic;
+
+            var btnGen = new Button
+            {
+                Text      = "\u2714  Generate Delivery Note",
+                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.White, BackColor = Color.FromArgb(22, 163, 74),
+                FlatStyle = FlatStyle.Flat, Size = new Size(260, BtnH), Cursor = Cursors.Hand,
+                Anchor    = AnchorStyles.Top | AnchorStyles.Right
+            };
+            btnGen.FlatAppearance.BorderSize         = 0;
+            btnGen.FlatAppearance.MouseOverBackColor = Color.FromArgb(16, 131, 58);
+            btnGen.FlatAppearance.MouseDownBackColor = Color.FromArgb(10, 100, 40);
+
+            var btnClose2 = new Button
+            {
+                Text      = "Cancel",
+                Font      = new Font("Segoe UI", 12f),
+                ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White,
+                FlatStyle = FlatStyle.Flat, Size = new Size(160, BtnH), Cursor = Cursors.Hand,
+                Anchor    = AnchorStyles.Top | AnchorStyles.Right
+            };
+            btnClose2.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
+            btnClose2.FlatAppearance.BorderSize         = 1;
+            btnClose2.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
+            btnClose2.Click += (_, __) => dlg.Close();
+
+            const int Gap2 = 16;
+            pnlFooter.SizeChanged += (o, ev) =>
+            {
+                int top2   = (pnlFooter.ClientSize.Height - BtnH) / 2;
+                int rEdge2 = pnlFooter.ClientSize.Width - 28;
+                btnGen.Location    = new Point(rEdge2 - 260,                top2);
+                btnClose2.Location = new Point(rEdge2 - 260 - Gap2 - 160,  top2);
+            };
+            btnGen.Location    = new Point(2500 - 28 - 260,               (90 - BtnH) / 2);
+            btnClose2.Location = new Point(2500 - 28 - 260 - Gap2 - 160, (90 - BtnH) / 2);
+
+            btnGen.Click += (_, __) =>
+            {
+                try
+                {
+                    string dnId = _ctrl.GenerateDeliveryNote(s.ShipmentID);
+                    MessageBox.Show($"Delivery Note {dnId} generated successfully.",
+                        "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    dlg.DialogResult = DialogResult.OK;
+                    dlg.Close();
+                    RefreshGrid();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Failed to generate Delivery Note:\n{ex.Message}",
+                        "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            };
+
+            pnlFooter.Controls.Add(btnGen);
+            pnlFooter.Controls.Add(btnClose2);
+
+            dlg.Controls.Add(pnlFooter);
+            dlg.Controls.Add(pnlTotal);
+            dlg.Controls.Add(dgv);
+            dlg.Controls.Add(pnlLineLabel);
+            dlg.Controls.Add(pnlInfo);
+            dlg.Controls.Add(pnlHeader);
+
+            dlg.ShowDialog(this);
         }
 
         private void ShowGenerateReplySlipDialog(ShipmentDetailVM detail)
@@ -756,7 +868,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             if (rsExists)
                 pnlWarn.Controls.Add(new Label
                 {
-                    Text      = $"\u26A0  A Reply Slip already exists ({rs.ReplySlipID}). Generating again will overwrite it.",
+                    Text      = $"\u26A0  A Reply Slip already exists ({rs.SlipID}). Generating again will overwrite it.",
                     Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
                     ForeColor = Color.FromArgb(146, 64, 14),
                     Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
@@ -819,7 +931,26 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             {
                 try
                 {
-                    string rsId = _ctrl.GenerateReplySlip(s.ShipmentID);
+                    // Collect actualRecipient (required) and remark (optional) via inline dialog
+                    using var inputDlg = new Form
+                    {
+                        Text = "Generate Reply Slip", Size = new Size(480, 220),
+                        StartPosition = FormStartPosition.CenterParent,
+                        FormBorderStyle = FormBorderStyle.FixedDialog,
+                        MaximizeBox = false, MinimizeBox = false, BackColor = Color.White
+                    };
+                    var lblR = new Label { Text = "Actual Recipient:", Left = 24, Top = 24, Width = 160, AutoSize = false, Height = 28, TextAlign = ContentAlignment.MiddleLeft };
+                    var txtR = new TextBox { Left = 188, Top = 24, Width = 252, Text = s.CustomerName };
+                    var lblM = new Label { Text = "Remark (optional):", Left = 24, Top = 64, Width = 160, AutoSize = false, Height = 28, TextAlign = ContentAlignment.MiddleLeft };
+                    var txtM = new TextBox { Left = 188, Top = 64, Width = 252 };
+                    var btnOk  = new Button { Text = "Generate", Left = 268, Top = 112, Width = 100, Height = 36, DialogResult = DialogResult.OK, BackColor = Color.FromArgb(47,111,237), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
+                    var btnCx  = new Button { Text = "Cancel",   Left = 376, Top = 112, Width = 80,  Height = 36, DialogResult = DialogResult.Cancel, FlatStyle = FlatStyle.Flat };
+                    btnOk.FlatAppearance.BorderSize = 0;
+                    inputDlg.Controls.AddRange(new Control[]{ lblR, txtR, lblM, txtM, btnOk, btnCx });
+                    inputDlg.AcceptButton = btnOk; inputDlg.CancelButton = btnCx;
+                    if (inputDlg.ShowDialog(dlg) != DialogResult.OK) return;
+                    if (string.IsNullOrWhiteSpace(txtR.Text)) { MessageBox.Show("Actual Recipient is required.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+                    string rsId = _ctrl.GenerateReplySlip(s.ShipmentID, txtR.Text.Trim(), txtM.Text.Trim());
                     MessageBox.Show($"Reply Slip {rsId} generated successfully.",
                         "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     dlg.DialogResult = DialogResult.OK;
@@ -849,41 +980,22 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             dlg.ShowDialog(this);
         }
 
-        // ── Shared UI helpers (static)
-        private static TableLayoutPanel Build4ColTlp(int rows, params float[] rowHeights)
-        {
-            var tbl = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill, ColumnCount = 4, RowCount = rows,
-                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
-            };
-            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
-            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
-            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
-            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
-            if (rowHeights.Length == 0)
-                for (int r = 0; r < rows; r++)
-                    tbl.RowStyles.Add(new RowStyle(SizeType.Percent, 100f / rows));
-            else
-                foreach (float h in rowHeights)
-                    tbl.RowStyles.Add(new RowStyle(SizeType.Percent, h));
-            return tbl;
-        }
+        // ── UI builder helpers ──────────────────────────────────────────────
 
-        private static Panel BuildSectionLabel(string text)
+        private static Panel BuildSectionLabel(string title)
         {
             var pnl = new Panel
             {
                 Dock = DockStyle.Top, Height = 40,
-                BackColor = Color.FromArgb(246, 249, 255), Padding = new Padding(28, 0, 0, 0)
+                BackColor = Color.FromArgb(245, 247, 250), Padding = new Padding(28, 0, 0, 0)
             };
+            pnl.Paint += PaintBottomBorderStatic;
             pnl.Controls.Add(new Label
             {
-                Text = text, Font = new Font("Segoe UI", 10f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(98, 112, 135),
-                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft
+                Text = title, Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(100, 116, 139),
+                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
             });
-            pnl.Paint += PaintBottomBorderStatic;
             return pnl;
         }
 
@@ -891,141 +1003,74 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         {
             var dgv = new DataGridView
             {
-                ReadOnly = true, AllowUserToAddRows = false, RowHeadersVisible = false,
-                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                Dock = DockStyle.Top, Height = 300,
                 BackgroundColor = Color.White, BorderStyle = BorderStyle.None,
-                GridColor = Color.FromArgb(221, 227, 236), Font = new Font("Segoe UI", 12f),
+                ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.Single,
+                GridColor = Color.FromArgb(226, 232, 240),
+                RowHeadersVisible = false, AllowUserToAddRows = false,
+                ReadOnly = true, SelectionMode = DataGridViewSelectionMode.FullRowSelect,
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-                CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal,
-                RowTemplate = { Height = 44 }, Dock = DockStyle.Fill,
-                ColumnHeadersHeight = 40, EnableHeadersVisualStyles = false,
-                ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
-                {
-                    BackColor = Color.FromArgb(246, 249, 255), ForeColor = Color.FromArgb(98, 112, 135),
-                    Font = new Font("Segoe UI", 10f, FontStyle.Bold), Padding = new Padding(12, 0, 0, 0)
-                },
+                ColumnHeadersHeight = 36, RowTemplate = { Height = 36 },
+                Font = new Font("Segoe UI", 12f),
                 DefaultCellStyle = new DataGridViewCellStyle
                 {
                     BackColor = Color.White, ForeColor = Color.FromArgb(15, 31, 53),
                     SelectionBackColor = Color.FromArgb(219, 234, 254),
-                    SelectionForeColor = Color.FromArgb(15, 31, 53),
-                    Padding = new Padding(12, 6, 12, 6)
+                    SelectionForeColor = Color.FromArgb(29, 78, 216),
+                    Padding = new Padding(4, 0, 4, 0)
+                },
+                ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
+                {
+                    BackColor = Color.FromArgb(248, 250, 252), ForeColor = Color.FromArgb(100, 116, 139),
+                    Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+                    SelectionBackColor = Color.FromArgb(248, 250, 252),
+                    SelectionForeColor = Color.FromArgb(100, 116, 139),
+                    Padding = new Padding(4, 0, 4, 0), Alignment = DataGridViewContentAlignment.MiddleLeft
                 }
             };
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "LINE ID",     FillWeight = 16 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "ITEM ID",     FillWeight = 14 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "ITEM NAME",   FillWeight = 34 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "QTY SHIPPED", FillWeight = 18 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "OUTSTANDING", FillWeight = 18 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "LINE ID",     FillWeight = 16, Name = "colLineID"  });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "ITEM ID",     FillWeight = 14, Name = "colItemID"  });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "ITEM NAME",   FillWeight = 34, Name = "colItemNm"  });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "QTY SHIPPED", FillWeight = 18, Name = "colQtyShip" });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "OUTSTANDING", FillWeight = 18, Name = "colQtyOut"  });
             return dgv;
         }
 
         private static Panel BuildTotalRow(int lineCount, double totalAmount)
         {
-            var pnl = new Panel { Dock = DockStyle.Bottom, Height = 64, BackColor = Color.White };
-            pnl.Paint += PaintTopBorderStatic;
-            var tbl = new TableLayoutPanel
+            var pnl = new Panel
             {
-                Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
-                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+                Dock = DockStyle.Top, Height = 44, BackColor = Color.White,
+                Padding = new Padding(28, 0, 28, 0)
             };
-            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
-            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
-            tbl.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-            tbl.Controls.Add(new Label
+            pnl.Paint += PaintTopBorderStatic;
+            var lbl = new Label
             {
-                Text = $"Shipment Lines:   {lineCount}",
-                Dock = DockStyle.Fill, AutoSize = false,
+                Text = $"  {lineCount} line(s)     Total: HK$ {totalAmount:N2}",
                 Font = new Font("Segoe UI", 12f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(15, 31, 53),
-                TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(28, 0, 0, 0)
-            }, 0, 0);
-            tbl.Controls.Add(new Label
-            {
-                Text = $"Total Amount:   HK$ {totalAmount:N2}",
-                Dock = DockStyle.Fill, AutoSize = false,
-                Font = new Font("Segoe UI", 12f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(47, 111, 237),
-                TextAlign = ContentAlignment.MiddleRight, Padding = new Padding(0, 0, 28, 0)
-            }, 1, 0);
-            pnl.Controls.Add(tbl);
+                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleRight, AutoSize = false
+            };
+            pnl.Controls.Add(lbl);
             return pnl;
         }
 
-        private static Panel BuildDocFooter(Form owner, string pdfLabel, EventHandler onExportPdf)
-        {
-            const int BtnW = 210, BtnH = 60, Gap = 16;
-
-            var pnl = new Panel
-            {
-                Dock      = DockStyle.Bottom, Height = 90,
-                BackColor = Color.White, Padding = new Padding(28, 15, 28, 15)
-            };
-            pnl.Paint += PaintTopBorderStatic;
-
-            var btnPdf = new Button
-            {
-                Text      = pdfLabel,
-                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
-                ForeColor = Color.White, BackColor = Color.FromArgb(22, 163, 74),
-                FlatStyle = FlatStyle.Flat, Size = new Size(BtnW, BtnH), Cursor = Cursors.Hand,
-                Anchor    = AnchorStyles.Top | AnchorStyles.Right
-            };
-            btnPdf.FlatAppearance.BorderSize         = 0;
-            btnPdf.FlatAppearance.MouseOverBackColor = Color.FromArgb(16, 131, 58);
-            btnPdf.FlatAppearance.MouseDownBackColor = Color.FromArgb(10, 100, 40);
-            btnPdf.Click += onExportPdf;
-
-            var btnClose = new Button
-            {
-                Text      = "Close",
-                Font      = new Font("Segoe UI", 12f),
-                ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White,
-                FlatStyle = FlatStyle.Flat, Size = new Size(BtnW, BtnH), Cursor = Cursors.Hand,
-                Anchor    = AnchorStyles.Top | AnchorStyles.Right
-            };
-            btnClose.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
-            btnClose.FlatAppearance.BorderSize         = 1;
-            btnClose.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
-            btnClose.Click += (_, __) => owner.Close();
-
-            pnl.SizeChanged += (o, ev) =>
-            {
-                int top   = (pnl.ClientSize.Height - BtnH) / 2;
-                int rEdge = pnl.ClientSize.Width - 28;
-                btnClose.Location = new Point(rEdge - BtnW,              top);
-                btnPdf.Location   = new Point(rEdge - BtnW - Gap - BtnW, top);
-            };
-            int initTop   = (90 - BtnH) / 2;
-            int initREdge = 2500 - 28;
-            btnClose.Location = new Point(initREdge - BtnW,              initTop);
-            btnPdf.Location   = new Point(initREdge - BtnW - Gap - BtnW, initTop);
-
-            pnl.Controls.Add(btnClose);
-            pnl.Controls.Add(btnPdf);
-            return pnl;
-        }
-
-        /// <summary>
-        /// Simple close-only footer for ShipmentDetail dialog.
-        /// </summary>
         private static Panel BuildCloseFooter(Form owner)
         {
-            const int BtnW = 210, BtnH = 60;
-
-            var pnl = new Panel
+            const int BtnH = 60;
+            var pnlFooter = new Panel
             {
-                Dock      = DockStyle.Bottom, Height = 90,
+                Dock = DockStyle.Bottom, Height = 90,
                 BackColor = Color.White, Padding = new Padding(28, 15, 28, 15)
             };
-            pnl.Paint += PaintTopBorderStatic;
+            pnlFooter.Paint += PaintTopBorderStatic;
 
             var btnClose = new Button
             {
                 Text      = "Close",
                 Font      = new Font("Segoe UI", 12f),
                 ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White,
-                FlatStyle = FlatStyle.Flat, Size = new Size(BtnW, BtnH), Cursor = Cursors.Hand,
+                FlatStyle = FlatStyle.Flat, Size = new Size(160, BtnH), Cursor = Cursors.Hand,
                 Anchor    = AnchorStyles.Top | AnchorStyles.Right
             };
             btnClose.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
@@ -1033,52 +1078,114 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             btnClose.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
             btnClose.Click += (_, __) => owner.Close();
 
-            pnl.SizeChanged += (o, ev) =>
+            pnlFooter.SizeChanged += (o, ev) =>
             {
-                int top   = (pnl.ClientSize.Height - BtnH) / 2;
-                int rEdge = pnl.ClientSize.Width - 28;
-                btnClose.Location = new Point(rEdge - BtnW, top);
+                int top2  = (pnlFooter.ClientSize.Height - BtnH) / 2;
+                btnClose.Location = new Point(pnlFooter.ClientSize.Width - 28 - 160, top2);
             };
-            int initTop   = (90 - BtnH) / 2;
-            int initREdge = 2500 - 28;
-            btnClose.Location = new Point(initREdge - BtnW, initTop);
+            btnClose.Location = new Point(2500 - 28 - 160, (90 - BtnH) / 2);
 
-            pnl.Controls.Add(btnClose);
-            return pnl;
+            pnlFooter.Controls.Add(btnClose);
+            return pnlFooter;
         }
 
-        // ── Static label factories
-        private static Label MakeLabelKeyStatic(string text) => new Label
+        private static TableLayoutPanel Build4ColTlp(int rows, float col0 = 16f, float col2 = 16f, float unused = 0f)
         {
-            Text = text, Font = new Font("Segoe UI", 10f, FontStyle.Bold),
-            ForeColor = Color.FromArgb(98, 112, 135),
-            Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft,
-            Padding = new Padding(0, 0, 8, 0), AutoEllipsis = false
-        };
+            var tlp = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill, ColumnCount = 4, RowCount = rows,
+                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                Padding = new Padding(0)
+            };
+            float valW = (100f - col0 - col2) / 2f;
+            tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, col0));
+            tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, valW));
+            tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, col2));
+            tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, valW));
+            for (int i = 0; i < rows; i++)
+                tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100f / rows));
+            return tlp;
+        }
 
-        private static Label MakeLabelValStatic(string text) => new Label
+        private static Label MakeLabelKey(string text) =>
+            new Label
+            {
+                Text = text, Font = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(100, 116, 139),
+                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
+            };
+
+        private static Label MakeLabelVal(string text) =>
+            new Label
+            {
+                Text = text, Font = new Font("Segoe UI", 12f),
+                ForeColor = Color.FromArgb(15, 31, 53),
+                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
+            };
+
+        private static Label MakeLabelValMultiLine(string text) =>
+            new Label
+            {
+                Text = text, Font = new Font("Segoe UI", 12f),
+                ForeColor = Color.FromArgb(15, 31, 53),
+                Dock = DockStyle.Fill, TextAlign = ContentAlignment.TopLeft,
+                AutoSize = false, AutoEllipsis = false
+            };
+
+        private static void AddInfoRow(TableLayoutPanel tbl, int row,
+            string keyL, string valL, string keyR, string valR)
         {
-            Text = text, Font = new Font("Segoe UI", 12f),
-            ForeColor = Color.FromArgb(15, 31, 53),
-            Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoEllipsis = true
-        };
+            tbl.Controls.Add(MakeLabelKey(keyL),             0, row);
+            tbl.Controls.Add(MakeLabelVal(valL ?? "\u2014"),  1, row);
+            tbl.Controls.Add(MakeLabelKey(keyR),             2, row);
+            tbl.Controls.Add(MakeLabelVal(valR ?? "\u2014"),  3, row);
+        }
 
-        private static Label MakeLabelValMultiLineStatic(string text) => new Label
-        {
-            Text = text, Font = new Font("Segoe UI", 12f),
-            ForeColor = Color.FromArgb(15, 31, 53),
-            Dock = DockStyle.Fill, TextAlign = ContentAlignment.TopLeft,
-            AutoEllipsis = false, AutoSize = false, Padding = new Padding(0, 8, 8, 4)
-        };
+        // ── Static variants (used in dialogs that don't need instance context) ──
 
-        private static void AddInfoRowStatic(
-            TableLayoutPanel tbl, int row,
+        private static Label MakeLabelKeyStatic(string text) => MakeLabelKey(text);
+        private static Label MakeLabelValStatic(string text) => MakeLabelVal(text);
+        private static Label MakeLabelValMultiLineStatic(string text) => MakeLabelValMultiLine(text);
+
+        private static void AddInfoRowStatic(TableLayoutPanel tbl, int row,
             string keyL, string valL, string keyR, string valR)
         {
             tbl.Controls.Add(MakeLabelKeyStatic(keyL),             0, row);
             tbl.Controls.Add(MakeLabelValStatic(valL ?? "\u2014"),  1, row);
             tbl.Controls.Add(MakeLabelKeyStatic(keyR),             2, row);
             tbl.Controls.Add(MakeLabelValStatic(valR ?? "\u2014"),  3, row);
+        }
+
+        // ── Designer.cs wired instance event handlers ──────────────────────
+        private void PaintCardBorder(object sender, PaintEventArgs e)
+        {
+            var ctl  = (Control)sender;
+            using var pen  = new Pen(Color.FromArgb(221, 227, 236), 1);
+            var rect = new Rectangle(0, 0, ctl.Width - 1, ctl.Height - 1);
+            using var path = RoundedRect(rect, 8);
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            e.Graphics.DrawPath(pen, path);
+        }
+
+        private void dgvShipments_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
+        {
+            if (e.RowIndex < 0 || e.Value == null) return;
+            if (dgvShipments.Columns[e.ColumnIndex].Name != "colStatus") return;
+            string status = e.Value.ToString();
+            e.CellStyle.ForeColor = status switch
+            {
+                "Completed"  => Color.FromArgb(6,   95,  70),
+                "In Transit" => Color.FromArgb(29,  78, 216),
+                "Pending"    => Color.FromArgb(146, 64,  14),
+                _            => Color.FromArgb(15,  31,  53)
+            };
+            e.FormattingApplied = true;
+        }
+
+        private void dgvShipments_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex < 0 || _selectedDetail == null) return;
+            ShowViewDetailDialog(_selectedDetail);
         }
 
         private static void PaintBottomBorderStatic(object s, PaintEventArgs e)
