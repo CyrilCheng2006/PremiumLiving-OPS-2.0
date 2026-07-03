@@ -1,61 +1,49 @@
 using PremiumLivingOPS.Controllers;
 using PremiumLivingOPS.Models.Entities;
 using PremiumLivingOPS.Models.ViewModels;
+using PremiumLivingOPS.Services;
 using System;
-using System.Collections.Generic;
 using System.Drawing;
-using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 
 namespace PremiumLivingOPS.Views.LogisticsProcessing
 {
     /// <summary>
-    /// Generate Delivery Note—inline dialog aligned to ShowDetailDialog visual standard.
-    /// Layout (Top-to-Bottom, then Fill, then Bottom):
-    ///   pnlHeader    Top  80  — dark navy + status badge (Margin 14px top/bottom)
-    ///   pnlInfo      Top  220 — 4-col TLP read-only fields
+    /// Generate Delivery Note — layout (DockStyle.Top chain, bottom-up):
+    ///   pnlHeader    Top  80  — navy header
+    ///   pnlInfo      Top  220 — shipment summary (4-row, 4-col)
     ///   pnlDNTitle   Top  44  — green title bar
-    ///   pnlDNBody    Top  180 — delivery note preview (Ship Address multi-line)
-    ///   pnlWarn      Top  48/0— warning strip (visible only if DN already exists)
-    ///   pnlLineLabel Top  40  — "SHIPMENT ITEMS" bar
-    ///   dgv          Fill     — shipment items grid
-    ///   pnlTotalRow  Bottom 64— left: Lines Count / right: Total Amount (blue)
-    ///   pnlFooter    Bottom 100— [✔ Confirm Generate 210×60]  [Cancel 210×60]
+    ///   pnlDNBody    Top  220 — delivery note preview (Ship Address multi-line)
+    ///   [warning]    Top  48  — amber bar (only when DN already exists)
+    ///   pnlLineLabel Top  40  — "SHIPMENT ITEMS"
+    ///   dgv          Fill     — line items grid
+    ///   pnlTotalRow  Bottom 64
+    ///   pnlFooter    Bottom 100
     /// </summary>
     public partial class GenerateDeliveryNoteForm : Form
     {
         private readonly LogisticsProcessingController _ctrl =
             new LogisticsProcessingController();
-        private readonly ShipmentDetailVM _vm;
+        private readonly ShipmentDetailVM _detail;
 
-        public string GeneratedDeliveryID { get; private set; }
-
-        private static readonly Dictionary<string, (Color bg, Color fg)> StatusColors =
-            new Dictionary<string, (Color, Color)>
-            {
-                { "Pending",    (Color.FromArgb(254, 243, 199), Color.FromArgb(146,  64,  14)) },
-                { "In Transit", (Color.FromArgb(219, 234, 254), Color.FromArgb( 29,  78, 216)) },
-                { "Completed",  (Color.FromArgb(209, 250, 229), Color.FromArgb(  6,  95,  70)) },
-            };
-
-        public GenerateDeliveryNoteForm(ShipmentDetailVM vm)
+        public GenerateDeliveryNoteForm(ShipmentDetailVM detail)
         {
-            _vm = vm ?? throw new ArgumentNullException(nameof(vm));
             InitializeComponent();
-            BuildDialog();
+            _detail = detail;
+            BuildUI();
         }
 
-        private void BuildDialog()
+        private void BuildUI()
         {
-            var s = _vm.Shipment;
-            StatusColors.TryGetValue(s?.ShipmentStatus ?? "", out var sc);
+            var s      = _detail?.Shipment;
+            var lines  = _detail?.Lines  ?? new System.Collections.Generic.List<ShipmentLineEntity>();
+            bool dnExists = _detail?.DeliveryNote != null;
 
             int outQty = 0;
-            foreach (var line in _vm.Lines ?? new List<ShipmentLineEntity>())
-                outQty += line.QtyOutstanding ?? 0;
+            foreach (var ln in lines) outQty += ln.QtyOutstanding ?? 0;
 
-            this.Text            = $"Generate Delivery Note  —  {s?.ShipmentID}";
-            this.Size            = new Size(1900, 1200);
+            this.Text            = $"Generate Delivery Note  \u2014  {s?.ShipmentID}";
+            this.Size            = new Size(2500, 1100);
             this.StartPosition   = FormStartPosition.CenterParent;
             this.BackColor       = Color.White;
             this.Font            = new Font("Segoe UI", 13f);
@@ -63,7 +51,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             this.MaximizeBox     = false;
             this.MinimizeBox     = false;
 
-            // ── Header — navy + status badge aligned to ShowDetailDialog
+            // ── Header
             var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 80, BackColor = Color.FromArgb(19, 35, 61) };
             var tblHeader = new TableLayoutPanel
             {
@@ -71,52 +59,41 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
                 Padding = new Padding(24, 0, 24, 0)
             };
-            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
+            tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
             tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 264f));
             tblHeader.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
             tblHeader.Controls.Add(new Label
             {
-                Text      = $"Generate Delivery Note  —  {s?.ShipmentID}",
-                Font      = new Font("Segoe UI", 18f, FontStyle.Bold),
+                Text = $"Generate Delivery Note  \u2014  {s?.ShipmentID}",
+                Font = new Font("Segoe UI", 18f, FontStyle.Bold),
                 ForeColor = Color.White, Dock = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
             }, 0, 0);
             tblHeader.Controls.Add(new Label
             {
-                Text      = s?.ShipmentStatus ?? "Unknown",
-                Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
-                ForeColor = sc.fg != default ? sc.fg : Color.White,
-                BackColor = sc.bg != default ? sc.bg : Color.FromArgb(80, 80, 80),
-                Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter,
-                AutoSize  = false, Margin = new Padding(0, 14, 0, 14)
+                Text = s?.ShipmentStatus ?? "Unknown",
+                Font = new Font("Segoe UI", 14f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(6, 95, 70), BackColor = Color.FromArgb(209, 250, 229),
+                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter,
+                AutoSize = false, Margin = new Padding(0, 14, 0, 14)
             }, 1, 0);
             pnlHeader.Controls.Add(tblHeader);
 
-            // ── Info row (4-col TLP)
+            // ── Shipment summary info
             var pnlInfo = new Panel
             {
                 Dock = DockStyle.Top, Height = 220,
                 Padding = new Padding(28, 18, 28, 8), BackColor = Color.White
             };
             pnlInfo.Paint += PaintBottomBorder;
-            var tblInfo = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 4,
-                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
-            };
-            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
-            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
-            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
-            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
-            for (int r = 0; r < 4; r++)
-                tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 25f));
+            var tblInfo = Build4ColTlp(4);
             AddInfoRow(tblInfo, 0, "Shipment ID:",  s?.ShipmentID,                              "Order ID:",        s?.OrderID);
-            AddInfoRow(tblInfo, 1, "Customer:",     s?.CustomerName,                            "Tracking No.:",    s?.TrackingNumber ?? "—");
+            AddInfoRow(tblInfo, 1, "Customer:",     s?.CustomerName,                            "Tracking No.:",    s?.TrackingNumber ?? "\u2014");
             AddInfoRow(tblInfo, 2, "Ship Date:",    s?.ShipDate.ToString("yyyy-MM-dd"),         "Delivery Method:", s?.DeliveryMethod);
             AddInfoRow(tblInfo, 3, "Status:",       s?.ShipmentStatus,                          "Ship Type:",       s?.ShipmentType);
             pnlInfo.Controls.Add(tblInfo);
 
-            // ── DN Title bar
+            // ── DN green title bar
             var pnlDNTitle = new Panel
             {
                 Dock = DockStyle.Top, Height = 44,
@@ -125,60 +102,48 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlDNTitle.Paint += PaintBottomBorder;
             pnlDNTitle.Controls.Add(new Label
             {
-                Text      = "✉  Delivery Note Preview",
+                Text      = "\u2709  Delivery Note Preview",
                 Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(6, 95, 70),
                 Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
             });
 
-            // ── DN body preview
+            // ── DN body (Ship Address multi-line)
             var pnlDNBody = new Panel
             {
-                Dock = DockStyle.Top, Height = 180,
+                Dock = DockStyle.Top, Height = 220,
                 BackColor = Color.FromArgb(249, 254, 251), Padding = new Padding(28, 12, 28, 12)
             };
             pnlDNBody.Paint += PaintBottomBorder;
-            var tblDN = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 3,
-                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
-            };
-            tblDN.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
-            tblDN.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
-            tblDN.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
-            tblDN.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
-            tblDN.RowStyles.Add(new RowStyle(SizeType.Percent, 28f));
-            tblDN.RowStyles.Add(new RowStyle(SizeType.Percent, 44f));
-            tblDN.RowStyles.Add(new RowStyle(SizeType.Percent, 28f));
+            var tblDN = Build4ColTlp(3, 28f, 44f, 28f);
             AddInfoRow(tblDN, 0, "Delivery Date:",  DateTime.Today.ToString("yyyy-MM-dd"), "Ship To:",       s?.CustomerName);
             tblDN.Controls.Add(MakeLabelKey("Ship Address:"),                              0, 1);
-            tblDN.Controls.Add(MakeLabelValMultiLine(s?.ShippingAddress ?? "—"),           1, 1);
+            tblDN.Controls.Add(MakeLabelValMultiLine(s?.ShippingAddress ?? "\u2014"),      1, 1);
             tblDN.Controls.Add(MakeLabelKey("Outstanding Qty:"),                           2, 1);
             tblDN.Controls.Add(MakeLabelVal(outQty.ToString()),                            3, 1);
             AddInfoRow(tblDN, 2, "Delivery Method:", s?.DeliveryMethod, "Shipment Type:", s?.ShipmentType);
             pnlDNBody.Controls.Add(tblDN);
 
-            // ── Warning strip (DN already exists)
-            bool dnExists = _vm.DeliveryNote != null;
+            // ── Warning bar (existing DN)
             var pnlWarn = new Panel
             {
-                Dock = DockStyle.Top,
-                Height = dnExists ? 48 : 0,
-                BackColor = Color.FromArgb(254, 243, 199)
+                Dock      = DockStyle.Top,
+                Height    = dnExists ? 48 : 0,
+                BackColor = Color.FromArgb(255, 251, 235),
+                Padding   = new Padding(28, 0, 16, 0),
+                Visible   = dnExists
             };
+            pnlWarn.Paint += PaintBottomBorder;
             if (dnExists)
-            {
                 pnlWarn.Controls.Add(new Label
                 {
-                    Text      = $"⚠  A Delivery Note ({_vm.DeliveryNote.DeliveryID}) already exists for this shipment. Generating a new one will create an additional record.",
-                    Font      = new Font("Segoe UI", 10f),
+                    Text      = $"\u26A0  A Delivery Note already exists ({_detail.DeliveryNote.DeliveryID}). Generating again will overwrite it.",
+                    Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
                     ForeColor = Color.FromArgb(146, 64, 14),
-                    Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft,
-                    Padding   = new Padding(28, 0, 28, 0)
+                    Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
                 });
-            }
 
-            // ── SHIPMENT ITEMS label bar
+            // ── Items section label
             var pnlLineLabel = new Panel
             {
                 Dock = DockStyle.Top, Height = 40,
@@ -222,9 +187,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             dgv.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "ITEM NAME",   FillWeight = 34 });
             dgv.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "QTY SHIPPED", FillWeight = 18 });
             dgv.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "OUTSTANDING", FillWeight = 18 });
-            foreach (var line in _vm.Lines ?? new List<ShipmentLineEntity>())
-                dgv.Rows.Add(line.ShipmentLineID, line.ItemID, line.ItemName,
-                             line.QtyShipped, line.QtyOutstanding?.ToString() ?? "—");
+            foreach (var ln in lines)
+                dgv.Rows.Add(ln.ShipmentLineID, ln.ItemID, ln.ItemName,
+                             ln.QtyShipped, ln.QtyOutstanding?.ToString() ?? "\u2014");
 
             // ── Total row
             var pnlTotalRow = new Panel { Dock = DockStyle.Bottom, Height = 64, BackColor = Color.White };
@@ -237,10 +202,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             tblTotal.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
             tblTotal.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
             tblTotal.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-            int lineCount = (_vm.Lines ?? new List<ShipmentLineEntity>()).Count;
             tblTotal.Controls.Add(new Label
             {
-                Text = $"Shipment Lines:   {lineCount}",
+                Text = $"Shipment Lines:   {lines.Count}",
                 Dock = DockStyle.Fill, AutoSize = false,
                 Font = new Font("Segoe UI", 12f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(15, 31, 53),
@@ -256,8 +220,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }, 1, 0);
             pnlTotalRow.Controls.Add(tblTotal);
 
-            // ── Footer: [✔ Confirm Generate] [Cancel]
-            const int BtnW = 210, BtnH = 60, Gap = 16;
+            // ── Footer
+            const int BtnW = 210, BtnH = 60;
             var pnlFooter = new Panel
             {
                 Dock = DockStyle.Bottom, Height = 100,
@@ -265,24 +229,24 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             };
             pnlFooter.Paint += PaintTopBorder;
 
-            var btnConfirm = new Button
+            var btnGen = new Button
             {
-                Text      = "✔  Confirm Generate",
+                Text      = "\u2714  Generate Delivery Note",
                 Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
                 ForeColor = Color.White, BackColor = Color.FromArgb(22, 163, 74),
-                FlatStyle = FlatStyle.Flat, Size = new Size(BtnW, BtnH), Cursor = Cursors.Hand,
+                FlatStyle = FlatStyle.Flat, Size = new Size(260, BtnH), Cursor = Cursors.Hand,
                 Anchor    = AnchorStyles.Top | AnchorStyles.Right
             };
-            btnConfirm.FlatAppearance.BorderSize         = 0;
-            btnConfirm.FlatAppearance.MouseOverBackColor = Color.FromArgb(16, 131, 58);
-            btnConfirm.FlatAppearance.MouseDownBackColor = Color.FromArgb(10, 100, 40);
+            btnGen.FlatAppearance.BorderSize         = 0;
+            btnGen.FlatAppearance.MouseOverBackColor = Color.FromArgb(16, 131, 58);
+            btnGen.FlatAppearance.MouseDownBackColor = Color.FromArgb(10, 100, 40);
 
             var btnCancel = new Button
             {
                 Text      = "Cancel",
                 Font      = new Font("Segoe UI", 12f),
                 ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White,
-                FlatStyle = FlatStyle.Flat, Size = new Size(BtnW, BtnH), Cursor = Cursors.Hand,
+                FlatStyle = FlatStyle.Flat, Size = new Size(160, BtnH), Cursor = Cursors.Hand,
                 Anchor    = AnchorStyles.Top | AnchorStyles.Right
             };
             btnCancel.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
@@ -293,35 +257,19 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             {
                 int top   = (pnlFooter.ClientSize.Height - BtnH) / 2;
                 int rEdge = pnlFooter.ClientSize.Width - 28;
-                btnConfirm.Location = new Point(rEdge - BtnW,             top);
-                btnCancel.Location  = new Point(rEdge - BtnW - Gap - BtnW, top);
+                btnGen.Location    = new Point(rEdge - 260,             top);
+                btnCancel.Location = new Point(rEdge - 260 - 16 - 160, top);
             };
-            btnConfirm.Location = new Point(1900 - 28 - BtnW,              (100 - BtnH) / 2);
-            btnCancel.Location  = new Point(1900 - 28 - BtnW - Gap - BtnW, (100 - BtnH) / 2);
+            btnGen.Location    = new Point(2500 - 28 - 260,             (100 - BtnH) / 2);
+            btnCancel.Location = new Point(2500 - 28 - 260 - 16 - 160, (100 - BtnH) / 2);
 
-            btnConfirm.Click += (_, __) =>
-            {
-                try
-                {
-                    string delivId = _ctrl.GenerateDeliveryNote(_vm.Shipment.ShipmentID);
-                    GeneratedDeliveryID = delivId;
-                    MessageBox.Show($"Delivery Note {delivId} generated successfully.",
-                        "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    this.DialogResult = DialogResult.OK;
-                    this.Close();
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Failed to generate Delivery Note:\n{ex.Message}",
-                        "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
-            };
-            btnCancel.Click += (_, __) => { this.DialogResult = DialogResult.Cancel; this.Close(); };
+            btnGen.Click += BtnGen_Click;
+            btnCancel.Click += (_, __) => this.Close();
 
-            pnlFooter.Controls.Add(btnConfirm);
+            pnlFooter.Controls.Add(btnGen);
             pnlFooter.Controls.Add(btnCancel);
 
-            // ── Assemble (reverse Dock order)
+            // ── Assemble (DockStyle.Top renders first-added at top)
             this.Controls.Add(pnlFooter);
             this.Controls.Add(pnlTotalRow);
             this.Controls.Add(dgv);
@@ -333,7 +281,46 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             this.Controls.Add(pnlHeader);
         }
 
-        // ── Helpers
+        private void BtnGen_Click(object sender, EventArgs e)
+        {
+            var s = _detail?.Shipment;
+            if (s == null) return;
+            try
+            {
+                string dnId = _ctrl.GenerateDeliveryNote(s.ShipmentID);
+                MessageBox.Show($"Delivery Note {dnId} generated successfully.",
+                    "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                this.DialogResult = DialogResult.OK;
+                this.Close();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to generate Delivery Note:\n{ex.Message}",
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // ── UI helpers
+        private static TableLayoutPanel Build4ColTlp(int rows, params float[] rowHeights)
+        {
+            var tbl = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill, ColumnCount = 4, RowCount = rows,
+                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+            };
+            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
+            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
+            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
+            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
+            if (rowHeights.Length == 0)
+                for (int r = 0; r < rows; r++)
+                    tbl.RowStyles.Add(new RowStyle(SizeType.Percent, 100f / rows));
+            else
+                foreach (float h in rowHeights)
+                    tbl.RowStyles.Add(new RowStyle(SizeType.Percent, h));
+            return tbl;
+        }
+
         private static Label MakeLabelKey(string text) => new Label
         {
             Text = text, Font = new Font("Segoe UI", 10f, FontStyle.Bold),
@@ -341,12 +328,14 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft,
             Padding = new Padding(0, 0, 8, 0), AutoEllipsis = false
         };
+
         private static Label MakeLabelVal(string text) => new Label
         {
             Text = text, Font = new Font("Segoe UI", 12f),
             ForeColor = Color.FromArgb(15, 31, 53),
             Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoEllipsis = true
         };
+
         private static Label MakeLabelValMultiLine(string text) => new Label
         {
             Text = text, Font = new Font("Segoe UI", 12f),
@@ -354,21 +343,24 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             Dock = DockStyle.Fill, TextAlign = ContentAlignment.TopLeft,
             AutoEllipsis = false, AutoSize = false, Padding = new Padding(0, 8, 8, 4)
         };
+
         private static void AddInfoRow(
             TableLayoutPanel tbl, int row,
             string keyL, string valL, string keyR, string valR)
         {
-            tbl.Controls.Add(MakeLabelKey(keyL),           0, row);
-            tbl.Controls.Add(MakeLabelVal(valL ?? "—"),    1, row);
-            tbl.Controls.Add(MakeLabelKey(keyR),           2, row);
-            tbl.Controls.Add(MakeLabelVal(valR ?? "—"),    3, row);
+            tbl.Controls.Add(MakeLabelKey(keyL),             0, row);
+            tbl.Controls.Add(MakeLabelVal(valL ?? "\u2014"),  1, row);
+            tbl.Controls.Add(MakeLabelKey(keyR),             2, row);
+            tbl.Controls.Add(MakeLabelVal(valR ?? "\u2014"),  3, row);
         }
+
         private static void PaintBottomBorder(object s, PaintEventArgs e)
         {
             var p = (Panel)s;
             using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
             e.Graphics.DrawLine(pen, 0, p.Height - 1, p.Width, p.Height - 1);
         }
+
         private static void PaintTopBorder(object s, PaintEventArgs e)
         {
             using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
