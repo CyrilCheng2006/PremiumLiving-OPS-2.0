@@ -473,9 +473,11 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             });
 
             // DN body — 18/32/18/32 column split, multi-line Ship Address
+            // Height matches Reply Slip body (380px) so the Ship Address row
+            // has the same vertical space to wrap long text.
             var pnlDNBody = new Panel
             {
-                Dock = DockStyle.Top, Height = 220,
+                Dock = DockStyle.Top, Height = 380,
                 BackColor = Color.FromArgb(249, 254, 251), Padding = new Padding(28, 12, 28, 12)
             };
             pnlDNBody.Paint += PaintBottomBorderStatic;
