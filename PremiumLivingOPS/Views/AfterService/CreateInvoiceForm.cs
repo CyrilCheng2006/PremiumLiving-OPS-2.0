@@ -51,8 +51,10 @@ namespace PremiumLivingOPS.Views.AfterService
             _currentOrders = vm.Orders;
 
             // Apply local keyword filter (order no / customer)
+            // Exclude orders whose OrderID starts with "STG-QT" (quotation orders)
             var displayed = _currentOrders.FindAll(o =>
             {
+                if (o.OrderID.StartsWith("STG-QT", StringComparison.OrdinalIgnoreCase)) return false;
                 bool matchOrder    = string.IsNullOrEmpty(orderNo)   || o.OrderID.Contains(orderNo, StringComparison.OrdinalIgnoreCase);
                 bool matchCustomer = string.IsNullOrEmpty(customer)  || o.CustomerName.Contains(customer, StringComparison.OrdinalIgnoreCase);
                 return matchOrder && matchCustomer;
