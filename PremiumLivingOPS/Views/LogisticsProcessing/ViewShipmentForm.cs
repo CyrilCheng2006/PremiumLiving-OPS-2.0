@@ -301,7 +301,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         private void btnScheduleShipment_Click(object sender, EventArgs e)
         {
             if (_selectedDetail == null) return;
-            using var dlg = new ScheduleShipmentDialog(_selectedDetail);
+            using var dlg = new ScheduleShipmentDialog(_ctrl);
             if (dlg.ShowDialog(this) == DialogResult.OK)
                 RefreshGrid();
         }
@@ -319,7 +319,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             var dlg = new Form
             {
-                Text = $"Shipment Details — {s.ShipmentID}",
+                Text = $"Shipment Details \u2014 {s.ShipmentID}",
                 Size = new Size(2500, 1000),
                 StartPosition = FormStartPosition.CenterParent,
                 BackColor = Color.White,
@@ -406,7 +406,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             var dlg = new Form
             {
-                Text = $"Delivery Note — {dn?.DeliveryID}",
+                Text = $"Delivery Note \u2014 {dn?.DeliveryID}",
                 Size = new Size(2500, 1100),
                 StartPosition = FormStartPosition.CenterParent,
                 BackColor = Color.White,
@@ -428,7 +428,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             tblH.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
             tblH.Controls.Add(new Label
             {
-                Text = $"Delivery Note — {dn?.DeliveryID}",
+                Text = $"Delivery Note \u2014 {dn?.DeliveryID}",
                 Font = new Font("Segoe UI", 18f, FontStyle.Bold),
                 ForeColor = Color.White, Dock = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
@@ -517,7 +517,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             var dlg = new Form
             {
-                Text = $"Reply Slip — {rs?.SlipID}",
+                Text = $"Reply Slip \u2014 {rs?.SlipID}",
                 Size = new Size(2500, 1100),
                 StartPosition = FormStartPosition.CenterParent,
                 BackColor = Color.White,
@@ -539,7 +539,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             tblH.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
             tblH.Controls.Add(new Label
             {
-                Text = $"Reply Slip — {rs?.SlipID}",
+                Text = $"Reply Slip \u2014 {rs?.SlipID}",
                 Font = new Font("Segoe UI", 18f, FontStyle.Bold),
                 ForeColor = Color.White, Dock = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
@@ -627,7 +627,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             var dlg = new Form
             {
-                Text = $"Generate Delivery Note — {s.ShipmentID}",
+                Text = $"Generate Delivery Note \u2014 {s.ShipmentID}",
                 Size = new Size(2500, 1000),
                 StartPosition = FormStartPosition.CenterParent,
                 BackColor = Color.White,
@@ -980,7 +980,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             dlg.ShowDialog(this);
         }
 
-        // ── UI builder helpers ──────────────────────────────────────────────
+        // ── UI builder helpers ──────────────────────────────────────────────────
 
         private static Panel BuildSectionLabel(string title)
         {
@@ -1156,7 +1156,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             tbl.Controls.Add(MakeLabelValStatic(valR ?? "\u2014"),  3, row);
         }
 
-        // ── Designer.cs wired instance event handlers ──────────────────────
+        // ── Designer.cs wired instance event handlers ──────────────────────────
         private void PaintCardBorder(object sender, PaintEventArgs e)
         {
             var ctl  = (Control)sender;
