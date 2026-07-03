@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.IO;
 using System.Windows.Forms;
 
 namespace PremiumLivingOPS.Views.LogisticsProcessing
@@ -390,7 +391,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 Dock = DockStyle.Top, Height = 400,
                 Padding = new Padding(28, 18, 28, 8), BackColor = Color.White
             };
-            // FIX CS0103: lambda params renamed to (sender2, ev2) — 'e' belonged to outer scope
             pnlInfo.Paint += (sender2, ev2) =>
             {
                 using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
@@ -464,9 +464,10 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             var pnlTotalRow = BuildTotalRow(s.Lines.Count, ship.TotalAmount);
             var pnlFooter   = BuildCloseFooter(dlg);
 
-            dlg.Controls.Add(dgv);
+            // DockStyle.Bottom controls must be added first so they anchor correctly
             dlg.Controls.Add(pnlFooter);
             dlg.Controls.Add(pnlTotalRow);
+            dlg.Controls.Add(dgv);
             dlg.Controls.Add(pnlLineLabel);
             dlg.Controls.Add(pnlInfo);
             dlg.Controls.Add(pnlHeader);
@@ -550,11 +551,38 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                              line.QtyShipped, line.QtyOutstanding?.ToString() ?? "\u2014");
 
             var pnlTotalRow = BuildTotalRow(s.Lines?.Count ?? 0, ship.TotalAmount);
-            var pnlFooter   = BuildCloseFooter(dlg);
 
-            dlg.Controls.Add(dgv);
+            // PDF export handler for Delivery Note
+            EventHandler pdfHandler = (_, __) =>
+            {
+                using var sfd = new SaveFileDialog
+                {
+                    Title            = "Export Delivery Note as PDF",
+                    Filter           = "PDF Files (*.pdf)|*.pdf",
+                    FileName         = $"DeliveryNote_{dn.DeliveryID}_{DateTime.Now:yyyyMMdd}.pdf",
+                    DefaultExt       = "pdf",
+                    OverwritePrompt  = true
+                };
+                if (sfd.ShowDialog(dlg) != DialogResult.OK) return;
+                try
+                {
+                    PdfExporter.ExportDeliveryNote(s, sfd.FileName);
+                    MessageBox.Show($"PDF saved:\n{sfd.FileName}",
+                        "Export Complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Export failed:\n{ex.Message}",
+                        "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            };
+
+            var pnlFooter = BuildDocFooter(dlg, "\U0001F4C4  Export PDF", pdfHandler);
+
+            // Bottom-docked controls must be added BEFORE Fill/Top controls
             dlg.Controls.Add(pnlFooter);
             dlg.Controls.Add(pnlTotalRow);
+            dlg.Controls.Add(dgv);
             dlg.Controls.Add(pnlLineLabel);
             dlg.Controls.Add(pnlDNBody);
             dlg.Controls.Add(pnlDNTitle);
@@ -565,7 +593,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
         // ────────────────────────────────────────────────────────────────────────
         //  View Reply Slip dialog (read-only)
-        //  Uses: rs.ActualRecipient, rs.RecipientRemark, rs.ReceivedDate
         // ────────────────────────────────────────────────────────────────────────
         private void ShowViewReplySlipDialog(ShipmentDetailVM s)
         {
@@ -637,11 +664,38 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                              line.QtyShipped, line.QtyOutstanding?.ToString() ?? "\u2014");
 
             var pnlTotalRow = BuildTotalRow(s.Lines?.Count ?? 0, ship.TotalAmount);
-            var pnlFooter   = BuildCloseFooter(dlg);
 
-            dlg.Controls.Add(dgv);
+            // PDF export handler for Reply Slip
+            EventHandler pdfHandler = (_, __) =>
+            {
+                using var sfd = new SaveFileDialog
+                {
+                    Title            = "Export Reply Slip as PDF",
+                    Filter           = "PDF Files (*.pdf)|*.pdf",
+                    FileName         = $"ReplySlip_{rs.SlipID}_{DateTime.Now:yyyyMMdd}.pdf",
+                    DefaultExt       = "pdf",
+                    OverwritePrompt  = true
+                };
+                if (sfd.ShowDialog(dlg) != DialogResult.OK) return;
+                try
+                {
+                    PdfExporter.ExportReplySlip(s, sfd.FileName);
+                    MessageBox.Show($"PDF saved:\n{sfd.FileName}",
+                        "Export Complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Export failed:\n{ex.Message}",
+                        "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            };
+
+            var pnlFooter = BuildDocFooter(dlg, "\U0001F9FE  Export PDF", pdfHandler);
+
+            // Bottom-docked controls must be added BEFORE Fill/Top controls
             dlg.Controls.Add(pnlFooter);
             dlg.Controls.Add(pnlTotalRow);
+            dlg.Controls.Add(dgv);
             dlg.Controls.Add(pnlLineLabel);
             dlg.Controls.Add(pnlSlipBody);
             dlg.Controls.Add(pnlSlipTitle);
@@ -736,8 +790,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             var pnlFooter = new Panel
             {
-                Dock = DockStyle.Bottom, Height = 86,
-                BackColor = Color.White, Padding = new Padding(28, 14, 28, 14)
+                Dock = DockStyle.Bottom, Height = 90,
+                BackColor = Color.White, Padding = new Padding(28, 15, 28, 15)
             };
             pnlFooter.Paint += PaintTopBorderStatic;
 
@@ -746,7 +800,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 Text      = "\u2714  Generate Reply Slip",
                 Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
                 ForeColor = Color.White, BackColor = GreenNorm,
-                FlatStyle = FlatStyle.Flat, Size = new Size(240, 56), Cursor = Cursors.Hand,
+                FlatStyle = FlatStyle.Flat, Size = new Size(240, 60), Cursor = Cursors.Hand,
                 Anchor    = AnchorStyles.Top | AnchorStyles.Right
             };
             btnGen.FlatAppearance.BorderSize         = 0;
@@ -758,7 +812,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 Text      = "Cancel",
                 Font      = new Font("Segoe UI", 12f),
                 ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White,
-                FlatStyle = FlatStyle.Flat, Size = new Size(160, 56), Cursor = Cursors.Hand,
+                FlatStyle = FlatStyle.Flat, Size = new Size(160, 60), Cursor = Cursors.Hand,
                 Anchor    = AnchorStyles.Top | AnchorStyles.Right
             };
             btnCancel.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
@@ -767,13 +821,13 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             pnlFooter.SizeChanged += (o, ev) =>
             {
-                int top   = (pnlFooter.ClientSize.Height - 56) / 2;
+                int top   = (pnlFooter.ClientSize.Height - 60) / 2;
                 int rEdge = pnlFooter.ClientSize.Width - 28;
                 btnGen.Location    = new Point(rEdge - 240,             top);
                 btnCancel.Location = new Point(rEdge - 240 - 16 - 160, top);
             };
-            btnGen.Location    = new Point(2500 - 28 - 240,             (86 - 56) / 2);
-            btnCancel.Location = new Point(2500 - 28 - 240 - 16 - 160, (86 - 56) / 2);
+            btnGen.Location    = new Point(2500 - 28 - 240,             (90 - 60) / 2);
+            btnCancel.Location = new Point(2500 - 28 - 240 - 16 - 160, (90 - 60) / 2);
 
             btnGen.Click += (_, __) =>
             {
@@ -806,9 +860,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlFooter.Controls.Add(btnGen);
             pnlFooter.Controls.Add(btnCancel);
 
-            dlg.Controls.Add(dgv);
             dlg.Controls.Add(pnlFooter);
             dlg.Controls.Add(pnlTotalRow);
+            dlg.Controls.Add(dgv);
             dlg.Controls.Add(pnlLineLabel);
             dlg.Controls.Add(pnlSlipBody);
             dlg.Controls.Add(pnlSlipTitle);
@@ -953,19 +1007,85 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             return pnl;
         }
 
-        private static Panel BuildCloseFooter(Form owner)
+        /// <summary>
+        /// Footer used by read-only document dialogs (View Delivery Note, View Reply Slip).
+        /// Layout (right-aligned): [ pdfLabel 210x60 ] [ 16px gap ] [ Close 210x60 ]
+        /// </summary>
+        private static Panel BuildDocFooter(Form owner, string pdfLabel, EventHandler onExportPdf)
         {
+            const int BtnW = 210, BtnH = 60, Gap = 16;
+
             var pnl = new Panel
             {
-                Dock = DockStyle.Bottom, Height = 86,
-                BackColor = Color.White, Padding = new Padding(28, 14, 28, 14)
+                Dock      = DockStyle.Bottom, Height = 90,
+                BackColor = Color.White, Padding = new Padding(28, 15, 28, 15)
+            };
+            pnl.Paint += PaintTopBorderStatic;
+
+            // PDF export button (green, left of Close)
+            var btnPdf = new Button
+            {
+                Text      = pdfLabel,
+                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.White, BackColor = Color.FromArgb(22, 163, 74),
+                FlatStyle = FlatStyle.Flat, Size = new Size(BtnW, BtnH), Cursor = Cursors.Hand,
+                Anchor    = AnchorStyles.Top | AnchorStyles.Right
+            };
+            btnPdf.FlatAppearance.BorderSize         = 0;
+            btnPdf.FlatAppearance.MouseOverBackColor = Color.FromArgb(16, 131, 58);
+            btnPdf.FlatAppearance.MouseDownBackColor = Color.FromArgb(10, 100, 40);
+            btnPdf.Click += onExportPdf;
+
+            // Close button (outlined, right-most)
+            var btnClose = new Button
+            {
+                Text      = "Close",
+                Font      = new Font("Segoe UI", 12f),
+                ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White,
+                FlatStyle = FlatStyle.Flat, Size = new Size(BtnW, BtnH), Cursor = Cursors.Hand,
+                Anchor    = AnchorStyles.Top | AnchorStyles.Right
+            };
+            btnClose.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
+            btnClose.FlatAppearance.BorderSize         = 1;
+            btnClose.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
+            btnClose.Click += (_, __) => owner.Close();
+
+            // Position on resize
+            pnl.SizeChanged += (o, ev) =>
+            {
+                int top   = (pnl.ClientSize.Height - BtnH) / 2;
+                int rEdge = pnl.ClientSize.Width - 28;
+                btnClose.Location = new Point(rEdge - BtnW,               top);
+                btnPdf.Location   = new Point(rEdge - BtnW - Gap - BtnW,  top);
+            };
+            // Initial positions (form width = 2500, border ~16 each side => client ~2484)
+            int initTop   = (90 - BtnH) / 2;
+            int initREdge = 2500 - 28;
+            btnClose.Location = new Point(initREdge - BtnW,               initTop);
+            btnPdf.Location   = new Point(initREdge - BtnW - Gap - BtnW,  initTop);
+
+            pnl.Controls.Add(btnClose);
+            pnl.Controls.Add(btnPdf);
+            return pnl;
+        }
+
+        /// <summary>
+        /// Simple close-only footer used by ShipmentDetail dialog.
+        /// </summary>
+        private static Panel BuildCloseFooter(Form owner)
+        {
+            const int BtnW = 210, BtnH = 60;
+            var pnl = new Panel
+            {
+                Dock = DockStyle.Bottom, Height = 90,
+                BackColor = Color.White, Padding = new Padding(28, 15, 28, 15)
             };
             pnl.Paint += PaintTopBorderStatic;
             var btn = new Button
             {
                 Text = "Close", Font = new Font("Segoe UI", 12f),
                 ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White,
-                FlatStyle = FlatStyle.Flat, Size = new Size(150, 56), Cursor = Cursors.Hand,
+                FlatStyle = FlatStyle.Flat, Size = new Size(BtnW, BtnH), Cursor = Cursors.Hand,
                 Anchor = AnchorStyles.Right | AnchorStyles.Top
             };
             btn.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
@@ -973,9 +1093,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             btn.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
             btn.Click += (_, __) => owner.Close();
             pnl.SizeChanged += (o, ev) =>
-                btn.Location = new Point(pnl.ClientSize.Width - 28 - 150,
-                                         (pnl.ClientSize.Height - 56) / 2);
-            btn.Location = new Point(2500 - 28 - 150, (86 - 56) / 2);
+                btn.Location = new Point(pnl.ClientSize.Width - 28 - BtnW,
+                                         (pnl.ClientSize.Height - BtnH) / 2);
+            btn.Location = new Point(2500 - 28 - BtnW, (90 - BtnH) / 2);
             pnl.Controls.Add(btn);
             return pnl;
         }
