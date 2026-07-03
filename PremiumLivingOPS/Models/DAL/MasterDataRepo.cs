@@ -178,6 +178,48 @@ namespace PremiumLivingOPS.Models.DAL
             }
         }
 
+        /// <summary>
+        /// Returns all Order header rows for the specified customer, newest-first.
+        /// Columns: OrderID, IssuedTime, DeliveryDate, GrandTotal, OrderStatus.
+        /// </summary>
+        public List<OrderEntity> GetOrdersByCustomerID(string customerId)
+        {
+            var list = new List<OrderEntity>();
+            using (var conn = DatabaseHelper.GetConnection())
+            {
+                conn.Open();
+                const string sql =
+                    @"SELECT o.OrderID, o.CustomerID, c.CustomerName,
+                             o.OrderContactName, o.IssuedTime, o.DeliveryDate,
+                             o.GrandTotal, o.OrderStatus
+                      FROM `Order` o
+                      JOIN Customer c ON c.CustomerID = o.CustomerID
+                      WHERE o.CustomerID = @cid
+                      ORDER BY o.IssuedTime DESC";
+                using (var cmd = new MySqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@cid", customerId);
+                    using (var rdr = cmd.ExecuteReader())
+                        while (rdr.Read())
+                            list.Add(new OrderEntity
+                            {
+                                OrderID         = rdr["OrderID"]?.ToString(),
+                                CustomerID      = rdr["CustomerID"]?.ToString(),
+                                CustomerName    = rdr["CustomerName"]?.ToString(),
+                                OrderContactName = rdr["OrderContactName"]?.ToString(),
+                                IssuedTime      = rdr["IssuedTime"] != DBNull.Value
+                                                    ? Convert.ToDateTime(rdr["IssuedTime"]) : DateTime.MinValue,
+                                DeliveryDate    = rdr["DeliveryDate"] != DBNull.Value
+                                                    ? (DateTime?)Convert.ToDateTime(rdr["DeliveryDate"]) : null,
+                                GrandTotal      = rdr["GrandTotal"] != DBNull.Value
+                                                    ? Convert.ToDouble(rdr["GrandTotal"]) : 0,
+                                OrderStatus     = rdr["OrderStatus"]?.ToString()
+                            });
+                }
+            }
+            return list;
+        }
+
         private static CustomerEntity MapCustomer(MySqlDataReader rdr) => new CustomerEntity
         {
             CustomerID   = rdr["CustomerID"]?.ToString(),

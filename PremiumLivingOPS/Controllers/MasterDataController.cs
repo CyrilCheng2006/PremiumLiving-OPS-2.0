@@ -1,6 +1,7 @@
 using PremiumLivingOPS.Models.DAL;
 using PremiumLivingOPS.Models.Entities;
 using PremiumLivingOPS.Services;
+using System.Collections.Generic;
 
 namespace PremiumLivingOPS.Controllers
 {
@@ -49,7 +50,6 @@ namespace PremiumLivingOPS.Controllers
 
         public bool UpdateSupplier(string supplierId, string name, string phone, string address)
         {
-            // Snapshot OLD before overwriting
             var old = _repo.SearchSuppliers(supplierId).Find(s => s.SupplierID == supplierId);
             string oldSnap = old == null ? null :
                 AuditLogger.Snapshot(("ID", old.SupplierID), ("Name", old.SupplierName), ("Phone", old.PhoneNumber), ("Address", old.SupplierAddress));
@@ -76,6 +76,13 @@ namespace PremiumLivingOPS.Controllers
         }
 
         public string GetNextCustomerID() => _repo.GetNextCustomerID();
+
+        /// <summary>
+        /// Returns all Order header rows placed by the given customer, newest-first.
+        /// Read-only query — no audit log needed.
+        /// </summary>
+        public List<OrderEntity> GetCustomerOrders(string customerId)
+            => _repo.GetOrdersByCustomerID(customerId);
 
         public bool AddCustomer(CustomerEntity customer)
         {

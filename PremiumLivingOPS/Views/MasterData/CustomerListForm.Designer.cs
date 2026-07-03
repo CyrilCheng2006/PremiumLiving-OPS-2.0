@@ -20,6 +20,7 @@ namespace PremiumLivingOPS.Views.MasterData
         private DataGridView dgvCustomers;
         private Button       btnAddNew;
         private Button       btnModify;
+        private Button       btnViewDetail;   // ← NEW: View Order History
 
         protected override void Dispose(bool disposing)
         {
@@ -186,8 +187,8 @@ namespace PremiumLivingOPS.Views.MasterData
             pnlSearchOuter.Controls.Add(pnlCard);
 
             // ── KPI bar ───────────────────────────────────────────────────────
-            //  Left  : pnlKpi (FlowLayout of pills)  ─ DockStyle.Fill
-            //  Right : btnAddNew + btnModify SIDE-BY-SIDE, vertically centred
+            //  Left  : pnlKpi (FlowLayout of pills)       ─ DockStyle.Fill
+            //  Right : btnViewDetail + btnAddNew + btnModify SIDE-BY-SIDE, vertically centred
             pnlKpi = new Panel
             {
                 Dock      = DockStyle.Fill,
@@ -200,10 +201,20 @@ namespace PremiumLivingOPS.Views.MasterData
             const int BtnGap = 8;
             const int BtnPad = 12;
 
-            btnAddNew  = MakePrimaryGreenBtn("\u2795  Add New Customer", Point.Empty, BtnW, BtnH);
-            btnModify  = MakeWarningBtn("\u270F\uFE0F  Modify", Point.Empty, BtnW, BtnH);
-            btnAddNew.Enabled = true;
-            btnModify.Enabled = false;
+            btnViewDetail = MakePrimaryBtn("\uD83D\uDCCB  View Detail", Point.Empty, BtnW, BtnH);
+            btnAddNew     = MakePrimaryGreenBtn("\u2795  Add New Customer", Point.Empty, BtnW, BtnH);
+            btnModify     = MakeWarningBtn("\u270F\uFE0F  Modify", Point.Empty, BtnW, BtnH);
+
+            btnViewDetail.Enabled = false;
+            btnAddNew.Enabled     = true;
+            btnModify.Enabled     = false;
+
+            btnViewDetail.Click += (s, e) =>
+            {
+                int idx = dgvCustomers.CurrentRow?.Index ?? -1;
+                if (idx >= 0 && idx < _currentCustomers.Count)
+                    ShowCustomerOrdersDialog(_currentCustomers[idx]);
+            };
             btnAddNew.Click += (s, e) => ShowAddDialog();
             btnModify.Click += (s, e) =>
             {
@@ -212,10 +223,11 @@ namespace PremiumLivingOPS.Views.MasterData
                     ShowModifyDialog(idx);
             };
 
+            // Width now covers 3 buttons: ViewDetail + AddNew + Modify
             var pnlActionBtns = new Panel
             {
                 Dock      = DockStyle.Right,
-                Width     = BtnPad + BtnW + BtnGap + BtnW + BtnPad,
+                Width     = BtnPad + BtnW + BtnGap + BtnW + BtnGap + BtnW + BtnPad,
                 BackColor = Color.Transparent
             };
 
@@ -223,9 +235,11 @@ namespace PremiumLivingOPS.Views.MasterData
             {
                 int top = (pnlActionBtns.Height - BtnH) / 2;
                 if (top < 0) top = 0;
-                btnAddNew.Location = new Point(BtnPad, top);
-                btnModify.Location = new Point(BtnPad + BtnW + BtnGap, top);
+                btnViewDetail.Location = new Point(BtnPad, top);
+                btnAddNew.Location     = new Point(BtnPad + BtnW + BtnGap, top);
+                btnModify.Location     = new Point(BtnPad + BtnW + BtnGap + BtnW + BtnGap, top);
             }
+            pnlActionBtns.Controls.Add(btnViewDetail);
             pnlActionBtns.Controls.Add(btnAddNew);
             pnlActionBtns.Controls.Add(btnModify);
             pnlActionBtns.Resize += (s, e) => CentreActionBtns();
@@ -277,7 +291,9 @@ namespace PremiumLivingOPS.Views.MasterData
             dgvCustomers.Columns.Add(new DataGridViewTextBoxColumn { Name = "colPhone",        HeaderText = "PHONE",         FillWeight = 15 });
             dgvCustomers.SelectionChanged += (s, e) =>
             {
-                if (btnModify != null) btnModify.Enabled = dgvCustomers.CurrentRow != null;
+                bool hasRow = dgvCustomers.CurrentRow != null;
+                if (btnModify     != null) btnModify.Enabled     = hasRow;
+                if (btnViewDetail != null) btnViewDetail.Enabled = hasRow;
             };
             dgvCustomers.CellDoubleClick += dgvCustomers_CellDoubleClick;
 
