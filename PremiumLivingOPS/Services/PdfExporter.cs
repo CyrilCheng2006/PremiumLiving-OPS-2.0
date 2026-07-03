@@ -37,7 +37,7 @@ namespace PremiumLivingOPS.Services
         private static readonly XStringFormat FmtBottomLeft  = new XStringFormat { Alignment = XStringAlignment.Near,   LineAlignment = XLineAlignment.Far    };
         private static readonly XStringFormat FmtTopLeft     = new XStringFormat { Alignment = XStringAlignment.Near,   LineAlignment = XLineAlignment.Near   };
 
-        // ── Fonts
+        // ── Fonts (expression-body properties: new instance created AFTER FontResolver is set)
         private static XFont FontTitle  => new XFont("Arial", 18, XFontStyleEx.Bold);
         private static XFont FontSub    => new XFont("Arial", 12, XFontStyleEx.Bold);
         private static XFont FontBody   => new XFont("Arial", 10, XFontStyleEx.Regular);
@@ -46,16 +46,12 @@ namespace PremiumLivingOPS.Services
         private static XFont FontHeader => new XFont("Arial",  9, XFontStyleEx.Bold);
 
         // ── Address wrapping config
-        // Keys (lower-case) whose value may span two lines.
         private static readonly HashSet<string> WrapKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "Ship Address:", "Ship Address"
         };
-        // Pixel width available for the value column (60 % of half-page column)
-        private const double ValColW    = (ContentW / 2) * 0.60;
-        // Single-row height; address rows get double this
-        private const double RowH      = 16;
-        private const double AddrRowH  = RowH * 2;   // 32 px – room for two lines
+        private const double RowH     = 16;
+        private const double AddrRowH = RowH * 2;   // 32 px – room for two lines
 
         // ══ Public export entry-points ══════════════════════════════════════════
 
@@ -98,7 +94,7 @@ namespace PremiumLivingOPS.Services
             {
                 ("Delivery Date:",   dn.DeliveryDate.ToString("yyyy-MM-dd")),
                 ("Ship To:",         ship.CustomerName     ?? ""),
-                ("Ship Address:",    ship.ShippingAddress  ?? "\u2014"),   // wraps to 2 lines
+                ("Ship Address:",    ship.ShippingAddress  ?? "\u2014"),
                 ("Outstanding Qty:", outQty.ToString()),
                 ("Delivery Method:", ship.DeliveryMethod   ?? ""),
                 ("Shipment Type:",   ship.ShipmentType     ?? ""),
@@ -143,7 +139,7 @@ namespace PremiumLivingOPS.Services
             {
                 ("Actual Recipient:", rs.ActualRecipient   ?? "\u2014"),
                 ("Remark:",           rs.RecipientRemark   ?? "\u2014"),
-                ("Ship Address:",     ship.ShippingAddress ?? "\u2014"),   // wraps to 2 lines
+                ("Ship Address:",     ship.ShippingAddress ?? "\u2014"),
                 ("Total Amount:",     $"HK$ {ship.TotalAmount:N2}"),
             });
             y = DrawItemsTable(gfx, y, s.Lines);
@@ -178,9 +174,8 @@ namespace PremiumLivingOPS.Services
 
         /// <summary>
         /// Renders a two-column info block.
-        /// Fields whose key matches <see cref="WrapKeys"/> get double row height
-        /// and their value is split across two lines using
-        /// <see cref="WrapText(XGraphics, string, XFont, double)"/>.
+        /// Fields whose key is in <see cref="WrapKeys"/> get double row height
+        /// and their value is word-wrapped across two lines.
         /// </summary>
         private static double DrawInfoBlock(
             XGraphics gfx, double y, (string key, string val)[] fields)
@@ -189,27 +184,21 @@ namespace PremiumLivingOPS.Services
             double colW   = ContentW / 2;
             double startY = y;
 
-            // Pre-compute cumulative Y offsets for each column
-            // (fields 0..half-1 go left; half..end go right)
+            // Pre-compute cumulative Y offsets for left and right columns
             double[] leftY  = new double[half];
             double[] rightY = new double[fields.Length - half];
-
             double accumL = 0, accumR = 0;
             for (int i = 0; i < fields.Length; i++)
             {
-                bool isWrap = WrapKeys.Contains(fields[i].key);
-                double h    = isWrap ? AddrRowH : RowH;
+                double h = WrapKeys.Contains(fields[i].key) ? AddrRowH : RowH;
                 if (i < half) { leftY[i]        = accumL; accumL += h; }
                 else          { rightY[i - half] = accumR; accumR += h; }
             }
-
             double blockH = Math.Max(accumL, accumR);
 
-            // Draw each field
             for (int i = 0; i < fields.Length; i++)
             {
                 bool   isWrap = WrapKeys.Contains(fields[i].key);
-                double h      = isWrap ? AddrRowH : RowH;
                 double cx     = (i < half) ? Margin : Margin + colW;
                 double offset = (i < half) ? leftY[i] : rightY[i - half];
                 double cy     = startY + offset;
@@ -220,13 +209,12 @@ namespace PremiumLivingOPS.Services
 
                 if (isWrap)
                 {
-                    // Split value into two lines and draw each at top-align
-                    var lines = WrapText(gfx, fields[i].val, FontBody(), colW * 0.60);
-                    double lineH = RowH;
-                    for (int li = 0; li < Math.Min(lines.Count, 2); li++)
+                    // FontBody is a property (not a method) — no parentheses
+                    var wrappedLines = WrapText(gfx, fields[i].val, FontBody, colW * 0.60);
+                    for (int li = 0; li < Math.Min(wrappedLines.Count, 2); li++)
                     {
-                        gfx.DrawString(lines[li], FontBody, new XSolidBrush(BodyFg),
-                            new XRect(cx + colW * 0.38, cy + li * lineH, colW * 0.60, lineH),
+                        gfx.DrawString(wrappedLines[li], FontBody, new XSolidBrush(BodyFg),
+                            new XRect(cx + colW * 0.38, cy + li * RowH, colW * 0.60, RowH),
                             FmtCenterLeft);
                     }
                 }
@@ -243,11 +231,11 @@ namespace PremiumLivingOPS.Services
         }
 
         /// <summary>
-        /// Word-wraps <paramref name="text"/> into lines that each fit within
-        /// <paramref name="maxWidth"/> pixels when rendered with <paramref name="font"/>.
-        /// Returns at most 2 lines; any overflow is appended with … on line 2.
+        /// Word-wraps <paramref name="text"/> to fit within <paramref name="maxWidth"/>.
+        /// Returns at most 2 lines; overflow on line 2 is trimmed with ….
         /// </summary>
-        private static List<string> WrapText(XGraphics gfx, string text, XFont font, double maxWidth)
+        private static List<string> WrapText(
+            XGraphics gfx, string text, XFont font, double maxWidth)
         {
             var result = new List<string>();
             if (string.IsNullOrEmpty(text)) { result.Add(""); return result; }
@@ -257,9 +245,11 @@ namespace PremiumLivingOPS.Services
 
             foreach (string word in words)
             {
-                string candidate = string.IsNullOrEmpty(current) ? word : current + " " + word;
-                double w = gfx.MeasureString(candidate, font).Width;
-                if (w <= maxWidth)
+                string candidate = string.IsNullOrEmpty(current)
+                    ? word
+                    : current + " " + word;
+
+                if (gfx.MeasureString(candidate, font).Width <= maxWidth)
                 {
                     current = candidate;
                 }
@@ -268,22 +258,25 @@ namespace PremiumLivingOPS.Services
                     if (!string.IsNullOrEmpty(current))
                         result.Add(current);
                     current = word;
-                    if (result.Count >= 2) break; // hard cap at 2 lines
+                    if (result.Count >= 2) break;
                 }
             }
+
             if (!string.IsNullOrEmpty(current))
             {
                 if (result.Count < 2)
                     result.Add(current);
                 else
                 {
-                    // Overflow: append ellipsis to line 2
+                    // Trim line 2 to fit, then append ellipsis
                     string last = result[1];
-                    while (last.Length > 0 && gfx.MeasureString(last + "\u2026", font).Width > maxWidth)
+                    while (last.Length > 0 &&
+                           gfx.MeasureString(last + "\u2026", font).Width > maxWidth)
                         last = last.Substring(0, last.Length - 1);
                     result[1] = last + "\u2026";
                 }
             }
+
             if (result.Count == 0) result.Add(text);
             return result;
         }
