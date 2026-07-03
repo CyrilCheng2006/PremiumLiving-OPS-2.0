@@ -281,6 +281,17 @@ namespace PremiumLivingOPS.Controllers
         }
 
         // ── CSV Import: Receipt ───────────────────────────────────
+        /// <summary>
+        /// Parses and validates the CSV file, then delegates to BulkInsertReceipts.
+        ///
+        /// FIX 3 — UTF-8 BOM stripping:
+        ///   Files saved from Excel contain a BOM (\uFEFF) at byte 0.
+        ///   Without stripping, FindCol("PurchaseID") fails because the first
+        ///   header token becomes "\uFEFFPurchaseID", triggering the
+        ///   "CSV header must contain…" error even for valid files.
+        ///   Fix: read with UTF8Encoding(detectEncodingFromByteOrderMarks: true)
+        ///   and explicitly trim \uFEFF from header[0].
+        /// </summary>
         public ReceiptImportResult ImportReceiptsFromCsv(string filePath)
         {
             var result    = new ReceiptImportResult();
@@ -290,7 +301,12 @@ namespace PremiumLivingOPS.Controllers
             { result.Errors.Add("File not found: " + filePath); return result; }
 
             string[] lines;
-            try   { lines = File.ReadAllLines(filePath); }
+            try
+            {
+                // FIX 3: use BOM-aware UTF-8 reader so Excel-exported CSVs parse correctly
+                lines = File.ReadAllLines(filePath,
+                    new System.Text.UTF8Encoding(detectEncodingFromByteOrderMarks: true));
+            }
             catch (Exception ex)
             { result.Errors.Add("Cannot read file: " + ex.Message); return result; }
 
@@ -298,6 +314,11 @@ namespace PremiumLivingOPS.Controllers
             { result.Errors.Add("CSV file has no data rows."); return result; }
 
             var header = lines[0].Split(',');
+
+            // FIX 3: strip any remaining BOM from the very first header token
+            if (header.Length > 0)
+                header[0] = header[0].TrimStart('\uFEFF').Trim();
+
             int idxPurchaseID  = FindCol(header, "PurchaseID");
             int idxPOLineID    = FindCol(header, "POLineID");
             int idxQtyReceived = FindCol(header, "QtyReceived");

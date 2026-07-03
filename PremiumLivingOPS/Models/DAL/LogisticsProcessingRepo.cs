@@ -3,6 +3,7 @@ using PremiumLivingOPS.Models.Entities;
 using PremiumLivingOPS.Models.ViewModels;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace PremiumLivingOPS.Models.DAL
 {
@@ -780,15 +781,33 @@ namespace PremiumLivingOPS.Models.DAL
             return Convert.ToInt32(cmd.ExecuteScalar()) > 0;
         }
 
+        /// <summary>
+        /// Bulk-inserts validated receipt rows and auto-updates PurchaseOrder.PurchaseStatus.
+        ///
+        /// FIX 1 — ReceiptID collision:
+        ///   Old: "RCP-" + DateTime.Now.ToString("yyyyMMdd-HHmmss") + "-" + count
+        ///        → duplicate key when multiple rows inserted within the same second.
+        ///   New: "REC-" + row.ReceiptDate (yyyyMMdd) + "-" + row.RowNumber (D4)
+        ///        → uniqueness guaranteed by the RowNumber assigned during CSV parse.
+        ///
+        /// FIX 2 — PurchaseStatus never updated:
+        ///   After all inserts, for each distinct PurchaseID in the batch, compare
+        ///   SUM(Receipt.QtyReceived) vs SUM(PurchaseOrderLine.OrderQty).
+        ///   → 'Completed' when fully received, 'Partially Received' otherwise.
+        /// </summary>
         public int BulkInsertReceipts(List<ReceiptImportRow> rows)
         {
             using var conn = DatabaseHelper.GetConnection();
             conn.Open();
             using var tx = conn.BeginTransaction();
             int count = 0;
+
+            // ── FIX 1: collision-free ReceiptID ──────────────────────
             foreach (var row in rows)
             {
-                string newId = "RCP-" + DateTime.Now.ToString("yyyyMMdd-HHmmss") + "-" + count;
+                // REC-{ReceiptDate:yyyyMMdd}-{RowNumber:D4}  e.g. REC-20260704-0001
+                string newId = $"REC-{row.ReceiptDate:yyyyMMdd}-{row.RowNumber:D4}";
+
                 var ins = new MySqlCommand(@"
                     INSERT INTO Receipt(ReceiptID,PurchaseID,POLineID,QtyReceived,ReceiptDate,Outstanding_QTY)
                     VALUES(@rid,@pid,@lid,@qty,@dt,@out)", conn, tx);
@@ -801,6 +820,44 @@ namespace PremiumLivingOPS.Models.DAL
                 ins.ExecuteNonQuery();
                 count++;
             }
+
+            // ── FIX 2: auto-update PurchaseOrder.PurchaseStatus ──────
+            var purchaseIds = rows.Select(r => r.PurchaseID).Distinct();
+            foreach (var pid in purchaseIds)
+            {
+                // Compare total ordered qty vs total received qty for this PO
+                var checkCmd = new MySqlCommand(@"
+                    SELECT
+                        COALESCE(SUM(pol.OrderQty), 0)    AS TotalOrdered,
+                        COALESCE(SUM(r.QtyReceived), 0)   AS TotalReceived
+                    FROM  PurchaseOrderLine pol
+                    LEFT JOIN Receipt r ON r.POLineID = pol.POLineID
+                    WHERE pol.PurchaseID = @pid", conn, tx);
+                checkCmd.Parameters.AddWithValue("@pid", pid);
+
+                using var crd = checkCmd.ExecuteReader();
+                if (crd.Read())
+                {
+                    int totalOrdered  = crd.GetInt32("TotalOrdered");
+                    int totalReceived = crd.GetInt32("TotalReceived");
+                    crd.Close();
+
+                    string newStatus = (totalOrdered > 0 && totalReceived >= totalOrdered)
+                        ? "Completed"
+                        : "Partially Received";
+
+                    var updCmd = new MySqlCommand(@"
+                        UPDATE PurchaseOrder
+                        SET    PurchaseStatus = @s
+                        WHERE  PurchaseID     = @pid
+                          AND  PurchaseStatus NOT IN ('Cancelled')",
+                        conn, tx);
+                    updCmd.Parameters.AddWithValue("@s",   newStatus);
+                    updCmd.Parameters.AddWithValue("@pid", pid);
+                    updCmd.ExecuteNonQuery();
+                }
+            }
+
             tx.Commit();
             return count;
         }
