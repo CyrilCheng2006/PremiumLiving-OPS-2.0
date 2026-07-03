@@ -15,7 +15,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
     /// View Shipment — main list form for Logistics Processing.
     ///
     /// Button state machine (per selected row):
-    /// ──────────────────────────────────────────────
+    /// ──────────────────────────────────────────────────────────────
     /// btnGenDeliveryNote:
     ///   • No row selected         → disabled, green  "📄  Delivery Note"
     ///   • Row, DN == null          → enabled,  green  "📄  Delivery Note"   (Generate)
@@ -224,9 +224,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
         private void btnScheduleShipment_Click(object sender, EventArgs e)
         {
-            int idx = dgvShipments.SelectedRows[0].Index;
-            if (idx < 0 || idx >= _shipments.Count) return;
-            using var dlg = new ScheduleShipmentDialog(_shipments[idx].ShipmentID);
+            // ScheduleShipmentDialog takes only the controller — it lets the user
+            // pick an order from scratch inside a 2-step wizard.
+            using var dlg = new ScheduleShipmentDialog(_ctrl);
             if (dlg.ShowDialog(this) == DialogResult.OK) RefreshGrid();
         }
 
