@@ -62,8 +62,10 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
         private void ViewShipmentForm_Load(object sender, EventArgs e)
         {
-            _shell.MenuItemClicked += OnTopNavMenuItemClicked;
-            _shell.LogoutClicked   += btnLogout_Click;
+            // NOTE: MenuItemClicked and LogoutClicked are already subscribed
+            // once in Designer.cs (RULE 4).  Do NOT re-subscribe here —
+            // double-subscription caused the old no-op handler to intercept
+            // navigation events before FormNavigator could act on them.
             RefreshGrid();
         }
 
@@ -306,10 +308,11 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 RefreshGrid();
         }
 
-        private void OnTopNavMenuItemClicked(object sender, string tag)
-        {
-            // Navigation handled by AppShell
-        }
+        // ── Top Nav Bar navigation
+        // Signature must match AppShell's Action<string, string> delegate —
+        // same as HandlingGoodsReceivedForm.OnTopNavMenuItemClicked.
+        private void OnTopNavMenuItemClicked(string menu, string subItem)
+            => FormNavigator.NavigateTo(this, menu, subItem);
 
         // ── Dialog builders
         private void ShowViewDetailDialog(ShipmentDetailVM detail)
