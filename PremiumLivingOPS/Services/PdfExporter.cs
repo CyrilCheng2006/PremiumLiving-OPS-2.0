@@ -15,9 +15,9 @@ namespace PremiumLivingOPS.Services
     public static class PdfExporter
     {
         // ── Page geometry (A4 landscape)
-        private const double PageW  = 841.89;   // pts
-        private const double PageH  = 595.28;
-        private const double Margin = 40.0;
+        private const double PageW    = 841.89;
+        private const double PageH    = 595.28;
+        private const double Margin   = 40.0;
         private const double ContentW = PageW - Margin * 2;
 
         // ── Colours
@@ -29,6 +29,12 @@ namespace PremiumLivingOPS.Services
         private static readonly XColor BodyFg   = XColor.FromArgb(15,  31,  53);
         private static readonly XColor BorderCl = XColor.FromArgb(221, 227, 236);
         private static readonly XColor White    = XColors.White;
+
+        // ── String format helpers (PdfSharp 6.x API)
+        private static readonly XStringFormat FmtCenterLeft  = new XStringFormat { Alignment = XStringAlignment.Near,   LineAlignment = XLineAlignment.Center };
+        private static readonly XStringFormat FmtCenter      = new XStringFormat { Alignment = XStringAlignment.Center, LineAlignment = XLineAlignment.Center };
+        private static readonly XStringFormat FmtCenterRight = new XStringFormat { Alignment = XStringAlignment.Far,    LineAlignment = XLineAlignment.Center };
+        private static readonly XStringFormat FmtBottomLeft  = new XStringFormat { Alignment = XStringAlignment.Near,   LineAlignment = XLineAlignment.Far    };
 
         // ── Fonts
         private static XFont FontTitle  => new XFont("Arial", 18, XFontStyleEx.Bold);
@@ -44,10 +50,11 @@ namespace PremiumLivingOPS.Services
         public static void ExportDeliveryNote(ShipmentDetailVM s, string filePath)
         {
             var ship = s.Shipment;
-            var dn   = s.DeliveryNote ?? throw new InvalidOperationException("No Delivery Note on this shipment.");
+            var dn   = s.DeliveryNote
+                ?? throw new InvalidOperationException("No Delivery Note on this shipment.");
 
             int outQty = 0;
-            foreach (var ln in s.Lines ?? new System.Collections.Generic.List<PremiumLivingOPS.Models.Entities.ShipmentLineEntity>())
+            foreach (var ln in s.Lines ?? new List<PremiumLivingOPS.Models.Entities.ShipmentLineEntity>())
                 outQty += ln.QtyOutstanding ?? 0;
 
             using var doc  = new PdfDocument();
@@ -58,45 +65,37 @@ namespace PremiumLivingOPS.Services
             using var gfx = XGraphics.FromPdfPage(page);
 
             double y = Margin;
-
-            // ── Navy header bar
             y = DrawNavyHeader(gfx, y,
                 $"Delivery Note  \u2014  {dn.DeliveryID}",
                 ship.ShipmentStatus ?? "");
 
-            // ── Shipment info block
             y = DrawInfoBlock(gfx, y, new[]
             {
-                ("Shipment ID:",    ship.ShipmentID       ?? ""),
-                ("Order ID:",       ship.OrderID          ?? ""),
-                ("Customer:",       ship.CustomerName     ?? ""),
-                ("Ship Date:",      ship.ShipDate.ToString("yyyy-MM-dd")),
-                ("Status:",         ship.ShipmentStatus   ?? ""),
-                ("Delivery Method:",ship.DeliveryMethod   ?? ""),
-                ("Ship Type:",      ship.ShipmentType     ?? ""),
-                ("Tracking No.:",   ship.TrackingNumber   ?? "\u2014"),
+                ("Shipment ID:",     ship.ShipmentID        ?? ""),
+                ("Order ID:",        ship.OrderID           ?? ""),
+                ("Customer:",        ship.CustomerName      ?? ""),
+                ("Ship Date:",       ship.ShipDate.ToString("yyyy-MM-dd")),
+                ("Status:",          ship.ShipmentStatus    ?? ""),
+                ("Delivery Method:", ship.DeliveryMethod    ?? ""),
+                ("Ship Type:",       ship.ShipmentType      ?? ""),
+                ("Tracking No.:",    ship.TrackingNumber    ?? "\u2014"),
             });
 
-            // ── DN detail block
             y = DrawSectionBadge(gfx, y,
                 $"Delivery Note  \u2014  {dn.DeliveryID}   (Date: {dn.DeliveryDate:yyyy-MM-dd})");
 
             y = DrawInfoBlock(gfx, y, new[]
             {
                 ("Delivery Date:",   dn.DeliveryDate.ToString("yyyy-MM-dd")),
-                ("Ship To:",         ship.CustomerName  ?? ""),
-                ("Ship Address:",    ship.ShippingAddress ?? "\u2014"),
+                ("Ship To:",         ship.CustomerName     ?? ""),
+                ("Ship Address:",    ship.ShippingAddress  ?? "\u2014"),
                 ("Outstanding Qty:", outQty.ToString()),
-                ("Delivery Method:", ship.DeliveryMethod ?? ""),
-                ("Shipment Type:",   ship.ShipmentType  ?? ""),
+                ("Delivery Method:", ship.DeliveryMethod   ?? ""),
+                ("Shipment Type:",   ship.ShipmentType     ?? ""),
             });
 
-            // ── Line items table
             y = DrawItemsTable(gfx, y, s.Lines);
-
-            // ── Totals footer
             DrawTotalsFooter(gfx, s.Lines?.Count ?? 0, ship.TotalAmount);
-
             doc.Save(filePath);
         }
 
@@ -106,7 +105,8 @@ namespace PremiumLivingOPS.Services
         public static void ExportReplySlip(ShipmentDetailVM s, string filePath)
         {
             var ship = s.Shipment;
-            var rs   = s.ReplySlip ?? throw new InvalidOperationException("No Reply Slip on this shipment.");
+            var rs   = s.ReplySlip
+                ?? throw new InvalidOperationException("No Reply Slip on this shipment.");
 
             using var doc  = new PdfDocument();
             doc.Info.Title = $"Reply Slip {rs.SlipID}";
@@ -116,43 +116,35 @@ namespace PremiumLivingOPS.Services
             using var gfx = XGraphics.FromPdfPage(page);
 
             double y = Margin;
-
-            // ── Navy header bar
             y = DrawNavyHeader(gfx, y,
                 $"Reply Slip  \u2014  {rs.SlipID}",
                 ship.ShipmentStatus ?? "");
 
-            // ── Shipment info block
             y = DrawInfoBlock(gfx, y, new[]
             {
-                ("Shipment ID:",   ship.ShipmentID     ?? ""),
-                ("Order ID:",      ship.OrderID        ?? ""),
-                ("Customer:",      ship.CustomerName   ?? ""),
-                ("Ship Date:",     ship.ShipDate.ToString("yyyy-MM-dd")),
-                ("Delivery Note:", s.DeliveryNote?.DeliveryID ?? "\u2014"),
-                ("Delivery Method:",ship.DeliveryMethod ?? ""),
-                ("Ship Type:",     ship.ShipmentType   ?? ""),
-                ("Tracking No.:",  ship.TrackingNumber ?? "\u2014"),
+                ("Shipment ID:",     ship.ShipmentID      ?? ""),
+                ("Order ID:",        ship.OrderID         ?? ""),
+                ("Customer:",        ship.CustomerName    ?? ""),
+                ("Ship Date:",       ship.ShipDate.ToString("yyyy-MM-dd")),
+                ("Delivery Note:",   s.DeliveryNote?.DeliveryID ?? "\u2014"),
+                ("Delivery Method:", ship.DeliveryMethod  ?? ""),
+                ("Ship Type:",       ship.ShipmentType    ?? ""),
+                ("Tracking No.:",    ship.TrackingNumber  ?? "\u2014"),
             });
 
-            // ── Reply Slip detail block
             y = DrawSectionBadge(gfx, y,
                 $"Reply Slip  \u2014  {rs.SlipID}   (Received: {rs.ReceivedDate:yyyy-MM-dd})");
 
             y = DrawInfoBlock(gfx, y, new[]
             {
-                ("Actual Recipient:", rs.ActualRecipient  ?? "\u2014"),
-                ("Remark:",           rs.RecipientRemark  ?? "\u2014"),
+                ("Actual Recipient:", rs.ActualRecipient   ?? "\u2014"),
+                ("Remark:",           rs.RecipientRemark   ?? "\u2014"),
                 ("Ship Address:",     ship.ShippingAddress ?? "\u2014"),
                 ("Total Amount:",     $"HK$ {ship.TotalAmount:N2}"),
             });
 
-            // ── Line items table
             y = DrawItemsTable(gfx, y, s.Lines);
-
-            // ── Totals footer
             DrawTotalsFooter(gfx, s.Lines?.Count ?? 0, ship.TotalAmount);
-
             doc.Save(filePath);
         }
 
@@ -160,34 +152,35 @@ namespace PremiumLivingOPS.Services
         //  Shared drawing helpers
         // ════════════════════════════════════════════════════════════════
 
-        private static double DrawNavyHeader(XGraphics gfx, double y, string title, string status)
+        private static double DrawNavyHeader(
+            XGraphics gfx, double y, string title, string status)
         {
-            double h = 44;
+            const double h = 44;
             gfx.DrawRectangle(new XSolidBrush(NavyBg), Margin, y, ContentW, h);
             gfx.DrawString(title, FontTitle, new XSolidBrush(White),
-                new XRect(Margin + 12, y, ContentW - 120, h), XStringFormats.MiddleLeft);
+                new XRect(Margin + 12, y, ContentW - 120, h), FmtCenterLeft);
             if (!string.IsNullOrEmpty(status))
                 gfx.DrawString(status, FontSub, new XSolidBrush(GreenFg),
-                    new XRect(PageW - Margin - 100, y, 88, h), XStringFormats.MiddleCenter);
+                    new XRect(PageW - Margin - 100, y, 88, h), FmtCenter);
             return y + h + 6;
         }
 
-        private static double DrawSectionBadge(XGraphics gfx, double y, string text)
+        private static double DrawSectionBadge(
+            XGraphics gfx, double y, string text)
         {
-            double h = 22;
+            const double h = 22;
             gfx.DrawRectangle(new XSolidBrush(GreenBg), Margin, y, ContentW, h);
             gfx.DrawString(text, FontBold, new XSolidBrush(GreenFg),
-                new XRect(Margin + 8, y, ContentW, h), XStringFormats.MiddleLeft);
+                new XRect(Margin + 8, y, ContentW, h), FmtCenterLeft);
             return y + h + 4;
         }
 
-        private static double DrawInfoBlock(XGraphics gfx, double y,
-            (string key, string val)[] fields)
+        private static double DrawInfoBlock(
+            XGraphics gfx, double y, (string key, string val)[] fields)
         {
-            // Two-column grid: left col takes first half, right col second half
-            int half    = (fields.Length + 1) / 2;
-            double colW = ContentW / 2;
-            double rowH = 16;
+            int    half   = (fields.Length + 1) / 2;
+            double colW   = ContentW / 2;
+            double rowH   = 16;
             double startY = y;
 
             for (int i = 0; i < fields.Length; i++)
@@ -196,14 +189,14 @@ namespace PremiumLivingOPS.Services
                 double cy = startY + (i < half ? i : i - half) * rowH;
 
                 gfx.DrawString(fields[i].key, FontBold, new XSolidBrush(LabelFg),
-                    new XRect(cx, cy, colW * 0.38, rowH), XStringFormats.MiddleLeft);
+                    new XRect(cx, cy, colW * 0.38, rowH), FmtCenterLeft);
                 gfx.DrawString(fields[i].val, FontBody, new XSolidBrush(BodyFg),
-                    new XRect(cx + colW * 0.38, cy, colW * 0.60, rowH), XStringFormats.MiddleLeft);
+                    new XRect(cx + colW * 0.38, cy, colW * 0.60, rowH), FmtCenterLeft);
             }
 
             double blockH = half * rowH;
-            // Bottom border line
-            gfx.DrawLine(new XPen(BorderCl, 0.5), Margin, startY + blockH, Margin + ContentW, startY + blockH);
+            gfx.DrawLine(new XPen(BorderCl, 0.5),
+                Margin, startY + blockH, Margin + ContentW, startY + blockH);
             return startY + blockH + 8;
         }
 
@@ -211,10 +204,9 @@ namespace PremiumLivingOPS.Services
             XGraphics gfx, double y,
             List<PremiumLivingOPS.Models.Entities.ShipmentLineEntity>? lines)
         {
-            // Column widths (pts)
-            double[] colW = { 90, 80, ContentW - 90 - 80 - 80 - 80, 80, 80 };
+            double[] colW  = { 90, 80, ContentW - 90 - 80 - 80 - 80, 80, 80 };
             string[] heads = { "LINE ID", "ITEM ID", "ITEM NAME", "QTY SHIPPED", "OUTSTANDING" };
-            double rowH = 18, headH = 22;
+            const double rowH = 18, headH = 22;
 
             // Header row
             gfx.DrawRectangle(new XSolidBrush(XColor.FromArgb(246, 249, 255)),
@@ -223,17 +215,19 @@ namespace PremiumLivingOPS.Services
             foreach (var (w, h) in Zip(colW, heads))
             {
                 gfx.DrawString(h, FontHeader, new XSolidBrush(LabelFg),
-                    new XRect(cx, y, w - 4, headH), XStringFormats.MiddleLeft);
+                    new XRect(cx, y, w - 4, headH), FmtCenterLeft);
                 cx += w;
             }
             y += headH;
 
             // Data rows
             bool alt = false;
-            foreach (var ln in lines ?? new List<PremiumLivingOPS.Models.Entities.ShipmentLineEntity>())
+            foreach (var ln in lines
+                ?? new List<PremiumLivingOPS.Models.Entities.ShipmentLineEntity>())
             {
                 if (alt)
-                    gfx.DrawRectangle(new XSolidBrush(XColor.FromArgb(250, 252, 255)),
+                    gfx.DrawRectangle(
+                        new XSolidBrush(XColor.FromArgb(250, 252, 255)),
                         Margin, y, ContentW, rowH);
 
                 string[] vals =
@@ -248,37 +242,40 @@ namespace PremiumLivingOPS.Services
                 foreach (var (w, v) in Zip(colW, vals))
                 {
                     gfx.DrawString(v, FontBody, new XSolidBrush(BodyFg),
-                        new XRect(cx, y, w - 4, rowH), XStringFormats.MiddleLeft);
+                        new XRect(cx, y, w - 4, rowH), FmtCenterLeft);
                     cx += w;
                 }
 
-                // Row bottom border
-                gfx.DrawLine(new XPen(BorderCl, 0.3), Margin, y + rowH, Margin + ContentW, y + rowH);
+                gfx.DrawLine(new XPen(BorderCl, 0.3),
+                    Margin, y + rowH, Margin + ContentW, y + rowH);
                 y += rowH;
                 alt = !alt;
             }
             return y + 4;
         }
 
-        private static void DrawTotalsFooter(XGraphics gfx, int lineCount, double total)
+        private static void DrawTotalsFooter(
+            XGraphics gfx, int lineCount, double total)
         {
             double y = PageH - Margin - 20;
-            gfx.DrawLine(new XPen(BorderCl, 0.5), Margin, y - 2, Margin + ContentW, y - 2);
+            gfx.DrawLine(new XPen(BorderCl, 0.5),
+                Margin, y - 2, Margin + ContentW, y - 2);
+
             gfx.DrawString($"Shipment Lines:  {lineCount}",
                 FontBold, new XSolidBrush(BodyFg),
-                new XRect(Margin, y, ContentW / 2, 16), XStringFormats.MiddleLeft);
+                new XRect(Margin, y, ContentW / 2, 16), FmtCenterLeft);
+
             gfx.DrawString($"Total Amount:  HK$ {total:N2}",
                 FontBold, new XSolidBrush(BlueFg),
-                new XRect(Margin + ContentW / 2, y, ContentW / 2, 16), XStringFormats.MiddleRight);
+                new XRect(Margin + ContentW / 2, y, ContentW / 2, 16), FmtCenterRight);
 
-            // Footer note
             gfx.DrawString(
                 $"Generated by PremiumLiving OPS  \u2022  {DateTime.Now:yyyy-MM-dd HH:mm}",
                 FontSmall, new XSolidBrush(LabelFg),
-                new XRect(Margin, PageH - Margin - 2, ContentW, 10), XStringFormats.BottomLeft);
+                new XRect(Margin, PageH - Margin - 2, ContentW, 10), FmtBottomLeft);
         }
 
-        // ── Mini zip helper (avoids System.Linq dependency conflict)
+        // ── Mini zip helper
         private static IEnumerable<(T1, T2)> Zip<T1, T2>(T1[] a, T2[] b)
         {
             int len = Math.Min(a.Length, b.Length);
