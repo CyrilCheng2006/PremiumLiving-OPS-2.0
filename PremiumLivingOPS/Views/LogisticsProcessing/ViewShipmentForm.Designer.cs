@@ -209,124 +209,106 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             //  KPI bar + action buttons
-            //  Five buttons (290×60 each, gap 8, pad 12 both sides)
-            //  Panel width = 12 + (290+8)*4 + 290 + 12 = 1506 px
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             pnlKpi = new Panel
             {
-                Dock = DockStyle.Fill, BackColor = Color.Transparent,
-                Padding = new Padding(12, 10, 12, 10)
+                Dock = DockStyle.Left, Width = 700,
+                BackColor = Color.Transparent
             };
 
-            const int BtnW   = 290;
-            const int BtnH   = 60;
-            const int BtnGap = 8;
-            const int BtnPad = 12;
+            btnViewDetail = MakePrimaryBtn("🔍  View Details",    new Point(0,   0), 200, 60);
+            btnModify     = MakeOutlineBtn("✏️  Modify",           new Point(208, 0), 170, 60);
+            btnGenDeliveryNote = MakeOutlineBtn("📄  Delivery Note",  new Point(386, 0), 200, 60);
+            btnGenReplySlip    = MakeOutlineBtn("📋  Reply Slip",     new Point(594, 0), 170, 60);
+            btnScheduleShipment = new Button
+            {
+                Text      = "🚚  Schedule Shipment",
+                Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
+                ForeColor = Color.White,
+                BackColor = Color.FromArgb(108, 60, 193),
+                FlatStyle = FlatStyle.Flat,
+                Location  = new Point(772, 0),
+                Width     = 290,
+                Height    = 60,
+                Cursor    = Cursors.Hand
+            };
+            btnScheduleShipment.FlatAppearance.BorderSize         = 0;
+            btnScheduleShipment.FlatAppearance.MouseOverBackColor = Color.FromArgb(88, 44, 163);
 
-            btnViewDetail       = MakePrimaryBtn("\U0001F50D  View Details",  Point.Empty, BtnW, BtnH);
-            btnModify           = MakeWarningBtn("\u270F  Modify",            Point.Empty, BtnW, BtnH);
-            btnGenDeliveryNote  = MakeSuccessBtn("\U0001F4C4  Delivery Note", Point.Empty, BtnW, BtnH);
-            btnGenReplySlip     = MakeSuccessBtn("\U0001F9FE  Reply Slip",    Point.Empty, BtnW, BtnH);
-            btnScheduleShipment = MakePurpleBtn( "\U0001F4C5  Schedule",      Point.Empty, BtnW, BtnH);
-
-            btnViewDetail.Enabled       = false;
-            btnModify.Enabled           = false;
-            btnGenDeliveryNote.Enabled  = false;
-            btnGenReplySlip.Enabled     = false;
-            btnScheduleShipment.Enabled = false;
-
-            btnViewDetail.Click       += btnViewDetail_Click;
-            btnModify.Click           += btnModify_Click;
-            btnGenDeliveryNote.Click  += btnGenDeliveryNote_Click;
-            btnGenReplySlip.Click     += btnGenReplySlip_Click;
-            btnScheduleShipment.Click += btnScheduleShipment_Click;
+            btnViewDetail.Click       += (s, e) => ShowViewDetail();
+            btnModify.Click           += (s, e) => ShowModifyShipment();
+            btnGenDeliveryNote.Click  += (s, e) => ShowGenDeliveryNote();
+            btnGenReplySlip.Click     += (s, e) => ShowGenReplySlip();
+            btnScheduleShipment.Click += (s, e) => ShowScheduleShipment();
 
             var pnlActionBtns = new Panel
             {
-                Dock      = DockStyle.Right,
-                Width     = BtnPad + BtnW + BtnGap + BtnW + BtnGap + BtnW + BtnGap + BtnW + BtnGap + BtnW + BtnPad,
+                Dock = DockStyle.Fill,
                 BackColor = Color.Transparent
             };
-            void CentreActionBtns()
-            {
-                int top = (pnlActionBtns.Height - BtnH) / 2;
-                if (top < 0) top = 0;
-                btnViewDetail.Location       = new Point(BtnPad,                       top);
-                btnModify.Location           = new Point(BtnPad + (BtnW + BtnGap),     top);
-                btnGenDeliveryNote.Location  = new Point(BtnPad + (BtnW + BtnGap) * 2, top);
-                btnGenReplySlip.Location     = new Point(BtnPad + (BtnW + BtnGap) * 3, top);
-                btnScheduleShipment.Location = new Point(BtnPad + (BtnW + BtnGap) * 4, top);
-            }
             pnlActionBtns.Controls.Add(btnViewDetail);
             pnlActionBtns.Controls.Add(btnModify);
             pnlActionBtns.Controls.Add(btnGenDeliveryNote);
             pnlActionBtns.Controls.Add(btnGenReplySlip);
             pnlActionBtns.Controls.Add(btnScheduleShipment);
-            pnlActionBtns.Resize += (s, e) => CentreActionBtns();
 
-            var pnlKpiRow = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
+            var pnlKpiRow = new Panel
+            {
+                Dock = DockStyle.Fill,
+                BackColor = Color.Transparent
+            };
             pnlKpiRow.Controls.Add(pnlKpi);
             pnlKpiRow.Controls.Add(pnlActionBtns);
 
-            var pnlKpiInner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
+            var pnlKpiInner = new Panel
+            {
+                Dock = DockStyle.Fill, BackColor = Color.White,
+                Padding = new Padding(18, 10, 18, 10)
+            };
             pnlKpiInner.Paint += PaintCardBorder;
             pnlKpiInner.Controls.Add(pnlKpiRow);
 
             var pnlKpiOuter = new Panel
             {
-                Dock = DockStyle.Top, Height = 90,
+                Dock = DockStyle.Top, Height = 100,
                 BackColor = Color.FromArgb(240, 244, 249),
-                Padding = new Padding(20, 8, 20, 8)
+                Padding = new Padding(20, 0, 20, 8)
             };
             pnlKpiOuter.Controls.Add(pnlKpiInner);
 
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            //  Shipment Grid — 6 columns (Tracking No. removed)
+            //  Main grid card
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             dgvShipments = new DataGridView
             {
-                ReadOnly = true, AllowUserToAddRows = false, AllowUserToDeleteRows = false,
-                RowHeadersVisible = false,
-                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
-                MultiSelect = false,
-                BackgroundColor = Color.White, BorderStyle = BorderStyle.None,
-                GridColor = Color.FromArgb(221, 227, 236),
-                Font = new Font("Segoe UI", 13f),
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-                CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal,
-                RowTemplate = { Height = 48 },
                 Dock = DockStyle.Fill,
-                ColumnHeadersHeight = 46,
-                EnableHeadersVisualStyles = false,
-                ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
-                {
-                    BackColor = Color.FromArgb(246, 249, 255),
-                    ForeColor = Color.FromArgb(98, 112, 135),
-                    Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
-                    Padding   = new Padding(12, 0, 0, 0),
-                    Alignment = DataGridViewContentAlignment.MiddleLeft
-                },
-                DefaultCellStyle = new DataGridViewCellStyle
-                {
-                    BackColor          = Color.White,
-                    ForeColor          = Color.FromArgb(15, 31, 53),
-                    SelectionBackColor = Color.FromArgb(219, 234, 254),
-                    SelectionForeColor = Color.FromArgb(15, 31, 53),
-                    Padding            = new Padding(12, 6, 12, 6)
-                }
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                RowHeadersVisible   = false,
+                AllowUserToAddRows  = false,
+                ReadOnly            = true,
+                SelectionMode       = DataGridViewSelectionMode.FullRowSelect,
+                BackgroundColor     = Color.White,
+                BorderStyle         = BorderStyle.None,
+                Font                = new Font("Segoe UI", 11f),
+                ColumnHeadersHeight = 44,
+                RowTemplate         = { Height = 48 }
             };
-            // Tracking No. column intentionally omitted
-            dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "colShipmentID", HeaderText = "SHIPMENT NO.", FillWeight = 18 });
-            dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "colOrderID",    HeaderText = "ORDER NO.",    FillWeight = 16 });
-            dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCustomer",   HeaderText = "CUSTOMER",     FillWeight = 26 });
-            dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "colShipDate",   HeaderText = "SHIP DATE",    FillWeight = 15 });
-            dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",     HeaderText = "STATUS",       FillWeight = 13 });
-            dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "colAmount",     HeaderText = "TOTAL AMOUNT", FillWeight = 17 });
-            dgvShipments.SelectionChanged += dgvShipments_SelectionChanged;
-            dgvShipments.CellFormatting   += dgvShipments_CellFormatting;
-            dgvShipments.CellDoubleClick  += dgvShipments_CellDoubleClick;
+            dgvShipments.ColumnHeadersDefaultCellStyle.Font      = new Font("Segoe UI", 11f, FontStyle.Bold);
+            dgvShipments.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(240, 244, 249);
+            dgvShipments.ColumnHeadersDefaultCellStyle.ForeColor = Color.FromArgb(60, 80, 110);
+            dgvShipments.DefaultCellStyle.SelectionBackColor     = Color.FromArgb(210, 228, 255);
+            dgvShipments.DefaultCellStyle.SelectionForeColor     = Color.FromArgb(15, 31, 53);
+            dgvShipments.EnableHeadersVisualStyles               = false;
+            dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "ShipmentID",   HeaderText = "Shipment ID",   FillWeight = 14 });
+            dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "OrderID",       HeaderText = "Order ID",      FillWeight = 12 });
+            dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "CustomerName",  HeaderText = "Customer",      FillWeight = 22 });
+            dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "ShipDate",      HeaderText = "Ship Date",     FillWeight = 15 });
+            dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "Status",        HeaderText = "Status",        FillWeight = 15 });
+            dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "TotalAmount",   HeaderText = "Total Amount",  FillWeight = 15 });
+            dgvShipments.SelectionChanged += (s, e) => UpdateActionButtons();
+            dgvShipments.CellDoubleClick  += (s, e) => ShowViewDetail();
 
-            var pnlGridCard  = new Panel
+            var pnlGridCard = new Panel
             {
                 Dock = DockStyle.Fill,
                 Padding = new Padding(20, 12, 20, 0),
@@ -343,9 +325,17 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlMain.Controls.Add(pnlGridCard);
             pnlMain.Controls.Add(pnlKpiOuter);
             pnlMain.Controls.Add(pnlSearchOuter);
-            pnlMain.Controls.Add(_shell);
 
-            this.Controls.Add(pnlMain);
+            // FIX: _shell must be added directly to the Form (not inside pnlMain)
+            // so that its mega-popup panel — which TopNavBar adds to FindForm().Controls —
+            // is a sibling of pnlMain and can be brought to front via BringToFront().
+            // When _shell was inside pnlMain, the popup was added to the Form but
+            // pnlMain (DockStyle.Fill, added after _shell) sat on top in z-order,
+            // swallowing all click events on the dropdown rows.
+            this.Controls.Add(pnlMain);   // Fill panel added first → lower z-order
+            this.Controls.Add(_shell);    // AppShell added second → higher z-order,
+                                          // popup BringToFront() now works correctly
+
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -359,55 +349,18 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         {
             var b = new Button
             {
-                Text = text, Font = new Font("Segoe UI", 12f, FontStyle.Bold),
-                ForeColor = Color.White, BackColor = Color.FromArgb(47, 111, 237),
-                FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand
+                Text      = text,
+                Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
+                ForeColor = Color.White,
+                BackColor = Color.FromArgb(15, 99, 177),
+                FlatStyle = FlatStyle.Flat,
+                Location  = loc,
+                Width     = w,
+                Height    = h,
+                Cursor    = Cursors.Hand
             };
-            b.FlatAppearance.BorderSize = 0;
-            b.FlatAppearance.MouseOverBackColor = Color.FromArgb(26, 77, 192);
-            b.FlatAppearance.MouseDownBackColor = Color.FromArgb(21, 60, 155);
-            return b;
-        }
-
-        private Button MakeWarningBtn(string text, Point loc, int w, int h)
-        {
-            var b = new Button
-            {
-                Text = text, Font = new Font("Segoe UI", 12f, FontStyle.Bold),
-                ForeColor = Color.White, BackColor = Color.FromArgb(217, 119, 6),
-                FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand
-            };
-            b.FlatAppearance.BorderSize = 0;
-            b.FlatAppearance.MouseOverBackColor = Color.FromArgb(180, 95, 4);
-            b.FlatAppearance.MouseDownBackColor = Color.FromArgb(146, 75, 2);
-            return b;
-        }
-
-        private Button MakeSuccessBtn(string text, Point loc, int w, int h)
-        {
-            var b = new Button
-            {
-                Text = text, Font = new Font("Segoe UI", 12f, FontStyle.Bold),
-                ForeColor = Color.White, BackColor = Color.FromArgb(22, 163, 74),
-                FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand
-            };
-            b.FlatAppearance.BorderSize = 0;
-            b.FlatAppearance.MouseOverBackColor = Color.FromArgb(16, 131, 58);
-            b.FlatAppearance.MouseDownBackColor = Color.FromArgb(10, 100, 40);
-            return b;
-        }
-
-        private Button MakePurpleBtn(string text, Point loc, int w, int h)
-        {
-            var b = new Button
-            {
-                Text = text, Font = new Font("Segoe UI", 12f, FontStyle.Bold),
-                ForeColor = Color.White, BackColor = Color.FromArgb(109, 40, 217),
-                FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand
-            };
-            b.FlatAppearance.BorderSize = 0;
-            b.FlatAppearance.MouseOverBackColor = Color.FromArgb(91, 25, 180);
-            b.FlatAppearance.MouseDownBackColor = Color.FromArgb(69, 17, 140);
+            b.FlatAppearance.BorderSize         = 0;
+            b.FlatAppearance.MouseOverBackColor = Color.FromArgb(10, 80, 150);
             return b;
         }
 
@@ -415,7 +368,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         {
             var b = new Button
             {
-                Text = text, Font = new Font("Segoe UI", 12f),
+                Text      = text,
+                Font      = new Font("Segoe UI", 11f),
                 ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White,
                 FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand
             };
