@@ -1181,14 +1181,21 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         {
             if (e.RowIndex < 0 || e.Value == null) return;
             if (dgvShipments.Columns[e.ColumnIndex].Name != "colStatus") return;
+
             string status = e.Value.ToString();
-            e.CellStyle.ForeColor = status switch
+            if (StatusColors.TryGetValue(status, out var colors))
             {
-                "Completed"  => Color.FromArgb(6,   95,  70),
-                "In Transit" => Color.FromArgb(29,  78, 216),
-                "Pending"    => Color.FromArgb(146, 64,  14),
-                _            => Color.FromArgb(15,  31,  53)
-            };
+                e.CellStyle.BackColor          = colors.bg;
+                e.CellStyle.ForeColor          = colors.fg;
+                e.CellStyle.SelectionBackColor = colors.bg;
+                e.CellStyle.SelectionForeColor = colors.fg;
+                e.CellStyle.Font               = new Font("Segoe UI", 11f, FontStyle.Bold);
+                e.CellStyle.Alignment          = DataGridViewContentAlignment.MiddleCenter;
+            }
+            else
+            {
+                e.CellStyle.ForeColor = Color.FromArgb(15, 31, 53);
+            }
             e.FormattingApplied = true;
         }
 
