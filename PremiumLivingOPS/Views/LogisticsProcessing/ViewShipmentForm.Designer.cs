@@ -56,9 +56,13 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             var pnlMain = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(240, 244, 249) };
 
-            // ── AppShell ──────────────────────────────────────────────────
+            // ── AppShell (RULE 2: construct inside SuspendLayout scope) ───
             _shell = new AppShell();
             _shell.SetPopupContainer(pnlMain);
+
+            // RULE 4: subscribe events ONCE here in Designer.cs only
+            _shell.MenuItemClicked += OnTopNavMenuItemClicked;
+            _shell.LogoutClicked   += btnLogout_Click;
 
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             //  Search card
@@ -334,7 +338,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlGridCard.Controls.Add(pnlGridInner);
 
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            //  Assemble
+            //  Assemble (RULE 5: Fill first, Top second)
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             pnlMain.Controls.Add(pnlGridCard);
             pnlMain.Controls.Add(pnlKpiOuter);
@@ -343,6 +347,11 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             this.Controls.Add(pnlMain);
             this.ResumeLayout(false);
+            this.PerformLayout();
+
+            // RULE 3: re-enforce AppShell height after PerformLayout
+            _shell.Height      = AppShell.TotalHeight;
+            _shell.MinimumSize = new System.Drawing.Size(0, AppShell.TotalHeight);
         }
 
         // ── Button factories ──────────────────────────────────────────────
