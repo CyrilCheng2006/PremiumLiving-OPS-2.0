@@ -216,13 +216,13 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 BackColor = Color.Transparent
             };
 
-            btnViewDetail = MakePrimaryBtn("🔍  View Details",    new Point(0,   0), 200, 60);
-            btnModify     = MakeOutlineBtn("✏️  Modify",           new Point(208, 0), 170, 60);
-            btnGenDeliveryNote = MakeOutlineBtn("📄  Delivery Note",  new Point(386, 0), 200, 60);
-            btnGenReplySlip    = MakeOutlineBtn("📋  Reply Slip",     new Point(594, 0), 170, 60);
+            btnViewDetail = MakePrimaryBtn("\U0001F50D  View Details",    new Point(0,   0), 200, 60);
+            btnModify     = MakeOutlineBtn("\u270F\uFE0F  Modify",          new Point(208, 0), 170, 60);
+            btnGenDeliveryNote = MakeOutlineBtn("\U0001F4C4  Delivery Note",  new Point(386, 0), 200, 60);
+            btnGenReplySlip    = MakeOutlineBtn("\U0001F4CB  Reply Slip",     new Point(594, 0), 170, 60);
             btnScheduleShipment = new Button
             {
-                Text      = "🚚  Schedule Shipment",
+                Text      = "\U0001F69A  Schedule Shipment",
                 Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
                 ForeColor = Color.White,
                 BackColor = Color.FromArgb(108, 60, 193),
@@ -235,11 +235,12 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             btnScheduleShipment.FlatAppearance.BorderSize         = 0;
             btnScheduleShipment.FlatAppearance.MouseOverBackColor = Color.FromArgb(88, 44, 163);
 
-            btnViewDetail.Click       += (s, e) => ShowViewDetail();
-            btnModify.Click           += (s, e) => ShowModifyShipment();
-            btnGenDeliveryNote.Click  += (s, e) => ShowGenDeliveryNote();
-            btnGenReplySlip.Click     += (s, e) => ShowGenReplySlip();
-            btnScheduleShipment.Click += (s, e) => ShowScheduleShipment();
+            // FIX CS0103: call actual method names defined in ViewShipmentForm.cs
+            btnViewDetail.Click       += (s, e) => btnViewDetail_Click(s, e);
+            btnModify.Click           += (s, e) => btnModify_Click(s, e);
+            btnGenDeliveryNote.Click  += (s, e) => btnGenDeliveryNote_Click(s, e);
+            btnGenReplySlip.Click     += (s, e) => btnGenReplySlip_Click(s, e);
+            btnScheduleShipment.Click += (s, e) => btnScheduleShipment_Click(s, e);
 
             var pnlActionBtns = new Panel
             {
@@ -303,10 +304,11 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "OrderID",       HeaderText = "Order ID",      FillWeight = 12 });
             dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "CustomerName",  HeaderText = "Customer",      FillWeight = 22 });
             dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "ShipDate",      HeaderText = "Ship Date",     FillWeight = 15 });
-            dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "Status",        HeaderText = "Status",        FillWeight = 15 });
+            dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",     HeaderText = "Status",        FillWeight = 15 });
             dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "TotalAmount",   HeaderText = "Total Amount",  FillWeight = 15 });
-            dgvShipments.SelectionChanged += (s, e) => UpdateActionButtons();
-            dgvShipments.CellDoubleClick  += (s, e) => ShowViewDetail();
+            dgvShipments.SelectionChanged  += dgvShipments_SelectionChanged;
+            dgvShipments.CellDoubleClick   += dgvShipments_CellDoubleClick;
+            dgvShipments.CellFormatting    += dgvShipments_CellFormatting;
 
             var pnlGridCard = new Panel
             {
