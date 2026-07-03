@@ -4,6 +4,7 @@ using PremiumLivingOPS.Models.ViewModels;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 
 namespace PremiumLivingOPS.Controllers
 {
@@ -287,10 +288,9 @@ namespace PremiumLivingOPS.Controllers
         /// FIX 3 — UTF-8 BOM stripping:
         ///   Files saved from Excel contain a BOM (\uFEFF) at byte 0.
         ///   Without stripping, FindCol("PurchaseID") fails because the first
-        ///   header token becomes "\uFEFFPurchaseID", triggering the
-        ///   "CSV header must contain…" error even for valid files.
-        ///   Fix: read with UTF8Encoding(detectEncodingFromByteOrderMarks: true)
-        ///   and explicitly trim \uFEFF from header[0].
+        ///   header token becomes "\uFEFFPurchaseID".
+        ///   Fix: use StreamReader with detectEncodingFromByteOrderMarks:true,
+        ///   then explicitly TrimStart('\uFEFF') on header[0] as a safety net.
         /// </summary>
         public ReceiptImportResult ImportReceiptsFromCsv(string filePath)
         {
@@ -303,9 +303,18 @@ namespace PremiumLivingOPS.Controllers
             string[] lines;
             try
             {
-                // FIX 3: use BOM-aware UTF-8 reader so Excel-exported CSVs parse correctly
-                lines = File.ReadAllLines(filePath,
-                    new System.Text.UTF8Encoding(detectEncodingFromByteOrderMarks: true));
+                // FIX 3: StreamReader with detectEncodingFromByteOrderMarks:true
+                // correctly strips the UTF-8 BOM that Excel adds to CSV exports.
+                // UTF8Encoding does NOT have this named parameter — only StreamReader does.
+                var rawLines = new List<string>();
+                using (var sr = new StreamReader(filePath, Encoding.UTF8,
+                                                 detectEncodingFromByteOrderMarks: true))
+                {
+                    string ln;
+                    while ((ln = sr.ReadLine()) != null)
+                        rawLines.Add(ln);
+                }
+                lines = rawLines.ToArray();
             }
             catch (Exception ex)
             { result.Errors.Add("Cannot read file: " + ex.Message); return result; }
@@ -315,7 +324,7 @@ namespace PremiumLivingOPS.Controllers
 
             var header = lines[0].Split(',');
 
-            // FIX 3: strip any remaining BOM from the very first header token
+            // Safety net: strip any residual BOM from the first token
             if (header.Length > 0)
                 header[0] = header[0].TrimStart('\uFEFF').Trim();
 
