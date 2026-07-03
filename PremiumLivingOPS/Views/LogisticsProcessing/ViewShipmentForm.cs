@@ -12,7 +12,19 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 {
     /// <summary>
     /// Logistics Processing — View Shipment
-    /// KPI bar and dialogs follow ShowDetailDialog visual standard.
+    ///
+    /// KPI bar button toggle rules
+    /// ──────────────────────────────────────────────
+    /// btnGenDeliveryNote:
+    ///   • No row selected         → disabled, green  "📄  Delivery Note"
+    ///   • Row, DN == null          → enabled,  green  "📄  Delivery Note"   (Generate)
+    ///   • Row, DN != null          → enabled,  blue   "👁  View Del. Note" (View)
+    ///
+    /// btnGenReplySlip:
+    ///   • No row selected         → disabled, green  "🧾  Reply Slip"
+    ///   • Row, DN == null          → disabled, green  "🧾  Reply Slip"
+    ///   • Row, DN != null, RS == null → enabled, green "🧾  Reply Slip"   (Generate)
+    ///   • Row, DN != null, RS != null → enabled, blue  "👁  View Reply Slip" (View)
     /// </summary>
     public partial class ViewShipmentForm : Form
     {
@@ -22,6 +34,10 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         private List<ShipmentEntity> _currentShipments = new List<ShipmentEntity>();
         private ShipmentDetailVM     _selectedDetail;
 
+        // Track current button modes to avoid redundant repaints
+        private bool _dnBtnIsView  = false;
+        private bool _rsBtnIsView  = false;
+
         private static readonly Dictionary<string, (Color bg, Color fg)> StatusColors =
             new Dictionary<string, (Color, Color)>
             {
@@ -29,6 +45,14 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 { "In Transit", (Color.FromArgb(219, 234, 254), Color.FromArgb( 29,  78, 216)) },
                 { "Completed",  (Color.FromArgb(209, 250, 229), Color.FromArgb(  6,  95,  70)) },
             };
+
+        // Button colour constants
+        private static readonly Color GreenNorm  = Color.FromArgb( 22, 163,  74);
+        private static readonly Color GreenHover = Color.FromArgb( 16, 131,  58);
+        private static readonly Color GreenDown  = Color.FromArgb( 10, 100,  40);
+        private static readonly Color BlueNorm   = Color.FromArgb( 47, 111, 237);
+        private static readonly Color BlueHover  = Color.FromArgb( 26,  77, 192);
+        private static readonly Color BlueDown   = Color.FromArgb( 21,  60, 155);
 
         public ViewShipmentForm()
         {
@@ -170,17 +194,98 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             UpdateActionButtons();
         }
 
+        /// <summary>
+        /// Updates enabled state, label text, and colour of every action button.
+        /// The two document buttons toggle between Generate (green) and View (blue)
+        /// based on whether the document already exists.
+        /// </summary>
         private void UpdateActionButtons()
         {
             bool hasRow = _selectedDetail != null;
+            bool hasDN  = hasRow && _selectedDetail.DeliveryNote != null;
+            bool hasRS  = hasRow && _selectedDetail.ReplySlip    != null;
             string status = _selectedDetail?.Shipment?.ShipmentStatus ?? string.Empty;
+
             btnViewDetail.Enabled       = hasRow;
             btnModify.Enabled           = hasRow;
-            btnGenDeliveryNote.Enabled  = hasRow && _selectedDetail?.DeliveryNote == null;
-            btnGenReplySlip.Enabled     = hasRow
-                && _selectedDetail?.DeliveryNote != null
-                && _selectedDetail?.ReplySlip    == null;
             btnScheduleShipment.Enabled = hasRow && status != "Completed";
+
+            // ── Delivery Note button — always enabled when row selected
+            btnGenDeliveryNote.Enabled = hasRow;
+            if (hasDN)
+            {
+                // View mode — blue
+                if (!_dnBtnIsView)
+                {
+                    btnGenDeliveryNote.Text      = "\U0001F441  View Del. Note";
+                    ApplyBtnColour(btnGenDeliveryNote, BlueNorm, BlueHover, BlueDown);
+                    _dnBtnIsView = true;
+                }
+            }
+            else
+            {
+                // Generate mode — green
+                if (_dnBtnIsView)
+                {
+                    btnGenDeliveryNote.Text      = "\U0001F4C4  Delivery Note";
+                    ApplyBtnColour(btnGenDeliveryNote, GreenNorm, GreenHover, GreenDown);
+                    _dnBtnIsView = false;
+                }
+            }
+
+            // ── Reply Slip button — enabled when row selected (DN must exist for Generate; View is always enabled if RS exists)
+            if (!hasRow)
+            {
+                btnGenReplySlip.Enabled = false;
+                // Reset to default generate appearance when no row
+                if (_rsBtnIsView)
+                {
+                    btnGenReplySlip.Text = "\U0001F9FE  Reply Slip";
+                    ApplyBtnColour(btnGenReplySlip, GreenNorm, GreenHover, GreenDown);
+                    _rsBtnIsView = false;
+                }
+            }
+            else if (hasRS)
+            {
+                // View mode — blue, enabled
+                btnGenReplySlip.Enabled = true;
+                if (!_rsBtnIsView)
+                {
+                    btnGenReplySlip.Text = "\U0001F441  View Reply Slip";
+                    ApplyBtnColour(btnGenReplySlip, BlueNorm, BlueHover, BlueDown);
+                    _rsBtnIsView = true;
+                }
+            }
+            else if (hasDN)
+            {
+                // Generate mode — green, enabled
+                btnGenReplySlip.Enabled = true;
+                if (_rsBtnIsView)
+                {
+                    btnGenReplySlip.Text = "\U0001F9FE  Reply Slip";
+                    ApplyBtnColour(btnGenReplySlip, GreenNorm, GreenHover, GreenDown);
+                    _rsBtnIsView = false;
+                }
+            }
+            else
+            {
+                // DN does not exist — disabled, green
+                btnGenReplySlip.Enabled = false;
+                if (_rsBtnIsView)
+                {
+                    btnGenReplySlip.Text = "\U0001F9FE  Reply Slip";
+                    ApplyBtnColour(btnGenReplySlip, GreenNorm, GreenHover, GreenDown);
+                    _rsBtnIsView = false;
+                }
+            }
+        }
+
+        /// <summary>Applies BackColor + hover/down colours to a FlatStyle button.</summary>
+        private static void ApplyBtnColour(Button btn, Color norm, Color hover, Color down)
+        {
+            btn.BackColor = norm;
+            btn.FlatAppearance.MouseOverBackColor = hover;
+            btn.FlatAppearance.MouseDownBackColor = down;
         }
 
         // ── Action handlers
@@ -205,40 +310,53 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             { _selectedDetail = null; RefreshGrid(); }
         }
 
+        /// <summary>
+        /// Routes to Generate or View Delivery Note depending on current button mode.
+        /// </summary>
         private void btnGenDeliveryNote_Click(object sender, EventArgs e)
         {
             if (_selectedDetail == null) return;
-            if (_selectedDetail.DeliveryNote != null)
+
+            if (_dnBtnIsView)
             {
-                MessageBox.Show(
-                    $"A Delivery Note ({_selectedDetail.DeliveryNote.DeliveryID}) already exists.",
-                    "Cannot Generate", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
+                // View existing Delivery Note
+                ShowViewDeliveryNoteDialog(_selectedDetail);
             }
-            using var dlg = new GenerateDeliveryNoteForm(_selectedDetail);
-            if (dlg.ShowDialog(this) == DialogResult.OK)
+            else
             {
-                _selectedDetail = _ctrl.GetShipmentDetail(_selectedDetail.Shipment.ShipmentID);
-                UpdateActionButtons();
+                // Generate new Delivery Note
+                using var dlg = new GenerateDeliveryNoteForm(_selectedDetail);
+                if (dlg.ShowDialog(this) == DialogResult.OK)
+                {
+                    _selectedDetail = _ctrl.GetShipmentDetail(_selectedDetail.Shipment.ShipmentID);
+                    UpdateActionButtons();
+                }
             }
         }
 
+        /// <summary>
+        /// Routes to Generate or View Reply Slip depending on current button mode.
+        /// </summary>
         private void btnGenReplySlip_Click(object sender, EventArgs e)
         {
-            if (_selectedDetail?.DeliveryNote == null)
+            if (_selectedDetail == null) return;
+
+            if (_rsBtnIsView)
             {
-                MessageBox.Show("Please generate a Delivery Note first.",
-                    "Cannot Generate", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
+                // View existing Reply Slip
+                ShowViewReplySlipDialog(_selectedDetail);
             }
-            if (_selectedDetail.ReplySlip != null)
+            else
             {
-                MessageBox.Show(
-                    $"A Reply Slip ({_selectedDetail.ReplySlip.SlipID}) already exists.",
-                    "Cannot Generate", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
+                // Generate new Reply Slip (requires DN)
+                if (_selectedDetail.DeliveryNote == null)
+                {
+                    MessageBox.Show("Please generate a Delivery Note first.",
+                        "Cannot Generate", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+                ShowGenerateReplySlipDialog(_selectedDetail);
             }
-            ShowGenerateReplySlipDialog(_selectedDetail);
         }
 
         private void dgvShipments_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
@@ -247,7 +365,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             ShowDetailDialog(_selectedDetail);
         }
 
-        // ── ShowDetailDialog (read-only, ShowDetailDialog standard)
+        // ────────────────────────────────────────────────────────────────────────────────
+        //  ShowDetailDialog (read-only view)
+        // ────────────────────────────────────────────────────────────────────────────────
         private void ShowDetailDialog(ShipmentDetailVM s)
         {
             var ship = s.Shipment;
@@ -451,13 +571,22 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             dlg.ShowDialog(this);
         }
 
-        // ── Generate Reply Slip dialog — rebuilt to ShowDetailDialog standard
-        private void ShowGenerateReplySlipDialog(ShipmentDetailVM s)
+        // ────────────────────────────────────────────────────────────────────────────────
+        //  View Delivery Note dialog (read-only, ShowDetailDialog standard)
+        // ────────────────────────────────────────────────────────────────────────────────
+        private void ShowViewDeliveryNoteDialog(ShipmentDetailVM s)
         {
             var ship = s.Shipment;
+            var dn   = s.DeliveryNote;   // guaranteed non-null when called
+            if (dn == null) return;
+
+            int outQty = 0;
+            foreach (var line in s.Lines ?? new List<ShipmentLineEntity>())
+                outQty += line.QtyOutstanding ?? 0;
+
             using var dlg = new Form
             {
-                Text            = $"Generate Reply Slip  \u2014  {ship.ShipmentID}",
+                Text            = $"Delivery Note  \u2014  {dn.DeliveryID}",
                 Size            = new Size(2500, 1100),
                 StartPosition   = FormStartPosition.CenterParent,
                 BackColor       = Color.White,
@@ -466,7 +595,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 MaximizeBox     = false, MinimizeBox = false
             };
 
-            // ── Header
+            // Header
             var pnlH = new Panel { Dock = DockStyle.Top, Height = 80, BackColor = Color.FromArgb(19, 35, 61) };
             var tblH = new TableLayoutPanel
             {
@@ -479,8 +608,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             tblH.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
             tblH.Controls.Add(new Label
             {
-                Text      = $"Generate Reply Slip  \u2014  {ship.ShipmentID}",
-                Font      = new Font("Segoe UI", 18f, FontStyle.Bold),
+                Text = $"Delivery Note  \u2014  {dn.DeliveryID}",
+                Font = new Font("Segoe UI", 18f, FontStyle.Bold),
                 ForeColor = Color.White, Dock = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
             }, 0, 0);
@@ -496,7 +625,160 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }, 1, 0);
             pnlH.Controls.Add(tblH);
 
-            // ── Info Panel (4-col, 4-row) — same layout as ShowDetailDialog
+            // Shipment Info Panel
+            var pnlInfo = new Panel
+            {
+                Dock = DockStyle.Top, Height = 220,
+                Padding = new Padding(28, 18, 28, 8), BackColor = Color.White
+            };
+            pnlInfo.Paint += PaintBottomBorderStatic;
+            var tblInfo = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 4,
+                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+            };
+            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
+            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
+            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
+            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
+            for (int r = 0; r < 4; r++) tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 25f));
+            AddInfoRow(tblInfo, 0, "Shipment ID:",    ship.ShipmentID,                       "Order ID:",        ship.OrderID);
+            AddInfoRow(tblInfo, 1, "Customer:",       ship.CustomerName,                     "Tracking No.:",    ship.TrackingNumber ?? "\u2014");
+            AddInfoRow(tblInfo, 2, "Ship Date:",      ship.ShipDate.ToString("yyyy-MM-dd"),  "Delivery Method:", ship.DeliveryMethod);
+            AddInfoRow(tblInfo, 3, "Status:",         ship.ShipmentStatus,                   "Ship Type:",       ship.ShipmentType);
+            pnlInfo.Controls.Add(tblInfo);
+
+            // Delivery Note detail title bar
+            var pnlDNTitle = new Panel
+            {
+                Dock = DockStyle.Top, Height = 44,
+                BackColor = Color.FromArgb(240, 253, 244), Padding = new Padding(28, 0, 16, 0)
+            };
+            pnlDNTitle.Paint += PaintBottomBorderStatic;
+            pnlDNTitle.Controls.Add(new Label
+            {
+                Text      = $"\u2709  Delivery Note  \u2014  {dn.DeliveryID}  (Date: {dn.DeliveryDate:yyyy-MM-dd})",
+                Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(6, 95, 70),
+                Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
+            });
+
+            // Delivery Note fields body
+            var pnlDNBody = new Panel
+            {
+                Dock = DockStyle.Top, Height = 180,
+                BackColor = Color.FromArgb(249, 254, 251), Padding = new Padding(28, 12, 28, 12)
+            };
+            pnlDNBody.Paint += PaintBottomBorderStatic;
+            var tblDN = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 3,
+                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+            };
+            tblDN.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
+            tblDN.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
+            tblDN.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
+            tblDN.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
+            tblDN.RowStyles.Add(new RowStyle(SizeType.Percent, 28f));
+            tblDN.RowStyles.Add(new RowStyle(SizeType.Percent, 44f));
+            tblDN.RowStyles.Add(new RowStyle(SizeType.Percent, 28f));
+            AddInfoRow(tblDN, 0, "Delivery Date:", dn.DeliveryDate.ToString("yyyy-MM-dd"), "Ship To:",       ship.CustomerName);
+            tblDN.Controls.Add(MakeLabelKey("Ship Address:"),                              0, 1);
+            tblDN.Controls.Add(MakeLabelValMultiLine(ship.ShippingAddress ?? "\u2014"),    1, 1);
+            tblDN.Controls.Add(MakeLabelKey("Outstanding Qty:"),                           2, 1);
+            tblDN.Controls.Add(MakeLabelVal(outQty.ToString()),                            3, 1);
+            AddInfoRow(tblDN, 2, "Delivery Method:", ship.DeliveryMethod,                  "Shipment Type:", ship.ShipmentType);
+            pnlDNBody.Controls.Add(tblDN);
+
+            // SHIPMENT ITEMS label
+            var pnlLineLabel = new Panel
+            {
+                Dock = DockStyle.Top, Height = 40,
+                BackColor = Color.FromArgb(246, 249, 255), Padding = new Padding(28, 0, 0, 0)
+            };
+            pnlLineLabel.Controls.Add(new Label
+            {
+                Text = "SHIPMENT ITEMS",
+                Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(98, 112, 135),
+                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft
+            });
+            pnlLineLabel.Paint += PaintBottomBorderStatic;
+
+            // Items grid
+            var dgv = BuildItemsGrid();
+            foreach (var line in s.Lines ?? new List<ShipmentLineEntity>())
+                dgv.Rows.Add(line.ShipmentLineID, line.ItemID, line.ItemName,
+                             line.QtyShipped, line.QtyOutstanding?.ToString() ?? "\u2014");
+
+            // Total row
+            var pnlTotalRow = BuildTotalRow(s.Lines?.Count ?? 0, ship.TotalAmount);
+
+            // Footer
+            var pnlFooter = BuildCloseFooter(dlg);
+
+            dlg.Controls.Add(dgv);
+            dlg.Controls.Add(pnlFooter);
+            dlg.Controls.Add(pnlTotalRow);
+            dlg.Controls.Add(pnlLineLabel);
+            dlg.Controls.Add(pnlDNBody);
+            dlg.Controls.Add(pnlDNTitle);
+            dlg.Controls.Add(pnlInfo);
+            dlg.Controls.Add(pnlH);
+            dlg.ShowDialog(this);
+        }
+
+        // ────────────────────────────────────────────────────────────────────────────────
+        //  View Reply Slip dialog (read-only, ShowDetailDialog standard)
+        // ────────────────────────────────────────────────────────────────────────────────
+        private void ShowViewReplySlipDialog(ShipmentDetailVM s)
+        {
+            var ship = s.Shipment;
+            var rs   = s.ReplySlip;   // guaranteed non-null when called
+            if (rs == null) return;
+
+            using var dlg = new Form
+            {
+                Text            = $"Reply Slip  \u2014  {rs.SlipID}",
+                Size            = new Size(2500, 1100),
+                StartPosition   = FormStartPosition.CenterParent,
+                BackColor       = Color.White,
+                Font            = new Font("Segoe UI", 13f),
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox     = false, MinimizeBox = false
+            };
+
+            // Header
+            var pnlH = new Panel { Dock = DockStyle.Top, Height = 80, BackColor = Color.FromArgb(19, 35, 61) };
+            var tblH = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
+                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                Padding = new Padding(24, 0, 24, 0)
+            };
+            tblH.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
+            tblH.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 264f));
+            tblH.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+            tblH.Controls.Add(new Label
+            {
+                Text = $"Reply Slip  \u2014  {rs.SlipID}",
+                Font = new Font("Segoe UI", 18f, FontStyle.Bold),
+                ForeColor = Color.White, Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
+            }, 0, 0);
+            StatusColors.TryGetValue(ship.ShipmentStatus ?? string.Empty, out var sc);
+            tblH.Controls.Add(new Label
+            {
+                Text      = ship.ShipmentStatus ?? "Unknown",
+                Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
+                ForeColor = sc.fg != default ? sc.fg : Color.White,
+                BackColor = sc.bg != default ? sc.bg : Color.FromArgb(80, 80, 80),
+                Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter,
+                AutoSize  = false, Margin = new Padding(0, 14, 0, 14)
+            }, 1, 0);
+            pnlH.Controls.Add(tblH);
+
+            // Shipment Info Panel
             var pnlInfo = new Panel
             {
                 Dock = DockStyle.Top, Height = 220,
@@ -519,7 +801,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             AddInfoRow(tblInfo, 3, "Tracking No.:",   ship.TrackingNumber ?? "\u2014",           "Ship Type:",       ship.ShipmentType);
             pnlInfo.Controls.Add(tblInfo);
 
-            // ── Reply Slip input title bar
+            // Reply Slip detail title bar
             var pnlSlipTitle = new Panel
             {
                 Dock = DockStyle.Top, Height = 44,
@@ -528,13 +810,154 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlSlipTitle.Paint += PaintBottomBorderStatic;
             pnlSlipTitle.Controls.Add(new Label
             {
-                Text      = "\u270D  Reply Slip  —  Required Fields",
+                Text      = $"\U0001F9FE  Reply Slip  \u2014  {rs.SlipID}  (Date: {rs.SlipDate:yyyy-MM-dd})",
                 Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(6, 95, 70),
                 Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
             });
 
-            // ── Reply Slip input body (2-col: label + field)
+            // Reply Slip fields body (read-only)
+            var pnlSlipBody = new Panel
+            {
+                Dock = DockStyle.Top, Height = 160,
+                BackColor = Color.FromArgb(249, 254, 251), Padding = new Padding(28, 12, 28, 12)
+            };
+            pnlSlipBody.Paint += PaintBottomBorderStatic;
+            var tblSlip = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 2,
+                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+            };
+            tblSlip.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
+            tblSlip.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
+            tblSlip.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
+            tblSlip.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
+            tblSlip.RowStyles.Add(new RowStyle(SizeType.Percent, 50f));
+            tblSlip.RowStyles.Add(new RowStyle(SizeType.Percent, 50f));
+            AddInfoRow(tblSlip, 0, "Actual Recipient:", rs.ActualRecipient ?? "\u2014",       "Remark:",          rs.Remark ?? "\u2014");
+            AddInfoRow(tblSlip, 1, "Ship Address:",     ship.ShippingAddress ?? "\u2014",     "Total Amount:",    $"HK$ {ship.TotalAmount:N2}");
+            pnlSlipBody.Controls.Add(tblSlip);
+
+            // SHIPMENT ITEMS label
+            var pnlLineLabel = new Panel
+            {
+                Dock = DockStyle.Top, Height = 40,
+                BackColor = Color.FromArgb(246, 249, 255), Padding = new Padding(28, 0, 0, 0)
+            };
+            pnlLineLabel.Controls.Add(new Label
+            {
+                Text = "SHIPMENT ITEMS",
+                Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(98, 112, 135),
+                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft
+            });
+            pnlLineLabel.Paint += PaintBottomBorderStatic;
+
+            var dgv = BuildItemsGrid();
+            foreach (var line in s.Lines ?? new List<ShipmentLineEntity>())
+                dgv.Rows.Add(line.ShipmentLineID, line.ItemID, line.ItemName,
+                             line.QtyShipped, line.QtyOutstanding?.ToString() ?? "\u2014");
+
+            var pnlTotalRow = BuildTotalRow(s.Lines?.Count ?? 0, ship.TotalAmount);
+            var pnlFooter   = BuildCloseFooter(dlg);
+
+            dlg.Controls.Add(dgv);
+            dlg.Controls.Add(pnlFooter);
+            dlg.Controls.Add(pnlTotalRow);
+            dlg.Controls.Add(pnlLineLabel);
+            dlg.Controls.Add(pnlSlipBody);
+            dlg.Controls.Add(pnlSlipTitle);
+            dlg.Controls.Add(pnlInfo);
+            dlg.Controls.Add(pnlH);
+            dlg.ShowDialog(this);
+        }
+
+        // ────────────────────────────────────────────────────────────────────────────────
+        //  Generate Reply Slip dialog (input form, ShowDetailDialog standard)
+        // ────────────────────────────────────────────────────────────────────────────────
+        private void ShowGenerateReplySlipDialog(ShipmentDetailVM s)
+        {
+            var ship = s.Shipment;
+            using var dlg = new Form
+            {
+                Text            = $"Generate Reply Slip  \u2014  {ship.ShipmentID}",
+                Size            = new Size(2500, 1100),
+                StartPosition   = FormStartPosition.CenterParent,
+                BackColor       = Color.White,
+                Font            = new Font("Segoe UI", 13f),
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox     = false, MinimizeBox = false
+            };
+
+            // Header
+            var pnlH = new Panel { Dock = DockStyle.Top, Height = 80, BackColor = Color.FromArgb(19, 35, 61) };
+            var tblH = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
+                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                Padding = new Padding(24, 0, 24, 0)
+            };
+            tblH.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
+            tblH.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 264f));
+            tblH.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+            tblH.Controls.Add(new Label
+            {
+                Text = $"Generate Reply Slip  \u2014  {ship.ShipmentID}",
+                Font = new Font("Segoe UI", 18f, FontStyle.Bold),
+                ForeColor = Color.White, Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
+            }, 0, 0);
+            StatusColors.TryGetValue(ship.ShipmentStatus ?? string.Empty, out var sc);
+            tblH.Controls.Add(new Label
+            {
+                Text      = ship.ShipmentStatus ?? "Unknown",
+                Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
+                ForeColor = sc.fg != default ? sc.fg : Color.White,
+                BackColor = sc.bg != default ? sc.bg : Color.FromArgb(80, 80, 80),
+                Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter,
+                AutoSize  = false, Margin = new Padding(0, 14, 0, 14)
+            }, 1, 0);
+            pnlH.Controls.Add(tblH);
+
+            // Info Panel
+            var pnlInfo = new Panel
+            {
+                Dock = DockStyle.Top, Height = 220,
+                Padding = new Padding(28, 18, 28, 8), BackColor = Color.White
+            };
+            pnlInfo.Paint += PaintBottomBorderStatic;
+            var tblInfo = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 4,
+                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+            };
+            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
+            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
+            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
+            tblInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
+            for (int r = 0; r < 4; r++) tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 25f));
+            AddInfoRow(tblInfo, 0, "Shipment ID:",    ship.ShipmentID,                       "Order ID:",        ship.OrderID);
+            AddInfoRow(tblInfo, 1, "Customer:",       ship.CustomerName,                     "Delivery Note:",   s.DeliveryNote?.DeliveryID ?? "\u2014");
+            AddInfoRow(tblInfo, 2, "Ship Date:",      ship.ShipDate.ToString("yyyy-MM-dd"),  "Delivery Method:", ship.DeliveryMethod);
+            AddInfoRow(tblInfo, 3, "Tracking No.:",   ship.TrackingNumber ?? "\u2014",           "Ship Type:",       ship.ShipmentType);
+            pnlInfo.Controls.Add(tblInfo);
+
+            // Input title bar
+            var pnlSlipTitle = new Panel
+            {
+                Dock = DockStyle.Top, Height = 44,
+                BackColor = Color.FromArgb(240, 253, 244), Padding = new Padding(28, 0, 16, 0)
+            };
+            pnlSlipTitle.Paint += PaintBottomBorderStatic;
+            pnlSlipTitle.Controls.Add(new Label
+            {
+                Text      = "\u270D  Reply Slip  \u2014  Required Fields",
+                Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(6, 95, 70),
+                Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
+            });
+
+            // Input body
             var pnlSlipBody = new Panel
             {
                 Dock = DockStyle.Top, Height = 160,
@@ -555,31 +978,25 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             var txtRecip = new TextBox
             {
-                Font = new Font("Segoe UI", 12f),
-                PlaceholderText = "Full name of recipient",
-                BorderStyle = BorderStyle.FixedSingle,
-                Dock = DockStyle.Fill
+                Font = new Font("Segoe UI", 12f), PlaceholderText = "Full name of recipient",
+                BorderStyle = BorderStyle.FixedSingle, Dock = DockStyle.Fill
             };
             var txtRemark = new TextBox
             {
-                Font = new Font("Segoe UI", 12f),
-                PlaceholderText = "Optional remark",
-                BorderStyle = BorderStyle.FixedSingle,
-                Dock = DockStyle.Fill
+                Font = new Font("Segoe UI", 12f), PlaceholderText = "Optional remark",
+                BorderStyle = BorderStyle.FixedSingle, Dock = DockStyle.Fill
             };
-
             tblSlip.Controls.Add(MakeLabelKey("Actual Recipient *:"), 0, 0);
             tblSlip.Controls.Add(txtRecip,                            1, 0);
             tblSlip.Controls.Add(MakeLabelKey("Remark:"),             2, 0);
             tblSlip.Controls.Add(txtRemark,                           3, 0);
-            // Row 1: Ship Address (read-only, spans across for reference)
-            tblSlip.Controls.Add(MakeLabelKey("Ship Address:"),                                     0, 1);
-            tblSlip.Controls.Add(MakeLabelValMultiLine(ship.ShippingAddress ?? "\u2014"),           1, 1);
-            tblSlip.Controls.Add(MakeLabelKey("Total Amount:"),                                     2, 1);
-            tblSlip.Controls.Add(MakeLabelVal($"HK$ {ship.TotalAmount:N2}"),                       3, 1);
+            tblSlip.Controls.Add(MakeLabelKey("Ship Address:"),                                      0, 1);
+            tblSlip.Controls.Add(MakeLabelValMultiLine(ship.ShippingAddress ?? "\u2014"),            1, 1);
+            tblSlip.Controls.Add(MakeLabelKey("Total Amount:"),                                      2, 1);
+            tblSlip.Controls.Add(MakeLabelVal($"HK$ {ship.TotalAmount:N2}"),                        3, 1);
             pnlSlipBody.Controls.Add(tblSlip);
 
-            // ── Section label
+            // Section label
             var pnlLineLabel = new Panel
             {
                 Dock = DockStyle.Top, Height = 40,
@@ -594,7 +1011,102 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             });
             pnlLineLabel.Paint += PaintBottomBorderStatic;
 
-            // ── Items DataGridView (same spec as ShowDetailDialog)
+            var dgv = BuildItemsGrid();
+            foreach (var line in s.Lines)
+                dgv.Rows.Add(line.ShipmentLineID, line.ItemID, line.ItemName,
+                             line.QtyShipped, line.QtyOutstanding?.ToString() ?? "\u2014");
+
+            var pnlTotalRow = BuildTotalRow(s.Lines.Count, ship.TotalAmount);
+
+            // Footer with Generate + Cancel
+            var pnlFooter = new Panel
+            {
+                Dock = DockStyle.Bottom, Height = 86,
+                BackColor = Color.White, Padding = new Padding(28, 14, 28, 14)
+            };
+            pnlFooter.Paint += PaintTopBorderStatic;
+
+            var btnGen = new Button
+            {
+                Text      = "\u2714  Generate Reply Slip",
+                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.White, BackColor = GreenNorm,
+                FlatStyle = FlatStyle.Flat, Size = new Size(240, 56), Cursor = Cursors.Hand,
+                Anchor    = AnchorStyles.Top | AnchorStyles.Right
+            };
+            btnGen.FlatAppearance.BorderSize         = 0;
+            btnGen.FlatAppearance.MouseOverBackColor = GreenHover;
+            btnGen.FlatAppearance.MouseDownBackColor = GreenDown;
+
+            var btnCancel = new Button
+            {
+                Text      = "Cancel",
+                Font      = new Font("Segoe UI", 12f),
+                ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White,
+                FlatStyle = FlatStyle.Flat, Size = new Size(160, 56), Cursor = Cursors.Hand,
+                Anchor    = AnchorStyles.Top | AnchorStyles.Right
+            };
+            btnCancel.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
+            btnCancel.FlatAppearance.BorderSize         = 1;
+            btnCancel.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
+
+            pnlFooter.SizeChanged += (o, ev) =>
+            {
+                int top   = (pnlFooter.ClientSize.Height - 56) / 2;
+                int rEdge = pnlFooter.ClientSize.Width - 28;
+                btnGen.Location    = new Point(rEdge - 240,            top);
+                btnCancel.Location = new Point(rEdge - 240 - 16 - 160, top);
+            };
+            btnGen.Location    = new Point(2500 - 28 - 240,                 (86 - 56) / 2);
+            btnCancel.Location = new Point(2500 - 28 - 240 - 16 - 160,     (86 - 56) / 2);
+
+            btnGen.Click += (_, __) =>
+            {
+                string recip  = txtRecip.Text.Trim();
+                string remark = txtRemark.Text.Trim();
+                if (string.IsNullOrEmpty(recip))
+                {
+                    MessageBox.Show("Actual Recipient is required.",
+                        "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    txtRecip.Focus(); return;
+                }
+                try
+                {
+                    string slipId = _ctrl.GenerateReplySlip(ship.ShipmentID, recip, remark);
+                    MessageBox.Show($"Reply Slip {slipId} generated.",
+                        "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    _selectedDetail = _ctrl.GetShipmentDetail(ship.ShipmentID);
+                    UpdateActionButtons();
+                    dlg.DialogResult = DialogResult.OK;
+                    dlg.Close();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Failed:\n{ex.Message}", "Error",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            };
+            btnCancel.Click += (_, __) => dlg.Close();
+
+            pnlFooter.Controls.Add(btnGen);
+            pnlFooter.Controls.Add(btnCancel);
+
+            dlg.Controls.Add(dgv);
+            dlg.Controls.Add(pnlFooter);
+            dlg.Controls.Add(pnlTotalRow);
+            dlg.Controls.Add(pnlLineLabel);
+            dlg.Controls.Add(pnlSlipBody);
+            dlg.Controls.Add(pnlSlipTitle);
+            dlg.Controls.Add(pnlInfo);
+            dlg.Controls.Add(pnlH);
+            dlg.ShowDialog(this);
+        }
+
+        // ── Shared dialog builder helpers
+
+        /// <summary>Builds the standard items DataGridView used in all dialogs.</summary>
+        private static DataGridView BuildItemsGrid()
+        {
             var dgv = new DataGridView
             {
                 ReadOnly = true, AllowUserToAddRows = false, RowHeadersVisible = false,
@@ -623,122 +1135,70 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             dgv.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "ITEM NAME",   FillWeight = 34 });
             dgv.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "QTY SHIPPED", FillWeight = 18 });
             dgv.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "OUTSTANDING", FillWeight = 18 });
-            foreach (var line in s.Lines)
-                dgv.Rows.Add(line.ShipmentLineID, line.ItemID, line.ItemName,
-                             line.QtyShipped, line.QtyOutstanding?.ToString() ?? "\u2014");
+            return dgv;
+        }
 
-            // ── Total row (left: Lines Count / right: Total Amount in blue)
-            var pnlTotalRow = new Panel { Dock = DockStyle.Bottom, Height = 64, BackColor = Color.White };
-            pnlTotalRow.Paint += PaintTopBorderStatic;
-            var tblTotals = new TableLayoutPanel
+        /// <summary>Builds the standard two-col Total Row (Lines Count / Total Amount).</summary>
+        private static Panel BuildTotalRow(int lineCount, decimal totalAmount)
+        {
+            var pnl = new Panel { Dock = DockStyle.Bottom, Height = 64, BackColor = Color.White };
+            pnl.Paint += PaintTopBorderStatic;
+            var tbl = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1,
                 BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
-            tblTotals.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
-            tblTotals.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
-            tblTotals.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-            tblTotals.Controls.Add(new Label
+            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
+            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
+            tbl.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+            tbl.Controls.Add(new Label
             {
-                Text = $"Shipment Lines:   {s.Lines.Count}",
+                Text = $"Shipment Lines:   {lineCount}",
                 Dock = DockStyle.Fill, AutoSize = false,
                 Font = new Font("Segoe UI", 12f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(15, 31, 53),
                 TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(28, 0, 0, 0)
             }, 0, 0);
-            tblTotals.Controls.Add(new Label
+            tbl.Controls.Add(new Label
             {
-                Text = $"Total Amount:   HK$ {ship.TotalAmount:N2}",
+                Text = $"Total Amount:   HK$ {totalAmount:N2}",
                 Dock = DockStyle.Fill, AutoSize = false,
                 Font = new Font("Segoe UI", 12f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(47, 111, 237),
                 TextAlign = ContentAlignment.MiddleRight, Padding = new Padding(0, 0, 28, 0)
             }, 1, 0);
-            pnlTotalRow.Controls.Add(tblTotals);
+            pnl.Controls.Add(tbl);
+            return pnl;
+        }
 
-            // ── Footer — [✔ Generate Reply Slip]  [Cancel]
-            var pnlFooter = new Panel
+        /// <summary>Builds a read-only footer with a single Close button.</summary>
+        private static Panel BuildCloseFooter(Form owner)
+        {
+            var pnl = new Panel
             {
                 Dock = DockStyle.Bottom, Height = 86,
                 BackColor = Color.White, Padding = new Padding(28, 14, 28, 14)
             };
-            pnlFooter.Paint += PaintTopBorderStatic;
-
-            var btnGen = new Button
+            pnl.Paint += PaintTopBorderStatic;
+            var btn = new Button
             {
-                Text      = "\u2714  Generate Reply Slip",
-                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
-                ForeColor = Color.White, BackColor = Color.FromArgb(22, 163, 74),
-                FlatStyle = FlatStyle.Flat, Size = new Size(240, 56), Cursor = Cursors.Hand,
-                Anchor    = AnchorStyles.Top | AnchorStyles.Right
-            };
-            btnGen.FlatAppearance.BorderSize         = 0;
-            btnGen.FlatAppearance.MouseOverBackColor = Color.FromArgb(16, 131, 58);
-
-            var btnCancel = new Button
-            {
-                Text      = "Cancel",
-                Font      = new Font("Segoe UI", 12f),
+                Text = "Close", Font = new Font("Segoe UI", 12f),
                 ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White,
-                FlatStyle = FlatStyle.Flat, Size = new Size(160, 56), Cursor = Cursors.Hand,
-                Anchor    = AnchorStyles.Top | AnchorStyles.Right
+                FlatStyle = FlatStyle.Flat, Size = new Size(150, 56), Cursor = Cursors.Hand,
+                Anchor = AnchorStyles.Right | AnchorStyles.Top
             };
-            btnCancel.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
-            btnCancel.FlatAppearance.BorderSize         = 1;
-            btnCancel.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
-
-            // Dynamic right-anchored positioning (SizeChanged standard)
-            pnlFooter.SizeChanged += (o, ev) =>
+            btn.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
+            btn.FlatAppearance.BorderSize         = 1;
+            btn.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
+            btn.Click += (_, __) => owner.Close();
+            pnl.SizeChanged += (o, ev) =>
             {
-                int top   = (pnlFooter.ClientSize.Height - 56) / 2;
-                int rEdge = pnlFooter.ClientSize.Width - 28;
-                btnGen.Location    = new Point(rEdge - 240,            top);
-                btnCancel.Location = new Point(rEdge - 240 - 16 - 160, top);
+                int top   = (pnl.ClientSize.Height - 56) / 2;
+                btn.Location = new Point(pnl.ClientSize.Width - 28 - 150, top);
             };
-            btnGen.Location    = new Point(2500 - 28 - 240,                 (86 - 56) / 2);
-            btnCancel.Location = new Point(2500 - 28 - 240 - 16 - 160,     (86 - 56) / 2);
-
-            btnGen.Click += (_, __) =>
-            {
-                string recip  = txtRecip.Text.Trim();
-                string remark = txtRemark.Text.Trim();
-                if (string.IsNullOrEmpty(recip))
-                {
-                    MessageBox.Show("Actual Recipient is required.",
-                        "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    txtRecip.Focus(); return;
-                }
-                try
-                {
-                    string slipId = _ctrl.GenerateReplySlip(ship.ShipmentID, recip, remark);
-                    MessageBox.Show($"Reply Slip {slipId} generated.", "Success",
-                        MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    _selectedDetail = _ctrl.GetShipmentDetail(ship.ShipmentID);
-                    UpdateActionButtons();
-                    dlg.DialogResult = DialogResult.OK;
-                    dlg.Close();
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Failed:\n{ex.Message}", "Error",
-                        MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
-            };
-            btnCancel.Click += (_, __) => dlg.Close();
-
-            pnlFooter.Controls.Add(btnGen);
-            pnlFooter.Controls.Add(btnCancel);
-
-            // Assemble: Fill → Bottom (reverse) → Top (reverse)
-            dlg.Controls.Add(dgv);
-            dlg.Controls.Add(pnlFooter);
-            dlg.Controls.Add(pnlTotalRow);
-            dlg.Controls.Add(pnlLineLabel);
-            dlg.Controls.Add(pnlSlipBody);
-            dlg.Controls.Add(pnlSlipTitle);
-            dlg.Controls.Add(pnlInfo);
-            dlg.Controls.Add(pnlH);
-            dlg.ShowDialog(this);
+            btn.Location = new Point(2500 - 28 - 150, (86 - 56) / 2);
+            pnl.Controls.Add(btn);
+            return pnl;
         }
 
         // ── Grid cell formatting
@@ -790,9 +1250,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             string keyL, string valL, string keyR, string valR)
         {
             tbl.Controls.Add(MakeLabelKey(keyL),          0, row);
-            tbl.Controls.Add(MakeLabelVal(valL ?? "—"),   1, row);
+            tbl.Controls.Add(MakeLabelVal(valL ?? "\u2014"),   1, row);
             tbl.Controls.Add(MakeLabelKey(keyR),          2, row);
-            tbl.Controls.Add(MakeLabelVal(valR ?? "—"),   3, row);
+            tbl.Controls.Add(MakeLabelVal(valR ?? "\u2014"),   3, row);
         }
 
         private static void PaintBottomBorderStatic(object s, PaintEventArgs e)
