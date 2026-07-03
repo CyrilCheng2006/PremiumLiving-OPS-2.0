@@ -472,14 +472,14 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
             });
 
-            // DN body — multi-line Ship Address
+            // DN body — 18/32/18/32 column split, multi-line Ship Address
             var pnlDNBody = new Panel
             {
                 Dock = DockStyle.Top, Height = 220,
                 BackColor = Color.FromArgb(249, 254, 251), Padding = new Padding(28, 12, 28, 12)
             };
             pnlDNBody.Paint += PaintBottomBorderStatic;
-            var tblDN = Build4ColTlp(3, 28f, 44f, 28f);
+            var tblDN = Build4ColTlp(3, 18f, 18f);
             AddInfoRow(tblDN, 0, "Delivery ID:", dn?.DeliveryID, "Delivery Date:", dn?.DeliveryDate.ToString("yyyy-MM-dd"));
             tblDN.Controls.Add(MakeLabelKey("Ship Address:"),                       0, 1);
             tblDN.Controls.Add(MakeLabelValMultiLine(s.ShippingAddress ?? "\u2014"), 1, 1);
@@ -583,14 +583,14 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
             });
 
-            // RS body — multi-line Ship Address
+            // RS body — 18/32/18/32 column split, multi-line Ship Address
             var pnlSlipBody = new Panel
             {
                 Dock = DockStyle.Top, Height = 380,
                 BackColor = Color.FromArgb(249, 251, 255), Padding = new Padding(28, 12, 28, 12)
             };
             pnlSlipBody.Paint += PaintBottomBorderStatic;
-            var tblSlip = Build4ColTlp(3, 28f, 44f, 28f);
+            var tblSlip = Build4ColTlp(3, 18f, 18f);
             AddInfoRowStatic(tblSlip, 0, "Reply Slip ID:", rs?.SlipID, "Received Date:", rs?.ReceivedDate.ToString("yyyy-MM-dd"));
             tblSlip.Controls.Add(MakeLabelKeyStatic("Ship Address:"),                             0, 1);
             tblSlip.Controls.Add(MakeLabelValMultiLineStatic(s.ShippingAddress ?? "\u2014"),      1, 1);
@@ -839,14 +839,14 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
             });
 
-            // RS body
+            // RS body — 18/32/18/32 column split, multi-line Ship Address
             var pnlSlipBody = new Panel
             {
                 Dock = DockStyle.Top, Height = 380,
                 BackColor = Color.FromArgb(249, 251, 255), Padding = new Padding(28, 12, 28, 12)
             };
             pnlSlipBody.Paint += PaintBottomBorderStatic;
-            var tblSlip = Build4ColTlp(3, 28f, 44f, 28f);
+            var tblSlip = Build4ColTlp(3, 18f, 18f);
             AddInfoRowStatic(tblSlip, 0, "Delivery ID:", dn?.DeliveryID, "Delivery Date:", dn?.DeliveryDate.ToString("yyyy-MM-dd"));
             tblSlip.Controls.Add(MakeLabelKeyStatic("Ship Address:"),                             0, 1);
             tblSlip.Controls.Add(MakeLabelValMultiLineStatic(s.ShippingAddress ?? "\u2014"),      1, 1);
@@ -1089,6 +1089,14 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             return pnlFooter;
         }
 
+        /// <summary>
+        /// Build a 4-column TableLayoutPanel with percent-based column widths.
+        /// Column layout: Key-L (col0%) | Val-L (valW%) | Key-R (col2%) | Val-R (valW%)
+        /// where valW = (100 - col0 - col2) / 2.
+        ///
+        /// Default (col0=16, col2=16): 16% | 34% | 16% | 34%
+        /// DN/RS body (col0=18, col2=18): 18% | 32% | 18% | 32%
+        /// </summary>
         private static TableLayoutPanel Build4ColTlp(int rows, float col0 = 16f, float col2 = 16f, float unused = 0f)
         {
             var tlp = new TableLayoutPanel
