@@ -2,6 +2,7 @@ using PremiumLivingOPS.Controllers;
 using PremiumLivingOPS.Models.Entities;
 using PremiumLivingOPS.Models.ViewModels;
 using PremiumLivingOPS.Services;
+using PremiumLivingOPS.Views.Shared;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -61,11 +62,17 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             string statusSel = cboStatus.SelectedItem?.ToString();
             string statusFilter = (string.IsNullOrEmpty(statusSel) || statusSel == "All")
                 ? null : statusSel;
-            string keyword = txtSearch.Text.Trim();
 
-            var vm = _ctrl.GetShipmentListVM(
-                statusFilter,
-                string.IsNullOrEmpty(keyword) ? null : keyword);
+            // Combine both search fields as keyword
+            string kw1 = txtSearchShipmentNo.Text.Trim();
+            string kw2 = txtSearchCustomer.Text.Trim();
+            string keyword = !string.IsNullOrEmpty(kw1) ? kw1
+                           : !string.IsNullOrEmpty(kw2) ? kw2
+                           : null;
+
+            DateTime? dateFrom = chkDateFrom.Checked ? (DateTime?)dtpDateFrom.Value.Date : null;
+
+            var vm = _ctrl.GetViewShipmentVM(statusFilter, keyword, dateFrom);
 
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
@@ -75,19 +82,64 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             dgvShipments.Rows.Clear();
             foreach (var s in _shipments)
                 dgvShipments.Rows.Add(
-                    s.ShipmentID, s.OrderID,
-                    s.ShipDate.ToString("yyyy-MM-dd"),
+                    s.ShipmentID,
+                    s.OrderID,
                     s.CustomerName,
-                    s.ShipmentType, s.DeliveryMethod,
+                    s.ShipDate.ToString("yyyy-MM-dd"),
                     s.ShipmentStatus,
-                    s.TrackingNumber ?? "—");
+                    $"HK$ {s.TotalAmount:N2}");
+
+            RefreshKpi();
         }
 
-        private void ResetSearch()
+        // Called by Designer btnRefresh.Click
+        private void ResetFilters()
         {
-            txtSearch.Text         = string.Empty;
-            cboStatus.SelectedIndex = 0;
+            txtSearchShipmentNo.Text  = string.Empty;
+            txtSearchCustomer.Text    = string.Empty;
+            cboStatus.SelectedIndex   = 0;
+            chkDateFrom.Checked       = false;
             RefreshGrid();
+        }
+
+        // ── CardPanel border paint (used by Designer pnlCard.Paint, pnlKpiInner.Paint, pnlGridInner.Paint)
+        private void PaintCardBorder(object sender, PaintEventArgs e)
+        {
+            var ctl = (Control)sender;
+            using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
+            e.Graphics.DrawRectangle(pen, 0, 0, ctl.Width - 1, ctl.Height - 1);
+        }
+
+        // ── DataGridView cell formatting (status colour coding)
+        private void dgvShipments_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
+        {
+            if (e.RowIndex < 0 || e.RowIndex >= _shipments.Count) return;
+            // "STATUS" is column index 4
+            if (dgvShipments.Columns[e.ColumnIndex].Name != "colStatus") return;
+
+            string status = _shipments[e.RowIndex].ShipmentStatus;
+            switch (status)
+            {
+                case "Pending":
+                    e.CellStyle.ForeColor = Color.FromArgb(146, 64, 14);
+                    e.CellStyle.BackColor = Color.FromArgb(254, 243, 199);
+                    break;
+                case "In Transit":
+                    e.CellStyle.ForeColor = Color.FromArgb(29, 78, 216);
+                    e.CellStyle.BackColor = Color.FromArgb(219, 234, 254);
+                    break;
+                case "Completed":
+                    e.CellStyle.ForeColor = Color.FromArgb(6, 95, 70);
+                    e.CellStyle.BackColor = Color.FromArgb(209, 250, 229);
+                    break;
+            }
+        }
+
+        // ── DataGridView double-click → open detail dialog
+        private void dgvShipments_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex < 0 || e.RowIndex >= _shipments.Count) return;
+            ShowDetailDialog(_ctrl.GetShipmentDetail(_shipments[e.RowIndex].ShipmentID));
         }
 
         // ── Selection → update button states ────────────────────────────────────
@@ -96,8 +148,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             bool hasRow = dgvShipments.SelectedRows.Count > 0
                        && dgvShipments.SelectedRows[0].Index >= 0;
 
-            btnViewDetail.Enabled      = hasRow;
-            btnModify.Enabled          = hasRow;
+            btnViewDetail.Enabled       = hasRow;
+            btnModify.Enabled           = hasRow;
             btnScheduleShipment.Enabled = hasRow;
 
             if (!hasRow)
@@ -109,8 +161,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             int idx = dgvShipments.SelectedRows[0].Index;
             if (idx < 0 || idx >= _shipments.Count) return;
-            var ship = _shipments[idx];
-            var detail = _ctrl.GetShipmentDetailVM(ship.ShipmentID);
+            var ship   = _shipments[idx];
+            var detail = _ctrl.GetShipmentDetail(ship.ShipmentID);
 
             // ── Delivery Note button
             btnGenDeliveryNote.Enabled = true;
@@ -132,39 +184,17 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 btnGenReplySlip.Text = "\U0001F9FE  Reply Slip";
                 ApplyBtnColour(btnGenReplySlip, GreenNorm, GreenHover, GreenDown);
             }
-            else if (detail.ReplySlip == null)
+            else if (detail.ReplySlip != null)
             {
                 btnGenReplySlip.Enabled = true;
-                if (ship.ShipmentStatus == "Completed")
-                {
-                    btnGenReplySlip.Text = "\U0001F441  View Reply Slip";
-                    ApplyBtnColour(btnGenReplySlip, BlueNorm, BlueHover, BlueDown);
-                }
-                else
-                {
-                    btnGenReplySlip.Text = "\U0001F9FE  Reply Slip";
-                    ApplyBtnColour(btnGenReplySlip, GreenNorm, GreenHover, GreenDown);
-                }
+                btnGenReplySlip.Text = "\U0001F441  View Reply Slip";
+                ApplyBtnColour(btnGenReplySlip, BlueNorm, BlueHover, BlueDown);
             }
             else
             {
                 btnGenReplySlip.Enabled = true;
-                if (detail.ReplySlip != null)
-                {
-                    btnGenReplySlip.Text = "\U0001F441  View Reply Slip";
-                    ApplyBtnColour(btnGenReplySlip, BlueNorm, BlueHover, BlueDown);
-                }
-                else
-                {
-                    btnGenReplySlip.Text = "\U0001F9FE  Reply Slip";
-                    ApplyBtnColour(btnGenReplySlip, GreenNorm, GreenHover, GreenDown);
-                }
-                if (detail.ReplySlip == null)
-                {
-                    btnGenReplySlip.Enabled = false;
-                    btnGenReplySlip.Text = "\U0001F9FE  Reply Slip";
-                    ApplyBtnColour(btnGenReplySlip, GreenNorm, GreenHover, GreenDown);
-                }
+                btnGenReplySlip.Text = "\U0001F9FE  Reply Slip";
+                ApplyBtnColour(btnGenReplySlip, GreenNorm, GreenHover, GreenDown);
             }
         }
 
@@ -180,15 +210,15 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         {
             int idx = dgvShipments.SelectedRows[0].Index;
             if (idx < 0 || idx >= _shipments.Count) return;
-            ShowDetailDialog(_ctrl.GetShipmentDetailVM(_shipments[idx].ShipmentID));
+            ShowDetailDialog(_ctrl.GetShipmentDetail(_shipments[idx].ShipmentID));
         }
 
         private void btnModify_Click(object sender, EventArgs e)
         {
             int idx = dgvShipments.SelectedRows[0].Index;
             if (idx < 0 || idx >= _shipments.Count) return;
-            var ship = _shipments[idx];
-            using var dlg = new ModifyShipmentDialog(ship.ShipmentID);
+            var detail = _ctrl.GetShipmentDetail(_shipments[idx].ShipmentID);
+            using var dlg = new ModifyShipmentDialog(_ctrl, detail);
             if (dlg.ShowDialog(this) == DialogResult.OK) RefreshGrid();
         }
 
@@ -204,7 +234,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         {
             int idx = dgvShipments.SelectedRows[0].Index;
             if (idx < 0 || idx >= _shipments.Count) return;
-            var detail = _ctrl.GetShipmentDetailVM(_shipments[idx].ShipmentID);
+            var detail = _ctrl.GetShipmentDetail(_shipments[idx].ShipmentID);
 
             if (detail.DeliveryNote != null)
                 ShowViewDeliveryNoteDialog(detail);
@@ -219,7 +249,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         {
             int idx = dgvShipments.SelectedRows[0].Index;
             if (idx < 0 || idx >= _shipments.Count) return;
-            var detail = _ctrl.GetShipmentDetailVM(_shipments[idx].ShipmentID);
+            var detail = _ctrl.GetShipmentDetail(_shipments[idx].ShipmentID);
 
             if (detail.ReplySlip != null)
                 ShowViewReplySlipDialog(detail);
@@ -269,7 +299,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             for (int r = 0; r < 6; r++)
                 tblInfo.RowStyles.Add(new RowStyle(SizeType.Percent, 100f / 6f));
 
-            // Build left/right field lists
             var leftFields = new (string, string)[]
             {
                 ("Shipment ID:",    ship.ShipmentID),
@@ -277,7 +306,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 ("Ship Date:",      ship.ShipDate.ToString("yyyy-MM-dd")),
                 ("Ship Type:",      ship.ShipmentType),
                 ("Tracking No.:",   ship.TrackingNumber ?? "\u2014"),
-                ("Address",         ship.ShippingAddress ?? "\u2014"),
+                ("Address:",        ship.ShippingAddress ?? "\u2014"),
             };
             var rightFields = new (string, string)[]
             {
@@ -285,7 +314,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 ("Status:",          ship.ShipmentStatus),
                 ("Delivery Method:", ship.DeliveryMethod),
                 ("Total Amount:",    $"HK$ {ship.TotalAmount:N2}"),
-                ("Notes:",           ship.Notes ?? "\u2014"),
+                ("Delivery Date:",   ship.DeliveryDate.HasValue ? ship.DeliveryDate.Value.ToString("yyyy-MM-dd") : "\u2014"),
                 ("",                 ""),
             };
 
@@ -684,8 +713,10 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 }
                 try
                 {
+                    // GenerateReplySlip accepts shipmentId (not deliveryId)
                     string slipId = _ctrl.GenerateReplySlip(
-                        s.DeliveryNote.DeliveryID, recip,
+                        ship.ShipmentID,
+                        recip,
                         string.IsNullOrEmpty(remark) ? null : remark);
                     MessageBox.Show($"Reply Slip {slipId} generated successfully.",
                         "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -718,7 +749,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         {
             pnlKpi.Controls.Clear();
 
-            var allShipments = _ctrl.GetShipmentListVM().Shipments;
+            var allShipments = _ctrl.GetViewShipmentVM().Shipments;
 
             int total      = allShipments.Count;
             int inTransit  = 0;
