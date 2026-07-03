@@ -530,7 +530,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             var pnlDNBody = new Panel
             {
-                Dock = DockStyle.Top, Height = 220,
+                Dock = DockStyle.Top, Height = 380,
                 BackColor = Color.FromArgb(249, 254, 251), Padding = new Padding(28, 12, 28, 12)
             };
             pnlDNBody.Paint += PaintBottomBorderStatic;
@@ -641,7 +641,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             var pnlSlipBody = new Panel
             {
-                Dock = DockStyle.Top, Height = 220,
+                Dock = DockStyle.Top, Height = 380,
                 BackColor = Color.FromArgb(249, 254, 251), Padding = new Padding(28, 12, 28, 12)
             };
             pnlSlipBody.Paint += PaintBottomBorderStatic;
@@ -750,7 +750,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             var pnlSlipBody = new Panel
             {
-                Dock = DockStyle.Top, Height = 160,
+                Dock = DockStyle.Top, Height = 380,
                 BackColor = Color.FromArgb(249, 254, 251), Padding = new Padding(28, 18, 28, 12)
             };
             pnlSlipBody.Paint += PaintBottomBorderStatic;
@@ -1063,130 +1063,4 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         /// <summary>
         /// Simple close-only footer for ShipmentDetail dialog.
         /// </summary>
-        private static Panel BuildCloseFooter(Form owner)
-        {
-            const int BtnW = 210, BtnH = 60;
-            var pnl = new Panel
-            {
-                Dock = DockStyle.Bottom, Height = 90,
-                BackColor = Color.White, Padding = new Padding(28, 15, 28, 15)
-            };
-            pnl.Paint += PaintTopBorderStatic;
-            var btn = new Button
-            {
-                Text      = "Close", Font = new Font("Segoe UI", 12f),
-                ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White,
-                FlatStyle = FlatStyle.Flat, Size = new Size(BtnW, BtnH), Cursor = Cursors.Hand,
-                Anchor    = AnchorStyles.Right | AnchorStyles.Top
-            };
-            btn.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
-            btn.FlatAppearance.BorderSize         = 1;
-            btn.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
-            btn.Click += (_, __) => owner.Close();
-            pnl.SizeChanged += (o, ev) =>
-                btn.Location = new Point(pnl.ClientSize.Width - 28 - BtnW,
-                                         (pnl.ClientSize.Height - BtnH) / 2);
-            btn.Location = new Point(2500 - 28 - BtnW, (90 - BtnH) / 2);
-            pnl.Controls.Add(btn);
-            return pnl;
-        }
-
-        // ── Grid cell formatting
-        private void dgvShipments_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
-        {
-            if (e.RowIndex < 0) return;
-            var col = dgvShipments.Columns[e.ColumnIndex];
-            if (col.Name == "colStatus" && e.Value != null)
-            {
-                if (StatusColors.TryGetValue(e.Value.ToString(), out var colSc))
-                {
-                    e.CellStyle.BackColor          = colSc.bg;
-                    e.CellStyle.ForeColor          = colSc.fg;
-                    e.CellStyle.SelectionBackColor = colSc.bg;
-                    e.CellStyle.SelectionForeColor = colSc.fg;
-                    e.CellStyle.Font               = new Font("Segoe UI", 11f, FontStyle.Bold);
-                    e.CellStyle.Alignment          = DataGridViewContentAlignment.MiddleCenter;
-                    e.FormattingApplied            = true;
-                }
-            }
-        }
-
-        // ── UI helpers
-        private static Label MakeLabelKey(string text) => new Label
-        {
-            Text = text, Font = new Font("Segoe UI", 10f, FontStyle.Bold),
-            ForeColor = Color.FromArgb(98, 112, 135),
-            Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft,
-            Padding = new Padding(0, 0, 8, 0), AutoEllipsis = false
-        };
-
-        private static Label MakeLabelVal(string text) => new Label
-        {
-            Text = text, Font = new Font("Segoe UI", 12f),
-            ForeColor = Color.FromArgb(15, 31, 53),
-            Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoEllipsis = true
-        };
-
-        private static Label MakeLabelValMultiLine(string text) => new Label
-        {
-            Text = text, Font = new Font("Segoe UI", 12f),
-            ForeColor = Color.FromArgb(15, 31, 53),
-            Dock = DockStyle.Fill, TextAlign = ContentAlignment.TopLeft,
-            AutoEllipsis = false, AutoSize = false, Padding = new Padding(0, 8, 8, 4)
-        };
-
-        private static void AddInfoRow(
-            TableLayoutPanel tbl, int row,
-            string keyL, string valL, string keyR, string valR)
-        {
-            tbl.Controls.Add(MakeLabelKey(keyL),             0, row);
-            tbl.Controls.Add(MakeLabelVal(valL ?? "\u2014"),  1, row);
-            tbl.Controls.Add(MakeLabelKey(keyR),             2, row);
-            tbl.Controls.Add(MakeLabelVal(valR ?? "\u2014"),  3, row);
-        }
-
-        private static void PaintBottomBorderStatic(object s, PaintEventArgs e)
-        {
-            var p = (Panel)s;
-            using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
-            e.Graphics.DrawLine(pen, 0, p.Height - 1, p.Width, p.Height - 1);
-        }
-
-        private static void PaintCardBorder(object s, PaintEventArgs e)
-        {
-            using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
-            var rc = ((Control)s).ClientRectangle;
-            rc.Width--; rc.Height--;
-            e.Graphics.DrawRectangle(pen, rc);
-        }
-
-        private static void PaintTopBorderStatic(object s, PaintEventArgs e)
-        {
-            using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
-            e.Graphics.DrawLine(pen, 0, 0, ((Control)s).Width, 0);
-        }
-
-        private static GraphicsPath RoundedRect(Rectangle r, int radius)
-        {
-            var path = new GraphicsPath();
-            int d = radius * 2;
-            path.AddArc(r.X, r.Y, d, d, 180, 90);
-            path.AddArc(r.Right - d, r.Y, d, d, 270, 90);
-            path.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90);
-            path.AddArc(r.X, r.Bottom - d, d, d, 90, 90);
-            path.CloseFigure();
-            return path;
-        }
-
-        // ── Navigation / session
-        private void OnTopNavMenuItemClicked(string menuLabel, string subItem)
-            => FormNavigator.NavigateTo(this, menuLabel, subItem);
-
-        private void btnLogout_Click(object sender, EventArgs e)
-        {
-            if (MessageBox.Show("Are you sure you want to log out?",
-                                "Logout", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
-            { SessionManager.Clear(); Application.Restart(); }
-        }
-    }
-}
+        private stati
