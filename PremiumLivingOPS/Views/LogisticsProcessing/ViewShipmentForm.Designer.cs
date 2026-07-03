@@ -229,7 +229,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             };
 
             // Button dimensions
-            const int BtnW   = 200;
+            const int BtnW   = 290;
             const int BtnH   = 60;
             const int BtnGap = 8;
             const int BtnPad = 12;
