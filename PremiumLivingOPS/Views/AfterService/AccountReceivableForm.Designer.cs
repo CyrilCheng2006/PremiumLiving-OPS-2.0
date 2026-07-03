@@ -17,6 +17,7 @@ namespace PremiumLivingOPS.Views.AfterService
         private Panel        pnlKpi;
         private DataGridView dgvAR;
         private Button       btnRecord;
+        private Button       btnViewDetail;   // NEW: View Transaction History
 
         protected override void Dispose(bool disposing)
         {
@@ -39,8 +40,6 @@ namespace PremiumLivingOPS.Views.AfterService
             var pnlMain = new Panel { Dock = DockStyle.Fill, BackColor = Palette.BgPage };
             _shell = new AppShell();
             _shell.SetPopupContainer(pnlMain);
-            // FIX CS0103: wire via lambda so the handler method in Form.cs is resolved at runtime,
-            //             not at Designer compile time where it was reported as missing.
             _shell.MenuItemClicked += (menu, sub) => OnTopNavMenuItemClicked(menu, sub);
             _shell.LogoutClicked   += (s, e)       => btnLogout_Click(s, e);
 
@@ -144,16 +143,23 @@ namespace PremiumLivingOPS.Views.AfterService
 
             const int BtnW   = 290;
             const int BtnH   =  60;
+            const int BtnGap =   8;
             const int BtnPad =  12;
+
+            // View Detail button (blue primary) — left of Record Payment
+            btnViewDetail = MakePrimaryBtn("📋  View Detail", Point.Empty, BtnW, BtnH);
+            btnViewDetail.Enabled = false;
+            btnViewDetail.Click  += (s, e) => OpenViewDetail();
 
             btnRecord = MakeTealBtn("💳  Record Payment", Point.Empty, BtnW, BtnH);
             btnRecord.Enabled = false;
             btnRecord.Click  += (s, e) => OpenRecordPayment();
 
+            // Width expanded to hold 2 buttons: ViewDetail + Record Payment
             var pnlActionBtns = new Panel
             {
                 Dock      = DockStyle.Right,
-                Width     = BtnPad + BtnW + BtnPad,
+                Width     = BtnPad + BtnW + BtnGap + BtnW + BtnPad,
                 BackColor = Color.Transparent
             };
 
@@ -161,20 +167,20 @@ namespace PremiumLivingOPS.Views.AfterService
             {
                 int top = (pnlActionBtns.Height - BtnH) / 2;
                 if (top < 0) top = 0;
-                btnRecord.Location = new Point(BtnPad, top);
+                btnViewDetail.Location = new Point(BtnPad, top);
+                btnRecord.Location     = new Point(BtnPad + BtnW + BtnGap, top);
             }
+            pnlActionBtns.Controls.Add(btnViewDetail);
             pnlActionBtns.Controls.Add(btnRecord);
             pnlActionBtns.Resize += (s, e) => CentreActionBtns();
 
             var pnlKpiRow = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             pnlKpiRow.Controls.Add(pnlKpi);        // Fill — pills
-            pnlKpiRow.Controls.Add(pnlActionBtns); // Right — button
+            pnlKpiRow.Controls.Add(pnlActionBtns); // Right — buttons
             kpiInner.Controls.Add(pnlKpiRow);
 
             // ════════════════════════════════════════════════════════════════
             // CARD 3 — Invoice Grid  (Fill)
-            // Columns (9): InvoiceID | OrderID | InvoiceDate | Customer |
-            //              Total | Paid | Balance | Status | DueDate
             // ════════════════════════════════════════════════════════════════
             var (gridOuter, gridInner) = CardPanel.CreateFill();
 
@@ -214,7 +220,7 @@ namespace PremiumLivingOPS.Views.AfterService
 
             dgvAR.SelectionChanged += dgvAR_SelectionChanged;
             dgvAR.CellFormatting   += dgvAR_CellFormatting;
-            dgvAR.CellDoubleClick  += (s, e) => { if (e.RowIndex >= 0) OpenRecordPayment(); };
+            dgvAR.CellDoubleClick  += (s, e) => { if (e.RowIndex >= 0) OpenViewDetail(); };
 
             gridInner.Controls.Add(dgvAR);
 
