@@ -10,25 +10,25 @@ using System.Windows.Forms;
 namespace PremiumLivingOPS.Views.LogisticsProcessing
 {
     /// <summary>
-    /// Generate Delivery Note—inline dialog aligned to ShowDetailDialog visual standard.
+    /// Generate Reply Slip — inline dialog, mirrors GenerateDeliveryNoteForm layout.
     /// Layout (Top-to-Bottom, then Fill, then Bottom):
-    ///   pnlHeader    Top  80  — dark navy + status badge (Margin 14px top/bottom)
+    ///   pnlHeader    Top  80  — dark navy + status badge
     ///   pnlInfo      Top  220 — 4-col TLP read-only fields
-    ///   pnlDNTitle   Top  44  — green title bar
-    ///   pnlDNBody    Top  200 — delivery note preview (Ship Address multi-line, row taller)
-    ///   pnlWarn      Top  48/0— warning strip (visible only if DN already exists)
+    ///   pnlRSTitle   Top  44  — blue title bar
+    ///   pnlRSBody    Top  200 — reply slip preview (Ship Address 2-line, row 50% height)
+    ///   pnlWarn      Top  48/0— warning strip (visible if RS already exists)
     ///   pnlLineLabel Top  40  — "SHIPMENT ITEMS" bar
     ///   dgv          Fill     — shipment items grid
     ///   pnlTotalRow  Bottom 64— left: Lines Count / right: Total Amount (blue)
     ///   pnlFooter    Bottom 86— [✔ Confirm Generate 210×56]  [Cancel 160×56]
     /// </summary>
-    public partial class GenerateDeliveryNoteForm : Form
+    public partial class GenerateReplySlipForm : Form
     {
         private readonly LogisticsProcessingController _ctrl =
             new LogisticsProcessingController();
         private readonly ShipmentDetailVM _vm;
 
-        public string GeneratedDeliveryID { get; private set; }
+        public string GeneratedSlipID { get; private set; }
 
         private static readonly Dictionary<string, (Color bg, Color fg)> StatusColors =
             new Dictionary<string, (Color, Color)>
@@ -38,7 +38,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 { "Completed",  (Color.FromArgb(209, 250, 229), Color.FromArgb(  6,  95,  70)) },
             };
 
-        public GenerateDeliveryNoteForm(ShipmentDetailVM vm)
+        public GenerateReplySlipForm(ShipmentDetailVM vm)
         {
             _vm = vm ?? throw new ArgumentNullException(nameof(vm));
             InitializeComponent();
@@ -51,11 +51,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             (Color bg, Color fg) sc;
             StatusColors.TryGetValue(s != null ? (s.ShipmentStatus ?? "") : "", out sc);
 
-            int outQty = 0;
-            foreach (var line in _vm.Lines ?? new List<ShipmentLineEntity>())
-                outQty += line.QtyOutstanding ?? 0;
-
-            this.Text            = string.Format("Generate Delivery Note  —  {0}", s != null ? s.ShipmentID : "");
+            this.Text            = string.Format("Generate Reply Slip  —  {0}", s != null ? s.ShipmentID : "");
             this.Size            = new Size(1900, 1200);
             this.StartPosition   = FormStartPosition.CenterParent;
             this.BackColor       = Color.White;
@@ -77,7 +73,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             tblHeader.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
             tblHeader.Controls.Add(new Label
             {
-                Text      = string.Format("Generate Delivery Note  —  {0}", s != null ? s.ShipmentID : ""),
+                Text      = string.Format("Generate Reply Slip  —  {0}", s != null ? s.ShipmentID : ""),
                 Font      = new Font("Segoe UI", 18f, FontStyle.Bold),
                 ForeColor = Color.White, Dock = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
@@ -116,58 +112,58 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             AddDetailRow(tblInfo, 3, "Status:",       s != null ? s.ShipmentStatus : "—",                     "Ship Type:",       s != null ? s.ShipmentType : "—");
             pnlInfo.Controls.Add(tblInfo);
 
-            // ── DN Preview title bar
-            var pnlDNTitle = new Panel
+            // ── RS Preview title bar (blue theme)
+            var pnlRSTitle = new Panel
             {
                 Dock = DockStyle.Top, Height = 44,
-                BackColor = Color.FromArgb(240, 253, 244), Padding = new Padding(28, 0, 16, 0)
+                BackColor = Color.FromArgb(239, 246, 255), Padding = new Padding(28, 0, 16, 0)
             };
-            pnlDNTitle.Paint += PaintBottomBorder;
-            pnlDNTitle.Controls.Add(new Label
+            pnlRSTitle.Paint += PaintBottomBorder;
+            pnlRSTitle.Controls.Add(new Label
             {
-                Text      = "\u2709  Delivery Note Preview  —  Fields to be Generated",
+                Text      = "\U0001F9FE  Reply Slip Preview  —  Fields to be Generated",
                 Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(6, 95, 70),
+                ForeColor = Color.FromArgb(29, 78, 216),
                 Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
             });
 
-            // ── DN Preview body
+            // ── RS Preview body
             // Row 1 (Ship Address) uses 50% height so there is enough vertical space for 2 lines.
-            var pnlDNBody = new Panel
+            var pnlRSBody = new Panel
             {
                 Dock = DockStyle.Top, Height = 200,
-                BackColor = Color.FromArgb(249, 254, 251), Padding = new Padding(28, 12, 28, 12)
+                BackColor = Color.FromArgb(248, 250, 255), Padding = new Padding(28, 12, 28, 12)
             };
-            pnlDNBody.Paint += PaintBottomBorder;
-            var tblDN = new TableLayoutPanel
+            pnlRSBody.Paint += PaintBottomBorder;
+            var tblRS = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 3,
                 BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
-            tblDN.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
-            tblDN.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
-            tblDN.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
-            tblDN.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
-            tblDN.RowStyles.Add(new RowStyle(SizeType.Percent, 25f));  // row 0 — Delivery Date / Ship To
-            tblDN.RowStyles.Add(new RowStyle(SizeType.Percent, 50f));  // row 1 — Ship Address (2-line)
-            tblDN.RowStyles.Add(new RowStyle(SizeType.Percent, 25f));  // row 2 — Delivery Method / Shipment Type
+            tblRS.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
+            tblRS.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
+            tblRS.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
+            tblRS.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
+            tblRS.RowStyles.Add(new RowStyle(SizeType.Percent, 25f));  // row 0 — Slip Date / Ship To
+            tblRS.RowStyles.Add(new RowStyle(SizeType.Percent, 50f));  // row 1 — Ship Address (2-line)
+            tblRS.RowStyles.Add(new RowStyle(SizeType.Percent, 25f));  // row 2 — Delivery Method / Shipment Type
 
-            AddDetailRow(tblDN, 0, "Delivery Date:",
-                s != null ? s.ShipDate.ToString("yyyy-MM-dd") : "—",
+            AddDetailRow(tblRS, 0, "Slip Date:",
+                DateTime.Today.ToString("yyyy-MM-dd"),
                 "Ship To:", s != null ? s.CustomerName : "—");
 
             // Ship Address — multiline label (WordWrap = true, TopLeft aligned)
-            tblDN.Controls.Add(MakeLabelKey("Ship Address:"), 0, 1);
-            tblDN.Controls.Add(MakeLabelValMultiline(s != null ? s.ShippingAddress : null), 1, 1);
-            tblDN.Controls.Add(MakeLabelKey("Outstanding Qty:"), 2, 1);
-            tblDN.Controls.Add(MakeLabelVal(outQty.ToString()), 3, 1);
+            tblRS.Controls.Add(MakeLabelKey("Ship Address:"), 0, 1);
+            tblRS.Controls.Add(MakeLabelValMultiline(s != null ? s.ShippingAddress : null), 1, 1);
+            tblRS.Controls.Add(MakeLabelKey("Tracking No.:"), 2, 1);
+            tblRS.Controls.Add(MakeLabelVal(s != null ? s.TrackingNumber : "—"), 3, 1);
 
-            AddDetailRow(tblDN, 2, "Delivery Method:", s != null ? s.DeliveryMethod : "—",
+            AddDetailRow(tblRS, 2, "Delivery Method:", s != null ? s.DeliveryMethod : "—",
                 "Shipment Type:", s != null ? s.ShipmentType : "—");
-            pnlDNBody.Controls.Add(tblDN);
+            pnlRSBody.Controls.Add(tblRS);
 
             // ── Warning strip
-            bool alreadyExists = _vm.DeliveryNote != null;
+            bool alreadyExists = _vm.ReplySlip != null;
             var pnlWarn = new Panel
             {
                 Dock = DockStyle.Top, Height = alreadyExists ? 48 : 0,
@@ -179,8 +175,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 pnlWarn.Controls.Add(new Label
                 {
                     Text      = string.Format(
-                        "\u26A0  A Delivery Note already exists: {0}  (Date: {1:yyyy-MM-dd})  —  Generation is blocked.",
-                        _vm.DeliveryNote.DeliveryID, _vm.DeliveryNote.DeliveryDate),
+                        "\u26A0  A Reply Slip already exists: {0}  (Date: {1:yyyy-MM-dd})  —  Generation is blocked.",
+                        _vm.ReplySlip.SlipID, _vm.ReplySlip.SlipDate),
                     Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
                     ForeColor = Color.FromArgb(146, 64, 14),
                     Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
@@ -277,12 +273,12 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             {
                 Text      = "\u2714  Confirm Generate",
                 Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
-                ForeColor = Color.White, BackColor = Color.FromArgb(5, 150, 105),
+                ForeColor = Color.White, BackColor = Color.FromArgb(47, 111, 237),
                 FlatStyle = FlatStyle.Flat, Size = new Size(210, 56), Cursor = Cursors.Hand,
                 Anchor    = AnchorStyles.Top | AnchorStyles.Right, Enabled = !alreadyExists
             };
             btnConfirm.FlatAppearance.BorderSize         = 0;
-            btnConfirm.FlatAppearance.MouseOverBackColor = Color.FromArgb(4, 120, 87);
+            btnConfirm.FlatAppearance.MouseOverBackColor = Color.FromArgb(26, 77, 192);
 
             var btnCancel = new Button
             {
@@ -310,10 +306,10 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             {
                 try
                 {
-                    btnConfirm.Enabled  = false;
-                    GeneratedDeliveryID = _ctrl.GenerateDeliveryNote(_vm.Shipment.ShipmentID);
+                    btnConfirm.Enabled = false;
+                    GeneratedSlipID    = _ctrl.GenerateReplySlip(_vm.Shipment.ShipmentID);
                     MessageBox.Show(
-                        string.Format("Delivery Note generated successfully!\n\nDelivery Note ID: {0}", GeneratedDeliveryID),
+                        string.Format("Reply Slip generated successfully!\n\nReply Slip ID: {0}", GeneratedSlipID),
                         "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     this.DialogResult = DialogResult.OK;
                     this.Close();
@@ -339,8 +335,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             this.Controls.Add(pnlFooter);
             this.Controls.Add(pnlLineLabel);
             this.Controls.Add(pnlWarn);
-            this.Controls.Add(pnlDNBody);
-            this.Controls.Add(pnlDNTitle);
+            this.Controls.Add(pnlRSBody);
+            this.Controls.Add(pnlRSTitle);
             this.Controls.Add(pnlInfo);
             this.Controls.Add(pnlHeader);
         }
@@ -377,9 +373,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         }
 
         /// <summary>
-        /// Multi-line label for long values such as Shipping Address.
-        /// WordWrap=true + TopLeft alignment allows the text to wrap to a second line.
-        /// The row in tblDN is given 50% height specifically to accommodate 2 lines.
+        /// Multi-line label for Ship Address.
+        /// WordWrap=true + TopLeft + the row at 50% panel height = 2-line display.
         /// </summary>
         private static Label MakeLabelValMultiline(string text)
         {
