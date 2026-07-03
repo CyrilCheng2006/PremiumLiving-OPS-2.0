@@ -530,7 +530,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             var pnlDNBody = new Panel
             {
-                Dock = DockStyle.Top, Height = 180,
+                Dock = DockStyle.Top, Height = 220,
                 BackColor = Color.FromArgb(249, 254, 251), Padding = new Padding(28, 12, 28, 12)
             };
             pnlDNBody.Paint += PaintBottomBorderStatic;
@@ -641,7 +641,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             var pnlSlipBody = new Panel
             {
-                Dock = DockStyle.Top, Height = 160,
+                Dock = DockStyle.Top, Height = 220,
                 BackColor = Color.FromArgb(249, 254, 251), Padding = new Padding(28, 12, 28, 12)
             };
             pnlSlipBody.Paint += PaintBottomBorderStatic;
@@ -649,9 +649,10 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             AddInfoRow(tblSlip, 0,
                 "Actual Recipient:", rs.ActualRecipient  ?? "\u2014",
                 "Remark:",           rs.RecipientRemark  ?? "\u2014");
-            AddInfoRow(tblSlip, 1,
-                "Ship Address:",     ship.ShippingAddress ?? "\u2014",
-                "Total Amount:",     $"HK$ {ship.TotalAmount:N2}");
+            tblSlip.Controls.Add(MakeLabelKey("Ship Address:"),                              0, 1);
+            tblSlip.Controls.Add(MakeLabelValMultiLine(ship.ShippingAddress ?? "\u2014"),    1, 1);
+            tblSlip.Controls.Add(MakeLabelKey("Total Amount:"),                              2, 1);
+            tblSlip.Controls.Add(MakeLabelVal($"HK$ {ship.TotalAmount:N2}"),                3, 1);
             pnlSlipBody.Controls.Add(tblSlip);
 
             var pnlLineLabel = BuildSectionLabel("SHIPMENT ITEMS");
