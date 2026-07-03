@@ -235,7 +235,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             btnScheduleShipment.FlatAppearance.BorderSize         = 0;
             btnScheduleShipment.FlatAppearance.MouseOverBackColor = Color.FromArgb(88, 44, 163);
 
-            // FIX CS0103: call actual method names defined in ViewShipmentForm.cs
             btnViewDetail.Click       += (s, e) => btnViewDetail_Click(s, e);
             btnModify.Click           += (s, e) => btnModify_Click(s, e);
             btnGenDeliveryNote.Click  += (s, e) => btnGenDeliveryNote_Click(s, e);
@@ -300,15 +299,18 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             dgvShipments.DefaultCellStyle.SelectionBackColor     = Color.FromArgb(210, 228, 255);
             dgvShipments.DefaultCellStyle.SelectionForeColor     = Color.FromArgb(15, 31, 53);
             dgvShipments.EnableHeadersVisualStyles               = false;
-            dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "ShipmentID",   HeaderText = "Shipment ID",   FillWeight = 14 });
-            dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "OrderID",       HeaderText = "Order ID",      FillWeight = 12 });
-            dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "CustomerName",  HeaderText = "Customer",      FillWeight = 22 });
-            dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "ShipDate",      HeaderText = "Ship Date",     FillWeight = 15 });
-            dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",     HeaderText = "Status",        FillWeight = 15 });
-            dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "TotalAmount",   HeaderText = "Total Amount",  FillWeight = 15 });
-            dgvShipments.SelectionChanged  += dgvShipments_SelectionChanged;
-            dgvShipments.CellDoubleClick   += dgvShipments_CellDoubleClick;
-            dgvShipments.CellFormatting    += dgvShipments_CellFormatting;
+
+            // Column Names use "col" prefix to match Cells["colXxx"] access in ViewShipmentForm.cs
+            dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "colShipmentID",  HeaderText = "Shipment ID",   FillWeight = 14 });
+            dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "colOrderID",      HeaderText = "Order ID",      FillWeight = 12 });
+            dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCustomerName", HeaderText = "Customer",      FillWeight = 22 });
+            dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "colShipDate",     HeaderText = "Ship Date",     FillWeight = 15 });
+            dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",       HeaderText = "Status",        FillWeight = 15 });
+            dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTotalAmount",  HeaderText = "Total Amount",  FillWeight = 15 });
+
+            dgvShipments.SelectionChanged += dgvShipments_SelectionChanged;
+            dgvShipments.CellDoubleClick  += dgvShipments_CellDoubleClick;
+            dgvShipments.CellFormatting   += dgvShipments_CellFormatting;
 
             var pnlGridCard = new Panel
             {
@@ -328,15 +330,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlMain.Controls.Add(pnlKpiOuter);
             pnlMain.Controls.Add(pnlSearchOuter);
 
-            // FIX: _shell must be added directly to the Form (not inside pnlMain)
-            // so that its mega-popup panel — which TopNavBar adds to FindForm().Controls —
-            // is a sibling of pnlMain and can be brought to front via BringToFront().
-            // When _shell was inside pnlMain, the popup was added to the Form but
-            // pnlMain (DockStyle.Fill, added after _shell) sat on top in z-order,
-            // swallowing all click events on the dropdown rows.
-            this.Controls.Add(pnlMain);   // Fill panel added first → lower z-order
-            this.Controls.Add(_shell);    // AppShell added second → higher z-order,
-                                          // popup BringToFront() now works correctly
+            this.Controls.Add(pnlMain);
+            this.Controls.Add(_shell);
 
             this.ResumeLayout(false);
             this.PerformLayout();
