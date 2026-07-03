@@ -17,7 +17,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
     ///   pnlDNTitle   Top  44  — green title bar
     ///   pnlDNBody    Top  180 — delivery note preview (Ship Address multi-line)
     ///   pnlWarn      Top  48/0— warning strip (visible only if DN already exists)
-    ///   pnlLineLabel Top  40  — “SHIPMENT ITEMS” bar
+    ///   pnlLineLabel Top  40  — "SHIPMENT ITEMS" bar
     ///   dgv          Fill     — shipment items grid
     ///   pnlTotalRow  Bottom 64— left: Lines Count / right: Total Amount (blue)
     ///   pnlFooter    Bottom 100— [✔ Confirm Generate 210×60]  [Cancel 210×60]
@@ -130,7 +130,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
             });
 
-            // ── DN Preview body
+            // ── DN Preview body — Row 1 (Ship Address) is taller to allow 2-line wrap
             var pnlDNBody = new Panel
             {
                 Dock = DockStyle.Top, Height = 180,
@@ -146,9 +146,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             tblDN.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
             tblDN.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
             tblDN.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35f));
-            tblDN.RowStyles.Add(new RowStyle(SizeType.Percent, 28f));
-            tblDN.RowStyles.Add(new RowStyle(SizeType.Percent, 44f));
-            tblDN.RowStyles.Add(new RowStyle(SizeType.Percent, 28f));
+            tblDN.RowStyles.Add(new RowStyle(SizeType.Percent, 25f));   // row 0 — Delivery Date / Ship To
+            tblDN.RowStyles.Add(new RowStyle(SizeType.Percent, 50f));   // row 1 — Ship Address (taller for 2 lines)
+            tblDN.RowStyles.Add(new RowStyle(SizeType.Percent, 25f));   // row 2 — Delivery Method / Shipment Type
             AddDetailRow(tblDN, 0, "Delivery Date:",   s?.ShipDate.ToString("yyyy-MM-dd"), "Ship To:",       s?.CustomerName);
             tblDN.Controls.Add(MakeLabelKey("Ship Address:"),                0, 1);
             tblDN.Controls.Add(MakeLabelValMultiline(s?.ShippingAddress ?? "—"), 1, 1);
@@ -358,13 +358,20 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
         };
 
+        /// <summary>
+        /// Multi-line label for long values such as Shipping Address.
+        /// WordWrap=true ensures the text wraps to a second line instead of being clipped.
+        /// </summary>
         private static Label MakeLabelValMultiline(string text) => new Label
         {
-            Text = text ?? "—", Font = new Font("Segoe UI", 12f, FontStyle.Bold),
+            Text      = text ?? "—",
+            Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
             ForeColor = Color.FromArgb(15, 31, 53),
-            Dock = DockStyle.Fill, TextAlign = ContentAlignment.TopLeft,
-            AutoSize = false, AutoEllipsis = false,
-            MaximumSize = new Size(0, 0), Padding = new Padding(0, 6, 0, 0)
+            Dock      = DockStyle.Fill,
+            TextAlign = ContentAlignment.TopLeft,
+            AutoSize  = false,
+            WordWrap  = true,
+            Padding   = new Padding(0, 6, 8, 0)
         };
 
         private static void PaintBottomBorder(object sender, PaintEventArgs e)
