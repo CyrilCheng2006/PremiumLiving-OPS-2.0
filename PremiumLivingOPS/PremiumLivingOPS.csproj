@@ -21,6 +21,9 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+
+    <!-- PDF generation for Delivery Note / Reply Slip export -->
+    <PackageReference Include="PdfSharp" Version="6.2.0" />
   </ItemGroup>
 
 </Project>
