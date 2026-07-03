@@ -1,6 +1,7 @@
 using PremiumLivingOPS.Models.ViewModels;
 using PdfSharp.Drawing;
 using PdfSharp.Drawing.Layout;
+using PdfSharp.Fonts;
 using PdfSharp.Pdf;
 using System;
 using System.Collections.Generic;
@@ -10,7 +11,7 @@ namespace PremiumLivingOPS.Services
 {
     /// <summary>
     /// Generates PDF documents for Delivery Notes and Reply Slips.
-    /// Uses PdfSharp (MIT) — no third-party licence required.
+    /// Uses PdfSharp 6.x (MIT) — no third-party licence required.
     /// </summary>
     public static class PdfExporter
     {
@@ -30,13 +31,13 @@ namespace PremiumLivingOPS.Services
         private static readonly XColor BorderCl = XColor.FromArgb(221, 227, 236);
         private static readonly XColor White    = XColors.White;
 
-        // ── String format helpers (PdfSharp 6.x API)
+        // ── XStringFormat helpers (PdfSharp 6.x — no XStringFormats static class)
         private static readonly XStringFormat FmtCenterLeft  = new XStringFormat { Alignment = XStringAlignment.Near,   LineAlignment = XLineAlignment.Center };
         private static readonly XStringFormat FmtCenter      = new XStringFormat { Alignment = XStringAlignment.Center, LineAlignment = XLineAlignment.Center };
         private static readonly XStringFormat FmtCenterRight = new XStringFormat { Alignment = XStringAlignment.Far,    LineAlignment = XLineAlignment.Center };
         private static readonly XStringFormat FmtBottomLeft  = new XStringFormat { Alignment = XStringAlignment.Near,   LineAlignment = XLineAlignment.Far    };
 
-        // ── Fonts
+        // ── Fonts (created lazily per call — XFont is not thread-safe as a static)
         private static XFont FontTitle  => new XFont("Arial", 18, XFontStyleEx.Bold);
         private static XFont FontSub    => new XFont("Arial", 12, XFontStyleEx.Bold);
         private static XFont FontBody   => new XFont("Arial", 10, XFontStyleEx.Regular);
@@ -45,10 +46,13 @@ namespace PremiumLivingOPS.Services
         private static XFont FontHeader => new XFont("Arial",  9, XFontStyleEx.Bold);
 
         // ════════════════════════════════════════════════════════════════
-        //  Export Delivery Note
+        //  Public export entry-points
         // ════════════════════════════════════════════════════════════════
+
         public static void ExportDeliveryNote(ShipmentDetailVM s, string filePath)
         {
+            WindowsFontResolver.EnsureRegistered();
+
             var ship = s.Shipment;
             var dn   = s.DeliveryNote
                 ?? throw new InvalidOperationException("No Delivery Note on this shipment.");
@@ -99,11 +103,10 @@ namespace PremiumLivingOPS.Services
             doc.Save(filePath);
         }
 
-        // ════════════════════════════════════════════════════════════════
-        //  Export Reply Slip
-        // ════════════════════════════════════════════════════════════════
         public static void ExportReplySlip(ShipmentDetailVM s, string filePath)
         {
+            WindowsFontResolver.EnsureRegistered();
+
             var ship = s.Shipment;
             var rs   = s.ReplySlip
                 ?? throw new InvalidOperationException("No Reply Slip on this shipment.");
@@ -202,25 +205,23 @@ namespace PremiumLivingOPS.Services
 
         private static double DrawItemsTable(
             XGraphics gfx, double y,
-            List<PremiumLivingOPS.Models.Entities.ShipmentLineEntity>? lines)
+            List<PremiumLivingOPS.Models.Entities.ShipmentLineEntity> lines)
         {
             double[] colW  = { 90, 80, ContentW - 90 - 80 - 80 - 80, 80, 80 };
             string[] heads = { "LINE ID", "ITEM ID", "ITEM NAME", "QTY SHIPPED", "OUTSTANDING" };
             const double rowH = 18, headH = 22;
 
-            // Header row
             gfx.DrawRectangle(new XSolidBrush(XColor.FromArgb(246, 249, 255)),
                 Margin, y, ContentW, headH);
             double cx = Margin + 6;
-            foreach (var (w, h) in Zip(colW, heads))
+            for (int i = 0; i < colW.Length; i++)
             {
-                gfx.DrawString(h, FontHeader, new XSolidBrush(LabelFg),
-                    new XRect(cx, y, w - 4, headH), FmtCenterLeft);
-                cx += w;
+                gfx.DrawString(heads[i], FontHeader, new XSolidBrush(LabelFg),
+                    new XRect(cx, y, colW[i] - 4, headH), FmtCenterLeft);
+                cx += colW[i];
             }
             y += headH;
 
-            // Data rows
             bool alt = false;
             foreach (var ln in lines
                 ?? new List<PremiumLivingOPS.Models.Entities.ShipmentLineEntity>())
@@ -239,11 +240,11 @@ namespace PremiumLivingOPS.Services
                     ln.QtyOutstanding?.ToString() ?? "\u2014"
                 };
                 cx = Margin + 6;
-                foreach (var (w, v) in Zip(colW, vals))
+                for (int i = 0; i < colW.Length; i++)
                 {
-                    gfx.DrawString(v, FontBody, new XSolidBrush(BodyFg),
-                        new XRect(cx, y, w - 4, rowH), FmtCenterLeft);
-                    cx += w;
+                    gfx.DrawString(vals[i], FontBody, new XSolidBrush(BodyFg),
+                        new XRect(cx, y, colW[i] - 4, rowH), FmtCenterLeft);
+                    cx += colW[i];
                 }
 
                 gfx.DrawLine(new XPen(BorderCl, 0.3),
@@ -273,13 +274,6 @@ namespace PremiumLivingOPS.Services
                 $"Generated by PremiumLiving OPS  \u2022  {DateTime.Now:yyyy-MM-dd HH:mm}",
                 FontSmall, new XSolidBrush(LabelFg),
                 new XRect(Margin, PageH - Margin - 2, ContentW, 10), FmtBottomLeft);
-        }
-
-        // ── Mini zip helper
-        private static IEnumerable<(T1, T2)> Zip<T1, T2>(T1[] a, T2[] b)
-        {
-            int len = Math.Min(a.Length, b.Length);
-            for (int i = 0; i < len; i++) yield return (a[i], b[i]);
         }
     }
 }
