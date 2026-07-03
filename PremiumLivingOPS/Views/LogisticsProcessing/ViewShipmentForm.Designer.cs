@@ -9,28 +9,21 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
     {
         private System.ComponentModel.IContainer components = null;
 
-        // ── Shared shell (TopNavBar 44 px + UserBar 72 px = 116 px total) ──
-        private AppShell _shell;
-
-        // ── Filter bar controls ───────────────────────────────────────────
-        private TextBox        txtSearchShipmentNo;
-        private TextBox        txtSearchCustomer;
-        private ComboBox       cboStatus;
-        private DateTimePicker dtpDateFrom;
-        private CheckBox       chkDateFrom;
-        private Button         btnSearch;
-        private Button         btnRefresh;
-
-        // ── KPI bar + action buttons ──────────────────────────────────────
-        private Panel  pnlKpi;
-        private Button btnViewDetail;
-        private Button btnModify;
-        private Button btnGenDeliveryNote;
-        private Button btnGenReplySlip;
-        private Button btnScheduleShipment;   // 290×60, purple
-
-        // ── Main grid ─────────────────────────────────────────────────────
-        private DataGridView dgvShipments;
+        private AppShell        _shell;
+        private TextBox         txtSearchShipmentNo;
+        private TextBox         txtSearchCustomer;
+        private ComboBox        cboStatus;
+        private DateTimePicker  dtpDateFrom;
+        private CheckBox        chkDateFrom;
+        private Button          btnSearch;
+        private Button          btnRefresh;
+        private Panel           pnlKpi;
+        private DataGridView    dgvShipments;
+        private Button          btnViewDetail;
+        private Button          btnModify;
+        private Button          btnGenDeliveryNote;
+        private Button          btnGenReplySlip;
+        private Button          btnScheduleShipment;
 
         protected override void Dispose(bool disposing)
         {
@@ -42,8 +35,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         {
             this.SuspendLayout();
 
-            // ── Form settings ─────────────────────────────────────────────
-            this.Text          = "Premium Living OPS — View Shipment";
+            this.Text          = "Premium Living OPS \u2014 View Shipment";
             this.Size          = new Size(1440, 900);
             this.MinimumSize   = new Size(1200, 720);
             this.StartPosition = FormStartPosition.CenterScreen;
@@ -51,40 +43,39 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             this.WindowState   = FormWindowState.Maximized;
             this.Font          = new Font("Segoe UI", 13f);
 
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            //  Root panel
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // ── Root
             var pnlMain = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(240, 244, 249) };
-
-            // ── AppShell (RULE 2: construct inside SuspendLayout scope) ───
             _shell = new AppShell();
             _shell.SetPopupContainer(pnlMain);
-
-            // RULE 4: subscribe events ONCE here in Designer.cs only
             _shell.MenuItemClicked += OnTopNavMenuItemClicked;
             _shell.LogoutClicked   += btnLogout_Click;
 
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // ────────────────────────────────────────────────────────────
             //  Search card
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // ────────────────────────────────────────────────────────────
             txtSearchShipmentNo = new TextBox
             {
-                Font = new Font("Segoe UI", 12f), BorderStyle = BorderStyle.FixedSingle,
-                Dock = DockStyle.Fill, PlaceholderText = "SHP-XXXX"
+                Font = new Font("Segoe UI", 12f),
+                BorderStyle = BorderStyle.FixedSingle,
+                Dock = DockStyle.Fill,
+                PlaceholderText = "SHP-XXXX"
             };
             txtSearchShipmentNo.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) RefreshGrid(); };
 
             txtSearchCustomer = new TextBox
             {
-                Font = new Font("Segoe UI", 12f), BorderStyle = BorderStyle.FixedSingle,
-                Dock = DockStyle.Fill, PlaceholderText = "Name or Order ID"
+                Font = new Font("Segoe UI", 12f),
+                BorderStyle = BorderStyle.FixedSingle,
+                Dock = DockStyle.Fill,
+                PlaceholderText = "Name or Order ID"
             };
             txtSearchCustomer.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) RefreshGrid(); };
 
             cboStatus = new ComboBox
             {
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                Font = new Font("Segoe UI", 12f), Dock = DockStyle.Fill
+                Font = new Font("Segoe UI", 12f),
+                Dock = DockStyle.Fill
             };
             cboStatus.Items.AddRange(new object[] { "All", "Pending", "In Transit", "Completed" });
             cboStatus.SelectedIndex = 0;
@@ -104,20 +95,24 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             {
                 var tlp = new TableLayoutPanel
                 {
-                    Dock = DockStyle.Fill, RowCount = 2, ColumnCount = 1,
-                    BackColor = Color.Transparent,
+                    Dock        = DockStyle.Fill,
+                    RowCount    = 2,
+                    ColumnCount = 1,
+                    BackColor   = Color.Transparent,
                     CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                    Padding = rightPad ? new Padding(0, 0, 12, 0) : Padding.Empty
+                    Padding     = rightPad ? new Padding(0, 0, 12, 0) : Padding.Empty
                 };
                 tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
                 tlp.RowStyles.Add(new RowStyle(SizeType.Absolute, 40f));
                 tlp.RowStyles.Add(new RowStyle(SizeType.Percent,  70f));
                 var lbl = new Label
                 {
-                    Text = caption, Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+                    Text      = caption,
+                    Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
                     ForeColor = Color.FromArgb(98, 112, 135),
-                    Dock = DockStyle.Fill, TextAlign = ContentAlignment.BottomLeft,
-                    Padding = new Padding(0, 0, 0, 2)
+                    Dock      = DockStyle.Fill,
+                    TextAlign = ContentAlignment.BottomLeft,
+                    Padding   = new Padding(0, 0, 0, 2)
                 };
                 ctrl.Dock = DockStyle.Fill;
                 tlp.Controls.Add(lbl,  0, 0);
@@ -127,8 +122,11 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             var cellDate = new TableLayoutPanel
             {
-                Dock = DockStyle.Fill, RowCount = 2, ColumnCount = 2,
-                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+                Dock        = DockStyle.Fill,
+                RowCount    = 2,
+                ColumnCount = 2,
+                BackColor   = Color.Transparent,
+                CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
             cellDate.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 33f));
             cellDate.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
@@ -136,10 +134,12 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             cellDate.RowStyles.Add(new RowStyle(SizeType.Percent,  70f));
             var lblDate = new Label
             {
-                Text = "Date From", Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+                Text      = "Date From",
+                Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(98, 112, 135),
-                Dock = DockStyle.Fill, TextAlign = ContentAlignment.BottomLeft,
-                Padding = new Padding(0, 0, 0, 2)
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.BottomLeft,
+                Padding   = new Padding(0, 0, 0, 2)
             };
             chkDateFrom.Dock = DockStyle.Fill;
             dtpDateFrom.Dock = DockStyle.Fill;
@@ -150,8 +150,11 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             var tblFields = new TableLayoutPanel
             {
-                Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 1,
-                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None
+                Dock            = DockStyle.Fill,
+                ColumnCount     = 4,
+                RowCount        = 1,
+                BackColor       = Color.Transparent,
+                CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
             for (int c = 0; c < 4; c++)
                 tblFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
@@ -171,9 +174,12 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             var tblCard = new TableLayoutPanel
             {
-                Dock = DockStyle.Fill, RowCount = 3, ColumnCount = 1,
-                BackColor = Color.Transparent, CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
-                Padding = new Padding(18, 14, 18, 14)
+                Dock            = DockStyle.Fill,
+                RowCount        = 3,
+                ColumnCount     = 1,
+                BackColor       = Color.Transparent,
+                CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
+                Padding         = new Padding(18, 14, 18, 14)
             };
             tblCard.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
             tblCard.RowStyles.Add(new RowStyle(SizeType.Absolute,  60f));
@@ -183,9 +189,11 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             var pnlTitle = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
             pnlTitle.Controls.Add(new Label
             {
-                Text = "Search Shipments", Font = new Font("Segoe UI", 13f, FontStyle.Bold),
+                Text      = "Search Shipments",
+                Font      = new Font("Segoe UI", 13f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(15, 31, 53),
-                Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft
             });
             pnlTitle.Controls.Add(new Panel
             {
@@ -201,39 +209,44 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             var pnlSearchOuter = new Panel
             {
-                Dock = DockStyle.Top, Height = 300,
+                Dock      = DockStyle.Top,
+                Height    = 300,
                 BackColor = Color.FromArgb(240, 244, 249),
-                Padding = new Padding(20, 14, 20, 8)
+                Padding   = new Padding(20, 14, 20, 8)
             };
             pnlSearchOuter.Controls.Add(pnlCard);
 
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            //  KPI bar + action buttons
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // ────────────────────────────────────────────────────────────
+            //  KPI bar
+            //  Left : pnlKpi (FlowLayout of pills)     ─ DockStyle.Fill
+            //  Right: 5 action buttons side-by-side     ─ DockStyle.Right
+            // ────────────────────────────────────────────────────────────
             pnlKpi = new Panel
             {
-                Dock = DockStyle.Left, Width = 700,
-                BackColor = Color.Transparent
+                Dock      = DockStyle.Fill,
+                BackColor = Color.Transparent,
+                Padding   = new Padding(12, 10, 12, 10)
             };
 
-            btnViewDetail = MakePrimaryBtn("\U0001F50D  View Details",    new Point(0,   0), 200, 60);
-            btnModify     = MakeOutlineBtn("\u270F\uFE0F  Modify",          new Point(208, 0), 170, 60);
-            btnGenDeliveryNote = MakeOutlineBtn("\U0001F4C4  Delivery Note",  new Point(386, 0), 200, 60);
-            btnGenReplySlip    = MakeOutlineBtn("\U0001F4CB  Reply Slip",     new Point(594, 0), 170, 60);
-            btnScheduleShipment = new Button
-            {
-                Text      = "\U0001F69A  Schedule Shipment",
-                Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
-                ForeColor = Color.White,
-                BackColor = Color.FromArgb(108, 60, 193),
-                FlatStyle = FlatStyle.Flat,
-                Location  = new Point(772, 0),
-                Width     = 290,
-                Height    = 60,
-                Cursor    = Cursors.Hand
-            };
-            btnScheduleShipment.FlatAppearance.BorderSize         = 0;
-            btnScheduleShipment.FlatAppearance.MouseOverBackColor = Color.FromArgb(88, 44, 163);
+            // Button dimensions
+            const int BtnW   = 200;
+            const int BtnH   = 60;
+            const int BtnGap = 8;
+            const int BtnPad = 12;
+            // Total width: BtnPad + 5 buttons + 4 gaps + BtnPad
+            int actionPanelW = BtnPad + (BtnW * 5) + (BtnGap * 4) + BtnPad;
+
+            btnViewDetail       = MakePrimaryBtn("\U0001F50D  View Details",  Point.Empty, BtnW, BtnH);
+            btnModify           = MakeWarningBtn("\u270F\uFE0F  Modify",        Point.Empty, BtnW, BtnH);
+            btnGenDeliveryNote  = MakeGreenBtn  ("\U0001F4C4  Delivery Note",  Point.Empty, BtnW, BtnH);
+            btnGenReplySlip     = MakeGreenBtn  ("\U0001F9FE  Reply Slip",     Point.Empty, BtnW, BtnH);
+            btnScheduleShipment = MakePurpleBtn ("\U0001F69A  Schedule Ship.", Point.Empty, BtnW, BtnH);
+
+            btnViewDetail.Enabled       = false;
+            btnModify.Enabled           = false;
+            btnGenDeliveryNote.Enabled  = false;
+            btnGenReplySlip.Enabled     = false;
+            btnScheduleShipment.Enabled = false;
 
             btnViewDetail.Click       += (s, e) => btnViewDetail_Click(s, e);
             btnModify.Click           += (s, e) => btnModify_Click(s, e);
@@ -243,92 +256,100 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             var pnlActionBtns = new Panel
             {
-                Dock = DockStyle.Fill,
+                Dock      = DockStyle.Right,
+                Width     = actionPanelW,
                 BackColor = Color.Transparent
             };
+
+            void CentreActionBtns()
+            {
+                int top = (pnlActionBtns.Height - BtnH) / 2;
+                if (top < 0) top = 0;
+                btnViewDetail.Location       = new Point(BtnPad,                              top);
+                btnModify.Location           = new Point(BtnPad + (BtnW + BtnGap),           top);
+                btnGenDeliveryNote.Location  = new Point(BtnPad + (BtnW + BtnGap) * 2,       top);
+                btnGenReplySlip.Location     = new Point(BtnPad + (BtnW + BtnGap) * 3,       top);
+                btnScheduleShipment.Location = new Point(BtnPad + (BtnW + BtnGap) * 4,       top);
+            }
             pnlActionBtns.Controls.Add(btnViewDetail);
             pnlActionBtns.Controls.Add(btnModify);
             pnlActionBtns.Controls.Add(btnGenDeliveryNote);
             pnlActionBtns.Controls.Add(btnGenReplySlip);
             pnlActionBtns.Controls.Add(btnScheduleShipment);
+            pnlActionBtns.Resize += (s, e) => CentreActionBtns();
 
-            var pnlKpiRow = new Panel
-            {
-                Dock = DockStyle.Fill,
-                BackColor = Color.Transparent
-            };
-            pnlKpiRow.Controls.Add(pnlKpi);
-            pnlKpiRow.Controls.Add(pnlActionBtns);
+            // Pills fill left, action buttons docked right
+            var pnlKpiRow = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
+            pnlKpiRow.Controls.Add(pnlKpi);        // Fill  — KPI pills
+            pnlKpiRow.Controls.Add(pnlActionBtns); // Right — action buttons (add AFTER Fill)
 
-            var pnlKpiInner = new Panel
-            {
-                Dock = DockStyle.Fill, BackColor = Color.White,
-                Padding = new Padding(18, 10, 18, 10)
-            };
+            var pnlKpiInner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
             pnlKpiInner.Paint += PaintCardBorder;
             pnlKpiInner.Controls.Add(pnlKpiRow);
 
             var pnlKpiOuter = new Panel
             {
-                Dock = DockStyle.Top, Height = 100,
+                Dock      = DockStyle.Top,
+                Height    = 90,
                 BackColor = Color.FromArgb(240, 244, 249),
-                Padding = new Padding(20, 0, 20, 8)
+                Padding   = new Padding(20, 8, 20, 8)
             };
             pnlKpiOuter.Controls.Add(pnlKpiInner);
 
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            //  Main grid card
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // ────────────────────────────────────────────────────────────
+            //  Main grid
+            // ────────────────────────────────────────────────────────────
             dgvShipments = new DataGridView
             {
-                Dock = DockStyle.Fill,
+                ReadOnly = true, AllowUserToAddRows = false, AllowUserToDeleteRows = false,
+                RowHeadersVisible = false, SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                MultiSelect = false, BackgroundColor = Color.White, BorderStyle = BorderStyle.None,
+                GridColor = Color.FromArgb(221, 227, 236), Font = new Font("Segoe UI", 13f),
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-                RowHeadersVisible   = false,
-                AllowUserToAddRows  = false,
-                ReadOnly            = true,
-                SelectionMode       = DataGridViewSelectionMode.FullRowSelect,
-                BackgroundColor     = Color.White,
-                BorderStyle         = BorderStyle.None,
-                Font                = new Font("Segoe UI", 11f),
-                ColumnHeadersHeight = 44,
-                RowTemplate         = { Height = 48 }
+                CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal,
+                RowTemplate = { Height = 48 }, Dock = DockStyle.Fill,
+                ColumnHeadersHeight = 46, EnableHeadersVisualStyles = false,
+                ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
+                {
+                    BackColor = Color.FromArgb(246, 249, 255), ForeColor = Color.FromArgb(98, 112, 135),
+                    Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
+                    Padding   = new Padding(12, 0, 0, 0),
+                    Alignment = DataGridViewContentAlignment.MiddleLeft
+                },
+                DefaultCellStyle = new DataGridViewCellStyle
+                {
+                    BackColor          = Color.White,
+                    ForeColor          = Color.FromArgb(15, 31, 53),
+                    SelectionBackColor = Color.FromArgb(219, 234, 254),
+                    SelectionForeColor = Color.FromArgb(15, 31, 53),
+                    Padding            = new Padding(12, 6, 12, 6)
+                }
             };
-            dgvShipments.ColumnHeadersDefaultCellStyle.Font      = new Font("Segoe UI", 11f, FontStyle.Bold);
-            dgvShipments.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(240, 244, 249);
-            dgvShipments.ColumnHeadersDefaultCellStyle.ForeColor = Color.FromArgb(60, 80, 110);
-            dgvShipments.DefaultCellStyle.SelectionBackColor     = Color.FromArgb(210, 228, 255);
-            dgvShipments.DefaultCellStyle.SelectionForeColor     = Color.FromArgb(15, 31, 53);
-            dgvShipments.EnableHeadersVisualStyles               = false;
 
             // Column Names use "col" prefix to match Cells["colXxx"] access in ViewShipmentForm.cs
-            dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "colShipmentID",  HeaderText = "Shipment ID",   FillWeight = 14 });
-            dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "colOrderID",      HeaderText = "Order ID",      FillWeight = 12 });
-            dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCustomerName", HeaderText = "Customer",      FillWeight = 22 });
-            dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "colShipDate",     HeaderText = "Ship Date",     FillWeight = 15 });
-            dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",       HeaderText = "Status",        FillWeight = 15 });
-            dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTotalAmount",  HeaderText = "Total Amount",  FillWeight = 15 });
+            dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "colShipmentID",  HeaderText = "SHIPMENT ID",   FillWeight = 14 });
+            dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "colOrderID",      HeaderText = "ORDER ID",      FillWeight = 12 });
+            dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "colCustomerName", HeaderText = "CUSTOMER",      FillWeight = 22 });
+            dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "colShipDate",     HeaderText = "SHIP DATE",     FillWeight = 15 });
+            dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",       HeaderText = "STATUS",        FillWeight = 15 });
+            dgvShipments.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTotalAmount",  HeaderText = "TOTAL AMOUNT",  FillWeight = 15 });
 
             dgvShipments.SelectionChanged += dgvShipments_SelectionChanged;
             dgvShipments.CellDoubleClick  += dgvShipments_CellDoubleClick;
             dgvShipments.CellFormatting   += dgvShipments_CellFormatting;
 
-            var pnlGridCard = new Panel
-            {
-                Dock = DockStyle.Fill,
-                Padding = new Padding(20, 12, 20, 0),
-                BackColor = Color.FromArgb(240, 244, 249)
-            };
+            var pnlGridCard  = new Panel { Dock = DockStyle.Fill, Padding = new Padding(20, 12, 20, 0), BackColor = Color.FromArgb(240, 244, 249) };
             var pnlGridInner = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
             pnlGridInner.Paint += PaintCardBorder;
             pnlGridInner.Controls.Add(dgvShipments);
             pnlGridCard.Controls.Add(pnlGridInner);
 
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            // ────────────────────────────────────────────────────────────
             //  Assemble (RULE 5: Fill first, Top second)
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            pnlMain.Controls.Add(pnlGridCard);
-            pnlMain.Controls.Add(pnlKpiOuter);
-            pnlMain.Controls.Add(pnlSearchOuter);
+            // ────────────────────────────────────────────────────────────
+            pnlMain.Controls.Add(pnlGridCard);    // Fill  — grid
+            pnlMain.Controls.Add(pnlKpiOuter);    // Top   — KPI bar + action buttons
+            pnlMain.Controls.Add(pnlSearchOuter); // Top   — search card
 
             this.Controls.Add(pnlMain);
             this.Controls.Add(_shell);
@@ -336,28 +357,76 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             this.ResumeLayout(false);
             this.PerformLayout();
 
-            // RULE 3: re-enforce AppShell height after PerformLayout
             _shell.Height      = AppShell.TotalHeight;
             _shell.MinimumSize = new System.Drawing.Size(0, AppShell.TotalHeight);
         }
 
-        // ── Button factories ──────────────────────────────────────────────
+        // ── Button factories ────────────────────────────────────────────
         private Button MakePrimaryBtn(string text, Point loc, int w, int h)
         {
             var b = new Button
             {
                 Text      = text,
-                Font      = new Font("Segoe UI", 11f, FontStyle.Bold),
+                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
                 ForeColor = Color.White,
-                BackColor = Color.FromArgb(15, 99, 177),
+                BackColor = Color.FromArgb(47, 111, 237),
                 FlatStyle = FlatStyle.Flat,
-                Location  = loc,
-                Width     = w,
-                Height    = h,
-                Cursor    = Cursors.Hand
+                Location  = loc, Width = w, Height = h, Cursor = Cursors.Hand
             };
             b.FlatAppearance.BorderSize         = 0;
-            b.FlatAppearance.MouseOverBackColor = Color.FromArgb(10, 80, 150);
+            b.FlatAppearance.MouseOverBackColor = Color.FromArgb(26, 77, 192);
+            b.FlatAppearance.MouseDownBackColor = Color.FromArgb(21, 60, 155);
+            return b;
+        }
+
+        private Button MakeWarningBtn(string text, Point loc, int w, int h)
+        {
+            var b = new Button
+            {
+                Text      = text,
+                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.White,
+                BackColor = Color.FromArgb(245, 158, 11),
+                FlatStyle = FlatStyle.Flat,
+                Location  = loc, Width = w, Height = h, Cursor = Cursors.Hand
+            };
+            b.FlatAppearance.BorderSize         = 0;
+            b.FlatAppearance.MouseOverBackColor = Color.FromArgb(217, 119, 6);
+            b.FlatAppearance.MouseDownBackColor = Color.FromArgb(180, 90, 0);
+            return b;
+        }
+
+        private Button MakeGreenBtn(string text, Point loc, int w, int h)
+        {
+            var b = new Button
+            {
+                Text      = text,
+                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.White,
+                BackColor = Color.FromArgb(22, 163, 74),
+                FlatStyle = FlatStyle.Flat,
+                Location  = loc, Width = w, Height = h, Cursor = Cursors.Hand
+            };
+            b.FlatAppearance.BorderSize         = 0;
+            b.FlatAppearance.MouseOverBackColor = Color.FromArgb(16, 131, 58);
+            b.FlatAppearance.MouseDownBackColor = Color.FromArgb(10, 100, 40);
+            return b;
+        }
+
+        private Button MakePurpleBtn(string text, Point loc, int w, int h)
+        {
+            var b = new Button
+            {
+                Text      = text,
+                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.White,
+                BackColor = Color.FromArgb(108, 60, 193),
+                FlatStyle = FlatStyle.Flat,
+                Location  = loc, Width = w, Height = h, Cursor = Cursors.Hand
+            };
+            b.FlatAppearance.BorderSize         = 0;
+            b.FlatAppearance.MouseOverBackColor = Color.FromArgb(88, 44, 163);
+            b.FlatAppearance.MouseDownBackColor = Color.FromArgb(68, 28, 140);
             return b;
         }
 
@@ -366,9 +435,11 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             var b = new Button
             {
                 Text      = text,
-                Font      = new Font("Segoe UI", 11f),
-                ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White,
-                FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand
+                Font      = new Font("Segoe UI", 12f),
+                ForeColor = Color.FromArgb(15, 31, 53),
+                BackColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Location  = loc, Width = w, Height = h, Cursor = Cursors.Hand
             };
             b.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
             b.FlatAppearance.BorderSize         = 1;
