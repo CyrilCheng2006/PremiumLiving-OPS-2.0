@@ -13,7 +13,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
     ///   pnlHeader    Top  80  — navy header
     ///   pnlInfo      Top  220 — shipment summary (4-row, 4-col)
     ///   pnlDNTitle   Top  44  — green title bar
-    ///   pnlDNBody    Top  220 — delivery note preview (Ship Address multi-line)
+    ///   pnlDNBody    Top  380 — delivery note preview (Ship Address multi-line)
     ///   [warning]    Top  48  — amber bar (only when DN already exists)
     ///   pnlLineLabel Top  40  — "SHIPMENT ITEMS"
     ///   dgv          Fill     — line items grid
@@ -111,7 +111,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             // ── DN body (Ship Address multi-line)
             var pnlDNBody = new Panel
             {
-                Dock = DockStyle.Top, Height = 220,
+                Dock = DockStyle.Top, Height = 380,
                 BackColor = Color.FromArgb(249, 254, 251), Padding = new Padding(28, 12, 28, 12)
             };
             pnlDNBody.Paint += PaintBottomBorder;
