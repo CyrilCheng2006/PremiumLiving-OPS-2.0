@@ -1,17 +1,16 @@
 using PremiumLivingOPS.Models.ViewModels;
 using PdfSharp.Drawing;
-using PdfSharp.Drawing.Layout;
 using PdfSharp.Fonts;
 using PdfSharp.Pdf;
 using System;
 using System.Collections.Generic;
-using System.IO;
 
 namespace PremiumLivingOPS.Services
 {
     /// <summary>
     /// Generates PDF documents for Delivery Notes and Reply Slips.
-    /// Uses PdfSharp 6.x (MIT) — no third-party licence required.
+    /// Uses PdfSharp 6.x (MIT licence).
+    /// Fonts are resolved via WindowsFontResolver (reads TTF from %WINDIR%\Fonts).
     /// </summary>
     public static class PdfExporter
     {
@@ -31,13 +30,13 @@ namespace PremiumLivingOPS.Services
         private static readonly XColor BorderCl = XColor.FromArgb(221, 227, 236);
         private static readonly XColor White    = XColors.White;
 
-        // ── XStringFormat helpers (PdfSharp 6.x — no XStringFormats static class)
+        // ── String formats (PdfSharp 6.x — XStringFormats static class removed)
         private static readonly XStringFormat FmtCenterLeft  = new XStringFormat { Alignment = XStringAlignment.Near,   LineAlignment = XLineAlignment.Center };
         private static readonly XStringFormat FmtCenter      = new XStringFormat { Alignment = XStringAlignment.Center, LineAlignment = XLineAlignment.Center };
         private static readonly XStringFormat FmtCenterRight = new XStringFormat { Alignment = XStringAlignment.Far,    LineAlignment = XLineAlignment.Center };
         private static readonly XStringFormat FmtBottomLeft  = new XStringFormat { Alignment = XStringAlignment.Near,   LineAlignment = XLineAlignment.Far    };
 
-        // ── Fonts (created lazily per call — XFont is not thread-safe as a static)
+        // ── Fonts (property → new instance each call; XFont must be created after FontResolver is set)
         private static XFont FontTitle  => new XFont("Arial", 18, XFontStyleEx.Bold);
         private static XFont FontSub    => new XFont("Arial", 12, XFontStyleEx.Bold);
         private static XFont FontBody   => new XFont("Arial", 10, XFontStyleEx.Regular);
@@ -45,12 +44,11 @@ namespace PremiumLivingOPS.Services
         private static XFont FontSmall  => new XFont("Arial",  8, XFontStyleEx.Regular);
         private static XFont FontHeader => new XFont("Arial",  9, XFontStyleEx.Bold);
 
-        // ════════════════════════════════════════════════════════════════
-        //  Public export entry-points
-        // ════════════════════════════════════════════════════════════════
+        // ══ Public export entry-points ══════════════════════════════════════════
 
         public static void ExportDeliveryNote(ShipmentDetailVM s, string filePath)
         {
+            // Must register BEFORE creating any XFont.
             WindowsFontResolver.EnsureRegistered();
 
             var ship = s.Shipment;
@@ -70,9 +68,7 @@ namespace PremiumLivingOPS.Services
 
             double y = Margin;
             y = DrawNavyHeader(gfx, y,
-                $"Delivery Note  \u2014  {dn.DeliveryID}",
-                ship.ShipmentStatus ?? "");
-
+                $"Delivery Note  \u2014  {dn.DeliveryID}", ship.ShipmentStatus ?? "");
             y = DrawInfoBlock(gfx, y, new[]
             {
                 ("Shipment ID:",     ship.ShipmentID        ?? ""),
@@ -84,10 +80,8 @@ namespace PremiumLivingOPS.Services
                 ("Ship Type:",       ship.ShipmentType      ?? ""),
                 ("Tracking No.:",    ship.TrackingNumber    ?? "\u2014"),
             });
-
             y = DrawSectionBadge(gfx, y,
                 $"Delivery Note  \u2014  {dn.DeliveryID}   (Date: {dn.DeliveryDate:yyyy-MM-dd})");
-
             y = DrawInfoBlock(gfx, y, new[]
             {
                 ("Delivery Date:",   dn.DeliveryDate.ToString("yyyy-MM-dd")),
@@ -97,7 +91,6 @@ namespace PremiumLivingOPS.Services
                 ("Delivery Method:", ship.DeliveryMethod   ?? ""),
                 ("Shipment Type:",   ship.ShipmentType     ?? ""),
             });
-
             y = DrawItemsTable(gfx, y, s.Lines);
             DrawTotalsFooter(gfx, s.Lines?.Count ?? 0, ship.TotalAmount);
             doc.Save(filePath);
@@ -105,6 +98,7 @@ namespace PremiumLivingOPS.Services
 
         public static void ExportReplySlip(ShipmentDetailVM s, string filePath)
         {
+            // Must register BEFORE creating any XFont.
             WindowsFontResolver.EnsureRegistered();
 
             var ship = s.Shipment;
@@ -120,9 +114,7 @@ namespace PremiumLivingOPS.Services
 
             double y = Margin;
             y = DrawNavyHeader(gfx, y,
-                $"Reply Slip  \u2014  {rs.SlipID}",
-                ship.ShipmentStatus ?? "");
-
+                $"Reply Slip  \u2014  {rs.SlipID}", ship.ShipmentStatus ?? "");
             y = DrawInfoBlock(gfx, y, new[]
             {
                 ("Shipment ID:",     ship.ShipmentID      ?? ""),
@@ -134,10 +126,8 @@ namespace PremiumLivingOPS.Services
                 ("Ship Type:",       ship.ShipmentType    ?? ""),
                 ("Tracking No.:",    ship.TrackingNumber  ?? "\u2014"),
             });
-
             y = DrawSectionBadge(gfx, y,
                 $"Reply Slip  \u2014  {rs.SlipID}   (Received: {rs.ReceivedDate:yyyy-MM-dd})");
-
             y = DrawInfoBlock(gfx, y, new[]
             {
                 ("Actual Recipient:", rs.ActualRecipient   ?? "\u2014"),
@@ -145,15 +135,12 @@ namespace PremiumLivingOPS.Services
                 ("Ship Address:",     ship.ShippingAddress ?? "\u2014"),
                 ("Total Amount:",     $"HK$ {ship.TotalAmount:N2}"),
             });
-
             y = DrawItemsTable(gfx, y, s.Lines);
             DrawTotalsFooter(gfx, s.Lines?.Count ?? 0, ship.TotalAmount);
             doc.Save(filePath);
         }
 
-        // ════════════════════════════════════════════════════════════════
-        //  Shared drawing helpers
-        // ════════════════════════════════════════════════════════════════
+        // ══ Drawing helpers ════════════════════════════════════════════════════
 
         private static double DrawNavyHeader(
             XGraphics gfx, double y, string title, string status)
@@ -190,7 +177,6 @@ namespace PremiumLivingOPS.Services
             {
                 double cx = (i < half) ? Margin : Margin + colW;
                 double cy = startY + (i < half ? i : i - half) * rowH;
-
                 gfx.DrawString(fields[i].key, FontBold, new XSolidBrush(LabelFg),
                     new XRect(cx, cy, colW * 0.38, rowH), FmtCenterLeft);
                 gfx.DrawString(fields[i].val, FontBody, new XSolidBrush(BodyFg),
@@ -227,8 +213,7 @@ namespace PremiumLivingOPS.Services
                 ?? new List<PremiumLivingOPS.Models.Entities.ShipmentLineEntity>())
             {
                 if (alt)
-                    gfx.DrawRectangle(
-                        new XSolidBrush(XColor.FromArgb(250, 252, 255)),
+                    gfx.DrawRectangle(new XSolidBrush(XColor.FromArgb(250, 252, 255)),
                         Margin, y, ContentW, rowH);
 
                 string[] vals =
@@ -246,7 +231,6 @@ namespace PremiumLivingOPS.Services
                         new XRect(cx, y, colW[i] - 4, rowH), FmtCenterLeft);
                     cx += colW[i];
                 }
-
                 gfx.DrawLine(new XPen(BorderCl, 0.3),
                     Margin, y + rowH, Margin + ContentW, y + rowH);
                 y += rowH;
@@ -261,15 +245,12 @@ namespace PremiumLivingOPS.Services
             double y = PageH - Margin - 20;
             gfx.DrawLine(new XPen(BorderCl, 0.5),
                 Margin, y - 2, Margin + ContentW, y - 2);
-
             gfx.DrawString($"Shipment Lines:  {lineCount}",
                 FontBold, new XSolidBrush(BodyFg),
                 new XRect(Margin, y, ContentW / 2, 16), FmtCenterLeft);
-
             gfx.DrawString($"Total Amount:  HK$ {total:N2}",
                 FontBold, new XSolidBrush(BlueFg),
                 new XRect(Margin + ContentW / 2, y, ContentW / 2, 16), FmtCenterRight);
-
             gfx.DrawString(
                 $"Generated by PremiumLiving OPS  \u2022  {DateTime.Now:yyyy-MM-dd HH:mm}",
                 FontSmall, new XSolidBrush(LabelFg),
