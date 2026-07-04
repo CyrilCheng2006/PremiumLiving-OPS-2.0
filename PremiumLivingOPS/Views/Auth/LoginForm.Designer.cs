@@ -10,6 +10,7 @@ namespace PremiumLivingOPS.Views.Auth
         private System.Windows.Forms.Label       lblPassword;
         private System.Windows.Forms.TextBox     txtStaffId;
         private System.Windows.Forms.TextBox     txtPassword;
+        private System.Windows.Forms.Button      btnShowPassword;
         private System.Windows.Forms.Button      btnLogin;
         private System.Windows.Forms.PictureBox  picLogo;
         private System.Windows.Forms.Panel       pnlMain;
@@ -25,26 +26,28 @@ namespace PremiumLivingOPS.Views.Auth
         {
             this.components = new System.ComponentModel.Container();
 
-            this.lblTitle   = new System.Windows.Forms.Label();
-            this.lblStaffId = new System.Windows.Forms.Label();
-            this.lblPassword= new System.Windows.Forms.Label();
-            this.txtStaffId = new System.Windows.Forms.TextBox();
-            this.txtPassword= new System.Windows.Forms.TextBox();
-            this.btnLogin   = new System.Windows.Forms.Button();
-            this.pnlMain    = new System.Windows.Forms.Panel();
+            this.lblTitle       = new System.Windows.Forms.Label();
+            this.lblStaffId     = new System.Windows.Forms.Label();
+            this.lblPassword    = new System.Windows.Forms.Label();
+            this.txtStaffId     = new System.Windows.Forms.TextBox();
+            this.txtPassword    = new System.Windows.Forms.TextBox();
+            this.btnShowPassword= new System.Windows.Forms.Button();
+            this.btnLogin       = new System.Windows.Forms.Button();
+            this.pnlMain        = new System.Windows.Forms.Panel();
 
             this.pnlMain.SuspendLayout();
             this.SuspendLayout();
 
             // ── pnlMain ──────────────────────────────────────────────
-            this.pnlMain.BackColor = System.Drawing.Color.White;
+            this.pnlMain.BackColor   = System.Drawing.Color.White;
             this.pnlMain.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.pnlMain.Location = new System.Drawing.Point(80, 40);
-            this.pnlMain.Name     = "pnlMain";
-            this.pnlMain.Size     = new System.Drawing.Size(360, 340);
+            this.pnlMain.Location    = new System.Drawing.Point(80, 40);
+            this.pnlMain.Name        = "pnlMain";
+            this.pnlMain.Size        = new System.Drawing.Size(360, 340);
             this.pnlMain.Controls.AddRange(new System.Windows.Forms.Control[] {
                 this.lblTitle, this.lblStaffId, this.lblPassword,
-                this.txtStaffId, this.txtPassword, this.btnLogin
+                this.txtStaffId, this.txtPassword, this.btnShowPassword,
+                this.btnLogin
             });
 
             // ── lblTitle ─────────────────────────────────────────────
@@ -78,12 +81,29 @@ namespace PremiumLivingOPS.Views.Auth
             this.lblPassword.Text     = "Password:";
 
             // ── txtPassword ──────────────────────────────────────────
+            // Width reduced from 180 to 150 to make room for the toggle button.
             this.txtPassword.Font         = new System.Drawing.Font("Segoe UI", 11F);
             this.txtPassword.Location     = new System.Drawing.Point(130, 148);
             this.txtPassword.Name         = "txtPassword";
             this.txtPassword.PasswordChar = '*';
-            this.txtPassword.Size         = new System.Drawing.Size(180, 26);
+            this.txtPassword.Size         = new System.Drawing.Size(150, 26);
             this.txtPassword.KeyDown     += new System.Windows.Forms.KeyEventHandler(this.txtPassword_KeyDown);
+
+            // ── btnShowPassword ──────────────────────────────────────
+            // Eye-icon toggle: sits flush to the right of txtPassword.
+            this.btnShowPassword.BackColor             = System.Drawing.Color.FromArgb(240, 244, 248);
+            this.btnShowPassword.FlatStyle             = System.Windows.Forms.FlatStyle.Flat;
+            this.btnShowPassword.FlatAppearance.BorderSize = 0;
+            this.btnShowPassword.Font                  = new System.Drawing.Font("Segoe UI", 10F);
+            this.btnShowPassword.ForeColor             = System.Drawing.Color.FromArgb(80, 80, 80);
+            // Position: immediately right of txtPassword (130 + 150 + 2 = 282)
+            this.btnShowPassword.Location              = new System.Drawing.Point(284, 147);
+            this.btnShowPassword.Name                  = "btnShowPassword";
+            this.btnShowPassword.Size                  = new System.Drawing.Size(26, 26);
+            this.btnShowPassword.Text                  = "\uD83D\uDC41";  // Unicode eye \U0001F441
+            this.btnShowPassword.TabStop               = false;
+            this.btnShowPassword.Cursor                = System.Windows.Forms.Cursors.Hand;
+            this.btnShowPassword.Click                += new System.EventHandler(this.btnShowPassword_Click);
 
             // ── btnLogin ─────────────────────────────────────────────
             this.btnLogin.BackColor = System.Drawing.Color.FromArgb(31, 73, 125);
@@ -107,7 +127,7 @@ namespace PremiumLivingOPS.Views.Auth
             this.MaximizeBox    = false;
             this.Name           = "LoginForm";
             this.StartPosition  = System.Windows.Forms.FormStartPosition.CenterScreen;
-            this.Text           = "Login — Premium Living OPS";
+            this.Text           = "Login \u2014 Premium Living OPS";
 
             this.pnlMain.ResumeLayout(false);
             this.pnlMain.PerformLayout();

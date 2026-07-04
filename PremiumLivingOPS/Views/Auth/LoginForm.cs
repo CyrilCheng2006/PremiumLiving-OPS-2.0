@@ -23,6 +23,9 @@ namespace PremiumLivingOPS.Views.Auth
     {
         private readonly StaffRepo _staffRepo = new StaffRepo();
 
+        // Track whether the password is currently visible.
+        private bool _passwordVisible = false;
+
         public LoginForm()
         {
             InitializeComponent();
@@ -68,6 +71,33 @@ namespace PremiumLivingOPS.Views.Auth
                 txtPassword.Clear();
                 txtPassword.Focus();
             }
+        }
+
+        /// <summary>
+        /// Toggles the password field between masked ('*') and plain-text display.
+        /// The button label switches between an eye icon (\U0001F441) and a
+        /// crossed-out eye (\U0001F648) so the current state is always obvious.
+        /// </summary>
+        private void btnShowPassword_Click(object sender, EventArgs e)
+        {
+            _passwordVisible = !_passwordVisible;
+
+            if (_passwordVisible)
+            {
+                txtPassword.PasswordChar  = '\0';          // Show plain text
+                btnShowPassword.Text      = "\uD83D\uDE48"; // \U0001F648  see-no-evil ("hide" state)
+                btnShowPassword.ForeColor = System.Drawing.Color.FromArgb(31, 73, 125);
+            }
+            else
+            {
+                txtPassword.PasswordChar  = '*';            // Mask text
+                btnShowPassword.Text      = "\uD83D\uDC41"; // \U0001F441  eye ("show" state)
+                btnShowPassword.ForeColor = System.Drawing.Color.FromArgb(80, 80, 80);
+            }
+
+            // Return focus to the password field after clicking the button.
+            txtPassword.Focus();
+            txtPassword.SelectionStart = txtPassword.Text.Length;
         }
 
         private void txtPassword_KeyDown(object sender, KeyEventArgs e)
