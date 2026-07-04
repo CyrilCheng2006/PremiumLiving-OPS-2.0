@@ -22,7 +22,12 @@ namespace PremiumLivingOPS.Views.AfterService
                 { "Processing", (Color.FromArgb(219, 234, 254), Color.FromArgb( 29,  78, 216)) },
                 { "Escalated",  (Color.FromArgb(254, 226, 226), Color.FromArgb(185,  28,  28)) },
                 { "Completed",  (Color.FromArgb(220, 252, 231), Color.FromArgb( 22, 101,  52)) },
+                { "Cancelled",  (Color.FromArgb(243, 244, 246), Color.FromArgb( 75,  85,  99)) },
             };
+
+        // All selectable statuses (used by Create + Update Status dropdowns)
+        private static readonly string[] AllStatuses =
+            { "Pending", "Processing", "Escalated", "Completed", "Cancelled" };
 
         private const int D_RowH   = 80;
         private const int D_LabelW = 260;
@@ -42,9 +47,9 @@ namespace PremiumLivingOPS.Views.AfterService
 
         private void ComplaintListForm_Load(object sender, EventArgs e) => RefreshGrid();
 
-        // ════════════════════════════════════════════════════════════════
+        // ╔════════════════════════════════════════════════════════════════
         //  Refresh
-        // ════════════════════════════════════════════════════════════════
+        // ╔════════════════════════════════════════════════════════════════
         private void RefreshGrid()
         {
             string statusSel    = cboStatus.SelectedItem?.ToString();
@@ -79,9 +84,9 @@ namespace PremiumLivingOPS.Views.AfterService
             RefreshGrid();
         }
 
-        // ════════════════════════════════════════════════════════════════
+        // ╔════════════════════════════════════════════════════════════════
         //  KPI Pills
-        // ════════════════════════════════════════════════════════════════
+        // ╔════════════════════════════════════════════════════════════════
         private void RefreshKpi()
         {
             pnlKpi.Controls.Clear();
@@ -93,6 +98,7 @@ namespace PremiumLivingOPS.Views.AfterService
             int processing = all.FindAll(c => c.ComplaintStatus == "Processing").Count;
             int escalated  = all.FindAll(c => c.ComplaintStatus == "Escalated").Count;
             int completed  = all.FindAll(c => c.ComplaintStatus == "Completed").Count;
+            int cancelled  = all.FindAll(c => c.ComplaintStatus == "Cancelled").Count;
 
             var pills = new[]
             {
@@ -101,6 +107,7 @@ namespace PremiumLivingOPS.Views.AfterService
                 ("Processing", processing.ToString(), Color.FromArgb( 29,  78, 216), Color.FromArgb(219, 234, 254), "Processing"),
                 ("Escalated",  escalated.ToString(),  Color.FromArgb(185,  28,  28), Color.FromArgb(254, 226, 226), "Escalated"),
                 ("Completed",  completed.ToString(),  Color.FromArgb( 22, 101,  52), Color.FromArgb(220, 252, 231), "Completed"),
+                ("Cancelled",  cancelled.ToString(),  Color.FromArgb( 75,  85,  99), Color.FromArgb(243, 244, 246), "Cancelled"),
             };
 
             var flow = new FlowLayoutPanel
@@ -181,14 +188,15 @@ namespace PremiumLivingOPS.Views.AfterService
             pnlKpi.Controls.Add(flow);
         }
 
-        // ════════════════════════════════════════════════════════════════
+        // ╔════════════════════════════════════════════════════════════════
         //  Action state
-        // ════════════════════════════════════════════════════════════════
+        // ╔════════════════════════════════════════════════════════════════
         private void UpdateActionButtons()
         {
             bool sel = dgvComplaints.SelectedRows.Count > 0;
             btnUpdateStatus.Enabled = sel;
             btnViewDetail.Enabled   = sel;
+            btnDeleteComplaint.Enabled = sel;
         }
 
         private void dgvComplaints_SelectionChanged(object sender, EventArgs e) => UpdateActionButtons();
@@ -718,8 +726,8 @@ namespace PremiumLivingOPS.Views.AfterService
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 Font = new Font("Segoe UI", 12f)
             };
-            cboStatusNew.Items.AddRange(new object[] { "Pending", "Processing", "Escalated", "Completed" });
-            cboStatusNew.SelectedIndex = 0;
+            cboStatusNew.Items.AddRange(AllStatuses);
+            cboStatusNew.SelectedIndex = 0;   // default: Pending
             var rowStatus = MakeRow("Status *", cboStatusNew);
 
             var txtDesc = new TextBox
@@ -934,7 +942,8 @@ namespace PremiumLivingOPS.Views.AfterService
                 Font = new Font("Segoe UI", 12f), FlatStyle = FlatStyle.Flat,
                 BackColor = Color.White, ForeColor = Color.FromArgb(15, 31, 53)
             };
-            cboNew.Items.AddRange(new object[] { "Pending", "Processing", "Escalated", "Completed" });
+            // Include Cancelled in the dropdown
+            cboNew.Items.AddRange(AllStatuses);
             cboNew.SelectedItem = ent.ComplaintStatus;
 
             var rows = new Panel[]
@@ -1058,6 +1067,46 @@ namespace PremiumLivingOPS.Views.AfterService
             dlg.Controls.Add(pnlHeader);
 
             if (dlg.ShowDialog(this) == DialogResult.OK) RefreshGrid();
+        }
+
+        // ╔════════════════════════════════════════════════════════════════
+        //  Delete Complaint
+        // ╔════════════════════════════════════════════════════════════════
+        private void btnDeleteComplaint_Click(object sender, EventArgs e)
+        {
+            if (dgvComplaints.SelectedRows.Count == 0) return;
+
+            string id  = dgvComplaints.SelectedRows[0].Cells["colComplaintID"].Value?.ToString();
+            var    ent = _currentComplaints.Find(x => x.ComplaintID == id);
+            if (ent == null) return;
+
+            var confirm = MessageBox.Show(
+                $"Are you sure you want to permanently delete complaint \u201c{id}\u201d?\n\nThis action cannot be undone.",
+                "Delete Complaint",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning,
+                MessageBoxDefaultButton.Button2);
+
+            if (confirm != DialogResult.Yes) return;
+
+            try
+            {
+                bool ok = _ctrl.DeleteComplaint(id);
+                if (ok)
+                {
+                    MessageBox.Show($"Complaint {id} has been deleted.",
+                        "Deleted", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    RefreshGrid();
+                }
+                else
+                    MessageBox.Show("Delete failed. The record may no longer exist.",
+                        "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Delete failed:\n{ex.Message}",
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         private void btnViewDetail_Click(object sender, EventArgs e) => ShowDetailDialog();
