@@ -57,7 +57,7 @@ namespace PremiumLivingOPS.Views.MasterData
             var vm = _ctrl.GetSupplierListVM(keyword);
             _shell.SetUser(vm.UserBar.DisplayName, vm.UserBar.Department);
             _shell.SetVisibleMenus(vm.AllowedMenus);
-            _shell.SetBreadcrumb("Master Data Maintenance  ›  Supplier List");
+            _shell.SetBreadcrumb("Master Data Maintenance  \u203a  Supplier List");
 
             _currentSuppliers = vm.Suppliers;
             dgvSuppliers.Rows.Clear();
@@ -199,7 +199,7 @@ namespace PremiumLivingOPS.Views.MasterData
 
             using var dlg = new Form
             {
-                Text = $"Modify Supplier — {s.SupplierID}",
+                Text = $"Modify Supplier \u2014 {s.SupplierID}",
                 Size = new Size(1400, 800), MinimumSize = new Size(1100, 800),
                 StartPosition = FormStartPosition.CenterParent,
                 FormBorderStyle = FormBorderStyle.FixedDialog,
@@ -211,7 +211,7 @@ namespace PremiumLivingOPS.Views.MasterData
             var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 80, BackColor = Color.FromArgb(19, 35, 61) };
             pnlHeader.Controls.Add(new Label
             {
-                Text = $"✏️  Modify Supplier — {s.SupplierID}",
+                Text = $"✏️  Modify Supplier \u2014 {s.SupplierID}",
                 Font = new Font("Segoe UI", 18f, FontStyle.Bold),
                 ForeColor = Color.White, BackColor = Color.Transparent,
                 Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft,
@@ -259,7 +259,7 @@ namespace PremiumLivingOPS.Views.MasterData
 
             using var dlg = new Form
             {
-                Text = $"Supplier — {s.SupplierID}",
+                Text = $"Supplier \u2014 {s.SupplierID}",
                 Size = new Size(1400, 700), MinimumSize = new Size(900, 700),
                 StartPosition = FormStartPosition.CenterParent,
                 FormBorderStyle = FormBorderStyle.FixedDialog,
@@ -271,7 +271,7 @@ namespace PremiumLivingOPS.Views.MasterData
             var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 80, BackColor = Color.FromArgb(19, 35, 61) };
             pnlHeader.Controls.Add(new Label
             {
-                Text = $"Supplier Details — {s.SupplierID}",
+                Text = $"Supplier Details \u2014 {s.SupplierID}",
                 Font = new Font("Segoe UI", 18f, FontStyle.Bold),
                 ForeColor = Color.White, BackColor = Color.Transparent,
                 Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft,
@@ -280,7 +280,7 @@ namespace PremiumLivingOPS.Views.MasterData
 
             var pnlSection = BuildSectionTitle("📋  Supplier Information");
 
-            Label ReadOnly(string val) => new Label { Text = val ?? "—", Font = new Font("Segoe UI", 12f), ForeColor = Color.FromArgb(15, 31, 53), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, BackColor = Color.White, AutoEllipsis = true };
+            Label ReadOnly(string val) => new Label { Text = val ?? "\u2014", Font = new Font("Segoe UI", 12f), ForeColor = Color.FromArgb(15, 31, 53), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, BackColor = Color.White, AutoEllipsis = true };
 
             var rows      = new Panel[] { DlgFieldRow("Supplier ID", ReadOnly(s.SupplierID)), DlgFieldRow("Supplier Name", ReadOnly(s.SupplierName)), DlgFieldRow("Phone Number", ReadOnly(s.PhoneNumber)), DlgFieldRow("Address", ReadOnly(s.SupplierAddress), lastRow: true) };
             var cardOuter = BuildCardOuter(rows);
@@ -387,7 +387,7 @@ namespace PremiumLivingOPS.Views.MasterData
             return true;
         }
 
-        // ── Legacy helpers (kept for KPI pill Paint / internal FieldRow compatibility)
+        // ── Legacy helpers
         private Panel FieldRow(string labelText, Control input, bool lastRow = false)
             => DlgFieldRow(labelText, input, lastRow);
 
@@ -411,7 +411,14 @@ namespace PremiumLivingOPS.Views.MasterData
             => FormNavigator.NavigateTo(this, menuLabel, subItem);
 
         private void btnLogout_Click(object sender, EventArgs e)
-        { SessionManager.Clear(); Application.Restart(); }
+        {
+            if (MessageBox.Show("Are you sure you want to log out?",
+                                "Logout", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+            {
+                SessionManager.Clear();
+                Application.Restart();
+            }
+        }
 
         // ── RoundedRect (KPI pill painting)
         private static GraphicsPath RoundedRect(Rectangle r, int radius)

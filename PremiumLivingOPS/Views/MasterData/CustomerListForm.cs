@@ -271,7 +271,7 @@ namespace PremiumLivingOPS.Views.MasterData
                     $"HK$ {o.GrandTotal:N2}",
                     o.OrderStatus ?? "\u2014");
 
-            // Colour the Status badge (same palette as CreateInvoiceForm / ViewOrderForm)
+            // Colour the Status badge
             dgv.CellFormatting += (sender, e) =>
             {
                 if (e.RowIndex < 0 || dgv.Columns[e.ColumnIndex].Name != "colStatus" || e.Value == null) return;
@@ -285,11 +285,8 @@ namespace PremiumLivingOPS.Views.MasterData
                 e.FormattingApplied            = true;
             };
 
-            // ── Total row (mirrors ViewShipmentForm.ShowDetailDialog footer strip)
-            var pnlTotalRow = new Panel
-            {
-                Dock = DockStyle.Bottom, Height = 64, BackColor = Color.White
-            };
+            // ── Total row
+            var pnlTotalRow = new Panel { Dock = DockStyle.Bottom, Height = 64, BackColor = Color.White };
             pnlTotalRow.Paint += PaintTopBorderStatic;
 
             var tblTotals = new TableLayoutPanel
@@ -347,7 +344,7 @@ namespace PremiumLivingOPS.Views.MasterData
             btnClose.Click += (_, __) => dlg.Close();
             pnlFooter.Controls.Add(btnClose);
 
-            // ── Assemble (DOCK RULE: Fill first, then Top/Bottom in reverse render order)
+            // ── Assemble
             dlg.Controls.Add(dgv);
             dlg.Controls.Add(pnlFooter);
             dlg.Controls.Add(pnlTotalRow);
@@ -589,7 +586,7 @@ namespace PremiumLivingOPS.Views.MasterData
             return true;
         }
 
-        // ── Dialog label helpers (mirrors ViewShipmentForm.MakeLabelKey / MakeLabelVal)
+        // ── Dialog label helpers
         private static Label DlgLabelKey(string text) => new Label
         {
             Text = text, Font = new Font("Segoe UI", 10f, FontStyle.Bold),
@@ -606,7 +603,7 @@ namespace PremiumLivingOPS.Views.MasterData
             AutoEllipsis = true
         };
 
-        // ── Border/separator painters (same as ViewShipmentForm)
+        // ── Border/separator painters
         private static void PaintBottomBorderStatic(object s, PaintEventArgs e)
         {
             var p = (Panel)s;
@@ -637,8 +634,12 @@ namespace PremiumLivingOPS.Views.MasterData
 
         private void btnLogout_Click(object sender, EventArgs e)
         {
-            SessionManager.Clear();
-            Application.Restart();
+            if (MessageBox.Show("Are you sure you want to log out?",
+                                "Logout", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+            {
+                SessionManager.Clear();
+                Application.Restart();
+            }
         }
     }
 }
