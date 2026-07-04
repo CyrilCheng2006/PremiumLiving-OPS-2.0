@@ -1,6 +1,7 @@
 using PremiumLivingOPS.Controllers;
 using PremiumLivingOPS.Models.DAL;
 using PremiumLivingOPS.Models.Entities;
+using PremiumLivingOPS.Services;
 using PremiumLivingOPS.Views.Dashboard;
 using System;
 using System.Windows.Forms;
@@ -15,8 +16,8 @@ namespace PremiumLivingOPS.Views.Auth
     ///   This View calls StaffRepo via a thin inline path (no dedicated
     ///   AuthController yet), then delegates session state to
     ///   <see cref="SessionManager"/> in the Controller layer.
-    ///   The obsolete <c>LoginForm.CurrentUser</c> static property has
-    ///   been removed; all modules must use SessionManager instead.
+    ///   On successful login, a Login audit record is written to the
+    ///   MySQL Log table via AuditLogger.WriteAs().
     /// </summary>
     public partial class LoginForm : Form
     {
@@ -49,6 +50,9 @@ namespace PremiumLivingOPS.Views.Auth
             {
                 // Store in the central session (Controller layer)
                 SessionManager.SetUser(staff);
+
+                // ── Write Login audit to MySQL Log table ──────────────
+                WriteLoginAudit(staff.StaffID);
 
                 DashboardForm dashboard = new DashboardForm();
                 dashboard.FormClosed += (s, args) => this.Close();

@@ -8,17 +8,15 @@ namespace PremiumLivingOPS.Models.DAL
 {
     /// <summary>
     /// Data Access Layer for System Control module.
-    /// Staff CRUD -> MySQL 'Staff' table (via DatabaseHelper.GetConnection).
-    /// Log search  -> AuditLogger.LoadAllLogs() (reads TXT files, no DB needed).
-    /// Uses the canonical Staff entity (Staff.cs).
+    /// Staff CRUD  -> MySQL 'Staff' table.
+    /// Log search  -> MySQL 'Log' table via AuditLogger.LoadAllLogs().
     /// </summary>
     public class SystemControlRepo
     {
-        // Matches pattern used across the project (DatabaseHelper.GetConnection)
         private MySqlConnection GetConn() => DatabaseHelper.GetConnection();
 
         // ════════════════════════════════════════════════════════════════
-        // STAFF  (StaffID, StaffName, StaffRole, Department, Email, StaffPassword)
+        // STAFF
         // ════════════════════════════════════════════════════════════════
 
         public List<Staff> SearchStaff(string keyword = null)
@@ -44,8 +42,8 @@ namespace PremiumLivingOPS.Models.DAL
                     StaffName  = rdr.GetString("StaffName"),
                     Role       = rdr.GetString("StaffRole"),
                     Department = rdr.GetString("Department"),
-                    Email      = rdr.IsDBNull(rdr.GetOrdinal("Email")) ? "" : rdr.GetString("Email"),
-                    Password   = rdr.IsDBNull(rdr.GetOrdinal("StaffPassword")) ? "" : rdr.GetString("StaffPassword")
+                    Email      = rdr.IsDBNull(rdr.GetOrdinal("Email"))          ? "" : rdr.GetString("Email"),
+                    Password   = rdr.IsDBNull(rdr.GetOrdinal("StaffPassword"))  ? "" : rdr.GetString("StaffPassword")
                 });
             return list;
         }
@@ -71,7 +69,7 @@ namespace PremiumLivingOPS.Models.DAL
             cmd.Parameters.AddWithValue("@name", s.StaffName);
             cmd.Parameters.AddWithValue("@role", s.Role);
             cmd.Parameters.AddWithValue("@dept", s.Department);
-            cmd.Parameters.AddWithValue("@email",s.Email   ?? "");
+            cmd.Parameters.AddWithValue("@email",s.Email    ?? "");
             cmd.Parameters.AddWithValue("@pwd",  s.Password ?? "");
             return cmd.ExecuteNonQuery() > 0;
         }
@@ -103,7 +101,7 @@ namespace PremiumLivingOPS.Models.DAL
         }
 
         // ════════════════════════════════════════════════════════════════
-        // LOG  (reads TXT files via AuditLogger -- no MySQL table needed)
+        // LOG  (reads from MySQL Log table via AuditLogger)
         // ════════════════════════════════════════════════════════════════
 
         public List<AuditLogEntity> SearchLogs(string keyword = null)
