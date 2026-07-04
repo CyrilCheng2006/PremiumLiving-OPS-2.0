@@ -183,7 +183,11 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
         private void btnLogout_Click(object sender, EventArgs e)
         {
-            FormNavigator.NavigateTo(this, "Logout");
+            if (MessageBox.Show("Are you sure you want to log out?",
+                                "Logout", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+            {
+                FormNavigator.NavigateTo(this, "Logout");
+            }
         }
     }
 }
