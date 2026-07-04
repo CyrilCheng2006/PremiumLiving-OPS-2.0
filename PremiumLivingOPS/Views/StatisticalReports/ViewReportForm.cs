@@ -1288,13 +1288,11 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             ApplyToggleStyle(btnToggle, _financeChart);
 
             var dgv = MakeDgv();
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDate",    HeaderText = "DATE",          FillWeight = 13 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTxID",    HeaderText = "TRANSACTION ID",FillWeight = 16 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDocType", HeaderText = "DOC TYPE",      FillWeight = 14 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTxType",  HeaderText = "TX TYPE",       FillWeight = 12 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colAmount",  HeaderText = "AMOUNT",        FillWeight = 14 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colMethod",  HeaderText = "PAYMENT METHOD",FillWeight = 16 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colStatus",  HeaderText = "STATUS",        FillWeight = 12 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDate",    HeaderText = "DATE",           FillWeight = 16 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTxID",    HeaderText = "TRANSACTION ID", FillWeight = 20 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDocType", HeaderText = "DOC TYPE",       FillWeight = 18 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTxType",  HeaderText = "TX TYPE",        FillWeight = 16 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colAmount",  HeaderText = "AMOUNT",         FillWeight = 18 });
             dgv.CellFormatting += DgvCellFormatting;
 
             LoadFinanceData(dgv, dtpFrom, dtpTo, cboTxType);
@@ -1344,9 +1342,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                         r.TransactionID,
                         r.DocumentType,
                         r.TransactionType,
-                        r.Amount.ToString("N2"),
-                        r.PaymentMethod,
-                        r.ApprovalStatus);
+                        r.Amount.ToString("N2"));
             }
             catch { }
         }
