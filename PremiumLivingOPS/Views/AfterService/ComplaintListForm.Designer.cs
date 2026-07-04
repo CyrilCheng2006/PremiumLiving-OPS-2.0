@@ -18,7 +18,8 @@ namespace PremiumLivingOPS.Views.AfterService
         private DataGridView  dgvComplaints;
         private Button        btnUpdateStatus;
         private Button        btnViewDetail;
-        private Button        btnAddNew;   // ★ KPI Bar — Add New
+        private Button        btnAddNew;
+        private Button        btnDeleteComplaint;   // ✔ Delete button
 
         protected override void Dispose(bool disposing)
         {
@@ -49,7 +50,6 @@ namespace PremiumLivingOPS.Views.AfterService
             // ════════════════════════════════════════════════════════════════
             var (searchOuter, searchInner) = CardPanel.Create(outerHeight: 300);
 
-            // ── Input controls
             txtKeyword = new TextBox
             {
                 Font = new Font("Segoe UI", 12f), BorderStyle = BorderStyle.FixedSingle,
@@ -61,10 +61,10 @@ namespace PremiumLivingOPS.Views.AfterService
             {
                 DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 12f)
             };
-            cboStatus.Items.AddRange(new object[] { "All", "Pending", "Processing", "Escalated", "Completed" });
+            // Include Cancelled in the filter dropdown
+            cboStatus.Items.AddRange(new object[] { "All", "Pending", "Processing", "Escalated", "Completed", "Cancelled" });
             cboStatus.SelectedIndex = 0;
 
-            // ── MakeCell helper
             TableLayoutPanel MakeCell(string caption, Control ctrl, bool rightPad = true)
             {
                 var tlp = new TableLayoutPanel
@@ -153,14 +153,8 @@ namespace PremiumLivingOPS.Views.AfterService
             // ════════════════════════════════════════════════════════════════
             // CARD 2 — KPI Bar + Action Buttons  (Top, fixed 90px)
             //
-            // Layout (left → right):
-            //   pnlKpi          — DockStyle.Fill   — KPI pills
-            //   pnlActionBtns   — DockStyle.Right  — [Add New] [Update Status] [View Detail]
-            //
-            // Button order inside pnlActionBtns (X positions, left → right):
-            //   btnAddNew       BtnPad
-            //   btnUpdateStatus BtnPad + BtnW + BtnGap
-            //   btnViewDetail   BtnPad + (BtnW+BtnGap)*2
+            // Button order (left → right):
+            //   btnAddNew | btnUpdateStatus | btnViewDetail | btnDeleteComplaint
             // ════════════════════════════════════════════════════════════════
             var (kpiOuter, kpiInner) = CardPanel.Create(outerHeight: 90);
 
@@ -171,27 +165,35 @@ namespace PremiumLivingOPS.Views.AfterService
                 Padding   = new Padding(12, 10, 12, 10)
             };
 
-            const int BtnW   = 290;
+            const int BtnW   = 260;
             const int BtnH   = 60;
             const int BtnGap = 8;
             const int BtnPad = 12;
 
-            // ★ Add New — green success button (mirrors ViewShipment colour language)
+            // Green: Add New
             btnAddNew = MakeSuccessBtn("\u2795  Add New", Point.Empty, BtnW, BtnH);
             btnAddNew.Click += btnAddNew_Click;
 
+            // Amber: Update Status
             btnUpdateStatus = MakeWarningBtn("\u270F\uFE0F  Update Status", Point.Empty, BtnW, BtnH);
-            btnViewDetail   = MakePrimaryBtn("\uD83D\uDD0D  View Detail",   Point.Empty, BtnW, BtnH);
             btnUpdateStatus.Enabled = false;
-            btnViewDetail.Enabled   = false;
             btnUpdateStatus.Click  += btnUpdateStatus_Click;
-            btnViewDetail.Click    += btnViewDetail_Click;
 
-            // 3 buttons: Add New | Update Status | View Detail
+            // Blue: View Detail
+            btnViewDetail = MakePrimaryBtn("\uD83D\uDD0D  View Detail", Point.Empty, BtnW, BtnH);
+            btnViewDetail.Enabled = false;
+            btnViewDetail.Click  += btnViewDetail_Click;
+
+            // Red: Delete Complaint
+            btnDeleteComplaint = MakeDangerBtn("\uD83D\uDDD1\uFE0F  Delete", Point.Empty, BtnW, BtnH);
+            btnDeleteComplaint.Enabled = false;
+            btnDeleteComplaint.Click  += btnDeleteComplaint_Click;
+
+            // Panel holds all 4 buttons, docked to the right of kpiInner
             var pnlActionBtns = new Panel
             {
                 Dock      = DockStyle.Right,
-                Width     = BtnPad + BtnW + BtnGap + BtnW + BtnGap + BtnW + BtnPad,
+                Width     = BtnPad + (BtnW + BtnGap) * 4 - BtnGap + BtnPad,
                 BackColor = Color.Transparent
             };
 
@@ -199,13 +201,15 @@ namespace PremiumLivingOPS.Views.AfterService
             {
                 int top = (pnlActionBtns.Height - BtnH) / 2;
                 if (top < 0) top = 0;
-                btnAddNew.Location       = new Point(BtnPad, top);
-                btnUpdateStatus.Location = new Point(BtnPad + BtnW + BtnGap, top);
-                btnViewDetail.Location   = new Point(BtnPad + (BtnW + BtnGap) * 2, top);
+                btnAddNew.Location          = new Point(BtnPad,                                    top);
+                btnUpdateStatus.Location    = new Point(BtnPad + (BtnW + BtnGap),                 top);
+                btnViewDetail.Location      = new Point(BtnPad + (BtnW + BtnGap) * 2,             top);
+                btnDeleteComplaint.Location = new Point(BtnPad + (BtnW + BtnGap) * 3,             top);
             }
             pnlActionBtns.Controls.Add(btnAddNew);
             pnlActionBtns.Controls.Add(btnUpdateStatus);
             pnlActionBtns.Controls.Add(btnViewDetail);
+            pnlActionBtns.Controls.Add(btnDeleteComplaint);
             pnlActionBtns.Resize += (s, e) => CentreActionBtns();
 
             var pnlKpiRow = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
@@ -252,7 +256,7 @@ namespace PremiumLivingOPS.Views.AfterService
 
             gridInner.Controls.Add(dgvComplaints);
 
-            // ── Assemble
+            // —— Assemble
             pnlMain.Controls.Add(gridOuter);    // Fill
             pnlMain.Controls.Add(kpiOuter);     // Top
             pnlMain.Controls.Add(searchOuter);  // Top
@@ -262,7 +266,7 @@ namespace PremiumLivingOPS.Views.AfterService
             this.ResumeLayout(false);
         }
 
-        // ── Button factories ───────────────────────────────────────────────────
+        // ── Button factories ────────────────────────────────────────────────────────────────────
         private static Button MakePrimaryBtn(string text, Point loc, int w, int h)
         {
             var b = new Button { Text = text, Font = new Font("Segoe UI", 12f, FontStyle.Bold),
@@ -283,7 +287,6 @@ namespace PremiumLivingOPS.Views.AfterService
             b.FlatAppearance.MouseDownBackColor = Color.FromArgb(180, 90, 0);
             return b;
         }
-        // ★ Green success button — mirrors ViewShipment "Confirm Generate" style
         private static Button MakeSuccessBtn(string text, Point loc, int w, int h)
         {
             var b = new Button { Text = text, Font = new Font("Segoe UI", 12f, FontStyle.Bold),
@@ -292,6 +295,17 @@ namespace PremiumLivingOPS.Views.AfterService
             b.FlatAppearance.BorderSize = 0;
             b.FlatAppearance.MouseOverBackColor = Color.FromArgb(4, 120, 87);
             b.FlatAppearance.MouseDownBackColor = Color.FromArgb(3, 90, 68);
+            return b;
+        }
+        // Red danger button for destructive actions
+        private static Button MakeDangerBtn(string text, Point loc, int w, int h)
+        {
+            var b = new Button { Text = text, Font = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.White, BackColor = Color.FromArgb(220, 38, 38), FlatStyle = FlatStyle.Flat,
+                Location = loc, Width = w, Height = h, Cursor = Cursors.Hand };
+            b.FlatAppearance.BorderSize = 0;
+            b.FlatAppearance.MouseOverBackColor = Color.FromArgb(185, 28, 28);
+            b.FlatAppearance.MouseDownBackColor = Color.FromArgb(153, 18, 18);
             return b;
         }
         private static Button MakeOutlineBtn(string text, Point loc, int w, int h)
