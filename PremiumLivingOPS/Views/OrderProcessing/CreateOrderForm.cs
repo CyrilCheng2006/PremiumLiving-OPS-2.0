@@ -19,6 +19,12 @@ namespace PremiumLivingOPS.Views.OrderProcessing
     /// Picker fields:
     ///   Customer, Linked Quotation  → SearchPickerDialog (keyword search popup)
     ///   Order Item + Qty + Add      → AddOrderItemDialog (combined search + qty + confirm)
+    ///
+    /// Quotation auto-fill:
+    ///   When a Quotation is linked, its items are loaded via
+    ///   OrderProcessingController.GetQuotationDetail() and pushed into _lines,
+    ///   replacing any previously entered items.  The user may still add / remove
+    ///   lines afterwards.
     /// </summary>
     public partial class CreateOrderForm : Form
     {
@@ -89,6 +95,19 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             PopulateAddresses(_selectedCustomerId);
         }
 
+        /// <summary>
+        /// Opens the quotation picker.  When a valid Quotation is chosen:
+        ///   1. Stores the QuotationID.
+        ///   2. Fetches the Quotation detail (including its items) from the
+        ///      Controller — which first checks the in-memory cache then falls
+        ///      back to DB via GetQuotationDetail().
+        ///   3. Converts each QuotationItemEntity → OrderLineEntity and
+        ///      replaces the current _lines list.
+        ///   4. Refreshes the Order Item grid so the user sees the imported rows.
+        ///
+        /// Choosing "(None)" clears the linked quotation but does NOT wipe
+        /// manually added lines (consistent with existing behaviour).
+        /// </summary>
         private void btnPickQuotation_Click(object sender, EventArgs e)
         {
             var items = new List<SearchPickerDialog.PickerItem>
@@ -111,6 +130,69 @@ namespace PremiumLivingOPS.Views.OrderProcessing
             lblQuotationPicked.ForeColor = string.IsNullOrEmpty(dlg.SelectedItem.Id)
                 ? System.Drawing.Color.FromArgb(98, 112, 135)
                 : System.Drawing.Color.FromArgb(15, 31, 53);
+
+            // ── Auto-populate Order Items from Quotation ───────────────────────
+            if (!string.IsNullOrEmpty(_selectedQuotationId))
+            {
+                var detail = _ctrl.GetQuotationDetail(_selectedQuotationId);
+
+                if (detail?.Items != null && detail.Items.Count > 0)
+                {
+                    // Ask user whether to replace existing lines (if any)
+                    if (_lines.Count > 0)
+                    {
+                        var confirm = MessageBox.Show(
+                            "Replace the current order items with items from the selected Quotation?",
+                            "Import Quotation Items",
+                            MessageBoxButtons.YesNo,
+                            MessageBoxIcon.Question);
+
+                        if (confirm != DialogResult.Yes)
+                        {
+                            RefreshLineGrid();
+                            return;
+                        }
+                    }
+
+                    // Convert QuotationItemEntity → OrderLineEntity
+                    _lines.Clear();
+                    foreach (var qi in detail.Items)
+                    {
+                        // Apply per-line discount: effective price = UnitPrice * (1 - disc%)
+                        double effectivePrice = qi.UnitPrice * (1.0 - qi.DiscountPercent / 100.0);
+
+                        _lines.Add(new OrderLineEntity
+                        {
+                            ItemID   = qi.ItemID,
+                            ItemName = qi.ProductName,
+                            Quantity = qi.Quantity,
+                            Price    = effectivePrice
+                        });
+                    }
+
+                    RefreshLineGrid();
+
+                    MessageBox.Show(
+                        $"{detail.Items.Count} item(s) imported from Quotation {_selectedQuotationId}.",
+                        "Items Imported",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
+                }
+                else
+                {
+                    // Quotation has no items — inform the user but don't discard existing lines
+                    MessageBox.Show(
+                        $"Quotation {_selectedQuotationId} has no line items.  You can add items manually.",
+                        "No Items Found",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
+                }
+            }
+            else
+            {
+                // (None) selected — keep existing lines unchanged
+                RefreshLineGrid();
+            }
         }
 
         private void btnAddItem_Click(object sender, EventArgs e)
