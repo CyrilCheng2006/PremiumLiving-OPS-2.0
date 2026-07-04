@@ -446,6 +446,64 @@ namespace PremiumLivingOPS.Models.DAL
         }
 
         // ════════════════════════════════════════════════════════════════
+        //  DELETE RAW MATERIAL REQUEST BATCH
+        //  Deletes all -NN lines sharing the given BatchPrefix.
+        //  Blocked if any line is already linked to a PurchaseOrder.
+        // ════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Deletes all MaterialRequest lines whose RequestID starts with
+        /// <paramref name="batchPrefix"/> + '-'.
+        /// Throws <see cref="InvalidOperationException"/> when any line is
+        /// already referenced by a PurchaseOrder (cannot cascade-delete).
+        /// </summary>
+        public void DeleteMaterialRequestBatch(string batchPrefix)
+        {
+            using (var conn = DatabaseHelper.GetConnection())
+            {
+                conn.Open();
+                using (var trx = conn.BeginTransaction())
+                {
+                    try
+                    {
+                        // Guard: block delete if any line has a linked PO
+                        const string checkLinked =
+                            @"SELECT COUNT(1)
+                              FROM   PurchaseOrder po
+                              WHERE  po.RequestID LIKE @prefix";
+
+                        using (var cmd = new MySqlCommand(checkLinked, conn, trx))
+                        {
+                            cmd.Parameters.AddWithValue("@prefix", batchPrefix + "-%");
+                            long linked = Convert.ToInt64(cmd.ExecuteScalar());
+                            if (linked > 0)
+                                throw new InvalidOperationException(
+                                    "This request batch is already linked to a Purchase Order and cannot be deleted.");
+                        }
+
+                        // Delete all line records belonging to the batch
+                        const string deleteSql =
+                            @"DELETE FROM MaterialRequest
+                              WHERE RequestID LIKE @prefix";
+
+                        using (var cmd = new MySqlCommand(deleteSql, conn, trx))
+                        {
+                            cmd.Parameters.AddWithValue("@prefix", batchPrefix + "-%");
+                            cmd.ExecuteNonQuery();
+                        }
+
+                        trx.Commit();
+                    }
+                    catch
+                    {
+                        trx.Rollback();
+                        throw;
+                    }
+                }
+            }
+        }
+
+        // ════════════════════════════════════════════════════════════════
         //  ID GENERATION — Plan A Batch Prefix
         // ════════════════════════════════════════════════════════════════
 
