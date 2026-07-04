@@ -613,13 +613,13 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 foreach (var v in _values) total += v;
                 if (total == 0) { DrawEmpty(g); return; }
 
-                float legW  = 160;
+                float legW  = 200;
                 float pieW  = Math.Min(plotRect.Width - legW - 20, plotRect.Height - 20);
                 float pieX  = plotRect.Left + (plotRect.Width - legW - 20 - pieW) / 2f;
                 float pieY  = plotRect.Top  + (plotRect.Height - pieW) / 2f;
                 var pieRect = new RectangleF(pieX, pieY, pieW, pieW);
 
-                // Finance Overview pie legend uses larger font when _largeValueFont is true
+                // After-Service and Finance Overview pie legend uses larger font when _largeValueFont is true
                 var labelFont  = _largeValueFont
                     ? new Font("Segoe UI", 13f, FontStyle.Bold)
                     : new Font("Segoe UI", 9f);
@@ -1275,10 +1275,12 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                     }
             }
             catch { }
+            // largeValueFont: true — After-Service chart uses 13pt bold for pie legend values
             return BuildChartCard("Complaints by Status",
                 new List<string>(countByStatus.Keys).ToArray(),
                 new List<double>(countByStatus.Values).ToArray(),
-                ChartStyle.Pie);
+                ChartStyle.Pie,
+                largeValueFont: true);
         }
 
         // ── 5. Finance Overview ─────────────────────────────────────────────
