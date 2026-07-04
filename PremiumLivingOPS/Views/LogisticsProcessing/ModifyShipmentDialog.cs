@@ -27,8 +27,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
     //  │  [ New Status * ]  [ New Tracking No. ]                            │
     //  │  [ Actual Recipient ]  [ Remark ]                                  │
     //  ├─ Total row 64px ───────────────────────────────────────────────────┤
-    //  ├─ Footer 86px ─────────────────────────────────────────────────────┤
-    //  │  [ 🗑 Delete ]          [ Cancel ]   [ ✔ Save Changes ]            │
+    //  ├─ Footer 92px ─────────────────────────────────────────────────────┤
+    //  │  [ 🗑 Delete (210×60) ]       [ Cancel (210×60) ] [ ✔ Save (210×60) ]  │
     //  └────────────────────────────────────────────────────────────────────┘
     // =========================================================================
     public class ModifyShipmentDialog : Form
@@ -47,6 +47,10 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         // ── Edit cell caption height (doubled to prevent input overlapping label) ─
         private const int CaptionH = 56;   // was 28, now 2× to give caption full room
         private const int InputH   = 40;   // fixed height for ComboBox / TextBox
+
+        // ── Footer button size (unified) ──────────────────────────────────────
+        private const int BtnW = 210;
+        private const int BtnH = 60;
 
         // ── Status colour palette (matches ViewShipmentForm) ─────────────────
         private static readonly Dictionary<string, (Color bg, Color fg)> StatusColors =
@@ -326,50 +330,52 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlTotalRow.Controls.Add(tblTotals);
 
             // ── Footer ───────────────────────────────────────────────────────────
+            // Footer height = BtnH(60) + top padding(16) + bottom padding(16) = 92px
             var pnlFooter = new Panel
             {
                 Dock      = DockStyle.Bottom,
-                Height    = 86,
+                Height    = 92,
                 BackColor = Color.White,
-                Padding   = new Padding(28, 14, 28, 14)
+                Padding   = new Padding(28, 16, 28, 16)
             };
             pnlFooter.Paint += PaintTopBorderStatic;
 
-            // Save Changes — blue, 210×56, right-anchored
+            // ── Save Changes — blue 210×60, right-anchored ────────────────────
             var btnSave = MakeBtn(
                 "\u2714  Save Changes",
                 Color.FromArgb(47, 111, 237),
                 Color.FromArgb(26,  77, 192),
                 Color.FromArgb(15,  55, 155),
                 Color.White);
+            btnSave.Size     = new Size(BtnW, BtnH);
             btnSave.Anchor   = AnchorStyles.Right | AnchorStyles.Top;
-            btnSave.Location = new Point(2500 - 28 - 210, 14);
+            btnSave.Location = new Point(2500 - 28 - BtnW, 16);
             btnSave.Click   += BtnSave_Click;
 
-            // Cancel — outline, 150×56, left of Save
+            // ── Cancel — outline 210×60, left of Save ─────────────────────────
             var btnCancel = MakeBtn(
                 "Cancel",
                 Color.White,
                 Color.FromArgb(240, 244, 249),
                 Color.FromArgb(220, 228, 240),
                 Color.FromArgb(15,  31,  53));
-            btnCancel.Size                              = new Size(150, 56);
+            btnCancel.Size                              = new Size(BtnW, BtnH);
             btnCancel.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
             btnCancel.FlatAppearance.BorderSize         = 1;
             btnCancel.Anchor                            = AnchorStyles.Right | AnchorStyles.Top;
-            btnCancel.Location                          = new Point(2500 - 28 - 210 - 8 - 150, 14);
+            btnCancel.Location                          = new Point(2500 - 28 - BtnW - 10 - BtnW, 16);
             btnCancel.Click                            += (_, __) => { DialogResult = DialogResult.Cancel; Close(); };
 
-            // Delete — red, 160×56, left-anchored
+            // ── Delete — red 210×60, left-anchored ───────────────────────────
             var btnDelete = MakeBtn(
                 "\uD83D\uDDD1  Delete",
                 Color.FromArgb(185, 28, 28),
                 Color.FromArgb(153, 27, 27),
                 Color.FromArgb(120, 20, 20),
                 Color.White);
-            btnDelete.Size     = new Size(160, 56);
+            btnDelete.Size     = new Size(BtnW, BtnH);
             btnDelete.Anchor   = AnchorStyles.Left | AnchorStyles.Top;
-            btnDelete.Location = new Point(28, 14);
+            btnDelete.Location = new Point(28, 16);
             btnDelete.Click   += BtnDelete_Click;
 
             pnlFooter.Controls.Add(btnSave);
@@ -547,8 +553,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 ForeColor = fg,
                 BackColor = bg,
                 FlatStyle = FlatStyle.Flat,
-                Width     = 210,
-                Height    = 56,
+                Width     = BtnW,
+                Height    = BtnH,
                 Cursor    = Cursors.Hand
             };
             b.FlatAppearance.BorderSize         = 0;
