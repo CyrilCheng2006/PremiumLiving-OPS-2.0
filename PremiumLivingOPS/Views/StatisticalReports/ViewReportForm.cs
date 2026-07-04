@@ -843,6 +843,12 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 var vm = _ctrl.GetSalesReportVM(dtpFrom.Value, dtpTo.Value);
                 if (vm.SalesRows == null) return;
                 foreach (var r in vm.SalesRows)
+                {
+                    // Skip rows whose Order ID starts with "STG-QT" (quotations, not confirmed orders)
+                    if (!string.IsNullOrEmpty(r.OrderID) &&
+                        r.OrderID.StartsWith("STG-QT", StringComparison.OrdinalIgnoreCase))
+                        continue;
+
                     dgv.Rows.Add(
                         r.IssuedTime.ToString("yyyy-MM-dd"),
                         r.OrderID,
@@ -850,6 +856,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                         r.LineCount,
                         r.GrandTotal.ToString("N2"),
                         r.OrderStatus);
+                }
             }
             catch { }
         }
@@ -863,6 +870,11 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 if (vm.SalesRows != null)
                     foreach (var r in vm.SalesRows)
                     {
+                        // Chart also excludes STG-QT rows for consistency
+                        if (!string.IsNullOrEmpty(r.OrderID) &&
+                            r.OrderID.StartsWith("STG-QT", StringComparison.OrdinalIgnoreCase))
+                            continue;
+
                         string key = r.OrderStatus ?? "Unknown";
                         if (!revenueByStatus.ContainsKey(key)) revenueByStatus[key] = 0;
                         revenueByStatus[key] += r.GrandTotal;
@@ -872,7 +884,8 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             return BuildChartCard("Sales Revenue by Status",
                 new List<string>(revenueByStatus.Keys).ToArray(),
                 new List<double>(revenueByStatus.Values).ToArray(),
-                ChartStyle.Bar);
+                ChartStyle.Bar,
+                largeValueFont: true);
         }
 
         // ── 1. Inventory Status ─────────────────────────────────────────────
