@@ -119,9 +119,13 @@ namespace PremiumLivingOPS.Views.Dashboard
             for (int i = 0; i < kpiPanels.Length && i < vm.Kpis.Count; i++)
                 SetKpiCard(kpiPanels[i], vm.Kpis[i]);
 
-            // 4. Recent Orders
+            // 4. Recent Orders — skip rows whose Order ID starts with "STG-QT"
             foreach (var row in vm.Orders)
             {
+                if (row.OrderId != null &&
+                    row.OrderId.StartsWith("STG-QT", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
                 var (bg, fg) = Palette.TagColours(row.Status);
                 int idx = dgvOrders.Rows.Add(row.OrderId, row.Customer, row.Total, row.Status);
                 dgvOrders.Rows[idx].Tag = new[] { bg, fg };
