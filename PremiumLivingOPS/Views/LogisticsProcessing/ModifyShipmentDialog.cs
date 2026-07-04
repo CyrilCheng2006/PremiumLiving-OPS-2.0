@@ -28,7 +28,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
     //  │  [ Actual Recipient ]  [ Remark ]                                  │
     //  ├─ Total row 64px ───────────────────────────────────────────────────┤
     //  ├─ Footer 92px ─────────────────────────────────────────────────────┤
-    //  │  [ 🗑 Delete (210×60) ]       [ Cancel (210×60) ] [ ✔ Save (210×60) ]  │
+    //  │         [ 🗑 Delete (210×60) ]  [ Cancel (210×60) ]  [ Save (210×60) ] │
     //  └────────────────────────────────────────────────────────────────────┘
     // =========================================================================
     public class ModifyShipmentDialog : Form
@@ -44,15 +44,15 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         private TextBox  _txtRecipient;
         private TextBox  _txtRemark;
 
-        // ── Edit cell caption height (doubled to prevent input overlapping label) ─
-        private const int CaptionH = 56;   // was 28, now 2× to give caption full room
-        private const int InputH   = 40;   // fixed height for ComboBox / TextBox
+        // ── Edit cell caption height ──────────────────────────────────────────
+        private const int CaptionH = 56;
+        private const int InputH   = 40;
 
-        // ── Footer button size (unified) ──────────────────────────────────────
+        // ── Footer button size (all three unified) ──────────────────────────────
         private const int BtnW = 210;
         private const int BtnH = 60;
 
-        // ── Status colour palette (matches ViewShipmentForm) ─────────────────
+        // ── Status colour palette ──────────────────────────────────────────────
         private static readonly Dictionary<string, (Color bg, Color fg)> StatusColors =
             new Dictionary<string, (Color, Color)>
             {
@@ -78,7 +78,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         }
 
         // =========================================================================
-        //  UI construction  — mirrors ShowDetailDialog in ViewShipmentForm.cs
+        //  UI construction
         // =========================================================================
         private void BuildUI()
         {
@@ -110,7 +110,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100f));
             tblHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 264f));
             tblHeader.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-
             tblHeader.Controls.Add(new Label
             {
                 Text      = $"Modify Shipment  \u2014  {_ship.ShipmentID}",
@@ -120,7 +119,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 TextAlign = ContentAlignment.MiddleLeft,
                 AutoSize  = false
             }, 0, 0);
-
             StatusColors.TryGetValue(_ship.ShipmentStatus ?? string.Empty, out var sc);
             tblHeader.Controls.Add(new Label
             {
@@ -135,7 +133,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }, 1, 0);
             pnlHeader.Controls.Add(tblHeader);
 
-            // ── Info panel (read-only, mirrors ShowDetailDialog exactly) ─────────
+            // ── Info panel (read-only) ─────────────────────────────────────────
             var pnlInfo = new Panel
             {
                 Dock      = DockStyle.Top,
@@ -149,7 +147,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 e.Graphics.DrawLine(pen, 28, ((Panel)sender).Height - 1,
                                     ((Panel)sender).Width - 28, ((Panel)sender).Height - 1);
             };
-
             var tblInfo = new TableLayoutPanel
             {
                 Dock            = DockStyle.Fill,
@@ -187,7 +184,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                            : MakeLabelVal(leftFields[i].Item2 ?? "\u2014"),
                     1, i);
             }
-
             var rightFields = new[]
             {
                 ("Customer",        _ship.CustomerName   ?? "\u2014"),
@@ -229,12 +225,10 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 BackColor = Color.White,
                 Padding   = new Padding(28, 18, 28, 8)
             };
-
-            // Each TLP row is Absolute 120px = CaptionH(56) + InputH(40) + 24px padding
             var tblEdit = new TableLayoutPanel
             {
                 Dock            = DockStyle.Top,
-                Height          = 120 * 2,   // 2 rows × 120px each
+                Height          = 120 * 2,
                 ColumnCount     = 4,
                 RowCount        = 2,
                 BackColor       = Color.Transparent,
@@ -245,7 +239,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             tblEdit.RowStyles.Add(new RowStyle(SizeType.Absolute, 120f));
             tblEdit.RowStyles.Add(new RowStyle(SizeType.Absolute, 120f));
 
-            // Row 0: New Status | Tracking No.
             _cboStatus = new ComboBox
             {
                 DropDownStyle = ComboBoxStyle.DropDownList,
@@ -264,7 +257,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             };
             tblEdit.Controls.Add(MakeEditCell("Tracking No.", _txtTracking), 1, 0);
 
-            // Row 1: Actual Recipient | Remark
             _txtRecipient = new TextBox
             {
                 Font            = new Font("Segoe UI", 12f),
@@ -282,10 +274,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 Height          = InputH
             };
             tblEdit.Controls.Add(MakeEditCell("Remark", _txtRemark), 1, 1);
-
             pnlEdit.Controls.Add(tblEdit);
 
-            // ── Total row (mirrors ShowDetailDialog) ─────────────────────────────
+            // ── Total row ─────────────────────────────────────────────────────────
             var pnlTotalRow = new Panel
             {
                 Dock      = DockStyle.Bottom,
@@ -293,7 +284,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 BackColor = Color.White
             };
             pnlTotalRow.Paint += PaintTopBorderStatic;
-
             var tblTotals = new TableLayoutPanel
             {
                 Dock            = DockStyle.Fill,
@@ -305,7 +295,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             tblTotals.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
             tblTotals.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
             tblTotals.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-
             tblTotals.Controls.Add(new Label
             {
                 Text      = $"Shipment Lines:   {_detail.Lines.Count}",
@@ -316,7 +305,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 TextAlign = ContentAlignment.MiddleLeft,
                 Padding   = new Padding(28, 0, 0, 0)
             }, 0, 0);
-
             tblTotals.Controls.Add(new Label
             {
                 Text      = $"Total Amount:   HK$ {_ship.TotalAmount:N2}",
@@ -330,59 +318,66 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlTotalRow.Controls.Add(tblTotals);
 
             // ── Footer ───────────────────────────────────────────────────────────
-            // Footer height = BtnH(60) + top padding(16) + bottom padding(16) = 92px
+            // All 3 buttons right-aligned via FlowLayoutPanel (RightToLeft).
+            // FlowLayoutPanel fills the footer, so buttons are always visible
+            // regardless of the actual rendered form width.
             var pnlFooter = new Panel
             {
                 Dock      = DockStyle.Bottom,
                 Height    = 92,
-                BackColor = Color.White,
-                Padding   = new Padding(28, 16, 28, 16)
+                BackColor = Color.White
             };
             pnlFooter.Paint += PaintTopBorderStatic;
 
-            // ── Save Changes — blue 210×60, right-anchored ────────────────────
+            // FlowLayoutPanel: right-to-left so the visual order is
+            // Delete | Cancel | Save from left to right (added in reverse).
+            var flow = new FlowLayoutPanel
+            {
+                Dock          = DockStyle.Fill,
+                FlowDirection = FlowDirection.RightToLeft,
+                WrapContents  = false,
+                BackColor     = Color.Transparent,
+                Padding       = new Padding(16, 16, 16, 16)  // 16px inset on all sides
+            };
+
+            // Build buttons
             var btnSave = MakeBtn(
-                "\u2714  Save Changes",
+                "\u2714  Save",
                 Color.FromArgb(47, 111, 237),
                 Color.FromArgb(26,  77, 192),
                 Color.FromArgb(15,  55, 155),
                 Color.White);
-            btnSave.Size     = new Size(BtnW, BtnH);
-            btnSave.Anchor   = AnchorStyles.Right | AnchorStyles.Top;
-            btnSave.Location = new Point(2500 - 28 - BtnW, 16);
-            btnSave.Click   += BtnSave_Click;
+            btnSave.Margin = new Padding(0);
+            btnSave.Click += BtnSave_Click;
 
-            // ── Cancel — outline 210×60, left of Save ─────────────────────────
             var btnCancel = MakeBtn(
                 "Cancel",
                 Color.White,
                 Color.FromArgb(240, 244, 249),
                 Color.FromArgb(220, 228, 240),
                 Color.FromArgb(15,  31,  53));
-            btnCancel.Size                              = new Size(BtnW, BtnH);
-            btnCancel.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
-            btnCancel.FlatAppearance.BorderSize         = 1;
-            btnCancel.Anchor                            = AnchorStyles.Right | AnchorStyles.Top;
-            btnCancel.Location                          = new Point(2500 - 28 - BtnW - 10 - BtnW, 16);
-            btnCancel.Click                            += (_, __) => { DialogResult = DialogResult.Cancel; Close(); };
+            btnCancel.Margin                          = new Padding(10, 0, 0, 0);  // 10px gap left of Save
+            btnCancel.FlatAppearance.BorderColor      = Color.FromArgb(221, 227, 236);
+            btnCancel.FlatAppearance.BorderSize       = 1;
+            btnCancel.Click                          += (_, __) => { DialogResult = DialogResult.Cancel; Close(); };
 
-            // ── Delete — red 210×60, left-anchored ───────────────────────────
             var btnDelete = MakeBtn(
                 "\uD83D\uDDD1  Delete",
                 Color.FromArgb(185, 28, 28),
                 Color.FromArgb(153, 27, 27),
                 Color.FromArgb(120, 20, 20),
                 Color.White);
-            btnDelete.Size     = new Size(BtnW, BtnH);
-            btnDelete.Anchor   = AnchorStyles.Left | AnchorStyles.Top;
-            btnDelete.Location = new Point(28, 16);
-            btnDelete.Click   += BtnDelete_Click;
+            btnDelete.Margin = new Padding(10, 0, 0, 0);  // 10px gap left of Cancel
+            btnDelete.Click += BtnDelete_Click;
 
-            pnlFooter.Controls.Add(btnSave);
-            pnlFooter.Controls.Add(btnCancel);
-            pnlFooter.Controls.Add(btnDelete);
+            // Add in reverse visual order (FlowDirection.RightToLeft renders first-added rightmost)
+            flow.Controls.Add(btnSave);    // rightmost
+            flow.Controls.Add(btnCancel);  // middle
+            flow.Controls.Add(btnDelete);  // leftmost
 
-            // ── Assemble — same order as ShowDetailDialog ────────────────────────
+            pnlFooter.Controls.Add(flow);
+
+            // ── Assemble ────────────────────────────────────────────────────────────
             Controls.Add(pnlEdit);
             Controls.Add(pnlTotalRow);
             Controls.Add(pnlEditLabel);
@@ -425,11 +420,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             try
             {
                 _ctrl.UpdateShipment(_ship.ShipmentID, newStatus, recipient, remark);
-
                 MessageBox.Show(
                     $"Shipment {_ship.ShipmentID} updated successfully.",
                     "Saved", MessageBoxButtons.OK, MessageBoxIcon.Information);
-
                 DialogResult = DialogResult.OK;
                 Close();
             }
@@ -458,11 +451,9 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             try
             {
                 _ctrl.DeleteShipment(_ship.ShipmentID);
-
                 MessageBox.Show(
                     $"Shipment {_ship.ShipmentID} has been deleted.",
                     "Deleted", MessageBoxButtons.OK, MessageBoxIcon.Information);
-
                 DialogResult = DialogResult.OK;
                 Close();
             }
@@ -474,7 +465,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         }
 
         // =========================================================================
-        //  UI helpers — exact copies from ViewShipmentForm for consistency
+        //  UI helpers
         // =========================================================================
         private static Label MakeLabelKey(string text) => new Label
         {
@@ -509,37 +500,28 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             Padding      = new Padding(0, 8, 8, 4)
         };
 
-        /// <summary>
-        /// Edit cell: caption label (56px, top-docked) + input control (bottom-docked).
-        /// Using explicit heights instead of DockStyle.Fill on both prevents the input
-        /// from obscuring the caption when TLP row height is limited.
-        /// </summary>
         private static Panel MakeEditCell(string caption, Control ctrl)
         {
             var cell = new Panel
             {
                 Dock      = DockStyle.Fill,
                 BackColor = Color.Transparent,
-                Padding   = new Padding(0, 4, 14, 4)   // top/bottom 4px breathing room
+                Padding   = new Padding(0, 4, 14, 4)
             };
-
             var lbl = new Label
             {
                 Text      = caption,
                 Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(98, 112, 135),
                 Dock      = DockStyle.Top,
-                Height    = CaptionH,                  // 56px — doubled from original 28px
+                Height    = CaptionH,
                 TextAlign = ContentAlignment.BottomLeft,
-                Padding   = new Padding(0, 0, 0, 6)    // 6px gap between text and input
+                Padding   = new Padding(0, 0, 0, 6)
             };
-
-            // Anchor input to bottom so it sits below the caption with natural height
-            ctrl.Dock = DockStyle.Bottom;
-            ctrl.Height = InputH;                      // 40px fixed; overrides Dock.Fill stretch
-
-            cell.Controls.Add(ctrl);   // added first → bottom
-            cell.Controls.Add(lbl);    // added second → top (WinForms reverse-z order)
+            ctrl.Dock   = DockStyle.Bottom;
+            ctrl.Height = InputH;
+            cell.Controls.Add(ctrl);
+            cell.Controls.Add(lbl);
             return cell;
         }
 
@@ -553,8 +535,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 ForeColor = fg,
                 BackColor = bg,
                 FlatStyle = FlatStyle.Flat,
-                Width     = BtnW,
-                Height    = BtnH,
+                Size      = new Size(BtnW, BtnH),
                 Cursor    = Cursors.Hand
             };
             b.FlatAppearance.BorderSize         = 0;
