@@ -525,7 +525,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 var gridPen   = new Pen(Color.FromArgb(221, 227, 236), 1f);
                 var axisFont  = new Font("Segoe UI", 9f);
                 var axisBrush = new SolidBrush(Color.FromArgb(98, 112, 135));
-                // largeValueFont: 13pt bold (Logistics, Finance, After-Service); normal: 8pt bold
                 var valFont   = _largeValueFont
                     ? new Font("Segoe UI", 13f, FontStyle.Bold)
                     : new Font("Segoe UI", 8f,  FontStyle.Bold);
@@ -619,13 +618,11 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 float pieY  = plotRect.Top  + (plotRect.Height - pieW) / 2f;
                 var pieRect = new RectangleF(pieX, pieY, pieW, pieW);
 
-                // Large font mode : 13pt Bold legend text + 26×26 px rounded-rect swatch
-                // Normal mode     :  9pt regular          + 16×16 px rounded-rect swatch
                 var labelFont  = _largeValueFont
                     ? new Font("Segoe UI", 13f, FontStyle.Bold)
                     : new Font("Segoe UI", 9f);
-                int swatchSize = _largeValueFont ? 26 : 16;
-                int swatchRadius = swatchSize / 4;   // corner radius for rounded rect
+                int swatchSize   = _largeValueFont ? 26 : 16;
+                int swatchRadius = swatchSize / 4;
 
                 var labelBrush = new SolidBrush(Color.FromArgb(15, 31, 53));
                 float startAngle = -90f;
@@ -645,10 +642,8 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 for (int i = 0; i < n; i++)
                 {
                     float pct    = (float)(_values[i] / total * 100.0);
-                    // Centre swatch vertically against the text line
                     float swatchY = legY + (lineH - swatchSize) / 2f - 2;
                     using var dotBrush = new SolidBrush(_palette[i % _palette.Length]);
-                    // Draw rounded rectangle swatch instead of ellipse for clearer colour blocks
                     var swatchRect = new Rectangle((int)legX, (int)swatchY, swatchSize, swatchSize);
                     using var swatchPath = RoundedRect(swatchRect, swatchRadius);
                     g.FillPath(dotBrush, swatchPath);
@@ -661,7 +656,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 labelBrush.Dispose();
             }
 
-            /// <summary>Returns a GraphicsPath for a rounded rectangle.</summary>
             private static System.Drawing.Drawing2D.GraphicsPath RoundedRect(Rectangle bounds, int radius)
             {
                 int d = radius * 2;
@@ -1180,7 +1174,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                     }
             }
             catch { }
-            // largeValueFont: true — use 13pt bold for bar value labels
             return BuildChartCard("Shipments by Status",
                 new List<string>(countByStatus.Keys).ToArray(),
                 new List<double>(countByStatus.Values).ToArray(),
@@ -1301,7 +1294,6 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                     }
             }
             catch { }
-            // largeValueFont: true — After-Service chart uses 13pt bold for pie legend values
             return BuildChartCard("Complaints by Status",
                 new List<string>(countByStatus.Keys).ToArray(),
                 new List<double>(countByStatus.Values).ToArray(),
@@ -1325,11 +1317,11 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             ApplyToggleStyle(btnToggle, _financeChart);
 
             var dgv = MakeDgv();
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDate",    HeaderText = "DATE",           FillWeight = 16 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTxID",    HeaderText = "TRANSACTION ID", FillWeight = 20 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDocType", HeaderText = "DOC TYPE",       FillWeight = 18 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTxType",  HeaderText = "TX TYPE",        FillWeight = 16 });
-            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colAmount",  HeaderText = "AMOUNT",         FillWeight = 18 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDate",    HeaderText = "DATE",             FillWeight = 16 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTxID",    HeaderText = "TRANSACTION ID",   FillWeight = 20 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colDocType", HeaderText = "DOCUMENT TYPE",    FillWeight = 18 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colTxType",  HeaderText = "TRANSACTION TYPE", FillWeight = 16 });
+            dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "colAmt",     HeaderText = "AMOUNT",           FillWeight = 18 });
             dgv.CellFormatting += DgvCellFormatting;
 
             LoadFinanceData(dgv, dtpFrom, dtpTo, cboTxType);
@@ -1386,7 +1378,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
         private Panel BuildFinanceChartCard(DateTimePicker dtpFrom, DateTimePicker dtpTo, ComboBox cboTxType)
         {
-            var amountByType = new Dictionary<string, double>();
+            var amtByType = new Dictionary<string, double>();
             try
             {
                 string txType = cboTxType.SelectedIndex == 0 ? null : cboTxType.SelectedItem?.ToString();
@@ -1395,80 +1387,16 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                     foreach (var r in vm.FinanceRows)
                     {
                         string key = r.TransactionType ?? "Unknown";
-                        if (!amountByType.ContainsKey(key)) amountByType[key] = 0;
-                        amountByType[key] += r.Amount;
+                        if (!amtByType.ContainsKey(key)) amtByType[key] = 0;
+                        amtByType[key] += r.Amount;
                     }
             }
             catch { }
-            // largeValueFont: true — Finance chart uses 13pt bold for bar value labels
             return BuildChartCard("Amount by Transaction Type",
-                new List<string>(amountByType.Keys).ToArray(),
-                new List<double>(amountByType.Values).ToArray(),
-                ChartStyle.Bar,
+                new List<string>(amtByType.Keys).ToArray(),
+                new List<double>(amtByType.Values).ToArray(),
+                ChartStyle.Pie,
                 largeValueFont: true);
-        }
-
-        // ════════════════════════════════════════════════════════════════
-        //  SHARED CELL FORMATTING
-        // ════════════════════════════════════════════════════════════════
-
-        private void DgvCellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
-        {
-            if (e.Value == null) return;
-            string val = e.Value.ToString();
-            if (StatusColors.TryGetValue(val, out var c))
-            {
-                e.CellStyle.BackColor = c.bg;
-                e.CellStyle.ForeColor = c.fg;
-                e.CellStyle.Font      = new Font("Segoe UI", 11f, FontStyle.Bold);
-                e.FormattingApplied   = true;
-            }
-        }
-
-        // ════════════════════════════════════════════════════════════════
-        //  EXPORT
-        // ════════════════════════════════════════════════════════════════
-
-        private void ExportGrid(DataGridView dgv, string baseName)
-        {
-            using var dlg = new SaveFileDialog
-            {
-                Filter   = "CSV files (*.csv)|*.csv",
-                FileName = $"{baseName}_{DateTime.Now:yyyyMMdd_HHmmss}.csv"
-            };
-            if (dlg.ShowDialog() != DialogResult.OK) return;
-            try
-            {
-                var sb = new System.Text.StringBuilder();
-                var headers = new List<string>();
-                foreach (DataGridViewColumn col in dgv.Columns)
-                    headers.Add($"\"{col.HeaderText}\"");
-                sb.AppendLine(string.Join(",", headers));
-                foreach (DataGridViewRow row in dgv.Rows)
-                {
-                    var cells = new List<string>();
-                    foreach (DataGridViewCell cell in row.Cells)
-                        cells.Add($"\"{cell.Value?.ToString()?.Replace("\"", "\"\"")}\"");
-                    sb.AppendLine(string.Join(",", cells));
-                }
-                System.IO.File.WriteAllText(dlg.FileName, sb.ToString(), System.Text.Encoding.UTF8);
-                MessageBox.Show("Export successful.", "Export", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Export failed: {ex.Message}", "Export Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
-        // ════════════════════════════════════════════════════════════════
-        //  CARD BORDER PAINTER
-        // ════════════════════════════════════════════════════════════════
-
-        private static void PaintCardBorder(object sender, PaintEventArgs e)
-        {
-            var pnl = (Panel)sender;
-            using var pen = new Pen(Color.FromArgb(221, 227, 236), 1f);
-            e.Graphics.DrawRectangle(pen, 0, 0, pnl.Width - 1, pnl.Height - 1);
         }
     }
 }
