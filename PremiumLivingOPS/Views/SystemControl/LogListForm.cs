@@ -5,9 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
-using System.IO;
 using System.Linq;
-using System.Text;
 using System.Windows.Forms;
 using PremiumLivingOPS.Controllers;
 using PremiumLivingOPS.Models.Entities;
@@ -101,15 +99,14 @@ namespace PremiumLivingOPS.Views.SystemControl
             int delete = _allLogs.Count(l => l.LogType == AuditLogger.TYPE_DELETE);
             int login  = _allLogs.Count(l => l.LogType == AuditLogger.TYPE_LOGIN);
 
-            // (label, count, fg, bg, filterKeyword)
             var pills = new[]
             {
-                ("Total",   total .ToString(), Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254), (string)null),
-                ("Today",   tday  .ToString(), Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229), (string)null),
-                ("CREATE",  create.ToString(), Color.FromArgb( 22, 163,  74), Color.FromArgb(220, 252, 231), AuditLogger.TYPE_CREATE),
-                ("EDIT",    edit  .ToString(), Color.FromArgb(161, 110,   0), Color.FromArgb(254, 243, 199), AuditLogger.TYPE_EDIT),
-                ("DELETE",  delete.ToString(), Color.FromArgb(185,  28,  28), Color.FromArgb(254, 226, 226), AuditLogger.TYPE_DELETE),
-                ("LOGIN",   login .ToString(), Color.FromArgb( 91,  33, 182), Color.FromArgb(237, 233, 254), AuditLogger.TYPE_LOGIN),
+                ("Total",  total .ToString(), Color.FromArgb( 47, 111, 237), Color.FromArgb(219, 234, 254), (string)null),
+                ("Today",  tday  .ToString(), Color.FromArgb(  6,  95,  70), Color.FromArgb(209, 250, 229), (string)null),
+                ("CREATE", create.ToString(), Color.FromArgb( 22, 163,  74), Color.FromArgb(220, 252, 231), AuditLogger.TYPE_CREATE),
+                ("EDIT",   edit  .ToString(), Color.FromArgb(161, 110,   0), Color.FromArgb(254, 243, 199), AuditLogger.TYPE_EDIT),
+                ("DELETE", delete.ToString(), Color.FromArgb(185,  28,  28), Color.FromArgb(254, 226, 226), AuditLogger.TYPE_DELETE),
+                ("LOGIN",  login .ToString(), Color.FromArgb( 91,  33, 182), Color.FromArgb(237, 233, 254), AuditLogger.TYPE_LOGIN),
             };
 
             var flow = new FlowLayoutPanel
@@ -136,8 +133,6 @@ namespace PremiumLivingOPS.Views.SystemControl
                     Margin    = new Padding(0, 0, Gap, 0),
                     Cursor    = Cursors.Hand
                 };
-
-                // Rounded rectangle paint — identical to ViewOrderForm
                 pill.Paint += (s, e) =>
                 {
                     e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
@@ -163,26 +158,22 @@ namespace PremiumLivingOPS.Views.SystemControl
                 {
                     Text      = count,
                     Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
-                    ForeColor = fg,
-                    BackColor = Color.Transparent,
+                    ForeColor = fg, BackColor = Color.Transparent,
                     Dock      = DockStyle.Fill,
                     TextAlign = ContentAlignment.MiddleCenter,
                     AutoSize  = false
                 }, 0, 0);
-
                 tlp.Controls.Add(new Label
                 {
                     Text         = label,
                     Font         = new Font("Segoe UI", 12f),
-                    ForeColor    = fg,
-                    BackColor    = Color.Transparent,
+                    ForeColor    = fg, BackColor = Color.Transparent,
                     Dock         = DockStyle.Fill,
                     TextAlign    = ContentAlignment.MiddleLeft,
                     AutoSize     = false,
                     AutoEllipsis = true
                 }, 1, 0);
 
-                // Click-to-filter: set search box to the LogType keyword then refresh
                 string localKw = filterKw;
                 EventHandler clickHandler = (s, e) =>
                 {
@@ -232,17 +223,14 @@ namespace PremiumLivingOPS.Views.SystemControl
             {
                 Text      = $"Log Detail  \u2014  {log.LogType} on {log.TargetTable}",
                 Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
-                ForeColor = Color.White,
-                Dock      = DockStyle.Fill,
+                ForeColor = Color.White, Dock = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft,
                 Padding   = new Padding(24, 0, 0, 0)
             });
 
             var tbl = new TableLayoutPanel
             {
-                Dock            = DockStyle.Fill,
-                ColumnCount     = 2,
-                RowCount        = 7,
+                Dock            = DockStyle.Fill, ColumnCount = 2, RowCount = 7,
                 BackColor       = Color.White,
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None,
                 Padding         = new Padding(24, 16, 24, 8)
@@ -267,13 +255,7 @@ namespace PremiumLivingOPS.Views.SystemControl
                 tbl.Controls.Add(MakeLblVal(fields[i].Item2), 1, i);
             }
 
-            var pnlFtr = new Panel
-            {
-                Dock      = DockStyle.Bottom,
-                Height    = 60,
-                BackColor = Color.White,
-                Padding   = new Padding(0, 8, 20, 8)
-            };
+            var pnlFtr = new Panel { Dock = DockStyle.Bottom, Height = 60, BackColor = Color.White, Padding = new Padding(0, 8, 20, 8) };
             pnlFtr.Paint += (fps, fpe) =>
             {
                 using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
@@ -281,14 +263,9 @@ namespace PremiumLivingOPS.Views.SystemControl
             };
             var btnClose = new Button
             {
-                Text      = "Close",
-                Font      = new Font("Segoe UI", 12f),
-                ForeColor = Color.FromArgb(15, 31, 53),
-                BackColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Dock      = DockStyle.Right,
-                Width     = 130,
-                Cursor    = Cursors.Hand
+                Text = "Close", Font = new Font("Segoe UI", 12f),
+                ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White,
+                FlatStyle = FlatStyle.Flat, Dock = DockStyle.Right, Width = 130, Cursor = Cursors.Hand
             };
             btnClose.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
             btnClose.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
@@ -304,33 +281,68 @@ namespace PremiumLivingOPS.Views.SystemControl
         // ── Label helpers ──────────────────────────────────────────────────────
         private static Label MakeLblKey(string text) => new Label
         {
-            Text      = text,
-            Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
-            ForeColor = Color.FromArgb(98, 112, 135),
-            Dock      = DockStyle.Fill,
-            TextAlign = ContentAlignment.MiddleLeft,
-            Padding   = new Padding(0, 0, 8, 0)
+            Text = text, Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+            ForeColor = Color.FromArgb(98, 112, 135), Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(0, 0, 8, 0)
         };
 
         private static Label MakeLblVal(string text) => new Label
         {
-            Text         = text ?? "\u2014",
-            Font         = new Font("Segoe UI", 12f),
-            ForeColor    = Color.FromArgb(15, 31, 53),
-            Dock         = DockStyle.Fill,
-            TextAlign    = ContentAlignment.MiddleLeft,
-            AutoEllipsis = true
+            Text = text ?? "\u2014", Font = new Font("Segoe UI", 12f),
+            ForeColor = Color.FromArgb(15, 31, 53), Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleLeft, AutoEllipsis = true
         };
+
+        // ── Button factories (required by Designer.cs) ──────────────────────────
+        private static Button MakePrimaryBtn(string text, Point loc, int w, int h)
+        {
+            var b = new Button
+            {
+                Text = text, Location = loc, Size = new Size(w, h),
+                BackColor = Color.FromArgb(19, 35, 61), ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 12f, FontStyle.Bold),
+                Cursor = Cursors.Hand
+            };
+            b.FlatAppearance.BorderSize         = 0;
+            b.FlatAppearance.MouseOverBackColor = Color.FromArgb(31, 54, 96);
+            b.FlatAppearance.MouseDownBackColor = Color.FromArgb(10, 22, 41);
+            return b;
+        }
+
+        private static Button MakeOutlineBtn(string text, Point loc, int w, int h)
+        {
+            var b = new Button
+            {
+                Text = text, Location = loc, Size = new Size(w, h),
+                BackColor = Color.White, ForeColor = Color.FromArgb(15, 31, 53),
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 12f),
+                Cursor = Cursors.Hand
+            };
+            b.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
+            b.FlatAppearance.BorderSize         = 1;
+            b.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
+            return b;
+        }
+
+        // ── Card border painter (required by Designer.cs) ──────────────────────
+        private static void PaintCardBorder(object sender, PaintEventArgs e)
+        {
+            var pnl = (Panel)sender;
+            using var pen = new Pen(Color.FromArgb(221, 227, 236), 1);
+            e.Graphics.DrawRectangle(pen, 0, 0, pnl.Width - 1, pnl.Height - 1);
+        }
 
         // ── Rounded rect helper (same as ViewOrderForm) ────────────────────────
         private static GraphicsPath RoundedRect(Rectangle r, int radius)
         {
             var path = new GraphicsPath();
             int d = radius * 2;
-            path.AddArc(r.X,           r.Y,            d, d, 180, 90);
-            path.AddArc(r.Right - d,   r.Y,            d, d, 270, 90);
-            path.AddArc(r.Right - d,   r.Bottom - d,   d, d,   0, 90);
-            path.AddArc(r.X,           r.Bottom - d,   d, d,  90, 90);
+            path.AddArc(r.X,         r.Y,          d, d, 180, 90);
+            path.AddArc(r.Right - d, r.Y,          d, d, 270, 90);
+            path.AddArc(r.Right - d, r.Bottom - d, d, d,   0, 90);
+            path.AddArc(r.X,         r.Bottom - d, d, d,  90, 90);
             path.CloseFigure();
             return path;
         }
