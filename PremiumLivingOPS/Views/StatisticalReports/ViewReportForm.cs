@@ -990,7 +990,8 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             return BuildChartCard("Current Stock by Category",
                 new List<string>(stockByCategory.Keys).ToArray(),
                 new List<double>(stockByCategory.Values).ToArray(),
-                ChartStyle.Column);
+                ChartStyle.Column,
+                largeValueFont: true);
         }
 
         // ── 2. Procurement Summary ──────────────────────────────────────────
