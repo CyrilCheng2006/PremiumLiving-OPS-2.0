@@ -190,7 +190,14 @@ namespace PremiumLivingOPS.Controllers
         {
             var feed = new List<ActivityRow>();
 
+            // Skip orders whose ID starts with "STG-QT" — they are quotation drafts,
+            // not confirmed orders, and should not appear in the Activity feed.
             foreach (var o in orders.Take(3))
+            {
+                if (o.OrderId != null &&
+                    o.OrderId.StartsWith("STG-QT", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
                 feed.Add(new ActivityRow
                 {
                     CategoryKey = MapOrderStatusToCategory(o.Status),
@@ -198,6 +205,7 @@ namespace PremiumLivingOPS.Controllers
                     NormalText  = $" — {o.Customer} · HK${o.Total} · {o.Status}",
                     TimeLabel   = "Recent"
                 });
+            }
 
             foreach (var s in shipments.Take(2))
                 feed.Add(new ActivityRow

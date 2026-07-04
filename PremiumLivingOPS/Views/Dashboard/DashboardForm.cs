@@ -156,10 +156,15 @@ namespace PremiumLivingOPS.Views.Dashboard
 
             // 9. Activity feed → DataGridView
             //    Col 0: empty string (dot drawn by CellPainting)
-            //    Col 1: bold label + normal text merged as one string
+            //    Col 1: BoldText + NormalText merged as one string
             //    Col 2: time label
+            //    Skip any activity row whose BoldText (= Order ID) starts with "STG-QT"
             foreach (var row in vm.Activities)
             {
+                if (row.BoldText != null &&
+                    row.BoldText.StartsWith("STG-QT", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
                 string actText = string.IsNullOrEmpty(row.NormalText)
                     ? row.BoldText
                     : row.BoldText + "  " + row.NormalText;
