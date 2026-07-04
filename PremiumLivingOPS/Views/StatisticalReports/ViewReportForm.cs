@@ -434,9 +434,10 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             string chartTitle,
             string[] labels,
             double[] values,
-            ChartStyle style = ChartStyle.Bar)
+            ChartStyle style = ChartStyle.Bar,
+            bool largeValueFont = false)
         {
-            var chartPanel = new GdiChartPanel(chartTitle, labels, values, style, ChartPalette)
+            var chartPanel = new GdiChartPanel(chartTitle, labels, values, style, ChartPalette, largeValueFont)
             {
                 Dock      = DockStyle.Fill,
                 BackColor = Color.White
@@ -462,17 +463,19 @@ namespace PremiumLivingOPS.Views.StatisticalReports
             private readonly double[] _values;
             private readonly ChartStyle _style;
             private readonly Color[]  _palette;
+            private readonly bool     _largeValueFont;
 
             public GdiChartPanel(string title, string[] labels, double[] values,
-                                 ChartStyle style, Color[] palette)
+                                 ChartStyle style, Color[] palette, bool largeValueFont = false)
             {
-                _title   = title ?? string.Empty;
-                _labels  = labels  ?? Array.Empty<string>();
-                _values  = values  ?? Array.Empty<double>();
-                _style   = style;
-                _palette = palette;
-                DoubleBuffered = true;
-                ResizeRedraw   = true;
+                _title          = title ?? string.Empty;
+                _labels         = labels  ?? Array.Empty<string>();
+                _values         = values  ?? Array.Empty<double>();
+                _style          = style;
+                _palette        = palette;
+                _largeValueFont = largeValueFont;
+                DoubleBuffered  = true;
+                ResizeRedraw    = true;
             }
 
             protected override void OnPaint(PaintEventArgs e)
@@ -522,7 +525,10 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 var gridPen   = new Pen(Color.FromArgb(221, 227, 236), 1f);
                 var axisFont  = new Font("Segoe UI", 9f);
                 var axisBrush = new SolidBrush(Color.FromArgb(98, 112, 135));
-                var valFont   = new Font("Segoe UI", 8f, FontStyle.Bold);
+                // Finance Overview chart uses 13pt bold; all others keep 8pt bold
+                var valFont   = _largeValueFont
+                    ? new Font("Segoe UI", 13f, FontStyle.Bold)
+                    : new Font("Segoe UI", 8f,  FontStyle.Bold);
                 const int GridLines = 4;
 
                 if (vertical)
@@ -613,7 +619,10 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 float pieY  = plotRect.Top  + (plotRect.Height - pieW) / 2f;
                 var pieRect = new RectangleF(pieX, pieY, pieW, pieW);
 
-                var labelFont  = new Font("Segoe UI", 9f);
+                // Finance Overview pie legend uses larger font when _largeValueFont is true
+                var labelFont  = _largeValueFont
+                    ? new Font("Segoe UI", 13f, FontStyle.Bold)
+                    : new Font("Segoe UI", 9f);
                 var labelBrush = new SolidBrush(Color.FromArgb(15, 31, 53));
                 float startAngle = -90f;
                 for (int i = 0; i < n; i++)
@@ -1349,7 +1358,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
         private Panel BuildFinanceChartCard(DateTimePicker dtpFrom, DateTimePicker dtpTo, ComboBox cboTxType)
         {
-            var amtByDocType = new Dictionary<string, double>();
+            var amountByType = new Dictionary<string, double>();
             try
             {
                 string txType = cboTxType.SelectedIndex == 0 ? null : cboTxType.SelectedItem?.ToString();
@@ -1357,16 +1366,18 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 if (vm.FinanceRows != null)
                     foreach (var r in vm.FinanceRows)
                     {
-                        string key = r.DocumentType ?? "Unknown";
-                        if (!amtByDocType.ContainsKey(key)) amtByDocType[key] = 0;
-                        amtByDocType[key] += r.Amount;
+                        string key = r.TransactionType ?? "Unknown";
+                        if (!amountByType.ContainsKey(key)) amountByType[key] = 0;
+                        amountByType[key] += r.Amount;
                     }
             }
             catch { }
-            return BuildChartCard("Transaction Amount by Doc Type",
-                new List<string>(amtByDocType.Keys).ToArray(),
-                new List<double>(amtByDocType.Values).ToArray(),
-                ChartStyle.Column);
+            // largeValueFont: true — Finance Overview chart uses 13pt bold for data values
+            return BuildChartCard("Amount by Transaction Type",
+                new List<string>(amountByType.Keys).ToArray(),
+                new List<double>(amountByType.Values).ToArray(),
+                ChartStyle.Bar,
+                largeValueFont: true);
         }
     }
 }
