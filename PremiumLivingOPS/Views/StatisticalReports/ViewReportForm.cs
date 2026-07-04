@@ -619,10 +619,12 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 float pieY  = plotRect.Top  + (plotRect.Height - pieW) / 2f;
                 var pieRect = new RectangleF(pieX, pieY, pieW, pieW);
 
-                // After-Service and Finance Overview pie legend uses larger font when _largeValueFont is true
+                // Large font mode: 13pt Bold legend + 20px swatch; normal: 9pt + 12px swatch
                 var labelFont  = _largeValueFont
                     ? new Font("Segoe UI", 13f, FontStyle.Bold)
                     : new Font("Segoe UI", 9f);
+                int swatchSize = _largeValueFont ? 20 : 12;
+
                 var labelBrush = new SolidBrush(Color.FromArgb(15, 31, 53));
                 float startAngle = -90f;
                 for (int i = 0; i < n; i++)
@@ -637,13 +639,17 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
                 float legX = pieX + pieW + 20;
                 float legY = plotRect.Top + 10;
+                float lineH = labelFont.GetHeight(g) + 8;
                 for (int i = 0; i < n; i++)
                 {
                     float pct = (float)(_values[i] / total * 100.0);
+                    // Centre the swatch vertically against the text line
+                    float swatchY = legY + (lineH - swatchSize) / 2f - 4;
                     using var dotBrush = new SolidBrush(_palette[i % _palette.Length]);
-                    g.FillEllipse(dotBrush, legX, legY + 3, 12, 12);
-                    g.DrawString($"{_labels[i]}  {pct:N1}%", labelFont, labelBrush, legX + 18, legY);
-                    legY += labelFont.GetHeight(g) + 8;
+                    g.FillEllipse(dotBrush, legX, swatchY, swatchSize, swatchSize);
+                    g.DrawString($"{_labels[i]}  {pct:N1}%", labelFont, labelBrush,
+                                 legX + swatchSize + 6, legY);
+                    legY += lineH;
                 }
 
                 labelFont.Dispose();
