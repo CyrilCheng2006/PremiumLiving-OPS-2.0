@@ -355,6 +355,23 @@ namespace PremiumLivingOPS.Models.DAL
             }
         }
 
+        /// <summary>
+        /// Permanently deletes a complaint record from the database.
+        /// </summary>
+        public bool DeleteComplaint(string complaintId)
+        {
+            using (var conn = DatabaseHelper.GetConnection())
+            {
+                conn.Open();
+                const string sql = "DELETE FROM Complaint WHERE ComplaintID = @id";
+                using (var cmd = new MySqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@id", complaintId);
+                    return cmd.ExecuteNonQuery() > 0;
+                }
+            }
+        }
+
         public List<(string StaffID, string StaffName)> GetStaffList()
         {
             var list = new List<(string, string)>();
