@@ -14,7 +14,7 @@ namespace PremiumLivingOPS.Controllers
     {
         private readonly AfterServiceRepo _repo = new AfterServiceRepo();
 
-        // ── Helper: current user ─────────────────────────────────────────
+        // ── Helper: current user ────────────────────────────────────────────────────────────────────
         private static UserBarViewModel CurrentUserBar()
         {
             var u = SessionManager.CurrentUser;
@@ -28,9 +28,9 @@ namespace PremiumLivingOPS.Controllers
         private static string[] CurrentMenus()
             => NavAccessPolicy.GetAllowedMenus(SessionManager.CurrentUser?.Department ?? "");
 
-        // ════════════════════════════════════════════════════════════════════
+        // ══════════════════════════════════════════════════════════════════════
         //  Create Invoice
-        // ════════════════════════════════════════════════════════════════════
+        // ══════════════════════════════════════════════════════════════════════
 
         public CreateInvoiceViewModel GetCreateInvoiceVM()
         {
@@ -66,9 +66,9 @@ namespace PremiumLivingOPS.Controllers
             return _repo.CreateInvoice(inv);
         }
 
-        // ════════════════════════════════════════════════════════════════════
+        // ══════════════════════════════════════════════════════════════════════
         //  Complaint List
-        // ════════════════════════════════════════════════════════════════════
+        // ══════════════════════════════════════════════════════════════════════
 
         public ComplaintListViewModel GetComplaintListVM(string status = null, string keyword = null)
         {
@@ -83,6 +83,13 @@ namespace PremiumLivingOPS.Controllers
         public bool UpdateComplaintStatus(string complaintId, string newStatus)
             => _repo.UpdateComplaintStatus(complaintId, newStatus);
 
+        /// <summary>
+        /// Permanently deletes a complaint record.
+        /// Returns true if the row was deleted successfully.
+        /// </summary>
+        public bool DeleteComplaint(string complaintId)
+            => _repo.DeleteComplaint(complaintId);
+
         public List<(string StaffID, string StaffName)> GetStaffList()
             => _repo.GetStaffList();
 
@@ -95,9 +102,9 @@ namespace PremiumLivingOPS.Controllers
             return _repo.CreateComplaint(c);
         }
 
-        // ════════════════════════════════════════════════════════════════════
+        // ══════════════════════════════════════════════════════════════════════
         //  Return Order List
-        // ════════════════════════════════════════════════════════════════════
+        // ══════════════════════════════════════════════════════════════════════
 
         public ReturnOrderListViewModel GetReturnOrderListVM(string status = null, string keyword = null)
         {
@@ -114,9 +121,9 @@ namespace PremiumLivingOPS.Controllers
 
         // NOTE: Create / Picker / GenerateId methods live in AfterServiceController.ReturnOrder.cs
 
-        // ════════════════════════════════════════════════════════════════════
+        // ══════════════════════════════════════════════════════════════════════
         //  Account Receivable
-        // ════════════════════════════════════════════════════════════════════
+        // ══════════════════════════════════════════════════════════════════════
 
         public AccountReceivableViewModel GetAccountReceivableVM(string status = null, string keyword = null)
         {
@@ -128,9 +135,9 @@ namespace PremiumLivingOPS.Controllers
             };
         }
 
-        // ════════════════════════════════════════════════════════════════════
+        // ══════════════════════════════════════════════════════════════════════
         //  Invoice List + Record Payment  (Account Receivable popup)
-        // ════════════════════════════════════════════════════════════════════
+        // ══════════════════════════════════════════════════════════════════════
 
         public InvoiceListViewModel GetInvoiceListVM(string keyword = null)
         {
@@ -165,9 +172,9 @@ namespace PremiumLivingOPS.Controllers
             return _repo.RecordPayment(txn);
         }
 
-        // ════════════════════════════════════════════════════════════════════
+        // ══════════════════════════════════════════════════════════════════════
         //  Account Payable
-        // ════════════════════════════════════════════════════════════════════
+        // ══════════════════════════════════════════════════════════════════════
 
         public AccountPayableViewModel GetAccountPayableVM(string status = null, string keyword = null)
         {
