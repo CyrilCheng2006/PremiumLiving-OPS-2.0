@@ -525,7 +525,7 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 var gridPen   = new Pen(Color.FromArgb(221, 227, 236), 1f);
                 var axisFont  = new Font("Segoe UI", 9f);
                 var axisBrush = new SolidBrush(Color.FromArgb(98, 112, 135));
-                // Finance Overview chart uses 13pt bold; all others keep 8pt bold
+                // largeValueFont: 13pt bold (Logistics, Finance, After-Service); normal: 8pt bold
                 var valFont   = _largeValueFont
                     ? new Font("Segoe UI", 13f, FontStyle.Bold)
                     : new Font("Segoe UI", 8f,  FontStyle.Bold);
@@ -1180,10 +1180,12 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                     }
             }
             catch { }
+            // largeValueFont: true — use 13pt bold for bar value labels
             return BuildChartCard("Shipments by Status",
                 new List<string>(countByStatus.Keys).ToArray(),
                 new List<double>(countByStatus.Values).ToArray(),
-                ChartStyle.Column);
+                ChartStyle.Column,
+                largeValueFont: true);
         }
 
         // ── 4. After-Service Summary ────────────────────────────────────────
@@ -1398,12 +1400,75 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                     }
             }
             catch { }
-            // largeValueFont: true — Finance Overview chart uses 13pt bold for data values
+            // largeValueFont: true — Finance chart uses 13pt bold for bar value labels
             return BuildChartCard("Amount by Transaction Type",
                 new List<string>(amountByType.Keys).ToArray(),
                 new List<double>(amountByType.Values).ToArray(),
                 ChartStyle.Bar,
                 largeValueFont: true);
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  SHARED CELL FORMATTING
+        // ════════════════════════════════════════════════════════════════
+
+        private void DgvCellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
+        {
+            if (e.Value == null) return;
+            string val = e.Value.ToString();
+            if (StatusColors.TryGetValue(val, out var c))
+            {
+                e.CellStyle.BackColor = c.bg;
+                e.CellStyle.ForeColor = c.fg;
+                e.CellStyle.Font      = new Font("Segoe UI", 11f, FontStyle.Bold);
+                e.FormattingApplied   = true;
+            }
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  EXPORT
+        // ════════════════════════════════════════════════════════════════
+
+        private void ExportGrid(DataGridView dgv, string baseName)
+        {
+            using var dlg = new SaveFileDialog
+            {
+                Filter   = "CSV files (*.csv)|*.csv",
+                FileName = $"{baseName}_{DateTime.Now:yyyyMMdd_HHmmss}.csv"
+            };
+            if (dlg.ShowDialog() != DialogResult.OK) return;
+            try
+            {
+                var sb = new System.Text.StringBuilder();
+                var headers = new List<string>();
+                foreach (DataGridViewColumn col in dgv.Columns)
+                    headers.Add($"\"{col.HeaderText}\"");
+                sb.AppendLine(string.Join(",", headers));
+                foreach (DataGridViewRow row in dgv.Rows)
+                {
+                    var cells = new List<string>();
+                    foreach (DataGridViewCell cell in row.Cells)
+                        cells.Add($"\"{cell.Value?.ToString()?.Replace("\"", "\"\"")}\"");
+                    sb.AppendLine(string.Join(",", cells));
+                }
+                System.IO.File.WriteAllText(dlg.FileName, sb.ToString(), System.Text.Encoding.UTF8);
+                MessageBox.Show("Export successful.", "Export", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Export failed: {ex.Message}", "Export Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  CARD BORDER PAINTER
+        // ════════════════════════════════════════════════════════════════
+
+        private static void PaintCardBorder(object sender, PaintEventArgs e)
+        {
+            var pnl = (Panel)sender;
+            using var pen = new Pen(Color.FromArgb(221, 227, 236), 1f);
+            e.Graphics.DrawRectangle(pen, 0, 0, pnl.Width - 1, pnl.Height - 1);
         }
     }
 }
