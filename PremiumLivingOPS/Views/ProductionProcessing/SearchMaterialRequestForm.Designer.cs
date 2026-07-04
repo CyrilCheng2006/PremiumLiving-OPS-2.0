@@ -18,6 +18,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
         private System.Windows.Forms.Button       btnReset;
         private System.Windows.Forms.Button       btnViewDetail;
         private System.Windows.Forms.Button       btnCreateNew;
+        private System.Windows.Forms.Button       btnDeleteRequest;   // NEW
         private System.Windows.Forms.DataGridView dgvRequests;
 
         protected override void Dispose(bool disposing)
@@ -166,29 +167,37 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 Padding = new Padding(12, 10, 12, 10)
             };
 
-            const int BtnW = 280, BtnH = 58, BtnGap = 8, BtnPad = 12;
+            // Action buttons: View Detail | Create New | Delete Request
+            const int BtnW = 220, BtnH = 58, BtnGap = 8, BtnPad = 12;
 
-            btnViewDetail = MakePrimaryBtn("🔍  View Detail", Point.Empty, BtnW, BtnH);
-            btnCreateNew  = MakeOutlineBtn("+ Create New",   Point.Empty, BtnW, BtnH);
-            btnViewDetail.Enabled = false;
-            btnViewDetail.Click  += (s, e) => OpenDetailDialog();
-            btnCreateNew.Click   += BtnCreateNew_Click;
+            btnViewDetail    = MakePrimaryBtn("🔍  View Detail",   Point.Empty, BtnW, BtnH);
+            btnCreateNew     = MakeOutlineBtn("+ Create New",    Point.Empty, BtnW, BtnH);
+            btnDeleteRequest = MakeDangerBtn("🗑  Delete Request", Point.Empty, BtnW, BtnH);
+
+            btnViewDetail.Enabled    = false;
+            btnDeleteRequest.Enabled = false;
+
+            btnViewDetail.Click    += (s, e) => OpenDetailDialog();
+            btnCreateNew.Click     += BtnCreateNew_Click;
+            btnDeleteRequest.Click += BtnDeleteRequest_Click;
 
             var pnlActionBtns = new Panel
             {
                 Dock = DockStyle.Right,
-                Width = BtnPad + BtnW + BtnGap + BtnW + BtnPad,
+                Width = BtnPad + BtnW + BtnGap + BtnW + BtnGap + BtnW + BtnPad,
                 BackColor = Color.Transparent
             };
             void CentreActionBtns()
             {
                 int top = (pnlActionBtns.Height - BtnH) / 2;
                 if (top < 0) top = 0;
-                btnViewDetail.Location = new Point(BtnPad, top);
-                btnCreateNew.Location  = new Point(BtnPad + BtnW + BtnGap, top);
+                btnViewDetail.Location    = new Point(BtnPad, top);
+                btnCreateNew.Location     = new Point(BtnPad + BtnW + BtnGap, top);
+                btnDeleteRequest.Location = new Point(BtnPad + BtnW + BtnGap + BtnW + BtnGap, top);
             }
             pnlActionBtns.Controls.Add(btnViewDetail);
             pnlActionBtns.Controls.Add(btnCreateNew);
+            pnlActionBtns.Controls.Add(btnDeleteRequest);
             pnlActionBtns.Resize += (s, e) => CentreActionBtns();
 
             var pnlKpiRow = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
@@ -301,6 +310,21 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             b.FlatAppearance.BorderColor = Color.FromArgb(221, 227, 236);
             b.FlatAppearance.BorderSize  = 1;
             b.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
+            return b;
+        }
+
+        /// <summary>Danger-styled button (red) used for destructive actions such as Delete.</summary>
+        private Button MakeDangerBtn(string text, Point loc, int w, int h)
+        {
+            var b = new Button
+            {
+                Text = text, Font = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.White, BackColor = Color.FromArgb(185, 28, 28),
+                FlatStyle = FlatStyle.Flat, Location = loc, Width = w, Height = h, Cursor = Cursors.Hand
+            };
+            b.FlatAppearance.BorderSize = 0;
+            b.FlatAppearance.MouseOverBackColor = Color.FromArgb(153, 27, 27);
+            b.FlatAppearance.MouseDownBackColor = Color.FromArgb(127, 22, 22);
             return b;
         }
 

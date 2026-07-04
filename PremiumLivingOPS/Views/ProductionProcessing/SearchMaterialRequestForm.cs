@@ -27,6 +27,11 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
     ///   KPI pill size → 340 × 60.
     ///   Grid status columns (Urgency, Trigger, Linked PO, Stock Note)
     ///   use matching bg/fg colours consistent with KPI pills.
+    ///
+    /// FEATURE (2026-07-05):
+    ///   Added “Delete Request” danger button to the KPI bar action strip.
+    ///   Enabled only when a row is selected and the batch is NOT linked to a PO.
+    ///   Shows a confirmation dialog before permanently deleting all lines.
     /// </summary>
     public partial class SearchMaterialRequestForm : Form
     {
@@ -51,7 +56,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 { "OrderDemand", (Color.FromArgb(243, 232, 255), Color.FromArgb( 88,  28, 135)) }
             };
 
-        // Linked-to-PO: Yes → green (same as KPI "Linked to PO" pill)
+        // Linked-to-PO: Yes → green (same as KPI “Linked to PO” pill)
         private static readonly (Color bg, Color fg) LinkedPoYes =
             (Color.FromArgb(209, 250, 229), Color.FromArgb(6, 95, 70));
         private static readonly (Color bg, Color fg) LinkedPoNo =
@@ -250,8 +255,34 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             pnlKpi.Controls.Add(wrapper);
         }
 
+        // ================================================================
+        //  UPDATE ACTION BUTTONS
+        //  • View Detail  — enabled whenever a row is selected
+        //  • Delete Request — enabled only when a row is selected AND
+        //                      the batch is NOT linked to any PO
+        // ================================================================
         private void UpdateActionButtons()
-            => btnViewDetail.Enabled = dgvRequests.SelectedRows.Count > 0;
+        {
+            bool hasSelection = dgvRequests.SelectedRows.Count > 0;
+            btnViewDetail.Enabled = hasSelection;
+
+            if (!hasSelection)
+            {
+                btnDeleteRequest.Enabled = false;
+                return;
+            }
+
+            // Determine whether the selected batch is PO-linked
+            string batchPrefix = dgvRequests.SelectedRows[0].Tag?.ToString();
+            if (string.IsNullOrEmpty(batchPrefix))
+            {
+                btnDeleteRequest.Enabled = false;
+                return;
+            }
+
+            var match = _current.Find(b => b.BatchPrefix == batchPrefix);
+            btnDeleteRequest.Enabled = match != null && !match.IsLinkedToPO;
+        }
 
         // ================================================================
         //  CELL FORMATTING
@@ -288,7 +319,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                     break;
 
                 case "colLinkedPO":
-                    // Yes → green pill (same as KPI "Linked to PO")
+                    // Yes → green pill (same as KPI “Linked to PO”)
                     // No  → neutral grey
                     var lc = val == "Yes" ? LinkedPoYes : LinkedPoNo;
                     Apply(lc.bg, lc.fg, bold: val == "Yes");
@@ -321,6 +352,64 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
 
         private void BtnCreateNew_Click(object sender, EventArgs e)
             => FormNavigator.NavigateTo(this, "Production Processing", "Create Raw Material Request");
+
+        // ================================================================
+        //  DELETE REQUEST
+        // ================================================================
+        private void BtnDeleteRequest_Click(object sender, EventArgs e)
+        {
+            if (dgvRequests.SelectedRows.Count == 0) return;
+
+            string batchPrefix = dgvRequests.SelectedRows[0].Tag?.ToString();
+            if (string.IsNullOrEmpty(batchPrefix)) return;
+
+            // Double-check: must not be PO-linked (guard in case button state lags)
+            var match = _current.Find(b => b.BatchPrefix == batchPrefix);
+            if (match != null && match.IsLinkedToPO)
+            {
+                MessageBox.Show(
+                    $"Request \u201c{batchPrefix}\u201d is linked to a Purchase Order and cannot be deleted.",
+                    "Delete Blocked",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            // Confirmation dialog
+            var confirm = MessageBox.Show(
+                $"Are you sure you want to permanently delete all lines under:\n\n"
+                + $"    {batchPrefix}\n\n"
+                + "This action cannot be undone.",
+                "Confirm Delete Request",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning,
+                MessageBoxDefaultButton.Button2);
+
+            if (confirm != DialogResult.Yes) return;
+
+            try
+            {
+                _ctrl.DeleteMaterialRequestBatch(batchPrefix);
+
+                MessageBox.Show(
+                    $"Request \u201c{batchPrefix}\u201d has been deleted successfully.",
+                    "Deleted",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                RefreshGrid();
+            }
+            catch (InvalidOperationException ioEx)
+            {
+                MessageBox.Show(ioEx.Message, "Delete Blocked",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    $"An error occurred while deleting the request:\n{ex.Message}",
+                    "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
 
         // ================================================================
         //  OPEN DETAIL DIALOG
@@ -363,7 +452,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 MinimizeBox     = false
             };
 
-            // ─ Header ───────────────────────────────────────────────────
+            // ─ Header ───────────────────────────────────────────────
             var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 80, BackColor = Color.FromArgb(19, 35, 61) };
             var tblHeader = new TableLayoutPanel
             {
@@ -393,7 +482,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             }, 1, 0);
             pnlHeader.Controls.Add(tblHeader);
 
-            // ─ Meta row ─────────────────────────────────────────────────
+            // ─ Meta row ───────────────────────────────────────────────
             var pnlMeta = new Panel { Dock = DockStyle.Top, Height = 60, BackColor = Color.White, Padding = new Padding(28, 0, 28, 0) };
             pnlMeta.Paint += DlgPaintBottomBorder;
             var tblMeta = new TableLayoutPanel
@@ -416,7 +505,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             tblMeta.Controls.Add(DlgVal(d.TotalLines.ToString()), 5, 0);
             pnlMeta.Controls.Add(tblMeta);
 
-            // ─ Lines section label ───────────────────────────────────────
+            // ─ Lines section label ───────────────────────────────────
             var pnlLinesLabel = new Panel
             { Dock = DockStyle.Top, Height = 38, BackColor = Color.FromArgb(246, 249, 255), Padding = new Padding(28, 0, 0, 0) };
             pnlLinesLabel.Controls.Add(new Label
@@ -428,7 +517,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             });
             pnlLinesLabel.Paint += DlgPaintBottomBorder;
 
-            // ─ Footer ───────────────────────────────────────────────────
+            // ─ Footer ───────────────────────────────────────────────
             var pnlFooter = new Panel { Dock = DockStyle.Bottom, Height = 68, BackColor = Color.White, Padding = new Padding(28, 10, 28, 10) };
             pnlFooter.Paint += DlgPaintTopBorder;
             var btnClose = new Button
@@ -444,7 +533,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             btnClose.Click += (s, ev) => dlg.Close();
             pnlFooter.Controls.Add(btnClose);
 
-            // ─ PO section label ──────────────────────────────────────────
+            // ─ PO section label ────────────────────────────────────
             var pnlPoLabel = new Panel
             { Dock = DockStyle.Bottom, Height = 38, BackColor = Color.FromArgb(246, 249, 255), Padding = new Padding(28, 0, 0, 0) };
             pnlPoLabel.Controls.Add(new Label
@@ -456,7 +545,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
             });
             pnlPoLabel.Paint += DlgPaintTopBorder;
 
-            // ─ PO detail row ─────────────────────────────────────────────
+            // ─ PO detail row ──────────────────────────────────────
             Panel pnlPoDetail;
             if (!string.IsNullOrEmpty(d.PurchaseID))
             {
@@ -494,7 +583,7 @@ namespace PremiumLivingOPS.Views.ProductionProcessing
                 });
             }
 
-            // ─ Line-items DataGridView ────────────────────────────────────
+            // ─ Line-items DataGridView ────────────────────────────────
             var dgvLines = new DataGridView
             {
                 Dock                  = DockStyle.Fill,
