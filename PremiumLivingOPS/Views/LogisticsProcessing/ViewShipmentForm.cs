@@ -261,8 +261,12 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
         private void btnReset_Click(object sender, EventArgs e)     => ResetFilters();
         private void btnLogout_Click(object sender, EventArgs e)
         {
-            SessionManager.Clear();
-            Application.Restart();
+            if (MessageBox.Show("Are you sure you want to log out?",
+                                "Logout", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+            {
+                SessionManager.Clear();
+                Application.Restart();
+            }
         }
 
         private void chkDateFrom_CheckedChanged(object sender, EventArgs e)
