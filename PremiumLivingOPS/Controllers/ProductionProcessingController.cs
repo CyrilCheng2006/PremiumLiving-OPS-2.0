@@ -106,6 +106,22 @@ namespace PremiumLivingOPS.Controllers
         }
 
         // ════════════════════════════════════════════════════════════════
+        //  DELETE RAW MATERIAL REQUEST BATCH
+        // ════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Deletes all MaterialRequest lines belonging to <paramref name="batchPrefix"/>.
+        /// Throws <see cref="InvalidOperationException"/> when the batch is linked to a PO.
+        /// </summary>
+        public void DeleteMaterialRequestBatch(string batchPrefix)
+        {
+            if (string.IsNullOrWhiteSpace(batchPrefix))
+                throw new ArgumentException("Batch prefix must be provided.");
+
+            _repo.DeleteMaterialRequestBatch(batchPrefix);
+        }
+
+        // ════════════════════════════════════════════════════════════════
         //  HELPERS
         // ════════════════════════════════════════════════════════════════
 
