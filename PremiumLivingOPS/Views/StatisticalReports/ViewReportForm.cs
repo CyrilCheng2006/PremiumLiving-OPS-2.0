@@ -619,11 +619,13 @@ namespace PremiumLivingOPS.Views.StatisticalReports
                 float pieY  = plotRect.Top  + (plotRect.Height - pieW) / 2f;
                 var pieRect = new RectangleF(pieX, pieY, pieW, pieW);
 
-                // Large font mode: 13pt Bold legend + 20px swatch; normal: 9pt + 12px swatch
+                // Large font mode : 13pt Bold legend text + 26×26 px rounded-rect swatch
+                // Normal mode     :  9pt regular          + 16×16 px rounded-rect swatch
                 var labelFont  = _largeValueFont
                     ? new Font("Segoe UI", 13f, FontStyle.Bold)
                     : new Font("Segoe UI", 9f);
-                int swatchSize = _largeValueFont ? 20 : 12;
+                int swatchSize = _largeValueFont ? 26 : 16;
+                int swatchRadius = swatchSize / 4;   // corner radius for rounded rect
 
                 var labelBrush = new SolidBrush(Color.FromArgb(15, 31, 53));
                 float startAngle = -90f;
@@ -639,21 +641,37 @@ namespace PremiumLivingOPS.Views.StatisticalReports
 
                 float legX = pieX + pieW + 20;
                 float legY = plotRect.Top + 10;
-                float lineH = labelFont.GetHeight(g) + 8;
+                float lineH = labelFont.GetHeight(g) + (swatchSize > 16 ? 12f : 8f);
                 for (int i = 0; i < n; i++)
                 {
-                    float pct = (float)(_values[i] / total * 100.0);
-                    // Centre the swatch vertically against the text line
-                    float swatchY = legY + (lineH - swatchSize) / 2f - 4;
+                    float pct    = (float)(_values[i] / total * 100.0);
+                    // Centre swatch vertically against the text line
+                    float swatchY = legY + (lineH - swatchSize) / 2f - 2;
                     using var dotBrush = new SolidBrush(_palette[i % _palette.Length]);
-                    g.FillEllipse(dotBrush, legX, swatchY, swatchSize, swatchSize);
+                    // Draw rounded rectangle swatch instead of ellipse for clearer colour blocks
+                    var swatchRect = new Rectangle((int)legX, (int)swatchY, swatchSize, swatchSize);
+                    using var swatchPath = RoundedRect(swatchRect, swatchRadius);
+                    g.FillPath(dotBrush, swatchPath);
                     g.DrawString($"{_labels[i]}  {pct:N1}%", labelFont, labelBrush,
-                                 legX + swatchSize + 6, legY);
+                                 legX + swatchSize + 8, legY);
                     legY += lineH;
                 }
 
                 labelFont.Dispose();
                 labelBrush.Dispose();
+            }
+
+            /// <summary>Returns a GraphicsPath for a rounded rectangle.</summary>
+            private static System.Drawing.Drawing2D.GraphicsPath RoundedRect(Rectangle bounds, int radius)
+            {
+                int d = radius * 2;
+                var path = new System.Drawing.Drawing2D.GraphicsPath();
+                path.AddArc(bounds.X,                       bounds.Y,                        d, d, 180, 90);
+                path.AddArc(bounds.X + bounds.Width - d,    bounds.Y,                        d, d, 270, 90);
+                path.AddArc(bounds.X + bounds.Width - d,    bounds.Y + bounds.Height - d,    d, d,   0, 90);
+                path.AddArc(bounds.X,                       bounds.Y + bounds.Height - d,    d, d,  90, 90);
+                path.CloseFigure();
+                return path;
             }
         }
 
