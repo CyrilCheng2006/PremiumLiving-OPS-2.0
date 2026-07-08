@@ -585,13 +585,12 @@ namespace PremiumLivingOPS.Models.DAL
                 conn.Open();
                 const string sql =
                     @"INSERT INTO ReturnOrder
-                        (ReturnID, OrderID, StaffID, ReturnDate, Reason, RefundAmount, ReturnStatus)
-                      VALUES (@rid, @oid, @sid, @date, @reason, @refund, @status)";
+                        (ReturnID, OrderID, ReturnDate, Reason, RefundAmount, ReturnStatus)
+                      VALUES (@rid, @oid, @date, @reason, @refund, @status)";
                 using (var cmd = new MySqlCommand(sql, conn))
                 {
                     cmd.Parameters.AddWithValue("@rid",    r.ReturnID);
                     cmd.Parameters.AddWithValue("@oid",    r.OrderID);
-                    cmd.Parameters.AddWithValue("@sid",    r.StaffID ?? (object)DBNull.Value);
                     cmd.Parameters.AddWithValue("@date",   r.ReturnDate.ToString("yyyy-MM-dd"));
                     cmd.Parameters.AddWithValue("@reason", r.Reason   ?? (object)DBNull.Value);
                     cmd.Parameters.AddWithValue("@refund", r.RefundAmount);
