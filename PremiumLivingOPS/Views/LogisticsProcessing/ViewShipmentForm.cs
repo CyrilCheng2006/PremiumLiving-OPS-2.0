@@ -1,6 +1,7 @@
 using PremiumLivingOPS.Controllers;
 using PremiumLivingOPS.Models.Entities;
 using PremiumLivingOPS.Models.ViewModels;
+using PremiumLivingOPS.Services;
 using PremiumLivingOPS.Views.Auth;
 using PremiumLivingOPS.Views.Shared;
 using System;
@@ -62,10 +63,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
         private void ViewShipmentForm_Load(object sender, EventArgs e)
         {
-            // NOTE: MenuItemClicked and LogoutClicked are already subscribed
-            // once in Designer.cs (RULE 4).  Do NOT re-subscribe here —
-            // double-subscription caused the old no-op handler to intercept
-            // navigation events before FormNavigator could act on them.
             RefreshGrid();
         }
 
@@ -312,13 +309,81 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 RefreshGrid();
         }
 
-        // ── Top Nav Bar navigation
-        // Signature must match AppShell's Action<string, string> delegate —
-        // same as HandlingGoodsReceivedForm.OnTopNavMenuItemClicked.
         private void OnTopNavMenuItemClicked(string menu, string subItem)
             => FormNavigator.NavigateTo(this, menu, subItem);
 
-        // ── Dialog builders
+        // ─────────────────────────────────────────────────────────────
+        // PDF export helper shared by all four dialogs
+        // ─────────────────────────────────────────────────────────────
+
+        private static void TriggerExportPdf_DN(ShipmentDetailVM detail, Form owner)
+        {
+            var s     = detail.Shipment;
+            var lines = detail.Lines ?? new List<ShipmentLineEntity>();
+            int outQty = 0;
+            foreach (var ln in lines) outQty += ln.QtyOutstanding ?? 0;
+
+            using var dlg = new SaveFileDialog
+            {
+                Title      = "Export Delivery Note as PDF",
+                Filter     = "PDF Files (*.pdf)|*.pdf",
+                FileName   = $"DeliveryNote_{s.ShipmentID}_{DateTime.Today:yyyyMMdd}.pdf",
+                DefaultExt = "pdf",
+                InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
+            };
+            if (dlg.ShowDialog(owner) != DialogResult.OK) return;
+            try
+            {
+                PdfExportHelper.ExportDeliveryNote(dlg.FileName, s, lines, outQty);
+                var res = MessageBox.Show(
+                    $"PDF exported successfully.\n\n{dlg.FileName}\n\nOpen the file now?",
+                    "Export PDF", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
+                if (res == DialogResult.Yes)
+                    System.Diagnostics.Process.Start(
+                        new System.Diagnostics.ProcessStartInfo(dlg.FileName) { UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to export PDF:\n{ex.Message}",
+                    "Export PDF Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private static void TriggerExportPdf_RS(ShipmentDetailVM detail, Form owner)
+        {
+            var s     = detail.Shipment;
+            var lines = detail.Lines ?? new List<ShipmentLineEntity>();
+
+            using var dlg = new SaveFileDialog
+            {
+                Title      = "Export Reply Slip as PDF",
+                Filter     = "PDF Files (*.pdf)|*.pdf",
+                FileName   = $"ReplySlip_{s.ShipmentID}_{DateTime.Today:yyyyMMdd}.pdf",
+                DefaultExt = "pdf",
+                InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
+            };
+            if (dlg.ShowDialog(owner) != DialogResult.OK) return;
+            try
+            {
+                PdfExportHelper.ExportReplySlip(dlg.FileName, s, lines);
+                var res = MessageBox.Show(
+                    $"PDF exported successfully.\n\n{dlg.FileName}\n\nOpen the file now?",
+                    "Export PDF", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
+                if (res == DialogResult.Yes)
+                    System.Diagnostics.Process.Start(
+                        new System.Diagnostics.ProcessStartInfo(dlg.FileName) { UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to export PDF:\n{ex.Message}",
+                    "Export PDF Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // Dialog builders
+        // ─────────────────────────────────────────────────────────────
+
         private void ShowViewDetailDialog(ShipmentDetailVM detail)
         {
             var s     = detail.Shipment;
@@ -335,7 +400,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 MaximizeBox = false, MinimizeBox = false
             };
 
-            // Header
             var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 80, BackColor = Color.FromArgb(19, 35, 61) };
             var tblH = new TableLayoutPanel
             {
@@ -363,7 +427,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }, 1, 0);
             pnlHeader.Controls.Add(tblH);
 
-            // Info rows
             var pnlInfo = new Panel
             {
                 Dock = DockStyle.Top, Height = 280,
@@ -375,24 +438,17 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             AddInfoRow(tblInfo, 1, "Customer:",     s.CustomerName,                        "Tracking No.:",    s.TrackingNumber ?? "\u2014");
             AddInfoRow(tblInfo, 2, "Ship Date:",    s.ShipDate.ToString("yyyy-MM-dd"),     "Delivery Method:", s.DeliveryMethod);
             AddInfoRow(tblInfo, 3, "Status:",       s.ShipmentStatus,                      "Ship Type:",       s.ShipmentType);
-            // Address spans full width (multi-line)
             tblInfo.Controls.Add(MakeLabelKey("Address:"),                      0, 4);
             tblInfo.Controls.Add(MakeLabelValMultiLine(s.ShippingAddress ?? "\u2014"), 1, 4);
             tblInfo.SetColumnSpan(tblInfo.GetControlFromPosition(1, 4), 3);
             pnlInfo.Controls.Add(tblInfo);
 
-            // Items section label
             var pnlLineLabel = BuildSectionLabel("SHIPMENT ITEMS");
-
-            // Items grid
             var dgv = BuildItemsGrid();
             foreach (var ln in lines)
                 dgv.Rows.Add(ln.ShipmentLineID, ln.ItemID, ln.ItemName, ln.QtyShipped, ln.QtyOutstanding?.ToString() ?? "\u2014");
 
-            // Total row
-            var pnlTotal = BuildTotalRow(lines.Count, (double)s.TotalAmount);
-
-            // Footer
+            var pnlTotal  = BuildTotalRow(lines.Count, (double)s.TotalAmount);
             var pnlFooter = BuildCloseFooter(dlg);
 
             dlg.Controls.Add(pnlFooter);
@@ -405,6 +461,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             dlg.ShowDialog(this);
         }
 
+        // ── View Delivery Note dialog (DN already exists) — has Export PDF
         private void ShowViewDeliveryNoteDialog(ShipmentDetailVM detail)
         {
             var s   = detail.Shipment;
@@ -422,7 +479,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 MaximizeBox = false, MinimizeBox = false
             };
 
-            // Header
             var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 80, BackColor = Color.FromArgb(19, 35, 61) };
             var tblH = new TableLayoutPanel
             {
@@ -450,7 +506,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }, 1, 0);
             pnlHeader.Controls.Add(tblH);
 
-            // Shipment info
             var pnlInfo = new Panel
             {
                 Dock = DockStyle.Top, Height = 220,
@@ -464,7 +519,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             AddInfoRow(tblInfo, 3, "Status:",       s.ShipmentStatus,                      "Ship Type:",       s.ShipmentType);
             pnlInfo.Controls.Add(tblInfo);
 
-            // DN title bar
             var pnlDNTitle = new Panel
             {
                 Dock = DockStyle.Top, Height = 44,
@@ -479,9 +533,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
             });
 
-            // DN body — 18/32/18/32 column split, multi-line Ship Address
-            // Height matches Reply Slip body (380px) so the Ship Address row
-            // has the same vertical space to wrap long text.
             var pnlDNBody = new Panel
             {
                 Dock = DockStyle.Top, Height = 380,
@@ -497,14 +548,16 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             AddInfoRow(tblDN, 2, "Total Amount:", $"HK$ {s.TotalAmount:N2}", "Ship Type:", s.ShipmentType);
             pnlDNBody.Controls.Add(tblDN);
 
-            // Items
             var pnlLineLabel = BuildSectionLabel("SHIPMENT ITEMS");
             var dgv          = BuildItemsGrid();
             foreach (var ln in lines)
                 dgv.Rows.Add(ln.ShipmentLineID, ln.ItemID, ln.ItemName, ln.QtyShipped, ln.QtyOutstanding?.ToString() ?? "\u2014");
 
             var pnlTotal  = BuildTotalRow(lines.Count, (double)s.TotalAmount);
-            var pnlFooter = BuildCloseFooter(dlg);
+
+            // ── Footer with Export PDF + Close
+            var pnlFooter = BuildPdfCloseFooter(dlg,
+                pdfAction: () => TriggerExportPdf_DN(detail, dlg));
 
             dlg.Controls.Add(pnlFooter);
             dlg.Controls.Add(pnlTotal);
@@ -518,6 +571,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             dlg.ShowDialog(this);
         }
 
+        // ── View Reply Slip dialog (RS already exists) — has Export PDF
         private void ShowViewReplySlipDialog(ShipmentDetailVM detail)
         {
             var s  = detail.Shipment;
@@ -535,7 +589,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 MaximizeBox = false, MinimizeBox = false
             };
 
-            // Header
             var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 80, BackColor = Color.FromArgb(19, 35, 61) };
             var tblH = new TableLayoutPanel
             {
@@ -563,7 +616,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }, 1, 0);
             pnlHeader.Controls.Add(tblH);
 
-            // Shipment info
             var pnlInfo = new Panel
             {
                 Dock = DockStyle.Top, Height = 220,
@@ -577,7 +629,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             AddInfoRow(tblInfo, 3, "Status:",       s.ShipmentStatus,                      "Ship Type:",       s.ShipmentType);
             pnlInfo.Controls.Add(tblInfo);
 
-            // RS title bar
             var pnlSlipTitle = new Panel
             {
                 Dock = DockStyle.Top, Height = 44,
@@ -592,7 +643,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
             });
 
-            // RS body — 18/32/18/32 column split, multi-line Ship Address
             var pnlSlipBody = new Panel
             {
                 Dock = DockStyle.Top, Height = 380,
@@ -608,14 +658,16 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             AddInfoRowStatic(tblSlip, 2, "Remark:", rs?.RecipientRemark ?? "\u2014", "Total Amount:", $"HK$ {s.TotalAmount:N2}");
             pnlSlipBody.Controls.Add(tblSlip);
 
-            // Items
             var pnlLineLabel = BuildSectionLabel("SHIPMENT ITEMS");
             var dgv          = BuildItemsGrid();
             foreach (var ln in lines)
                 dgv.Rows.Add(ln.ShipmentLineID, ln.ItemID, ln.ItemName, ln.QtyShipped, ln.QtyOutstanding?.ToString() ?? "\u2014");
 
             var pnlTotal  = BuildTotalRow(lines.Count, (double)s.TotalAmount);
-            var pnlFooter = BuildCloseFooter(dlg);
+
+            // ── Footer with Export PDF + Close
+            var pnlFooter = BuildPdfCloseFooter(dlg,
+                pdfAction: () => TriggerExportPdf_RS(detail, dlg));
 
             dlg.Controls.Add(pnlFooter);
             dlg.Controls.Add(pnlTotal);
@@ -629,6 +681,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             dlg.ShowDialog(this);
         }
 
+        // ── Generate Delivery Note dialog — has Export PDF + Generate
         private void ShowGenerateDeliveryNoteDialog(ShipmentDetailVM detail)
         {
             var s     = detail.Shipment;
@@ -645,7 +698,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 MaximizeBox = false, MinimizeBox = false
             };
 
-            // Header
             var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 80, BackColor = Color.FromArgb(19, 35, 61) };
             var tblH = new TableLayoutPanel
             {
@@ -673,7 +725,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }, 1, 0);
             pnlHeader.Controls.Add(tblH);
 
-            // Info rows
             var pnlInfo = new Panel
             {
                 Dock = DockStyle.Top, Height = 220,
@@ -687,7 +738,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             AddInfoRowStatic(tblInfo, 3, "Status:",       s.ShipmentStatus,                      "Ship Type:",       s.ShipmentType);
             pnlInfo.Controls.Add(tblInfo);
 
-            // Items
             var pnlLineLabel = BuildSectionLabel("SHIPMENT ITEMS");
             var dgv          = BuildItemsGrid();
             foreach (var ln in lines)
@@ -695,7 +745,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             var pnlTotal = BuildTotalRow(lines.Count, (double)s.TotalAmount);
 
-            // Footer with Generate button
+            // ── Footer: Generate + Export PDF + Cancel
             const int BtnH = 60;
             var pnlFooter = new Panel
             {
@@ -716,7 +766,20 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             btnGen.FlatAppearance.MouseOverBackColor = Color.FromArgb(16, 131, 58);
             btnGen.FlatAppearance.MouseDownBackColor = Color.FromArgb(10, 100, 40);
 
-            var btnClose2 = new Button
+            var btnPdf = new Button
+            {
+                Text      = "\uD83D\uDCC4  Export PDF",
+                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.White, BackColor = BlueNorm,
+                FlatStyle = FlatStyle.Flat, Size = new Size(180, BtnH), Cursor = Cursors.Hand,
+                Anchor    = AnchorStyles.Top | AnchorStyles.Right
+            };
+            btnPdf.FlatAppearance.BorderSize         = 0;
+            btnPdf.FlatAppearance.MouseOverBackColor = BlueHover;
+            btnPdf.FlatAppearance.MouseDownBackColor = BlueDown;
+            btnPdf.Click += (_, __) => TriggerExportPdf_DN(detail, dlg);
+
+            var btnCancel = new Button
             {
                 Text      = "Cancel",
                 Font      = new Font("Segoe UI", 12f),
@@ -724,21 +787,23 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 FlatStyle = FlatStyle.Flat, Size = new Size(160, BtnH), Cursor = Cursors.Hand,
                 Anchor    = AnchorStyles.Top | AnchorStyles.Right
             };
-            btnClose2.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
-            btnClose2.FlatAppearance.BorderSize         = 1;
-            btnClose2.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
-            btnClose2.Click += (_, __) => dlg.Close();
+            btnCancel.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
+            btnCancel.FlatAppearance.BorderSize         = 1;
+            btnCancel.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
+            btnCancel.Click += (_, __) => dlg.Close();
 
-            const int Gap2 = 16;
+            const int Gap2 = 12;
             pnlFooter.SizeChanged += (o, ev) =>
             {
                 int top2   = (pnlFooter.ClientSize.Height - BtnH) / 2;
                 int rEdge2 = pnlFooter.ClientSize.Width - 28;
-                btnGen.Location    = new Point(rEdge2 - 260,                top2);
-                btnClose2.Location = new Point(rEdge2 - 260 - Gap2 - 160,  top2);
+                btnGen.Location    = new Point(rEdge2 - 260,                              top2);
+                btnPdf.Location    = new Point(rEdge2 - 260 - Gap2 - 180,                top2);
+                btnCancel.Location = new Point(rEdge2 - 260 - Gap2 - 180 - Gap2 - 160,  top2);
             };
-            btnGen.Location    = new Point(2500 - 28 - 260,               (90 - BtnH) / 2);
-            btnClose2.Location = new Point(2500 - 28 - 260 - Gap2 - 160, (90 - BtnH) / 2);
+            btnGen.Location    = new Point(2500 - 28 - 260,                              (90 - BtnH) / 2);
+            btnPdf.Location    = new Point(2500 - 28 - 260 - Gap2 - 180,                (90 - BtnH) / 2);
+            btnCancel.Location = new Point(2500 - 28 - 260 - Gap2 - 180 - Gap2 - 160,  (90 - BtnH) / 2);
 
             btnGen.Click += (_, __) =>
             {
@@ -759,7 +824,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             };
 
             pnlFooter.Controls.Add(btnGen);
-            pnlFooter.Controls.Add(btnClose2);
+            pnlFooter.Controls.Add(btnPdf);
+            pnlFooter.Controls.Add(btnCancel);
 
             dlg.Controls.Add(pnlFooter);
             dlg.Controls.Add(pnlTotal);
@@ -771,13 +837,13 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             dlg.ShowDialog(this);
         }
 
+        // ── Generate Reply Slip dialog — has Export PDF + Generate
         private void ShowGenerateReplySlipDialog(ShipmentDetailVM detail)
         {
             var s     = detail.Shipment;
             var dn    = detail.DeliveryNote;
             var rs    = detail.ReplySlip;
             var lines = detail.Lines ?? new List<ShipmentLineEntity>();
-
             bool rsExists = rs != null;
 
             var dlg = new Form
@@ -791,7 +857,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 MaximizeBox = false, MinimizeBox = false
             };
 
-            // Header
             var pnlHeader = new Panel { Dock = DockStyle.Top, Height = 80, BackColor = Color.FromArgb(19, 35, 61) };
             var tblH = new TableLayoutPanel
             {
@@ -819,7 +884,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             }, 1, 0);
             pnlHeader.Controls.Add(tblH);
 
-            // Shipment info
             var pnlInfo = new Panel
             {
                 Dock = DockStyle.Top, Height = 220,
@@ -833,7 +897,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             AddInfoRowStatic(tblInfo, 3, "Status:",       s.ShipmentStatus,                      "Ship Type:",       s.ShipmentType);
             pnlInfo.Controls.Add(tblInfo);
 
-            // RS blue title bar
             var pnlSlipTitle = new Panel
             {
                 Dock = DockStyle.Top, Height = 44,
@@ -848,7 +911,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
             });
 
-            // RS body — 18/32/18/32 column split, multi-line Ship Address
             var pnlSlipBody = new Panel
             {
                 Dock = DockStyle.Top, Height = 380,
@@ -864,7 +926,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             AddInfoRowStatic(tblSlip, 2, "Total Amount:", $"HK$ {s.TotalAmount:N2}", "Ship Type:", s.ShipmentType);
             pnlSlipBody.Controls.Add(tblSlip);
 
-            // Warning bar
             var pnlWarn = new Panel
             {
                 Dock    = DockStyle.Top,
@@ -883,7 +944,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                     Dock      = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, AutoSize = false
                 });
 
-            // Items
             var pnlLineLabel = BuildSectionLabel("SHIPMENT ITEMS");
             var dgv          = BuildItemsGrid();
             foreach (var ln in lines)
@@ -891,7 +951,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
 
             var pnlTotal = BuildTotalRow(lines.Count, (double)s.TotalAmount);
 
-            // Footer with Generate button
+            // ── Footer: Generate + Export PDF + Cancel
             const int BtnH = 60;
             var pnlFooter = new Panel
             {
@@ -904,15 +964,28 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             {
                 Text      = "\u2714  Generate Reply Slip",
                 Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
-                ForeColor = Color.White, BackColor = Color.FromArgb(47, 111, 237),
+                ForeColor = Color.White, BackColor = BlueNorm,
                 FlatStyle = FlatStyle.Flat, Size = new Size(240, BtnH), Cursor = Cursors.Hand,
                 Anchor    = AnchorStyles.Top | AnchorStyles.Right
             };
             btnGen.FlatAppearance.BorderSize         = 0;
-            btnGen.FlatAppearance.MouseOverBackColor = Color.FromArgb(26, 77, 192);
-            btnGen.FlatAppearance.MouseDownBackColor = Color.FromArgb(21, 60, 155);
+            btnGen.FlatAppearance.MouseOverBackColor = BlueHover;
+            btnGen.FlatAppearance.MouseDownBackColor = BlueDown;
 
-            var btnClose2 = new Button
+            var btnPdf = new Button
+            {
+                Text      = "\uD83D\uDCC4  Export PDF",
+                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.White, BackColor = Color.FromArgb(99, 102, 241),
+                FlatStyle = FlatStyle.Flat, Size = new Size(180, BtnH), Cursor = Cursors.Hand,
+                Anchor    = AnchorStyles.Top | AnchorStyles.Right
+            };
+            btnPdf.FlatAppearance.BorderSize         = 0;
+            btnPdf.FlatAppearance.MouseOverBackColor = Color.FromArgb(79, 70, 229);
+            btnPdf.FlatAppearance.MouseDownBackColor = Color.FromArgb(67, 56, 202);
+            btnPdf.Click += (_, __) => TriggerExportPdf_RS(detail, dlg);
+
+            var btnCancel = new Button
             {
                 Text      = "Cancel",
                 Font      = new Font("Segoe UI", 12f),
@@ -920,27 +993,28 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                 FlatStyle = FlatStyle.Flat, Size = new Size(160, BtnH), Cursor = Cursors.Hand,
                 Anchor    = AnchorStyles.Top | AnchorStyles.Right
             };
-            btnClose2.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
-            btnClose2.FlatAppearance.BorderSize         = 1;
-            btnClose2.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
-            btnClose2.Click += (_, __) => dlg.Close();
+            btnCancel.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
+            btnCancel.FlatAppearance.BorderSize         = 1;
+            btnCancel.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
+            btnCancel.Click += (_, __) => dlg.Close();
 
-            const int Gap2 = 16;
+            const int Gap2 = 12;
             pnlFooter.SizeChanged += (o, ev) =>
             {
                 int top2   = (pnlFooter.ClientSize.Height - BtnH) / 2;
                 int rEdge2 = pnlFooter.ClientSize.Width - 28;
-                btnGen.Location    = new Point(rEdge2 - 240,                top2);
-                btnClose2.Location = new Point(rEdge2 - 240 - Gap2 - 160,  top2);
+                btnGen.Location    = new Point(rEdge2 - 240,                              top2);
+                btnPdf.Location    = new Point(rEdge2 - 240 - Gap2 - 180,                top2);
+                btnCancel.Location = new Point(rEdge2 - 240 - Gap2 - 180 - Gap2 - 160,  top2);
             };
-            btnGen.Location    = new Point(2500 - 28 - 240,                (90 - BtnH) / 2);
-            btnClose2.Location = new Point(2500 - 28 - 240 - Gap2 - 160,  (90 - BtnH) / 2);
+            btnGen.Location    = new Point(2500 - 28 - 240,                              (90 - BtnH) / 2);
+            btnPdf.Location    = new Point(2500 - 28 - 240 - Gap2 - 180,                (90 - BtnH) / 2);
+            btnCancel.Location = new Point(2500 - 28 - 240 - Gap2 - 180 - Gap2 - 160,  (90 - BtnH) / 2);
 
             btnGen.Click += (_, __) =>
             {
                 try
                 {
-                    // Collect actualRecipient (required) and remark (optional) via inline dialog
                     using var inputDlg = new Form
                     {
                         Text = "Generate Reply Slip", Size = new Size(480, 220),
@@ -952,7 +1026,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
                     var txtR = new TextBox { Left = 188, Top = 24, Width = 252, Text = s.CustomerName };
                     var lblM = new Label { Text = "Remark (optional):", Left = 24, Top = 64, Width = 160, AutoSize = false, Height = 28, TextAlign = ContentAlignment.MiddleLeft };
                     var txtM = new TextBox { Left = 188, Top = 64, Width = 252 };
-                    var btnOk  = new Button { Text = "Generate", Left = 268, Top = 112, Width = 100, Height = 36, DialogResult = DialogResult.OK, BackColor = Color.FromArgb(47,111,237), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
+                    var btnOk  = new Button { Text = "Generate", Left = 268, Top = 112, Width = 100, Height = 36, DialogResult = DialogResult.OK, BackColor = BlueNorm, ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
                     var btnCx  = new Button { Text = "Cancel",   Left = 376, Top = 112, Width = 80,  Height = 36, DialogResult = DialogResult.Cancel, FlatStyle = FlatStyle.Flat };
                     btnOk.FlatAppearance.BorderSize = 0;
                     inputDlg.Controls.AddRange(new Control[]{ lblR, txtR, lblM, txtM, btnOk, btnCx });
@@ -974,7 +1048,8 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             };
 
             pnlFooter.Controls.Add(btnGen);
-            pnlFooter.Controls.Add(btnClose2);
+            pnlFooter.Controls.Add(btnPdf);
+            pnlFooter.Controls.Add(btnCancel);
 
             dlg.Controls.Add(pnlFooter);
             dlg.Controls.Add(pnlTotal);
@@ -989,7 +1064,64 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             dlg.ShowDialog(this);
         }
 
-        // ── UI builder helpers ──────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────
+        // UI builder helpers
+        // ─────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Footer with Export PDF (blue) + Close (outline).
+        /// Used by View-DN and View-RS dialogs.
+        /// </summary>
+        private static Panel BuildPdfCloseFooter(Form owner, Action pdfAction)
+        {
+            const int BtnH = 60, Gap = 12;
+            var pnlFooter = new Panel
+            {
+                Dock = DockStyle.Bottom, Height = 90,
+                BackColor = Color.White, Padding = new Padding(28, 15, 28, 15)
+            };
+            pnlFooter.Paint += PaintTopBorderStatic;
+
+            var btnPdf = new Button
+            {
+                Text      = "\uD83D\uDCC4  Export PDF",
+                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.White, BackColor = BlueNorm,
+                FlatStyle = FlatStyle.Flat, Size = new Size(180, BtnH), Cursor = Cursors.Hand,
+                Anchor    = AnchorStyles.Top | AnchorStyles.Right
+            };
+            btnPdf.FlatAppearance.BorderSize         = 0;
+            btnPdf.FlatAppearance.MouseOverBackColor = BlueHover;
+            btnPdf.FlatAppearance.MouseDownBackColor = BlueDown;
+            btnPdf.Click += (_, __) => pdfAction();
+
+            var btnClose = new Button
+            {
+                Text      = "Close",
+                Font      = new Font("Segoe UI", 12f),
+                ForeColor = Color.FromArgb(15, 31, 53), BackColor = Color.White,
+                FlatStyle = FlatStyle.Flat, Size = new Size(160, BtnH), Cursor = Cursors.Hand,
+                Anchor    = AnchorStyles.Top | AnchorStyles.Right
+            };
+            btnClose.FlatAppearance.BorderColor        = Color.FromArgb(221, 227, 236);
+            btnClose.FlatAppearance.BorderSize         = 1;
+            btnClose.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 244, 249);
+            btnClose.Click += (_, __) => owner.Close();
+
+            pnlFooter.SizeChanged += (o, ev) =>
+            {
+                int top2  = (pnlFooter.ClientSize.Height - BtnH) / 2;
+                int rEdge = pnlFooter.ClientSize.Width - 28;
+                btnClose.Location = new Point(rEdge - 160,            top2);
+                btnPdf.Location   = new Point(rEdge - 160 - Gap - 180, top2);
+            };
+            btnClose.Location = new Point(2500 - 28 - 160,             (90 - BtnH) / 2);
+            btnPdf.Location   = new Point(2500 - 28 - 160 - Gap - 180, (90 - BtnH) / 2);
+
+            pnlFooter.Controls.Add(btnPdf);
+            pnlFooter.Controls.Add(btnClose);
+            return pnlFooter;
+        }
 
         private static Panel BuildSectionLabel(string title)
         {
@@ -1098,14 +1230,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             return pnlFooter;
         }
 
-        /// <summary>
-        /// Build a 4-column TableLayoutPanel with percent-based column widths.
-        /// Column layout: Key-L (col0%) | Val-L (valW%) | Key-R (col2%) | Val-R (valW%)
-        /// where valW = (100 - col0 - col2) / 2.
-        ///
-        /// Default (col0=16, col2=16): 16% | 34% | 16% | 34%
-        /// DN/RS body (col0=18, col2=18): 18% | 32% | 18% | 32%
-        /// </summary>
         private static TableLayoutPanel Build4ColTlp(int rows, float col0 = 16f, float col2 = 16f, float unused = 0f)
         {
             var tlp = new TableLayoutPanel
@@ -1158,8 +1282,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             tbl.Controls.Add(MakeLabelVal(valR ?? "\u2014"),  3, row);
         }
 
-        // ── Static variants (used in dialogs that don't need instance context) ──
-
         private static Label MakeLabelKeyStatic(string text) => MakeLabelKey(text);
         private static Label MakeLabelValStatic(string text) => MakeLabelVal(text);
         private static Label MakeLabelValMultiLineStatic(string text) => MakeLabelValMultiLine(text);
@@ -1173,7 +1295,6 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             tbl.Controls.Add(MakeLabelValStatic(valR ?? "\u2014"),  3, row);
         }
 
-        // ── Designer.cs wired instance event handlers ──────────────────────────
         private void PaintCardBorder(object sender, PaintEventArgs e)
         {
             var ctl  = (Control)sender;
