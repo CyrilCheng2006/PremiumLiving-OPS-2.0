@@ -12,8 +12,7 @@ namespace PremiumLivingOPS.Services
 {
     /// <summary>
     /// Lightweight PDF export helper using only .NET built-in APIs (GDI+).
-    /// Generates a clean A4 portrait PDF via PrintDocument rendered to an EMF
-    /// meta-file, then wrapped in a minimal valid PDF 1.4 binary stream.
+    /// Output: A4 Landscape (297mm × 210mm @ 96 DPI = 1123 × 794 px).
     ///
     /// Covers:
     ///   - ExportDeliveryNote  (Delivery Note window)
@@ -21,9 +20,9 @@ namespace PremiumLivingOPS.Services
     /// </summary>
     public static class PdfExportHelper
     {
-        // A4 @ 96 DPI (WinForms screen resolution)
-        private const int PageW = 794;   // 210mm
-        private const int PageH = 1123;  // 297mm
+        // A4 Landscape @ 96 DPI
+        private const int PageW = 1123;  // 297mm wide
+        private const int PageH = 794;   // 210mm tall
         private const int Margin = 48;
 
         // ─────────────────────────────────────────────────────────────
@@ -74,24 +73,24 @@ namespace PremiumLivingOPS.Services
             // ── Company header band
             using (var hBrush = new SolidBrush(Color.FromArgb(19, 35, 61)))
                 g.FillRectangle(hBrush, x, y, cw, 52);
-            using var fHead = new Font("Segoe UI", 13f, FontStyle.Bold);
+            using var fHead = new Font("Segoe UI", 14f, FontStyle.Bold);
             g.DrawString("PREMIUM LIVING OPS", fHead, Brushes.White,
                 new RectangleF(x + 14, y, cw - 14, 52),
                 new StringFormat { LineAlignment = StringAlignment.Center });
-            using var fSub = new Font("Segoe UI", 9f);
+            using var fSub = new Font("Segoe UI", 10f);
             g.DrawString("DELIVERY NOTE", fSub,
                 new SolidBrush(Color.FromArgb(209, 250, 229)),
                 new RectangleF(x + 14, y, cw - 14, 52),
                 new StringFormat { Alignment = StringAlignment.Far, LineAlignment = StringAlignment.Center });
-            y += 60;
+            y += 62;
 
-            // ── Info grid (two-column)
-            DrawInfoPair(g, x, ref y, cw, "Shipment ID",     s.ShipmentID,      "Order ID",        s.OrderID);
-            DrawInfoPair(g, x, ref y, cw, "Customer",        s.CustomerName,    "Tracking No.",    s.TrackingNumber ?? "—");
-            DrawInfoPair(g, x, ref y, cw, "Ship Date",       s.ShipDate.ToString("yyyy-MM-dd"), "Delivery Method", s.DeliveryMethod);
-            DrawInfoPair(g, x, ref y, cw, "Shipment Status", s.ShipmentStatus,  "Ship Type",       s.ShipmentType);
-            DrawInfoPair(g, x, ref y, cw, "Ship Address",    s.ShippingAddress, "Outstanding Qty", outQty.ToString());
-            DrawInfoPair(g, x, ref y, cw, "Delivery Date",   DateTime.Today.ToString("yyyy-MM-dd"), "Ship To", s.CustomerName);
+            // ── Info grid — 3 rows × 2 columns (wider layout for landscape)
+            DrawInfoPair(g, x, ref y, cw, "Shipment ID",     s.ShipmentID,                          "Order ID",        s.OrderID);
+            DrawInfoPair(g, x, ref y, cw, "Customer",        s.CustomerName,                        "Tracking No.",    s.TrackingNumber ?? "—");
+            DrawInfoPair(g, x, ref y, cw, "Ship Date",       s.ShipDate.ToString("yyyy-MM-dd"),     "Delivery Method", s.DeliveryMethod);
+            DrawInfoPair(g, x, ref y, cw, "Shipment Status", s.ShipmentStatus,                      "Ship Type",       s.ShipmentType);
+            DrawInfoPair(g, x, ref y, cw, "Ship Address",    s.ShippingAddress,                     "Outstanding Qty", outQty.ToString());
+            DrawInfoPair(g, x, ref y, cw, "Delivery Date",   DateTime.Today.ToString("yyyy-MM-dd"), "Ship To",         s.CustomerName);
 
             y += 8;
             DrawSectionBar(g, x, ref y, cw, "SHIPMENT ITEMS",
@@ -99,7 +98,7 @@ namespace PremiumLivingOPS.Services
 
             // ── Items table
             string[] headers = { "Line ID", "Item ID", "Item Name", "Qty Shipped", "Outstanding" };
-            float[]  weights = { 0.13f, 0.12f, 0.40f, 0.18f, 0.17f };
+            float[]  weights = { 0.12f, 0.11f, 0.42f, 0.18f, 0.17f };
             DrawTableHeader(g, x, ref y, cw, headers, weights);
             foreach (var ln in lines)
             {
@@ -141,22 +140,22 @@ namespace PremiumLivingOPS.Services
             // ── Header band (purple-navy for Reply Slip)
             using (var hBrush = new SolidBrush(Color.FromArgb(30, 27, 75)))
                 g.FillRectangle(hBrush, x, y, cw, 52);
-            using var fHead = new Font("Segoe UI", 13f, FontStyle.Bold);
+            using var fHead = new Font("Segoe UI", 14f, FontStyle.Bold);
             g.DrawString("PREMIUM LIVING OPS", fHead, Brushes.White,
                 new RectangleF(x + 14, y, cw - 14, 52),
                 new StringFormat { LineAlignment = StringAlignment.Center });
-            using var fSub = new Font("Segoe UI", 9f);
+            using var fSub = new Font("Segoe UI", 10f);
             g.DrawString("REPLY SLIP", fSub,
                 new SolidBrush(Color.FromArgb(216, 180, 254)),
                 new RectangleF(x + 14, y, cw - 14, 52),
                 new StringFormat { Alignment = StringAlignment.Far, LineAlignment = StringAlignment.Center });
-            y += 60;
+            y += 62;
 
             // ── Info grid
-            DrawInfoPair(g, x, ref y, cw, "Shipment ID",  s.ShipmentID,  "Order ID",        s.OrderID);
-            DrawInfoPair(g, x, ref y, cw, "Customer",     s.CustomerName, "Tracking No.",   s.TrackingNumber ?? "—");
+            DrawInfoPair(g, x, ref y, cw, "Shipment ID",  s.ShipmentID,                      "Order ID",        s.OrderID);
+            DrawInfoPair(g, x, ref y, cw, "Customer",     s.CustomerName,                    "Tracking No.",    s.TrackingNumber ?? "—");
             DrawInfoPair(g, x, ref y, cw, "Ship Date",    s.ShipDate.ToString("yyyy-MM-dd"), "Delivery Method", s.DeliveryMethod);
-            DrawInfoPair(g, x, ref y, cw, "Ship Address", s.ShippingAddress, "Ship Type",   s.ShipmentType);
+            DrawInfoPair(g, x, ref y, cw, "Ship Address", s.ShippingAddress,                 "Ship Type",       s.ShipmentType);
 
             // ── Reply section
             y += 8;
@@ -175,7 +174,7 @@ namespace PremiumLivingOPS.Services
 
             // ── Items table with Condition column
             string[] headers = { "Line ID", "Item Name", "Qty Shipped", "Qty Received", "Condition" };
-            float[]  weights = { 0.14f, 0.38f, 0.16f, 0.16f, 0.16f };
+            float[]  weights = { 0.13f, 0.40f, 0.16f, 0.15f, 0.16f };
             DrawTableHeader(g, x, ref y, cw, headers, weights);
             foreach (var ln in lines)
             {
@@ -200,7 +199,7 @@ namespace PremiumLivingOPS.Services
         private static void DrawInfoPair(
             Graphics g, int x, ref int y, int cw,
             string keyL, string valL, string keyR, string valR,
-            int rowH = 30)
+            int rowH = 28)
         {
             using var fKey = new Font("Segoe UI", 8f, FontStyle.Bold);
             using var fVal = new Font("Segoe UI", 9f);
@@ -209,11 +208,11 @@ namespace PremiumLivingOPS.Services
             int half = cw / 2;
 
             g.DrawString(keyL, fKey, new SolidBrush(clrKey), x,          y + 2);
-            g.DrawString(valL, fVal, new SolidBrush(clrVal), x + 96,     y + 2);
+            g.DrawString(valL, fVal, new SolidBrush(clrVal), x + 110,    y + 2);
             if (!string.IsNullOrEmpty(keyR))
             {
                 g.DrawString(keyR, fKey, new SolidBrush(clrKey), x + half,      y + 2);
-                g.DrawString(valR, fVal, new SolidBrush(clrVal), x + half + 96, y + 2);
+                g.DrawString(valR, fVal, new SolidBrush(clrVal), x + half + 110, y + 2);
             }
 
             y += rowH;
@@ -307,7 +306,7 @@ namespace PremiumLivingOPS.Services
 
         private static void SaveBitmapAsPdf(Bitmap bmp, string filePath, string title)
         {
-            // Convert bitmap to JPEG bytes (embedded image stream in PDF)
+            // Convert bitmap to JPEG bytes
             byte[] imgBytes;
             using (var ms = new MemoryStream())
             {
@@ -316,15 +315,15 @@ namespace PremiumLivingOPS.Services
             }
 
             // PDF dimensions: convert 96dpi pixels to 72dpi points
-            double pdfW = bmp.Width  * 72.0 / 96.0;
-            double pdfH = bmp.Height * 72.0 / 96.0;
+            // Width > Height confirms landscape orientation in PDF viewer
+            double pdfW = bmp.Width  * 72.0 / 96.0;   // ~842pt (A4 landscape width)
+            double pdfH = bmp.Height * 72.0 / 96.0;   // ~595pt (A4 landscape height)
 
-            // Build PDF objects
-            var sb  = new StringBuilder();
+            var sb   = new StringBuilder();
             var xref = new List<int>();
 
             sb.Append("%PDF-1.4\n");
-            sb.Append("%\u00e2\u00e3\u00cf\u00d3\n"); // binary comment marker
+            sb.Append("%\u00e2\u00e3\u00cf\u00d3\n");
 
             // Obj 1 — Catalog
             xref.Add(sb.Length);
@@ -334,13 +333,13 @@ namespace PremiumLivingOPS.Services
             xref.Add(sb.Length);
             sb.Append("2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n");
 
-            // Obj 3 — Page
+            // Obj 3 — Page (MediaBox width > height = landscape)
             xref.Add(sb.Length);
             sb.Append($"3 0 obj\n<< /Type /Page /Parent 2 0 R "
                     + $"/MediaBox [0 0 {pdfW:F2} {pdfH:F2}] "
                     + $"/Contents 4 0 R /Resources << /XObject << /Im1 5 0 R >> >> >>\nendobj\n");
 
-            // Obj 4 — Content stream (draw image full page)
+            // Obj 4 — Content stream
             string contentStr = $"q {pdfW:F2} 0 0 {pdfH:F2} 0 0 cm /Im1 Do Q\n";
             byte[] contentBytes = Encoding.ASCII.GetBytes(contentStr);
             xref.Add(sb.Length);
@@ -355,17 +354,12 @@ namespace PremiumLivingOPS.Services
                              + $"/ColorSpace /DeviceRGB /BitsPerComponent 8 "
                              + $"/Filter /DCTDecode /Length {imgBytes.Length} >>\nstream\n";
 
-            // Write binary PDF to file
             using var fs = new FileStream(filePath, FileMode.Create, FileAccess.Write);
             using var bw = new BinaryWriter(fs, Encoding.ASCII);
 
-            // Write string objects before image
             byte[] prefix = Encoding.ASCII.GetBytes(sb.ToString());
             bw.Write(prefix);
 
-            // Obj 5 image XObject — record accurate xref offset
-            // (sb.Length above was an approximation; recalculate after writing prefix)
-            // Update xref[4] with actual byte offset
             xref[4] = (int)fs.Position;
             byte[] imgHeaderBytes = Encoding.ASCII.GetBytes(imgHeader);
             bw.Write(imgHeaderBytes);
@@ -373,14 +367,12 @@ namespace PremiumLivingOPS.Services
             byte[] imgTrailer = Encoding.ASCII.GetBytes("\nendstream\nendobj\n");
             bw.Write(imgTrailer);
 
-            // XRef table
             int xrefOffset = (int)fs.Position;
             bw.Write(Encoding.ASCII.GetBytes(
                 $"xref\n0 6\n0000000000 65535 f \n"));
             foreach (int offset in xref)
                 bw.Write(Encoding.ASCII.GetBytes($"{offset:D10} 00000 n \n"));
 
-            // Trailer
             bw.Write(Encoding.ASCII.GetBytes(
                 $"trailer\n<< /Size 6 /Root 1 0 R >>\n"
               + $"startxref\n{xrefOffset}\n%%EOF\n"));
