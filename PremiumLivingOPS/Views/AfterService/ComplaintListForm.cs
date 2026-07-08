@@ -221,8 +221,9 @@ namespace PremiumLivingOPS.Views.AfterService
             {
                 using var conn = DatabaseHelper.GetConnection();
                 conn.Open();
+                // Exclude quotation orders (STG-QT prefix) — not applicable to complaints
                 using var cmd = new MySql.Data.MySqlClient.MySqlCommand(
-                    "SELECT OrderID FROM `Order` ORDER BY OrderID DESC", conn);
+                    "SELECT OrderID FROM `Order` WHERE OrderID NOT LIKE 'STG-QT%' ORDER BY OrderID DESC", conn);
                 using var rdr = cmd.ExecuteReader();
                 while (rdr.Read()) orders.Add(rdr.GetString(0));
             }
