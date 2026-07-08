@@ -4,6 +4,8 @@ using PremiumLivingOPS.Models.ViewModels;
 using PremiumLivingOPS.Services;
 using System;
 using System.Drawing;
+using System.Drawing.Printing;
+using System.IO;
 using System.Windows.Forms;
 
 namespace PremiumLivingOPS.Views.LogisticsProcessing
@@ -221,7 +223,7 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             pnlTotalRow.Controls.Add(tblTotal);
 
             // ── Footer
-            const int BtnW = 210, BtnH = 60;
+            const int BtnH = 60;
             var pnlFooter = new Panel
             {
                 Dock = DockStyle.Bottom, Height = 100,
@@ -241,6 +243,20 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             btnGen.FlatAppearance.MouseOverBackColor = Color.FromArgb(16, 131, 58);
             btnGen.FlatAppearance.MouseDownBackColor = Color.FromArgb(10, 100, 40);
 
+            // ── Export PDF button (restored)
+            var btnPdf = new Button
+            {
+                Text      = "\uD83D\uDCC4  Export PDF",
+                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = Color.White, BackColor = Color.FromArgb(47, 111, 237),
+                FlatStyle = FlatStyle.Flat, Size = new Size(180, BtnH), Cursor = Cursors.Hand,
+                Anchor    = AnchorStyles.Top | AnchorStyles.Right
+            };
+            btnPdf.FlatAppearance.BorderSize         = 0;
+            btnPdf.FlatAppearance.MouseOverBackColor = Color.FromArgb(29, 78, 216);
+            btnPdf.FlatAppearance.MouseDownBackColor = Color.FromArgb(17, 58, 178);
+            btnPdf.Click += (_, __) => ExportDeliveryNotePdf(_detail);
+
             var btnCancel = new Button
             {
                 Text      = "Cancel",
@@ -257,16 +273,19 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             {
                 int top   = (pnlFooter.ClientSize.Height - BtnH) / 2;
                 int rEdge = pnlFooter.ClientSize.Width - 28;
-                btnGen.Location    = new Point(rEdge - 260,             top);
-                btnCancel.Location = new Point(rEdge - 260 - 16 - 160, top);
+                btnGen.Location    = new Point(rEdge - 260,                    top);
+                btnPdf.Location    = new Point(rEdge - 260 - 12 - 180,        top);
+                btnCancel.Location = new Point(rEdge - 260 - 12 - 180 - 12 - 160, top);
             };
-            btnGen.Location    = new Point(2500 - 28 - 260,             (100 - BtnH) / 2);
-            btnCancel.Location = new Point(2500 - 28 - 260 - 16 - 160, (100 - BtnH) / 2);
+            btnGen.Location    = new Point(2500 - 28 - 260,                    (100 - BtnH) / 2);
+            btnPdf.Location    = new Point(2500 - 28 - 260 - 12 - 180,        (100 - BtnH) / 2);
+            btnCancel.Location = new Point(2500 - 28 - 260 - 12 - 180 - 12 - 160, (100 - BtnH) / 2);
 
             btnGen.Click += BtnGen_Click;
             btnCancel.Click += (_, __) => this.Close();
 
             pnlFooter.Controls.Add(btnGen);
+            pnlFooter.Controls.Add(btnPdf);
             pnlFooter.Controls.Add(btnCancel);
 
             // ── Assemble (DockStyle.Top renders first-added at top)
@@ -297,6 +316,41 @@ namespace PremiumLivingOPS.Views.LogisticsProcessing
             {
                 MessageBox.Show($"Failed to generate Delivery Note:\n{ex.Message}",
                     "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // ── Export PDF — Delivery Note
+        internal static void ExportDeliveryNotePdf(ShipmentDetailVM detail)
+        {
+            if (detail?.Shipment == null) return;
+            var s     = detail.Shipment;
+            var lines = detail.Lines ?? new System.Collections.Generic.List<ShipmentLineEntity>();
+            int outQty = 0;
+            foreach (var ln in lines) outQty += ln.QtyOutstanding ?? 0;
+
+            using var dlg = new SaveFileDialog
+            {
+                Title            = "Export Delivery Note as PDF",
+                Filter           = "PDF Files (*.pdf)|*.pdf",
+                FileName         = $"DeliveryNote_{s.ShipmentID}_{DateTime.Today:yyyyMMdd}.pdf",
+                DefaultExt       = "pdf",
+                InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
+            };
+            if (dlg.ShowDialog() != DialogResult.OK) return;
+
+            try
+            {
+                PdfExportHelper.ExportDeliveryNote(dlg.FileName, s, lines, outQty);
+                var result = MessageBox.Show(
+                    $"PDF exported successfully.\n\n{dlg.FileName}\n\nOpen the file now?",
+                    "Export PDF", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
+                if (result == DialogResult.Yes)
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(dlg.FileName) { UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to export PDF:\n{ex.Message}",
+                    "Export PDF Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
